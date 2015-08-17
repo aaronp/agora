@@ -1,1 +1,0 @@
-name := MyBuild.NamePrefix + "client"

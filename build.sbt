@@ -1,30 +1,44 @@
-name := MyBuild.NamePrefix + "root"
+val namePrefix = "gaunch"
+
+name := namePrefix + "-root"
 
 version := "0.0.1"
 
-scalaVersion := "2.11.6"
+scalaVersion := Common.scalaV
 
-lazy val common = project.
-    settings(Common.settings: _*)
+resolvers += Resolver.typesafeRepo("releases")
 
 lazy val api = project.
-    settings(Common.settings: _*).
-    settings(libraryDependencies ++= Dependencies.apiDependencies)
+  settings(Common.settings: _*).
+  settings(name := namePrefix + "-api").
+  settings(libraryDependencies ++= Dependencies.apiDependencies)
 
-lazy val client = project.
-    dependsOn(api).
-    settings(Common.settings: _*).
-    settings(libraryDependencies ++= Dependencies.clientDependencies)
+lazy val domain = project.
+  dependsOn(api).
+  settings(Common.settings: _*).
+  settings(name := namePrefix + "-domain").
+  settings(libraryDependencies ++= Dependencies.domainDependencies)
 
-lazy val server = project.
-    dependsOn(api).
-    settings(Common.settings: _*).
-    settings(libraryDependencies ++= Dependencies.serverDependencies)
+lazy val json = project.
+  dependsOn(api).
+  settings(Common.settings: _*).
+  settings(name := namePrefix + "-json").
+  settings(libraryDependencies ++= Dependencies.jsonDependencies)
 
-lazy val web = project.
-    dependsOn(api, common).
-    settings(Common.settings: _*).
-    settings(libraryDependencies ++= Dependencies.serverDependencies)
+lazy val rest = project.
+  dependsOn(api, domain, ui, json).
+//  configs(IntegrationTest).
+//  settings(Defaults.itSettings).
+  settings(Common.settings: _*).
+  settings(name := namePrefix + "-rest").
+  settings(libraryDependencies ++= Dependencies.restDependencies)
+
+lazy val ui = project.
+  dependsOn(api, json).
+  settings(Common.settings: _*).
+  settings(name := namePrefix + "-ui").
+  settings(libraryDependencies ++= Dependencies.uiDependencies).
+  enablePlugins(ScalaJSPlugin)
 
 lazy val root = (project in file(".")).
-    aggregate(api, common, client, server, web)
+  aggregate(api, domain, ui, json, rest)
