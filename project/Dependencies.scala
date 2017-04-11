@@ -19,7 +19,7 @@ object Dependencies {
     "junit" % "junit" % "4.12" % confs)
 
 
-  val circe = Seq("core", "generic", "parser").map(name => "io.circe" %% s"circe-$name" % "0.7.0")
+  val circe = Seq("core", "generic", "parser", "optics").map(name => "io.circe" %% s"circe-$name" % "0.7.0")
 
   val json: Seq[ModuleID] = circe
 
