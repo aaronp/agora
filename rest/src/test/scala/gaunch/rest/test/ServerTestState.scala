@@ -1,10 +1,10 @@
-package finance.rest.test
+package jabroni.rest.test
 
 import java.io.Closeable
 
-import finance.api.Ledger
-import finance.api.Ledger.InMemoryLedger
-import finance.rest.server.{RestService, ServerConfig}
+import jabroni.api.Ledger
+import jabroni.api.Ledger.InMemoryLedger
+import jabroni.rest.server.{RestService, ServerConfig}
 import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
 

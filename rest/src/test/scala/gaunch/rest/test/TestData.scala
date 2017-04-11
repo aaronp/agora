@@ -1,7 +1,7 @@
-package finance.rest.test
+package jabroni.rest.test
 
 import cucumber.api.DataTable
-import finance.api.{OrderBook, OrderType, _}
+import jabroni.api.{OrderBook, OrderType, _}
 
 import language.implicitConversions
 

@@ -1,6 +1,6 @@
-package finance.api.js
+package jabroni.api.js
 
-import finance.api.{BuyValue, Order, OrderBook, Sell}
+import jabroni.api.{BuyValue, Order, OrderBook, Sell}
 import org.scalajs.dom
 import org.scalajs.dom.html.Table
 import org.scalajs.dom.raw.XMLHttpRequest

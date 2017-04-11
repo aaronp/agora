@@ -1,10 +1,10 @@
-package finance.rest.server
+package jabroni.rest.server
 
 import com.typesafe.config.{Config, ConfigFactory}
-import finance.rest.BaseConfig
+import jabroni.rest.BaseConfig
 
 /**
-  * A parsed configuration for our finance app
+  * A parsed configuration for our jabroni app
   */
 class ServerConfig(override val config: Config) extends BaseConfig {
 
@@ -15,7 +15,7 @@ class ServerConfig(override val config: Config) extends BaseConfig {
 }
 
 object ServerConfig {
-  def defaultConfig = ConfigFactory.load().getConfig("finance.server")
+  def defaultConfig = ConfigFactory.load().getConfig("jabroni.server")
 
   def apply(conf: Config = defaultConfig): ServerConfig = new ServerConfig(conf)
 }

@@ -1,6 +1,6 @@
-package finance.json
+package jabroni.json
 
-import finance.api.{Order, OrderBook, OrderType, OrderValue}
+import jabroni.api.{Order, OrderBook, OrderType, OrderValue}
 import io.circe.Decoder.Result
 import language.implicitConversions
 

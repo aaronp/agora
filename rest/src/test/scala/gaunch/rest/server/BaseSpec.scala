@@ -1,10 +1,10 @@
-package finance.rest.server
+package jabroni.rest.server
 
 import language.implicitConversions
 
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-import finance.api._
+import jabroni.api._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{Matchers, WordSpec}
 

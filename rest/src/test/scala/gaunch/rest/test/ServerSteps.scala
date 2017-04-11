@@ -1,8 +1,8 @@
-package finance.rest.test
+package jabroni.rest.test
 
 import com.typesafe.config.ConfigFactory
 import cucumber.api.scala.{EN, ScalaDsl}
-import finance.rest.server.ServerConfig
+import jabroni.rest.server.ServerConfig
 import org.scalatest.Matchers
 
 class ServerSteps extends ScalaDsl with EN with Matchers {

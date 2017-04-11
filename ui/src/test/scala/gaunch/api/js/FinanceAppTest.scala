@@ -1,4 +1,4 @@
-package finance.api.js
+package jabroni.api.js
 
 import utest._
 import org.scalajs.jquery.jQuery

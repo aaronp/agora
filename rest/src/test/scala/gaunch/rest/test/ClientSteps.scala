@@ -1,10 +1,10 @@
-package finance.rest.test
+package jabroni.rest.test
 
 import com.typesafe.config.ConfigFactory._
 import cucumber.api.DataTable
 import cucumber.api.scala.{EN, ScalaDsl}
-import finance.api.{Order, OrderType, _}
-import finance.rest.client.ClientConfig
+import jabroni.api.{Order, OrderType, _}
+import jabroni.rest.client.ClientConfig
 import org.scalatest.Matchers
 
 class ClientSteps extends ScalaDsl with EN with Matchers with TestData {

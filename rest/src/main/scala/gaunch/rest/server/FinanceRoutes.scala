@@ -1,4 +1,4 @@
-package finance.rest.server
+package jabroni.rest.server
 
 import scala.language.reflectiveCalls
 
@@ -7,8 +7,8 @@ import akka.http.scaladsl.model.{HttpEntity, StatusCodes, Uri}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
-import finance.api.{Buy, Ledger, Order, Sell}
-import finance.json.JsonSupport
+import jabroni.api.{Buy, Ledger, Order, Sell}
+import jabroni.json.JsonSupport
 import io.circe.Json
 import io.circe.generic.auto._
 

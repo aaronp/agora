@@ -1,4 +1,4 @@
-package finance.domain
+package jabroni.domain
 
 import java.nio.file.Files
 

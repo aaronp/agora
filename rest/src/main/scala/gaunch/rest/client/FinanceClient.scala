@@ -1,4 +1,4 @@
-package finance.rest.client
+package jabroni.rest.client
 
 import scala.language.reflectiveCalls
 
@@ -13,8 +13,8 @@ import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
-import finance.api.{Ledger, Order, OrderBook}
-import finance.json.JsonSupport
+import jabroni.api.{Ledger, Order, OrderBook}
+import jabroni.json.JsonSupport
 
 import scala.concurrent.Future
 import scala.scalajs.niocharset.StandardCharsets

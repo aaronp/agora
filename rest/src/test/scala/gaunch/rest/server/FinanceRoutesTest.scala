@@ -1,8 +1,8 @@
-package finance.rest.server
+package jabroni.rest.server
 
 import akka.http.scaladsl.model._
 import HttpMethods._
-import finance.api._
+import jabroni.api._
 import language.reflectiveCalls
 
 /**
@@ -78,8 +78,8 @@ class FinanceRoutesTest extends BaseSpec {
       responseAs[String] should startWith("<!DOCTYPE html>")
     }
   }
-  "GET /ui/js/finance-ui-fastopt.js" ignore {
-    Get("/ui/js/finance-ui-fastopt.js") ~> routes() ~> check {
+  "GET /ui/js/jabroni-ui-fastopt.js" ignore {
+    Get("/ui/js/jabroni-ui-fastopt.js") ~> routes() ~> check {
       response.status.intValue() shouldBe 200
       responseAs[String] should include("The top-level Scala.js environment")
     }

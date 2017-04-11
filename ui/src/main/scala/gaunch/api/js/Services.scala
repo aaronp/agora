@@ -1,7 +1,7 @@
-package finance.api.js
+package jabroni.api.js
 
-import finance.api._
-import finance.json.JsonSupport
+import jabroni.api._
+import jabroni.json.JsonSupport
 import org.scalajs.dom
 import org.scalajs.dom.ext.Ajax
 import org.scalajs.dom.raw.XMLHttpRequest

@@ -1,7 +1,7 @@
-package finance.rest.client
+package jabroni.rest.client
 
 import com.typesafe.config.{Config, ConfigFactory}
-import finance.rest.BaseConfig
+import jabroni.rest.BaseConfig
 
 class ClientConfig(override val config: Config) extends BaseConfig {
 
@@ -10,7 +10,7 @@ class ClientConfig(override val config: Config) extends BaseConfig {
 }
 
 object ClientConfig {
-  def defaultConfig = ConfigFactory.load().getConfig("finance.client")
+  def defaultConfig = ConfigFactory.load().getConfig("jabroni.client")
 
   def apply(conf: Config = defaultConfig): ClientConfig = new ClientConfig(conf)
 }

@@ -1,11 +1,11 @@
-package finance.rest.server
+package jabroni.rest.server
 
 import java.net.URI
 
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
 import com.typesafe.scalalogging.StrictLogging
-import finance.api.Ledger
+import jabroni.api.Ledger
 
 import scala.concurrent.Future
 import scala.io.StdIn
@@ -17,7 +17,7 @@ object RestService extends StrictLogging {
 
   def main(args: Array[String]) = {
     val conf: ServerConfig = {
-      import finance.domain.RichConfig.implicits._
+      import jabroni.domain.RichConfig.implicits._
       val typesafeConfig = args.asConfig().withFallback(ServerConfig.defaultConfig)
       ServerConfig(typesafeConfig)
     }

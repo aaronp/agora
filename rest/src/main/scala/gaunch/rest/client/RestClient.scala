@@ -1,4 +1,4 @@
-package finance.rest.client
+package jabroni.rest.client
 
 import java.io.Closeable
 

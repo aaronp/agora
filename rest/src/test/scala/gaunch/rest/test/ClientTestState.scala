@@ -1,9 +1,9 @@
-package finance.rest.test
+package jabroni.rest.test
 
 import java.io.Closeable
 
-import finance.api.{Order, OrderBook}
-import finance.rest.client.{ClientConfig, FinanceClient}
+import jabroni.api.{Order, OrderBook}
+import jabroni.rest.client.{ClientConfig, FinanceClient}
 import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}

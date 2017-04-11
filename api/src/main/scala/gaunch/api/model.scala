@@ -1,4 +1,4 @@
-package finance.api
+package jabroni.api
 
 sealed trait OrderType
 

@@ -1,4 +1,4 @@
-package finance.api
+package jabroni.api
 
 import org.scalatest.{Matchers, WordSpec}
 
