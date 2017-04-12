@@ -11,7 +11,7 @@ import language.reflectiveCalls
   * that form by e.g. renaming a parameter. that would potentially break clients running against different
   * versions of our service, or dynamic languages (e.g. javascript )
   */
-class FinanceRoutesTest extends BaseSpec {
+class JabroniRoutesTest extends BaseSpec {
 
 
   "GET /rest/orders" should {

@@ -1,4 +1,4 @@
-val namePrefix = "gaunch"
+val namePrefix = "jabroni"
 
 name := namePrefix + "-root"
 

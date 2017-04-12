@@ -22,7 +22,7 @@ class BaseSpec
     def sell[Q <% Quantity](q: Q): AtWord = new AtWord(ledger, Sell, q)
   }
 
-  def routes(ledger: Ledger = Ledger()): Route = FinanceRoutes(ledger).routes
+  def routes(ledger: Ledger = Ledger()): Route = JabroniRoutes(ledger).routes
 
   class AtWord(ledger: Ledger, typ: OrderType, quantity: Quantity) {
     def at(p: Price): Ledger = {

@@ -14,7 +14,7 @@ import scalatags.JsDom
 import scalatags.JsDom.implicits._
 import scalatags.JsDom.tags._
 
-object FinanceApp extends JSApp {
+object JabroniApp extends JSApp {
 
   def main(): Unit = {
     appendPar(document.body, """Live Orders!""".stripMargin)

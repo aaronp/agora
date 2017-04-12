@@ -6,10 +6,10 @@ import org.scalajs.jquery.jQuery
 import scala.scalajs.js
 import scala.scalajs.js.JSON
 
-object FinanceAppTest extends TestSuite {
+object JabroniAppTest extends TestSuite {
 
   // Initialize App
-  //  FinanceApp.setupUI()
+  //  JabroniApp.setupUI()
 
   def tests = TestSuite {
     'parseOrderJson {

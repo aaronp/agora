@@ -1,6 +1,4 @@
-import Dependencies.testDependencies
 import sbt._
-import Keys._
 
 object Dependencies {
   //https://github.com/typesafehub/scala-logging
@@ -30,9 +28,8 @@ object Dependencies {
   val commonTestDeps = testDependencies("test")
 
   val commonDependencies: Seq[ModuleID] = logging ++ commonTestDeps
-  val apiDependencies: Seq[ModuleID] = commonDependencies ++ commonTestDeps
-  val jsonDependencies: Seq[ModuleID] = commonDependencies ++ json ++ commonTestDeps
-  val uiDependencies: Seq[ModuleID] = commonDependencies ++ jsonDependencies
+  val apiDependencies: Seq[ModuleID] = commonDependencies ++ json ++ commonTestDeps
+  val uiDependencies: Seq[ModuleID] = apiDependencies
   val domainDependencies: Seq[ModuleID] = commonDependencies ++ commonTestDeps ++
     Seq("com.typesafe" % "config" % "1.3.1")
   val restDependencies: Seq[ModuleID] = commonDependencies ++ akkaHttp ++ testDependencies("test") ++ cucumber

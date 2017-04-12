@@ -14,7 +14,7 @@ import io.circe.generic.auto._
 
 import scala.concurrent.ExecutionContext
 
-case class FinanceRoutes(ledger: Ledger)(implicit ec: ExecutionContext) extends JsonSupport {
+case class Routes()(implicit ec: ExecutionContext) extends JsonSupport {
 
   // http://doc.akka.io/docs/akka-stream-and-http-experimental/1.0/scala/http/routing-dsl/index.html
   def routes: Route = rest.routes ~ ui.routes ~ debug.routes
@@ -24,38 +24,19 @@ case class FinanceRoutes(ledger: Ledger)(implicit ec: ExecutionContext) extends 
     */
   object rest {
     def routes: Route = pathPrefix("rest") {
-      buyRoute ~ sellRoute ~ ordersRoute ~ cancelRoute
+      requestWorkRoute
     }
 
     private def asResponse(json: Json) = HttpEntity(`application/json`, json.noSpaces)
 
-    val buyRoute = (put & path("buy") & pathEnd) {
-      entity(as[Order]) { order =>
-        complete {
-          require(order.`type` == Buy, s"Expected 'buy', but got '${order.`type`}'")
-          ledger.placeOrder(order).map(Json.fromBoolean).map(asResponse)
-        }
-      }
-    }
-    val cancelRoute = (delete & path("cancel") & pathEnd) {
-      entity(as[Order]) { order =>
-        complete {
-          ledger.cancelOrder(order).map(Json.fromBoolean).map(asResponse)
-        }
-      }
-    }
-    val sellRoute = (put & path("sell") & pathEnd) {
-      entity(as[Order]) { order =>
-        complete {
-          require(order.`type` == Sell, s"Expected 'sell', but got '${order.`type`}'")
-          ledger.placeOrder(order).map(Json.fromBoolean).map(asResponse)
-        }
-      }
-    }
-    val ordersRoute = (get & path("orders") & pathEnd) {
-      complete {
-        ledger.orderBook.map(_.toJson).map(asResponse)
-      }
+    val requestWorkRoute = (put & path("buy") & pathEnd) {
+//      entity(as[Order]) { order =>
+//        complete {
+//          require(order.`type` == Buy, s"Expected 'buy', but got '${order.`type`}'")
+//          ledger.placeOrder(order).map(Json.fromBoolean).map(asResponse)
+//        }
+//      }
+      ???
     }
 
     val debugRoute = (get & pathPrefix("debug")) {
@@ -79,7 +60,7 @@ case class FinanceRoutes(ledger: Ledger)(implicit ec: ExecutionContext) extends 
 
   object ui {
 
-    import FinanceRoutes._
+    import Routes._
 
     def routes = jsRoute ~ uiRoute ~ rootRoute
 
@@ -117,7 +98,7 @@ case class FinanceRoutes(ledger: Ledger)(implicit ec: ExecutionContext) extends 
 
 }
 
-object FinanceRoutes {
+object Routes {
 
   private val SlashPrefixR = "/(.*)".r
   private val JsR = "js/(.*)".r

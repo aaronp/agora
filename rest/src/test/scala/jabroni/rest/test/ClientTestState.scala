@@ -3,13 +3,13 @@ package jabroni.rest.test
 import java.io.Closeable
 
 import jabroni.api.{Order, OrderBook}
-import jabroni.rest.client.{ClientConfig, FinanceClient}
+import jabroni.rest.client.{ClientConfig, JabroniClient}
 import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
 
 case class ClientTestState(config: Option[ClientConfig] = None,
-                           clientOpt: Option[FinanceClient] = None,
+                           clientOpt: Option[JabroniClient] = None,
                            orders: List[Order] = Nil,
                            cancels: List[(Order, Boolean)] = Nil)
   extends Matchers
@@ -41,7 +41,7 @@ case class ClientTestState(config: Option[ClientConfig] = None,
 
   def connect() = {
     close()
-    ClientTestState(clientOpt = Option(FinanceClient(config.get)))
+    ClientTestState(clientOpt = Option(JabroniClient(config.get)))
   }
 
   def client = clientOpt.get

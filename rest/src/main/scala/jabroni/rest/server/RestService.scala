@@ -50,7 +50,7 @@ object RestService extends StrictLogging {
 
   def start(conf: ServerConfig = ServerConfig(), ledger: Ledger = Ledger()): Future[RunningService] = {
     import conf.implicits._
-    val route: Route = FinanceRoutes(ledger).routes
+    val route: Route = JabroniRoutes(ledger).routes
     logger.info(s"Starting server at http://${conf.host}:${conf.port}")
     val bindingFuture = Http().bindAndHandle(route, conf.host, conf.port)
     bindingFuture.map { b =>

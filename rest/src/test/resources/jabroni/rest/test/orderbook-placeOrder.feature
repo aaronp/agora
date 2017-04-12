@@ -3,11 +3,11 @@ Feature: Order book
   Background:
     Given the client configuration
     """
-    finance.client.port = 1234
+    jabroni.client.port = 1234
     """
     And the server configuration
     """
-    finance.server.port = 1234
+    jabroni.server.port = 1234
     """
     And I start the server
     And I connect a client
