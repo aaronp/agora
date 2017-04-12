@@ -1,5 +1,6 @@
 package jabroni.api
 
+import jabroni.api.json.JPath
 import monocle.Optional
 import org.scalatest.{Matchers, WordSpec}
 
@@ -12,8 +13,13 @@ class JPathTest extends WordSpec with Matchers {
   "JPath.string" should {
     "return the values for a single json path" in {
       val simple = Simple("foo", Child("first"), List(Child("second"), Child("third")), Option(Child("second")))
-      JPath('first, 'name).string(simple.asJson) should contain only ("first")
-      JPath('theRest, 'each, 'name).string(simple.asJson) should contain only("second", "third")
+      val json = simple.asJson
+      println(json)
+      val opt: Option[Option[Json]] = JsonPath.root.at("theRest").getOption(json)
+      println(opt)
+      JPath('first, 'name).string(json) should contain only ("first")
+      JPath('theRest, 'name).string(simple.asJson) should contain only("second", "third")
+//      JPath('theRest, 'each, 'name).string(simple.asJson) should contain only("second", "third")
     }
     "return the values for nested json paths" in {
       val simple = Recursive(Some("one"), Option(Recursive(Some("two"), Option(Recursive(Some("three"), None)))))

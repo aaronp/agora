@@ -5,6 +5,7 @@ import io.circe.generic.auto._
 import io.circe.optics.{JsonPath, JsonTraversalPath}
 import io.circe.parser._
 import io.circe.syntax._
+import jabroni.api.json.JsonMatcher
 
 class JsonMatcherTest extends WordSpec with Matchers {
 

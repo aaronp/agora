@@ -1,6 +1,7 @@
 package jabroni.api
 
 import io.circe.{Encoder, Json}
+import jabroni.api.json.JsonMatcher
 
 import scala.util.Properties
 import scala.language.implicitConversions

@@ -1,4 +1,4 @@
-package jabroni.api
+package jabroni.api.json
 
 import io.circe.Decoder.Result
 import io.circe._
