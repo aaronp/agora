@@ -1,10 +1,18 @@
 package jabroni.api
 
+import java.net.URI
+
 import io.circe.{Encoder, Json}
 import jabroni.api.json.JsonMatcher
 
 import scala.util.Properties
 import scala.language.implicitConversions
+
+sealed trait ClientRequest
+
+sealed trait ClientResponse
+
+case class SubmitJobResponse(id: JobId) extends ClientResponse
 
 /**
   * Represents anything which can be run as a job
@@ -17,7 +25,7 @@ import scala.language.implicitConversions
   * @param job represents the job submission. As the job repo is heterogeneous, it could match anything really that's
   *            asking for work
   */
-case class SubmitJob(submissionDetails: SubmissionDetails, job: Json)
+case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends ClientRequest
 
 object SubmitJob {
 
@@ -32,6 +40,16 @@ object SubmitJob {
     SubmitJob(details, asJson(value))
   }
 }
+
+sealed trait WorkerRequest
+
+sealed trait WorkerResponse
+
+case class WorkerDetails(aboutMe: Json, location: URI, runUser: User)
+
+case class RequestWork(worker: WorkerDetails, workMatcher: JsonMatcher, itemsRequested: Int) extends WorkerRequest
+
+case class RequestWorkResponse(id: WorkRequestId) extends WorkerResponse
 
 /**
   * Contains instructions/information specific to the job scheduling/matching

@@ -13,20 +13,21 @@ lazy val api = project.
   settings(name := namePrefix + "-api").
   settings(libraryDependencies ++= Dependencies.apiDependencies)
 
+
+lazy val client = project.
+  dependsOn(api).
+  settings(Common.settings: _*).
+  settings(name := namePrefix + "-client").
+  settings(libraryDependencies ++= Dependencies.clientDependencies)
+
 lazy val domain = project.
   dependsOn(api).
   settings(Common.settings: _*).
   settings(name := namePrefix + "-domain").
   settings(libraryDependencies ++= Dependencies.domainDependencies)
 
-lazy val json = project.
-  dependsOn(api).
-  settings(Common.settings: _*).
-  settings(name := namePrefix + "-json").
-  settings(libraryDependencies ++= Dependencies.jsonDependencies)
-
 lazy val rest = project.
-  dependsOn(api, domain, ui, json).
+  dependsOn(api, domain, ui).
 //  configs(IntegrationTest).
 //  settings(Defaults.itSettings).
   settings(Common.settings: _*).
@@ -34,11 +35,11 @@ lazy val rest = project.
   settings(libraryDependencies ++= Dependencies.restDependencies)
 
 lazy val ui = project.
-  dependsOn(api, json).
+  dependsOn(api).
   settings(Common.settings: _*).
   settings(name := namePrefix + "-ui").
   settings(libraryDependencies ++= Dependencies.uiDependencies).
   enablePlugins(ScalaJSPlugin)
 
 lazy val root = (project in file(".")).
-  aggregate(api, domain, ui, json, rest)
+  aggregate(api, domain, ui, rest, client)

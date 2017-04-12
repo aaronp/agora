@@ -11,26 +11,28 @@ object Dependencies {
     "info.cukes" %% "cucumber-scala" % "1.2.5" % "test"
   )
 
-  def testDependencies(confs: String = "test") = Seq(
-    "org.scalactic" %% "scalactic" % "3.0.1" % confs,
-    "org.scalatest" %% "scalatest" % "3.0.1" % (confs + "->*"),
-    "junit" % "junit" % "4.12" % confs)
+  def testDependencies = Seq(
+    "org.scalactic" %% "scalactic" % "3.0.1" % "test",
+    "org.scalatest" %% "scalatest" % "3.0.1" % ("test->*"),
+    "junit" % "junit" % "4.12" % "test")
 
 
   val circe = Seq("core", "generic", "parser", "optics").map(name => "io.circe" %% s"circe-$name" % "0.7.0")
 
   val json: Seq[ModuleID] = circe
 
-  val akkaHttp = List("", "-core", "-spray-json", "-jackson", "-testkit").map { suffix =>
+  val akkaHttp = List("", "-core", "-testkit").map { suffix =>
     "com.typesafe.akka" %% s"akka-http$suffix" % "10.0.5"
   } :+ ("de.heikoseeberger" %% "akka-http-circe" % "1.14.0")
 
-  val commonTestDeps = testDependencies("test")
+  val akka = List("","-testkit").map { suffix =>
+    "com.typesafe.akka" %% s"akka$suffix" % "10.0.5"
+  }
 
-  val commonDependencies: Seq[ModuleID] = logging ++ commonTestDeps
-  val apiDependencies: Seq[ModuleID] = commonDependencies ++ json ++ commonTestDeps
-  val uiDependencies: Seq[ModuleID] = apiDependencies
-  val domainDependencies: Seq[ModuleID] = commonDependencies ++ commonTestDeps ++
-    Seq("com.typesafe" % "config" % "1.3.1")
-  val restDependencies: Seq[ModuleID] = commonDependencies ++ akkaHttp ++ testDependencies("test") ++ cucumber
+  val commonDependencies: Seq[ModuleID] = logging ++ testDependencies
+  val apiDependencies: Seq[ModuleID] = commonDependencies ++ json
+  val uiDependencies: Seq[ModuleID] = json
+  val domainDependencies: Seq[ModuleID] = commonDependencies ++ Seq("com.typesafe" % "config" % "1.3.1") ++ akka
+  val clientDependencies: Seq[ModuleID] = commonDependencies ++ akkaHttp
+  val restDependencies: Seq[ModuleID] = clientDependencies ++ cucumber
 }
