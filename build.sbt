@@ -1,3 +1,5 @@
+enablePlugins(CucumberPlugin)
+
 name := "jabroni"
 
 version := "0.0.1"
@@ -8,18 +10,12 @@ javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
 
 scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature")
 
-//https://github.com/sbt/sbt-assembly
-addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.1")
+mainClass in(Compile, run) := Some("jabroni.rest.server.RestService")
 
-addSbtPlugin("org.scala-js" % "sbt-scalajs" % "0.6.15")
+CucumberPlugin.glue := "classpath:jabroni.rest.test"
 
-//https://github.com/jrudolph/sbt-dependency-graph
-addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.8.2")
-
-addSbtPlugin("com.waioeka.sbt" % "cucumber-plugin" % "0.1.2")
-
-// https://github.com/scoverage/sbt-scoverage
-addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.5.0")
+CucumberPlugin.features := List("classpath:jabroni.rest.test",
+  "rest/src/test/resources/jabroni/rest/test")
 
 //https://github.com/typesafehub/scala-logging
 val logging = Seq(
@@ -27,9 +23,7 @@ val logging = Seq(
   "ch.qos.logback" % "logback-classic" % "1.1.7")
 
 val cucumber = Seq("core", "jvm", "junit").map(suffix =>
-  "info.cukes" % s"cucumber-$suffix" % "1.2.5" % "test") ++ Seq(
-  "info.cukes" %% "cucumber-scala" % "1.2.5" % "test"
-)
+  "info.cukes" % s"cucumber-$suffix" % "1.2.5" % "test") :+ ("info.cukes" %% "cucumber-scala" % "1.2.5" % "test")
 
 val testDependencies = Seq(
   "org.scalactic" %% "scalactic" % "3.0.1" % "test",
@@ -76,7 +70,8 @@ resolvers ++= List(
 )
 
 ///import scoverage.ScoverageKeys.{coverageFailOnMinimum, coverageMinimum}
-coverageMinimum := 30,
-coverageFailOnMinimum := false,
+coverageMinimum := 80
+
+coverageFailOnMinimum := true
 
 (testOptions in Test) += (Tests.Argument(TestFrameworks.ScalaTest, "-h", "target/scalatest-reports"))
