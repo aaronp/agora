@@ -22,5 +22,15 @@ class JPathTest extends WordSpec with Matchers {
       a.succeeded shouldBe false
       a.focus.toList should be(empty)
     }
+    "traverse JPos" in {
+      val json: Json = """[1,2,3]"""
+
+      JPath.select(JPos(1) :: Nil, json.hcursor) match {
+        case h: HCursor => h.value.asNumber.flatMap(_.toInt).get shouldBe 2
+      }
+      val a = JPath.select(JPos(3) :: Nil, json.hcursor)
+      a.succeeded shouldBe false
+      a.focus.toList should be(empty)
+    }
   }
 }

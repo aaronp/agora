@@ -4,7 +4,7 @@ import io.circe.{ACursor, HCursor, Json}
 import io.circe.optics.{JsonPath, JsonTraversalPath}
 
 object JPath {
-//  def apply(parts: Symbol*): JPath = apply(parts.map(_.name): _*)
+  //  def apply(parts: Symbol*): JPath = apply(parts.map(_.name): _*)
 
   def apply(parts: String*): JPath = JPath(parts.map {
     case IntR(i) => JPos(i.toInt)
@@ -23,12 +23,24 @@ object JPath {
   }
 
 
+  implicit class RichCursor(val a: ACursor) extends AnyVal {
+    def asHCursor: Option[HCursor] = Option(a) collect {
+      case h: HCursor => h
+    }
+  }
+
   def select(parts: List[JPart], cursor: HCursor): ACursor = {
     parts match {
       case Nil => cursor
       case JField(field) :: tail =>
-        cursor.downField(field) match {
-          case h: HCursor => select(tail, h)
+        val a = cursor.downField(field)
+        val h = a.asHCursor
+        h.fold(a)(select(tail, _))
+      case JPos(pos) :: tail =>
+        cursor.downArray match {
+          case h: HCursor =>
+            h.downN(pos)
+            select(tail, h)
           case other => other
         }
       //        next.focus.flatMap { json =>
