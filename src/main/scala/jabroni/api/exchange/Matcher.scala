@@ -1,7 +1,7 @@
 package jabroni.api.exchange
 
 import jabroni.api.client.SubmitJob
-import jabroni.api.json.JsonMatcher
+import jabroni.api.json.JMatcher
 import jabroni.api.worker.RequestWork
 
 trait Matcher {
@@ -12,7 +12,7 @@ object Matcher {
 
   object JsonMatcher extends Matcher {
     override def matches(offer: SubmitJob, work: RequestWork): Boolean = {
-      val offerMatcher: JsonMatcher = offer.submissionDetails.workMatcher
+      val offerMatcher: JMatcher = offer.submissionDetails.workMatcher
       val workMatcher = work.workMatcher
       offerMatcher.matches(work.worker.aboutMe) &&
         workMatcher.matches(offer.job)

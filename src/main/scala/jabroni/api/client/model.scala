@@ -4,7 +4,7 @@ import io.circe.Json
 import io.circe.optics.JsonPath
 import jabroni.api.exchange.{MatchFirst, MatchMode}
 import jabroni.api.User
-import jabroni.api.json.JsonMatcher
+import jabroni.api.json.JMatcher
 
 import scala.util.Properties
 
@@ -14,7 +14,7 @@ import scala.util.Properties
   */
 case class SubmissionDetails(aboutMe: Json,
                              matchMode: MatchMode,
-                             workMatcher: JsonMatcher) {
+                             workMatcher: JMatcher) {
 
   import SubmissionDetails._
 
@@ -32,7 +32,7 @@ object SubmissionDetails {
 
   def apply(submittedBy: User = Properties.userName,
             matchMode: MatchMode = MatchFirst(true),
-            workMatcher: JsonMatcher = JsonMatcher.matchAll) = {
+            workMatcher: JMatcher = JMatcher.matchAll) = {
     import io.circe.generic._
 
      import io.circe.generic.auto._

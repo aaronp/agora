@@ -36,8 +36,6 @@ object JPart {
           JFilter(fld, prd)
         }
       }
-      //        case _ => Left(DecodingFailure("expected predicate/field", c.history))
-      //      }
     }
   }
 
