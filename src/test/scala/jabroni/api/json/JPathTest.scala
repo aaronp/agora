@@ -25,12 +25,32 @@ class JPathTest extends WordSpec with Matchers {
     "traverse JPos" in {
       val json: Json = """[1,2,3]"""
 
-      JPath.select(JPos(1) :: Nil, json.hcursor) match {
-        case h: HCursor => h.value.asNumber.flatMap(_.toInt).get shouldBe 2
+      def intAt(n: Int) = JPath.select(JPos(n) :: Nil, json.hcursor) match {
+        case h: HCursor => h.value.asNumber.flatMap(_.toInt).get
       }
+
+      intAt(1) shouldBe 2
+      intAt(0) shouldBe 1
+      intAt(2) shouldBe 3
+
       val a = JPath.select(JPos(3) :: Nil, json.hcursor)
       a.succeeded shouldBe false
       a.focus.toList should be(empty)
     }
   }
+  "traverse JFilter" in {
+    val json: Json =
+      """{
+        |  "some-field" : 456
+        |}""".stripMargin
+
+    import JPredicate.implicits._
+    //    val jf : JFilter = "some-field" === "456"
+    val found = JPath.select(("some-field" === "456") :: Nil, json.hcursor)
+    found.succeeded shouldBe true
+    val found2 = JPath.select(("some-field" === "789") :: Nil, json.hcursor)
+    found2.succeeded shouldBe false
+
+  }
+
 }

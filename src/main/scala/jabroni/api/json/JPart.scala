@@ -1,7 +1,10 @@
 package jabroni.api.json
 
-import io.circe.Json
-import io.circe.optics.{JsonPath, JsonTraversalPath}
+import io.circe.Decoder.Result
+import io.circe._
+import io.circe.syntax._
+import io.circe.generic.auto._
+import io.circe.optics.JsonPath
 
 /**
   * represents part of a json path
@@ -17,45 +20,53 @@ import io.circe.optics.{JsonPath, JsonTraversalPath}
   *
   *
   */
-sealed trait JPart {
+sealed trait JPart
 
-//  def advance(json: Json, path: JsonTraversalPath): JsonTraversalPath
-//
-//  def advance(json: Json, path: JsonPath = JsonPath.root): Either[JsonTraversalPath, JsonPath]
+object JPart {
+
+  import cats.syntax.either._
+
+  import JPredicate._
+  object JFilterDec extends Decoder[JFilter] {
+    override def apply(c: HCursor): Result[JFilter] = {
+      val fldCurs = c.downField("field").as[String]
+      val prdCurs = c.downField("predicate").as[JPredicate](JPredicate.JPredicateFormat)
+      fldCurs.flatMap { (fld: String) =>
+        prdCurs.map { (prd: JPredicate) =>
+          JFilter(fld, prd)
+        }
+      }
+      //        case _ => Left(DecodingFailure("expected predicate/field", c.history))
+      //      }
+    }
+  }
+
+  implicit object JPartFormat extends Decoder[JPart] with Encoder[JPart] {
+    override def apply(c: HCursor): Result[JPart] = {
+      val jposDec = implicitly[Decoder[JPos]]
+      val jfieldDec = implicitly[Decoder[JField]]
+      jfieldDec.tryDecode(c).
+        orElse(jposDec.tryDecode(c)).
+        orElse(JFilterDec.tryDecode(c))
+
+    }
+
+    override def apply(part: JPart): Json = {
+      part match {
+        case filter: JFilter =>
+          Json.obj("field" -> Json.fromString(filter.field), "predicate" -> filter.predicate.json)
+        case field: JField => field.asJson
+        case pos: JPos => pos.asJson
+      }
+    }
+  }
+
 }
 
-case class JField(name: String) extends JPart {
 
-//  override def advance(json: Json, path: JsonTraversalPath): JsonTraversalPath = {
-//    val next = path.selectDynamic(name)
-//
-//    ???
-//  }
-//
-//  override def advance(json: Json, path: JsonPath) = {
-//    val next = path.selectDynamic(name)
-//    val opt: Option[Json] = next.json.getOption(json)
-//    val isArray = opt.exists(_.isArray)
-//    if (isArray) {
-//      Left(path.each)
-//    } else {
-//      Right(next)
-//    }
-//  }
-}
+case class JField(name: String) extends JPart
 
-case class JPos(i: Int) extends JPart {
-//  override def advance(json: Json, path: JsonTraversalPath) = ???
-//
-//  override def advance(json: Json, path: JsonPath) = {
-//    val next = path.index(i)
-//    val opt: Option[Json] = next.json.getOption(json)
-//    opt -> Right(next)
-//  }
-}
+case class JPos(i: Int) extends JPart
 
-case class JFilterValue(field: String, value: String) extends JPart {
-//  override def advance(json: Json, path: JsonTraversalPath): (Option[Json], JsonTraversalPath) = ???
-//
-//  override def advance(json: Json, path: JsonPath): (Option[Json], Either[JsonTraversalPath, JsonPath]) = ???
-}
+
+case class JFilter(field: String, predicate: JPredicate) extends JPart

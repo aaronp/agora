@@ -1,14 +1,18 @@
 package jabroni.api.json
 
-import io.circe.{ACursor, HCursor, Json}
+import io.circe._
 import io.circe.optics.{JsonPath, JsonTraversalPath}
 
 object JPath {
-  //  def apply(parts: Symbol*): JPath = apply(parts.map(_.name): _*)
+
+  import JPredicate.implicits._
 
   def apply(parts: String*): JPath = JPath(parts.map {
     case IntR(i) => JPos(i.toInt)
-    case ValueR(f, v) => JFilterValue(f, v)
+    case ValueR(f, v) =>
+
+      val jf: JFilter = f === Json.fromString(v)
+      jf
     case name => JField(name)
   }.toList)
 
@@ -27,22 +31,29 @@ object JPath {
     def asHCursor: Option[HCursor] = Option(a) collect {
       case h: HCursor => h
     }
+
+    def withHCursor(f: HCursor => ACursor): ACursor = asHCursor.fold(a)(f)
   }
 
   def select(parts: List[JPart], cursor: HCursor): ACursor = {
     parts match {
       case Nil => cursor
-      case JField(field) :: tail =>
-        val a = cursor.downField(field)
-        val h = a.asHCursor
-        h.fold(a)(select(tail, _))
+      case JField(field) :: tail => cursor.downField(field).withHCursor(select(tail, _))
       case JPos(pos) :: tail =>
-        cursor.downArray match {
-          case h: HCursor =>
-            h.downN(pos)
-            select(tail, h)
-          case other => other
+        cursor.downArray.withHCursor { ac =>
+          ac.rightN(pos).withHCursor(select(tail, _))
         }
+      case JFilter(field, predicate) :: tail =>
+        val a = cursor.downField(field)
+        a.withHCursor { c =>
+          if (c.focus.exists(predicate.matches)) {
+            select(tail, c)
+          } else {
+            //            Left(DecodingFailure(s"$c didn't match $predicate", c.history))
+            new FailedCursor(c, CursorOp.DownField(field))
+          }
+        }
+
       //        next.focus.flatMap { json =>
       //          select(tail,)
       //        }
@@ -73,24 +84,6 @@ case class JPath(parts: List[JPart]) {
   def json: Json = {
     new EncoderOps(this).asJson
   }
-
-
-  //  def path(json : Json) = {
-  //    val e : Either[JsonTraversalPath, JsonPath] = Right(JsonPath.root)
-  //    parts.foldLeft(e -> json) {
-  //      case ((Left(path), j), part) => Left(part.advance(j, path))
-  //      case ((Right(path), j), part) => part.adva
-  //    }
-  //  }
-  //
-  //  final def string(json: Json) = asPath(json, JsonPath.root, parts) match {
-  //    case Left(t) => t.string.getAll(json)
-  //    case Right(p) => p.string.getOption(json).toList
-  //  }
-  //
-
-
-  //  private lazy val path = asPath(JsonPath.root, parts)
 
 
   private def asTraversal(json: Json, path: JsonTraversalPath, remaining: List[String]): Either[JsonTraversalPath, JsonPath] = {
