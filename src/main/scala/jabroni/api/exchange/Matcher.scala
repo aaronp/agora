@@ -27,8 +27,4 @@ object Matcher {
 
   def apply(): Matcher = JsonMatcher
 
-
-  def take[T](n : Int, things : Iterable[(Int, T)]) = {
-    ???
-  }
 }

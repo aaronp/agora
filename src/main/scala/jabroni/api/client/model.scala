@@ -2,7 +2,7 @@ package jabroni.api.client
 
 import io.circe.Json
 import io.circe.optics.JsonPath
-import jabroni.api.exchange.{MatchFirst, MatchMode}
+import jabroni.api.exchange.{SelectionFirst, SelectionMode}
 import jabroni.api.User
 import jabroni.api.json.JMatcher
 
@@ -13,7 +13,7 @@ import scala.util.Properties
   * Contains instructions/information specific to the job scheduling/matching
   */
 case class SubmissionDetails(aboutMe: Json,
-                             matchMode: MatchMode,
+                             matchMode: SelectionMode,
                              workMatcher: JMatcher) {
 
   import SubmissionDetails._
@@ -31,7 +31,7 @@ object SubmissionDetails {
   case class DefaultDetails(submissionUser: String)
 
   def apply(submittedBy: User = Properties.userName,
-            matchMode: MatchMode = MatchFirst(true),
+            matchMode: SelectionMode = SelectionFirst(),
             workMatcher: JMatcher = JMatcher.matchAll) = {
     import io.circe.generic._
 

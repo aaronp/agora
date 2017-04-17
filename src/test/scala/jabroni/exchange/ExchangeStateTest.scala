@@ -1,8 +1,10 @@
 package jabroni.exchange
 
-import jabroni.api.JobId
-import jabroni.api.client.SubmitJob
+import jabroni.api
+import jabroni.api.{JobId, WorkRequestId}
+import jabroni.api.client.{ClientRequest, SubmitJob}
 import jabroni.api.exchange.Matcher
+import jabroni.api.worker.RequestWork
 import org.scalatest.{Matchers, WordSpec}
 
 class ExchangeStateTest extends WordSpec
@@ -18,7 +20,6 @@ class ExchangeStateTest extends WordSpec
             case (_, job) => job.matches(offer) && offer.matches(job)
           }
 
-
           val (matching, remaining) = applicableJobs.splitAt(offer.itemsRequested)
 
           if (matching.isEmpty) {
@@ -27,7 +28,17 @@ class ExchangeStateTest extends WordSpec
             ???
           }
       }.onSubmission {
-        case (job, state) => ???
+        case (job, state) =>
+          val j: SubmitJob = job
+          val s: ExchangeState = state
+          val applicableOffers: Stream[(api.WorkRequestId, RequestWork)] = state.workOffers.filter {
+            case (_, offer) => j.matches(offer) && offer.matches(j)
+          }
+
+          val chosen: Seq[(api.WorkRequestId, RequestWork)] = job.submissionDetails.matchMode.select(applicableOffers)
+
+
+          ???
       }
     }
   }
