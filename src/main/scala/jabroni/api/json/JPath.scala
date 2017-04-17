@@ -7,7 +7,9 @@ object JPath {
 
   import JPredicate.implicits._
 
-  def apply(parts: String*): JPath = JPath(parts.map {
+  def apply(first : JPart, parts: JPart*): JPath = JPath(first :: parts.toList)
+
+  def apply(first : String, parts: String*): JPath = JPath((first +: parts).map {
     case IntR(i) => JPos(i.toInt)
     case ValueR(f, v) => f === Json.fromString(v)
     case name => JField(name)

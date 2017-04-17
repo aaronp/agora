@@ -35,7 +35,7 @@ class ExchangeStateTest extends WordSpec
             case (_, offer) => j.matches(offer) && offer.matches(j)
           }
 
-          val chosen: Seq[(api.WorkRequestId, RequestWork)] = job.submissionDetails.matchMode.select(applicableOffers)
+//          val chosen: Seq[(api.WorkRequestId, RequestWork)] = job.submissionDetails.matchMode.select(applicableOffers)
 
 
           ???

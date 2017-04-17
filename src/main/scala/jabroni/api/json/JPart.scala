@@ -24,6 +24,10 @@ sealed trait JPart
 
 object JPart {
 
+  def apply(name: String) = JField(name)
+  def apply(i: Int) = JPos(i)
+  def apply(field: String, predicate: JPredicate) = JFilter(field, predicate)
+
   import cats.syntax.either._
 
   import JPredicate._
@@ -58,13 +62,8 @@ object JPart {
       }
     }
   }
-
 }
 
-
 case class JField(name: String) extends JPart
-
 case class JPos(i: Int) extends JPart
-
-
 case class JFilter(field: String, predicate: JPredicate) extends JPart

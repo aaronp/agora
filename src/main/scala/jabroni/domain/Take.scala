@@ -26,7 +26,6 @@ object Take {
         val newTook = (n, thing) +: took
         newTook -> newValues
     }
-
   }
 
 }
