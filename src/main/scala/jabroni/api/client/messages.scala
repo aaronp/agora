@@ -2,9 +2,13 @@ package jabroni.api
 package client
 
 import io.circe.{Encoder, Json}
+import jabroni.api
 import jabroni.api.exchange.Matcher
 import jabroni.api.worker.{RequestWork, WorkerDetails}
 
+/**
+  * A 'client' represents something which submits work to the exchange
+  */
 sealed trait ClientRequest
 case class GetSubmission(id: JobId) extends ClientRequest
 case class CancelSubmission(id: JobId) extends ClientRequest
@@ -23,6 +27,8 @@ case class GetMatchedWorkers(id: JobId, blockUntilMatched: Boolean) extends Clie
   */
 case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends ClientRequest {
   def matches(work : RequestWork)(implicit m : Matcher) = m.matches(this, work)
+
+  def select(offers: Stream[(api.WorkRequestId, RequestWork)]) = submissionDetails.selection.select(offers)
 }
 
 object SubmitJob {

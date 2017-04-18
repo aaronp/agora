@@ -1,6 +1,7 @@
 package jabroni.api.worker
 
-import jabroni.exchange.{Create, Read}
+import jabroni.domain.{Create, Read}
+import jabroni.exchange.Create
 
 
 trait JobDao[Id, Job, Output, Error] extends

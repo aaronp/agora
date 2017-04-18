@@ -24,6 +24,7 @@ class ExchangeActor(initialState: ExchangeState) extends BaseActor {
       state = newState
       sender ! CancelSubmissionResponse(id, removed.isDefined)
     case GetMatchedWorkers(id, blockUntilMatched) =>
+      state
 
   }
 }

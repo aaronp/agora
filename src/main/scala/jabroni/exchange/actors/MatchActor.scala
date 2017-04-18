@@ -2,7 +2,8 @@ package jabroni.exchange.actors
 
 import jabroni.api.WorkRequestId
 import jabroni.api.worker.RequestWork
-import jabroni.exchange.{ExchangeState, Crud}
+import jabroni.domain.Crud
+import jabroni.exchange.ExchangeState
 
 /**
   * Actor which pairs up work with workers

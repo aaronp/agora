@@ -13,7 +13,7 @@ import scala.util.Properties
   * Contains instructions/information specific to the job scheduling/matching
   */
 case class SubmissionDetails(aboutMe: Json,
-                             matchMode: SelectionMode,
+                             selection: SelectionMode,
                              workMatcher: JMatcher) {
 
   import SubmissionDetails._
@@ -35,7 +35,7 @@ object SubmissionDetails {
             workMatcher: JMatcher = JMatcher.matchAll) = {
     import io.circe.generic._
 
-     import io.circe.generic.auto._
+    import io.circe.generic.auto._
     import io.circe.parser._
     import io.circe.syntax._
     val json = DefaultDetails(submittedBy).asJson
