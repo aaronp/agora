@@ -4,13 +4,13 @@ import jabroni.api.client.SubmitJob
 import jabroni.api.json.JMatcher
 import jabroni.api.worker.RequestWork
 
-trait Matcher {
+trait JobPredicate {
   def matches(offer: SubmitJob, work: RequestWork): Boolean
 }
 
-object Matcher {
+object JobPredicate {
 
-  object JsonMatcher extends Matcher {
+  object JsonJobPredicate extends JobPredicate {
     override def matches(offer: SubmitJob, work: RequestWork): Boolean = {
       val offerMatcher: JMatcher = offer.submissionDetails.workMatcher
       val workMatcher = work.workMatcher
@@ -20,11 +20,11 @@ object Matcher {
   }
 
   trait LowPriorityImplicits {
-    implicit def matcher: Matcher = apply()
+    implicit def matcher: JobPredicate = apply()
   }
 
   object Implicits extends LowPriorityImplicits
 
-  def apply(): Matcher = JsonMatcher
+  def apply(): JobPredicate = JsonJobPredicate
 
 }

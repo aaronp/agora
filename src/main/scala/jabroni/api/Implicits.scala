@@ -1,10 +1,10 @@
 package jabroni.api
 
 import jabroni.api.client.SubmitJob
-import jabroni.api.exchange.Matcher
+import jabroni.api.exchange.JobPredicate
 
 trait Implicits extends
   SubmitJob.LowPriorityImplicits with
-  Matcher.LowPriorityImplicits
+  JobPredicate.LowPriorityImplicits
 
 object Implicits extends Implicits

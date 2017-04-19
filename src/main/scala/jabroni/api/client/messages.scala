@@ -3,7 +3,7 @@ package client
 
 import io.circe.{Encoder, Json}
 import jabroni.api
-import jabroni.api.exchange.Matcher
+import jabroni.api.exchange.JobPredicate
 import jabroni.api.worker.{RequestWork, WorkerDetails}
 
 /**
@@ -26,7 +26,7 @@ case class GetMatchedWorkers(id: JobId, blockUntilMatched: Boolean) extends Clie
   *            asking for work
   */
 case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends ClientRequest {
-  def matches(work : RequestWork)(implicit m : Matcher) = m.matches(this, work)
+  def matches(work : RequestWork)(implicit m : JobPredicate) = m.matches(this, work)
 
   def select(offers: Stream[(api.WorkRequestId, RequestWork)]) = submissionDetails.selection.select(offers)
 }

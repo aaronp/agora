@@ -3,6 +3,7 @@ package jabroni.exchange
 import jabroni.api
 import jabroni.api.{JobId, WorkRequestId}
 import jabroni.api.client.SubmitJob
+import jabroni.api.exchange.JobPredicate
 import jabroni.api.worker.{RequestWork, WorkerRequest}
 import jabroni.api.exchange.SelectionMode._
 import jabroni.domain.Take
@@ -59,7 +60,7 @@ object ExchangeState {
 
   case class DispatchingState(pendingJobsById: Map[JobId, SubmitJob],
                               pendingWorkRequestsById: Map[WorkRequestId, RequestWork],
-                              dispatcher: WorkDispatcher) extends ExchangeState {
+                              dispatcher: WorkDispatcher)(implicit m : JobPredicate = JobPredicate()) extends ExchangeState {
     override def getSubmission(id: JobId): Option[SubmitJob] = pendingJobsById.get(id)
 
     override def jobs = pendingJobsById.toStream
@@ -134,7 +135,7 @@ object ExchangeState {
   //  }
 
 
-  def handleWorkOffer(state: ExchangeState, offer: RequestWork, priority: Option[Ordering[(JobId, SubmitJob)]]): (List[(SubmitJob, Selected)], ExchangeState) = {
+  def handleWorkOffer(state: ExchangeState, offer: RequestWork, priority: Option[Ordering[(JobId, SubmitJob)]])(implicit m : JobPredicate): (List[(SubmitJob, Selected)], ExchangeState) = {
 
     val applicableJobs: Stream[(JobId, SubmitJob)] = state.jobs.filter {
       case (_, job) => job.matches(offer) && offer.matches(job)
@@ -153,7 +154,7 @@ object ExchangeState {
     }
   }
 
-  def handleJobSubmission(state: ExchangeState, job: SubmitJob): (Selected, ExchangeState) = {
+  def handleJobSubmission(state: ExchangeState, job: SubmitJob)(implicit m : JobPredicate): (Selected, ExchangeState) = {
 
     //
     // find all applicable work offers for this job based on both the job and offer filter criteria

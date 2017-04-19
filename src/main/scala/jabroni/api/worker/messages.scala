@@ -2,7 +2,7 @@ package jabroni.api.worker
 
 import jabroni.api.client.SubmitJob
 import jabroni.api.WorkRequestId
-import jabroni.api.exchange.Matcher
+import jabroni.api.exchange.JobPredicate
 import jabroni.api.json.JMatcher
 
 
@@ -13,15 +13,11 @@ case class RequestWork(worker: WorkerDetails,
                        itemsRequested: Int) extends WorkerRequest {
   require(itemsRequested > 0)
 
-  def matches(job: SubmitJob)(implicit m: Matcher): Boolean = m.matches(job, this)
+  def matches(job: SubmitJob)(implicit m: JobPredicate): Boolean = m.matches(job, this)
 
   def dec = copy(itemsRequested = itemsRequested - 1)
 
   def take(n: Int) = copy(itemsRequested = itemsRequested - n)
-}
-
-object RequestWork {
-  def apply()
 }
 
 case class UpdateWorkItems(id: WorkRequestId, itemsRequested: Int) extends WorkerRequest

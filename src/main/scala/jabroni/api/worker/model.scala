@@ -8,6 +8,15 @@ import jabroni.api.User
 
 import scala.util.Properties
 
+case class HostLocation(host: String, port: Int)
+
+object HostLocation {
+  def apply(port: Int = 8080): HostLocation = {
+    val host = InetAddress.getLocalHost.getHostName
+    HostLocation(host, port)
+  }
+}
+
 /**
   * The 'aboutMe' should also contain the location/user
   *
@@ -17,9 +26,14 @@ case class WorkerDetails(aboutMe: Json) {
 
   import WorkerDetails._
 
-  private def locationOpt = locationPath.getOption(aboutMe).map(URI.create)
+  private def locationOpt: Option[HostLocation] = {
+    for {
+      host <- hostPath.getOption(aboutMe)
+      port <- portPath.getOption(aboutMe)
+    } yield HostLocation(host, port)
+  }
 
-  def location: URI = locationOpt.getOrElse {
+  def location: HostLocation = locationOpt.getOrElse {
     sys.error(s"invalid json: 'location' not set: ${aboutMe}")
   }
 
@@ -30,25 +44,18 @@ case class WorkerDetails(aboutMe: Json) {
 
 object WorkerDetails {
 
-  import io.circe.generic._
   import io.circe.generic.auto._
-  import io.circe.parser._
-  import io.circe.export._
   import io.circe.syntax._
-  import io.circe._
 
-  val locationPath = JsonPath.root.location.string
+  val locationPath = JsonPath.root.location
+  val hostPath = locationPath.host.string
+  val portPath = locationPath.port.int
   val runUserPath = JsonPath.root.runUser.string
 
-  private case class DefaultDetails(runUser: String, location: String)
+  private case class DefaultDetails(runUser: String, location: HostLocation)
 
-  def localUri = {
-    val localhost: InetAddress = InetAddress.getLocalHost
-    localhost.
-  }
-
-  def apply(runUser: String = Properties.userName, location: URI): WorkerDetails = {
-    val details = DefaultDetails(runUser, location.toASCIIString)
+  def apply(runUser: String, location: HostLocation): WorkerDetails = {
+    val details = DefaultDetails(runUser, location)
     val json = details.asJson
     WorkerDetails(json)
   }

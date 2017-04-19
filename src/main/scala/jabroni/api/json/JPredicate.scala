@@ -24,6 +24,9 @@ object JPredicate {
 
   object implicits {
 
+    implicit def stringAsJson(s : String) = Json.fromString(s)
+    implicit def intAsJson(i : Int) = Json.fromInt(i)
+
     implicit class RichJson(val field: String) extends AnyVal {
       private implicit def predAsJFilter(p: JPredicate): JFilter = {
         JFilter(field, p)
@@ -37,13 +40,13 @@ object JPredicate {
 
       def ===[J <% Json](value: J): JFilter = Eq(value)
 
-      def >(value: Json): JFilter = Gt(value)
+      def gt[J <% Json](value: J): JFilter = Gt(value)
 
-      def <(value: Json): JFilter = Lt(value)
+      def lt[J <% Json](value: J): JFilter = Lt(value)
 
-      def >=(value: Json): JFilter = Gte(value)
+      def gte[J <% Json](value: J): JFilter = Gte(value)
 
-      def <=(value: Json): JFilter = Lte(value)
+      def lte[J <% Json](value: J): JFilter = Lte(value)
 
       def ~=(regex: String): JFilter = JRegex(regex)
     }

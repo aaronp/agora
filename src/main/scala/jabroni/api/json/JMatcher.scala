@@ -8,13 +8,13 @@ sealed trait JMatcher {
 
   override def toString = getClass.getSimpleName.replaceAllLiterally("$", "")
 
-  def &&(other: JMatcher) = and(other)
+  def &&(other: JMatcher): JMatcher = and(other)
 
-  def and(other: JMatcher) = JMatcher.And(this, other)
+  def and(other: JMatcher): JMatcher = JMatcher.And(this, other)
 
-  def ||(other: JMatcher) = or(other)
+  def ||(other: JMatcher): JMatcher = or(other)
 
-  def or(other: JMatcher) = JMatcher.Or(this, other)
+  def or(other: JMatcher): JMatcher = JMatcher.Or(this, other)
 }
 
 object JMatcher {
@@ -45,15 +45,23 @@ object JMatcher {
   implicit object JMatcherJson extends Encoder[JMatcher] with Decoder[JMatcher] {
     override def apply(jsonMatcher: JMatcher): Json = {
       jsonMatcher match {
-        case MatchAll => Json.fromString("MatchAll")
+        case MatchAll => Json.fromString("match-all")
+        case And(lhs, rhs) => Json.obj("and" -> Json.obj("lhs" -> apply(lhs), "rhs" -> apply(rhs)))
+        case Or(lhs, rhs) => Json.obj("or" -> Json.obj("lhs" -> apply(lhs), "rhs" -> apply(rhs)))
+        case ExistsMatcher(jpath) =>
+          import io.circe.syntax._
+          import io.circe.generic._
+          import io.circe.generic.auto._
+          Json.obj("exists" -> jpath.asJson)
         case other => sys.error(s"$other not implemented")
       }
     }
 
     override def apply(c: HCursor): Result[JMatcher] = {
-      val v = c.value
       val matchAllOpt: Option[JMatcher] = c.value.asString collect {
-        case "MatchAll" => matchAll
+        case "match-all" => matchAll
+        case "and" => matchAll
+        case "or" => matchAll
       }
 
       matchAllOpt.
