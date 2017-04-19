@@ -8,11 +8,20 @@ import jabroni.api.json.JMatcher
 
 sealed trait WorkerRequest
 
-case class RequestWork(worker: WorkerDetails, workMatcher: JMatcher, itemsRequested: Int) extends WorkerRequest {
+case class RequestWork(worker: WorkerDetails,
+                       workMatcher: JMatcher,
+                       itemsRequested: Int) extends WorkerRequest {
   require(itemsRequested > 0)
-  def matches(job: SubmitJob)(implicit m : Matcher) : Boolean =  m.matches(job, this)
+
+  def matches(job: SubmitJob)(implicit m: Matcher): Boolean = m.matches(job, this)
+
   def dec = copy(itemsRequested = itemsRequested - 1)
-  def take(n : Int) = copy(itemsRequested = itemsRequested - n)
+
+  def take(n: Int) = copy(itemsRequested = itemsRequested - n)
+}
+
+object RequestWork {
+  def apply()
 }
 
 case class UpdateWorkItems(id: WorkRequestId, itemsRequested: Int) extends WorkerRequest

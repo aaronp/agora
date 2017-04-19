@@ -9,4 +9,6 @@ package object api {
   type JobId = UUID
 
   type WorkRequestId = UUID
+  def nextWorkId() = UUID.randomUUID()
+  def nextJobId() = UUID.randomUUID()
 }

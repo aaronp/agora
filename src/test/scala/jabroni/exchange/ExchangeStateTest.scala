@@ -12,7 +12,7 @@ class ExchangeStateTest extends WordSpec
   with Matchers
   with Matcher.LowPriorityImplicits {
 
-  "ExchangeState.notify" should {
+  "ExchangeState.offerWork" should {
     "notify on matches" in {
       object d extends WorkDispatcher {
         override def dispatchAll(selection: Selected, job: SubmitJob): Unit = {
@@ -21,6 +21,7 @@ class ExchangeStateTest extends WordSpec
       }
       val exchange: ExchangeState = ExchangeState(d)
 
+      exchange.offerWork()
 
     }
   }

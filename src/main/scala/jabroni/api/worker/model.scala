@@ -1,10 +1,12 @@
 package jabroni.api.worker
 
-import java.net.URI
+import java.net.{InetAddress, URI}
 
 import io.circe.Json
 import io.circe.optics.JsonPath
 import jabroni.api.User
+
+import scala.util.Properties
 
 /**
   * The 'aboutMe' should also contain the location/user
@@ -40,7 +42,12 @@ object WorkerDetails {
 
   private case class DefaultDetails(runUser: String, location: String)
 
-  def apply(runUser: String, location: URI): WorkerDetails = {
+  def localUri = {
+    val localhost: InetAddress = InetAddress.getLocalHost
+    localhost.
+  }
+
+  def apply(runUser: String = Properties.userName, location: URI): WorkerDetails = {
     val details = DefaultDetails(runUser, location.toASCIIString)
     val json = details.asJson
     WorkerDetails(json)
