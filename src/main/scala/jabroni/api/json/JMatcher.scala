@@ -19,6 +19,8 @@ sealed trait JMatcher {
 
 object JMatcher {
 
+  def apply(jpath: JPath): JMatcher = ExistsMatcher(jpath)
+
   def matchAll: JMatcher = MatchAll
 
   case class ExistsMatcher(jpath: JPath) extends JMatcher {
@@ -26,9 +28,6 @@ object JMatcher {
       jpath(json).isDefined
     }
   }
-
-
-  def apply(jpath: JPath): JMatcher = ExistsMatcher(jpath)
 
   object MatchAll extends JMatcher {
     override def matches(json: Json): Boolean = true
@@ -48,7 +47,7 @@ object JMatcher {
         case MatchAll => Json.fromString("match-all")
         case And(lhs, rhs) => Json.obj("and" -> Json.obj("lhs" -> apply(lhs), "rhs" -> apply(rhs)))
         case Or(lhs, rhs) => Json.obj("or" -> Json.obj("lhs" -> apply(lhs), "rhs" -> apply(rhs)))
-        case ExistsMatcher(jpath) =>
+        case em @ ExistsMatcher(jpath) =>
           import io.circe.syntax._
           import io.circe.generic._
           import io.circe.generic.auto._
@@ -57,15 +56,33 @@ object JMatcher {
       }
     }
 
+    private def asConjunction(c: ACursor)(make: (JMatcher, JMatcher) => JMatcher): Result[JMatcher] = {
+      import cats.syntax.either._
+      for {
+        lhs <- c.downField("lhs").as[JMatcher]
+        rhs <- c.downField("rhs").as[JMatcher]
+      } yield {
+        make(lhs, rhs)
+      }
+    }
+
     override def apply(c: HCursor): Result[JMatcher] = {
-      val matchAllOpt: Option[JMatcher] = c.value.asString collect {
-        case "match-all" => matchAll
-        case "and" => matchAll
-        case "or" => matchAll
+      import cats.syntax.either._
+
+      def asAnd = asConjunction(c.downField("and"))(And.apply)
+
+      def asOr = asConjunction(c.downField("or"))(Or.apply)
+
+      def asMatchAll: Result[JMatcher] = c.as[String] match {
+        case Right("match-all") => Right(MatchAll): Result[JMatcher]
+        case Right(other) => Left(DecodingFailure(s"Expected 'match-all', but got '$other'", c.history)): Result[JMatcher]
+        case left: Result[JMatcher] => left
       }
 
-      matchAllOpt.
-        toRight(DecodingFailure(s"Expected a json matcher", c.history))
+      import io.circe.generic.auto._
+      import io.circe.generic._
+      val exists: Result[JMatcher] = c.downField("exists").as[JPath].map(p => ExistsMatcher(p))
+      exists.orElse(asAnd).orElse(asOr).orElse(asMatchAll)
     }
   }
 
