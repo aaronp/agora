@@ -29,6 +29,12 @@ case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends Cl
   def matches(work : RequestWork)(implicit m : JobPredicate) = m.matches(this, work)
 
   def select(offers: Stream[(api.WorkRequestId, RequestWork)]) = submissionDetails.selection.select(offers)
+
+  def json = {
+    import io.circe.generic.auto._
+    import io.circe.syntax._
+    this.asJson
+  }
 }
 
 object SubmitJob {

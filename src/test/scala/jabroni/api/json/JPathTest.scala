@@ -48,7 +48,6 @@ class JPathTest extends WordSpec with Matchers {
     val json: Json =  json"""{ "some-field" : 456 }"""
 
     import JPredicate.implicits._
-    //    val jf : JFilter = "some-field" === "456"
     val found = JPath.select(("some-field" === "456") :: Nil, json.hcursor)
     found.succeeded shouldBe true
     val found2 = JPath.select(("some-field" === "789") :: Nil, json.hcursor)

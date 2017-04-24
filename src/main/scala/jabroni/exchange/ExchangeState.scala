@@ -3,7 +3,7 @@ package jabroni.exchange
 import jabroni.api
 import jabroni.api.{JobId, WorkRequestId}
 import jabroni.api.client.SubmitJob
-import jabroni.api.exchange.JobPredicate
+import jabroni.api.exchange.{JobPredicate, SelectionMode}
 import jabroni.api.worker.{RequestWork, WorkerRequest}
 import jabroni.api.exchange.SelectionMode._
 import jabroni.domain.Take
@@ -80,15 +80,15 @@ object ExchangeState {
       val inputState = copy(pendingWorkRequestsById = pendingWorkRequestsById.updated(id, offer))
       val (selections, newState) = handleWorkOffer(inputState, offer, None)
       selections.foreach {
-        case (job, sel) => dispatcher.dispatchAll(sel, job)
+        case (id, job, sel) => dispatcher.dispatch(sel, id, job)
       }
       newState
     }
 
     override def submitJob(id: JobId, job: SubmitJob): ExchangeState = {
       val inputState = copy(pendingJobsById = pendingJobsById.updated(id, job))
-      val (selections: _root_.jabroni.api.exchange.SelectionMode.Selected, newState) = handleJobSubmission(inputState, job)
-      dispatcher.dispatchAll(selections, job)
+      val (selections: SelectionMode.Selected, newState) = handleJobSubmission(inputState, job)
+      dispatcher.dispatch(selections, id, job)
       newState
     }
 
@@ -107,35 +107,10 @@ object ExchangeState {
 
   private def getState[T]: (T, ExchangeState) => ExchangeState = (_, state: ExchangeState) => state
 
-  //  def apply(): ExchangeState = notify(getState[RequestWork], getState[SubmitJob])
-  //  def apply(): ExchangeState = onWorkOffer(getState).onSubmission(getState)
-
   def apply(dispatcher: WorkDispatcher) : ExchangeState  = new DispatchingState(Map.empty, Map.empty, dispatcher)
 
-  //
-  //  /**
-  //    * Begins the 'onWorkOffer' ... 'onSubmission' DSL
-  //    *
-  //    * @param onOffer
-  //    * @return
-  //    */
-  //  def onWorkOffer(onOffer: (RequestWork, ExchangeState) => ExchangeState) = {
-  //    new OnWorkOfferWord(onOffer)
-  //  }
-  //
-  //  /**
-  //    * Used to expose the 'onSubmission' DSL
-  //    *
-  //    * @param onWorkOffer
-  //    */
-  //  class OnWorkOfferWord(onWorkOffer: (RequestWork, ExchangeState) => ExchangeState) {
-  //    def onSubmission(onJob: (SubmitJob, ExchangeState) => ExchangeState): ExchangeState = {
-  //      new NotifyingState(Map.empty, Map.empty, onWorkOffer, onJob)
-  //    }
-  //  }
-
-
-  def handleWorkOffer(state: ExchangeState, offer: RequestWork, priority: Option[Ordering[(JobId, SubmitJob)]])(implicit m : JobPredicate): (List[(SubmitJob, Selected)], ExchangeState) = {
+  // TODO- rethink priority in terms of explicit fallback criteria
+  def handleWorkOffer(state: ExchangeState, offer: RequestWork, priority: Option[Ordering[(JobId, SubmitJob)]])(implicit m : JobPredicate): (List[(JobId, SubmitJob, Selected)], ExchangeState) = {
 
     val applicableJobs: Stream[(JobId, SubmitJob)] = state.jobs.filter {
       case (_, job) => job.matches(offer) && offer.matches(job)
@@ -146,10 +121,10 @@ object ExchangeState {
     //  TODO - use 'Take' ... or something that will exit early.
     // typically the first 'handleJobSubmission' will consume the workers slots, so we iterate over all the jobs just
     // to end up sending the first one to the offer
-    prioritizedJobs.foldLeft(List[(SubmitJob, Selected)]() -> state) {
+    prioritizedJobs.foldLeft(List[(JobId, SubmitJob, Selected)]() -> state) {
       case ((selectionById, stateAcc), (id, job)) =>
         val (selected, newState) = handleJobSubmission(stateAcc, job)
-        val newPairs = (job, selected) :: selectionById
+        val newPairs = (id, job, selected) :: selectionById
         newPairs -> newState
     }
   }

@@ -16,14 +16,16 @@ class ExchangeStateTest extends WordSpec
 
   "ExchangeState.offerWork" should {
     "notify on matches" in {
+
+
+      val workerDetails = WorkerDetails()
       object d extends WorkDispatcher {
-        override def dispatchAll(selection: Selected, job: SubmitJob): Unit = {
-
-        }
+        override def dispatch(selection: Selected, jobId: JobId, job: SubmitJob): Unit = ???
       }
-      val exchange: ExchangeState = ExchangeState(d)
 
-      val somebodyAskingForOne = RequestWork(WorkerDetails(), JMatcher.matchAll, 1)
+      val exchange: ExchangeState = ExchangeState(d)
+      val somebodyAskingForOne = RequestWork(workerDetails, JMatcher.matchAll, 1)
+
       exchange.offerWork(nextWorkId, somebodyAskingForOne)
 
     }
