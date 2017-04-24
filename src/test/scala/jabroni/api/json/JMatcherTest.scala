@@ -5,7 +5,7 @@ import org.scalatest.{Matchers, WordSpec}
 class JMatcherTest extends WordSpec with Matchers {
 
   "JMatcher.and" should {
-    "be serializable to/from json" ignore {
+    "be serializable to/from json" in {
       import JPredicate.implicits._
 
       val matcher1 = JMatcher(JPath(JPart("foo"), JPart("bar"), JPart(3), "value" === "3"))
@@ -15,7 +15,9 @@ class JMatcherTest extends WordSpec with Matchers {
       import io.circe.syntax._
 
       val json = matcher.asJson
+      println(json.spaces4)
       val Right(backAgain) = json.as[JMatcher]
+      println(backAgain.asJson.spaces4)
       matcher shouldBe backAgain
     }
   }

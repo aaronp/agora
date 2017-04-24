@@ -1,8 +1,8 @@
 package jabroni.api.worker
 
-import java.net.{InetAddress, URI}
+import java.net.InetAddress
 
-import io.circe.Json
+import io.circe.{Encoder, Json}
 import io.circe.optics.JsonPath
 import jabroni.api.User
 
@@ -23,6 +23,12 @@ object HostLocation {
   * @param aboutMe
   */
 case class WorkerDetails(aboutMe: Json) {
+
+  def +[T : Encoder](data : T) : WorkerDetails = append(WorkerDetails.asName(data.getClass), data)
+  def +[T : Encoder](name : String, data : T) : WorkerDetails = append(name, implicitly[Encoder[T]].apply(data))
+  def append[T : Encoder](name : String, data : T) : WorkerDetails = append(name, implicitly[Encoder[T]].apply(data))
+  def append(name : String, data : Json) : WorkerDetails = append(Json.obj(name -> data))
+  def append(data : Json) : WorkerDetails = copy(aboutMe.deepMerge(data))
 
   import WorkerDetails._
 
@@ -54,9 +60,14 @@ object WorkerDetails {
 
   private case class DefaultDetails(runUser: String, location: HostLocation)
 
-  def apply(runUser: String, location: HostLocation): WorkerDetails = {
+  def apply(runUser: String = Properties.userName, location: HostLocation = HostLocation()): WorkerDetails = {
     val details = DefaultDetails(runUser, location)
     val json = details.asJson
     WorkerDetails(json)
+  }
+
+  def asName(c1ass : Class[_]): String = {
+    val name = c1ass.getSimpleName.replaceAllLiterally("$", "")
+    name.headOption.fold("")(_.toLower +: name.tail)
   }
 }

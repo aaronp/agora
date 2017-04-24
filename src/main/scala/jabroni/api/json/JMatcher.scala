@@ -27,6 +27,14 @@ object JMatcher {
     override def matches(json: Json): Boolean = {
       jpath(json).isDefined
     }
+    override def toString = s"Exists($jpath)"
+    override def hashCode = jpath.hashCode() * 31
+    override def equals(other : Any) = {
+      other match {
+        case ExistsMatcher(path) => path == jpath
+        case _ => false
+      }
+    }
   }
 
   object MatchAll extends JMatcher {
@@ -39,6 +47,14 @@ object JMatcher {
 
   case class And(lhs: JMatcher, rhs: JMatcher) extends JMatcher {
     override def matches(json: Json): Boolean = lhs.matches(json) && rhs.matches(json)
+    override def toString = s"($lhs && $rhs)"
+    override def hashCode = lhs.hashCode() * 17 + rhs.hashCode()
+    override def equals(other : Any) = {
+      other match {
+        case And(left, right) => left == lhs && right == rhs
+        case _ => false
+      }
+    }
   }
 
   implicit object JMatcherJson extends Encoder[JMatcher] with Decoder[JMatcher] {

@@ -6,7 +6,8 @@ import jabroni.api.{JobId, WorkRequestId}
 import jabroni.api.client.{ClientRequest, SubmitJob}
 import jabroni.api.exchange.JobPredicate
 import jabroni.api.exchange.SelectionMode.Selected
-import jabroni.api.worker.{RequestWork, WorkerRequest}
+import jabroni.api.json.JMatcher
+import jabroni.api.worker.{RequestWork, WorkerDetails, WorkerRequest}
 import org.scalatest.{Matchers, WordSpec}
 
 class ExchangeStateTest extends WordSpec
@@ -22,8 +23,8 @@ class ExchangeStateTest extends WordSpec
       }
       val exchange: ExchangeState = ExchangeState(d)
 
-//      val rw = RequestWork()
-//      exchange.offerWork(nextWorkId, rw)
+      val somebodyAskingForOne = RequestWork(WorkerDetails(), JMatcher.matchAll, 1)
+      exchange.offerWork(nextWorkId, somebodyAskingForOne)
 
     }
   }
