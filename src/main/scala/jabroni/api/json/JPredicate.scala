@@ -16,18 +16,17 @@ sealed trait JPredicate {
   def &&(other: JPredicate): JPredicate = And(this, other)
 
   def ||(other: JPredicate): JPredicate = Or(this, other)
-
-  //  def encoder : Encoder[A]
 }
 
 object JPredicate {
 
-  object implicits {
+  trait LowPriorityImplicits {
 
-    implicit def stringAsJson(s : String) = Json.fromString(s)
-    implicit def intAsJson(i : Int) = Json.fromInt(i)
+    implicit def stringAsJson(s: String) = Json.fromString(s)
 
-    implicit class RichJson(val field: String) extends AnyVal {
+    implicit def intAsJson(i: Int) = Json.fromInt(i)
+
+    implicit class RichJson(field: String) {
       private implicit def predAsJFilter(p: JPredicate): JFilter = {
         JFilter(field, p)
       }
@@ -53,17 +52,22 @@ object JPredicate {
 
   }
 
+  object implicits extends LowPriorityImplicits
+
   implicit object JPredicateFormat extends Encoder[JPredicate] with Decoder[JPredicate] {
     override def apply(c: HCursor): Result[JPredicate] = {
       import cats.syntax.either._
-      val e: Either[DecodingFailure, JPredicate] = c.as[And].
-        orElse(c.as[Or]).
-        orElse(c.as[Or]).
+
+      def asAnd = c.downField("and").as[And]
+
+      def asOr = c.downField("or").as[Or]
+
+      asAnd.
+        orElse(asOr).
         orElse(c.as[Not]).
         orElse(c.as[Eq]).
-        orElse(c.as[JRegex])
-
-      e.orElse(c.as[Gt]).
+        orElse(c.as[JRegex]).
+        orElse(c.as[Gt]).
         orElse(c.as[Gte]).
         orElse(c.as[Lt]).
         orElse(c.as[Lte])
@@ -89,23 +93,23 @@ object JPredicate {
 case class Or(lhs: JPredicate, rhs: JPredicate) extends JPredicate {
   override def matches(json: Json) = lhs.matches(json) || rhs.matches(json)
 
-  override def json: Json = this.asJson
+  override def json: Json = Json.obj("or" -> this.asJson)
 }
 
 case class And(lhs: JPredicate, rhs: JPredicate) extends JPredicate {
   override def matches(json: Json) = lhs.matches(json) && rhs.matches(json)
 
+  override def json: Json = Json.obj("and" -> this.asJson)
+}
+
+case class Not(not: JPredicate) extends JPredicate {
+  override def matches(json: Json) = !(not.matches(json))
+
   override def json: Json = this.asJson
 }
 
-case class Not(predicate: JPredicate) extends JPredicate {
-  override def matches(json: Json) = !(predicate.matches(json))
-
-  override def json: Json = this.asJson
-}
-
-case class Eq(value: Json) extends JPredicate {
-  override def matches(json: Json) = json == value
+case class Eq(eq: Json) extends JPredicate {
+  override def matches(json: Json) = json == eq
 
   override def json: Json = this.asJson
 }
@@ -137,18 +141,18 @@ import io.circe.{Decoder, Encoder, Json}
 
 import Ordering.Implicits._
 
-case class Gt(value: Json) extends ComparablePredicate(value, _ > _) {
+case class Gt(gt: Json) extends ComparablePredicate(gt, _ > _) {
   override def json: Json = this.asJson
 }
 
-case class Gte(value: Json) extends ComparablePredicate(value, _ >= _) {
+case class Gte(gte: Json) extends ComparablePredicate(gte, _ >= _) {
   override def json: Json = this.asJson
 }
 
-case class Lt(value: Json) extends ComparablePredicate(value, _ < _) {
+case class Lt(lt: Json) extends ComparablePredicate(lt, _ < _) {
   override def json: Json = this.asJson
 }
 
-case class Lte(value: Json) extends ComparablePredicate(value, _ <= _) {
+case class Lte(lte: Json) extends ComparablePredicate(lte, _ <= _) {
   override def json: Json = this.asJson
 }

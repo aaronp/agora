@@ -15,9 +15,7 @@ class JMatcherTest extends WordSpec with Matchers {
       import io.circe.syntax._
 
       val json = matcher.asJson
-      println(json.spaces4)
       val Right(backAgain) = json.as[JMatcher]
-      println(backAgain.asJson.spaces4)
       matcher shouldBe backAgain
     }
   }

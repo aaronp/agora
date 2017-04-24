@@ -8,12 +8,18 @@ class JPathTest extends WordSpec with Matchers {
 
   import io.circe.parser._
 
-  implicit def strAsJson(s: String) = parse(s).right.get
+
+  implicit class JsonHelper(sc: StringContext) {
+    def json(args: Any*) = {
+      val text = sc.s(args)
+      parse(text).right.get
+    }
+  }
 
   "JPath.select" should {
-    "traverse JFields" in {
+    "match JFields" in {
       val json: Json =
-        """{ "foo" : 1 } """
+        json"""{ "foo" : 1 } """
 
       JPath.select(JField("foo") :: Nil, json.hcursor) match {
         case h: HCursor => h.value.asNumber.flatMap(_.toInt).get shouldBe 1
@@ -22,8 +28,8 @@ class JPathTest extends WordSpec with Matchers {
       a.succeeded shouldBe false
       a.focus.toList should be(empty)
     }
-    "traverse JPos" in {
-      val json: Json = """[1,2,3]"""
+    "match JPos" in {
+      val json: Json = json"""[1,2,3]"""
 
       def intAt(n: Int) = JPath.select(JPos(n) :: Nil, json.hcursor) match {
         case h: HCursor => h.value.asNumber.flatMap(_.toInt).get
@@ -38,11 +44,8 @@ class JPathTest extends WordSpec with Matchers {
       a.focus.toList should be(empty)
     }
   }
-  "traverse JFilter" in {
-    val json: Json =
-      """{
-        |  "some-field" : 456
-        |}""".stripMargin
+  "match JFilter" in {
+    val json: Json =  json"""{ "some-field" : 456 }"""
 
     import JPredicate.implicits._
     //    val jf : JFilter = "some-field" === "456"
@@ -50,7 +53,6 @@ class JPathTest extends WordSpec with Matchers {
     found.succeeded shouldBe true
     val found2 = JPath.select(("some-field" === "789") :: Nil, json.hcursor)
     found2.succeeded shouldBe false
-
   }
 
 }
