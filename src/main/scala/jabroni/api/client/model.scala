@@ -13,7 +13,7 @@ import scala.util.Properties
   * Contains instructions/information specific to the job scheduling/matching
   */
 case class SubmissionDetails(aboutMe: Json,
-                             selection: SelectionMode,
+                             selection: SelectionMode[Json],
                              workMatcher: JMatcher) {
 
   def submittedBy: User = SubmissionDetails.submissionUser.getOption(aboutMe).getOrElse {
@@ -26,15 +26,9 @@ object SubmissionDetails {
 
   def submissionUser = JsonPath.root.submissionUser.string
 
-  def default(submittedBy: User  = Properties.userName,
-            matchMode: SelectionMode  = SelectionFirst(),
-            workMatcher: JMatcher = JMatcher.matchAll) = {
-    apply(submittedBy, matchMode, workMatcher)
-  }
-
-  def apply(submittedBy: User,// = Properties.userName,
-            matchMode: SelectionMode, // = SelectionFirst(),
-            workMatcher: JMatcher) = { //) = JMatcher.matchAll) = {
+  def apply(submittedBy: User = Properties.userName,
+            matchMode: SelectionMode[Json]  = SelectionFirst(),
+            workMatcher: JMatcher  = JMatcher.matchAll) = {
 
     val json = Json.obj("submissionUser" -> Json.fromString(submittedBy))
     new SubmissionDetails(json, matchMode, workMatcher)

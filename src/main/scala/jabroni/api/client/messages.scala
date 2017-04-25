@@ -46,7 +46,7 @@ object SubmitJob {
 
   trait LowPriorityImplicits {
     implicit def asJob[T: Encoder](value: T) = new {
-      def asJob(details: SubmissionDetails = SubmissionDetails.default()): SubmitJob = SubmitJob[T](details, value)
+      def asJob(details: SubmissionDetails = SubmissionDetails()): SubmitJob = SubmitJob[T](details, value)
     }
   }
 

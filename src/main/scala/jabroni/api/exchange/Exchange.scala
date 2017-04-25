@@ -3,6 +3,15 @@ package jabroni.api.exchange
 import scala.language.implicitConversions
 
 
+object Exchange {
+
+  def apply[T, C](inputDao: InputDao[T] = InputDao(),
+                  subscriptionDao: SubscriptionDao[T, C] = SubscriptionDao())(implicit filterProvider: FilterProvider[T, C]) = {
+
+    new Exchange(inputDao, subscriptionDao)
+  }
+}
+
 class Exchange[T, C](inputDao: InputDao[T], subscriptionDao: SubscriptionDao[T, C])(implicit filterProvider: FilterProvider[T, C]) extends FilteredPublisher[T, C] {
 
   def offer(data: T) = {
