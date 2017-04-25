@@ -1,14 +1,9 @@
 package jabroni.api.exchange
 
-
-trait Filter[T] {
-  def accept(in: T): Boolean
-}
+import scala.language.implicitConversions
 
 
-//class Exchange[F[_] : DataFilter[F], T](store: InputStore[T]) extends Publisher[F] {
 class Exchange[T, C](inputDao: InputDao[T], subscriptionDao: SubscriptionDao[T, C])(implicit filterProvider: FilterProvider[T, C]) extends FilteredPublisher[T, C] {
-  //  private val filter: DataFilter[F] = implicitly[DataFilter[F]]
 
   def offer(data: T) = {
     val consumerFilter = filterProvider(data)

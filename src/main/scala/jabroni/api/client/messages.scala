@@ -6,12 +6,17 @@ import jabroni.api
 import jabroni.api.exchange.JobPredicate
 import jabroni.api.worker.{RequestWork, WorkerDetails}
 
+import scala.language.implicitConversions
+
 /**
   * A 'client' represents something which submits work to the exchange
   */
 sealed trait ClientRequest
+
 case class GetSubmission(id: JobId) extends ClientRequest
+
 case class CancelSubmission(id: JobId) extends ClientRequest
+
 case class GetMatchedWorkers(id: JobId, blockUntilMatched: Boolean) extends ClientRequest
 
 /**
@@ -26,7 +31,7 @@ case class GetMatchedWorkers(id: JobId, blockUntilMatched: Boolean) extends Clie
   *            asking for work
   */
 case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends ClientRequest {
-  def matches(work : RequestWork)(implicit m : JobPredicate) = m.matches(this, work)
+  def matches(work: RequestWork)(implicit m: JobPredicate) = m.matches(this, work)
 
   def select(offers: Stream[(api.WorkRequestId, RequestWork)]) = submissionDetails.selection.select(offers)
 
@@ -41,7 +46,7 @@ object SubmitJob {
 
   trait LowPriorityImplicits {
     implicit def asJob[T: Encoder](value: T) = new {
-      def asJob(details: SubmissionDetails = SubmissionDetails()): SubmitJob = SubmitJob[T](details, value)
+      def asJob(details: SubmissionDetails = SubmissionDetails.default()): SubmitJob = SubmitJob[T](details, value)
     }
   }
 
@@ -52,8 +57,12 @@ object SubmitJob {
 }
 
 sealed trait ClientResponse
+
 case class SubmitJobResponse(id: JobId) extends ClientResponse
+
 case class GetSubmissionResponse(id: JobId, job: Option[SubmitJob]) extends ClientResponse
+
 case class CancelSubmissionResponse(id: JobId, cancelled: Boolean) extends ClientResponse
+
 case class GetMatchedWorkersResponse(id: JobId, workers: List[WorkerDetails]) extends ClientResponse
 

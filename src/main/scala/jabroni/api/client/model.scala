@@ -16,9 +16,7 @@ case class SubmissionDetails(aboutMe: Json,
                              selection: SelectionMode,
                              workMatcher: JMatcher) {
 
-  import SubmissionDetails._
-
-  def submittedBy: User = submissionUser.getOption(aboutMe).getOrElse {
+  def submittedBy: User = SubmissionDetails.submissionUser.getOption(aboutMe).getOrElse {
     sys.error(s"Invalid json, 'submissionUser' not set in $aboutMe")
   }
 }
@@ -26,19 +24,19 @@ case class SubmissionDetails(aboutMe: Json,
 
 object SubmissionDetails {
 
-  val submissionUser = JsonPath.root.submissionUser.string
+  def submissionUser = JsonPath.root.submissionUser.string
 
-  case class DefaultDetails(submissionUser: String)
-
-  def apply(submittedBy: User = Properties.userName,
-            matchMode: SelectionMode = SelectionFirst(),
+  def default(submittedBy: User  = Properties.userName,
+            matchMode: SelectionMode  = SelectionFirst(),
             workMatcher: JMatcher = JMatcher.matchAll) = {
-    import io.circe.generic._
+    apply(submittedBy, matchMode, workMatcher)
+  }
 
-    import io.circe.generic.auto._
-    import io.circe.parser._
-    import io.circe.syntax._
-    val json = DefaultDetails(submittedBy).asJson
+  def apply(submittedBy: User,// = Properties.userName,
+            matchMode: SelectionMode, // = SelectionFirst(),
+            workMatcher: JMatcher) = { //) = JMatcher.matchAll) = {
+
+    val json = Json.obj("submissionUser" -> Json.fromString(submittedBy))
     new SubmissionDetails(json, matchMode, workMatcher)
   }
 }
