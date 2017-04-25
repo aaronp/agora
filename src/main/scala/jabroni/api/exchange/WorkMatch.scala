@@ -7,7 +7,7 @@ import jabroni.api.client.SubmitJob
 import jabroni.api.worker.RequestWork
 
 /**
-  * Represents
+  * Represents the pairing of a job w/ a worker
   *
   * @param workId
   * @param jobId

@@ -36,8 +36,9 @@ val akkaHttp = List("", "-core", "-testkit").map { suffix =>
   "com.typesafe.akka" %% s"akka-http$suffix" % "10.0.5"
 } :+ ("de.heikoseeberger" %% "akka-http-circe" % "1.14.0")
 
+val streamsTck = "org.reactivestreams" % "reactive-streams-tck" % "1.0.0" % "test"
 
-libraryDependencies ++= logging ++ cucumber ++ testDependencies ++ circe ++ akkaHttp
+libraryDependencies ++= logging ++ cucumber ++ testDependencies ++ circe ++ akkaHttp :+ streamsTck
 
 lazy val copyDependencies = TaskKey[Unit]("copy-dependencies")
 
