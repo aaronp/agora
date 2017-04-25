@@ -36,6 +36,7 @@ case class RequestWork(worker: WorkerDetails,
 
   override def json: Json = {
     import io.circe.syntax._
+    import io.circe.generic.auto._
     this.asJson
   }
 }
@@ -43,6 +44,7 @@ case class RequestWork(worker: WorkerDetails,
 case class UpdateWorkItems(id: WorkRequestId, itemsRequested: Int) extends WorkerRequest {
   override def json: Json = {
     import io.circe.syntax._
+    import io.circe.generic.auto._
     this.asJson
   }
 }

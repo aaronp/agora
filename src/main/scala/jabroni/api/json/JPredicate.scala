@@ -4,7 +4,7 @@ import io.circe.Decoder.Result
 import io.circe._
 import io.circe.syntax._
 import io.circe.generic.auto._
-
+import language.implicitConversions
 
 sealed trait JPredicate {
   def matches(json: Json): Boolean
@@ -76,7 +76,6 @@ object JPredicate {
     override def apply(a: JPredicate): Json = a match {
       case p: And => p.asJson
       case p: Or => p.asJson
-      case p: Or => p.asJson
       case p: Not => p.asJson
       case p: Eq => p.asJson
       case p: JRegex => p.asJson
@@ -122,7 +121,7 @@ case class JRegex(regex: String) extends JPredicate {
   override def json: Json = this.asJson
 }
 
-abstract class ComparablePredicate(value: Json, op: (Long, Long) => Boolean) extends JPredicate {
+sealed abstract class ComparablePredicate(value: Json, op: (Long, Long) => Boolean) extends JPredicate {
 
   import Ordering.Implicits._
 
