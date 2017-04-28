@@ -4,7 +4,8 @@ import java.io.Closeable
 import java.nio.charset.StandardCharsets
 
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.{HttpRequest, HttpResponse, Uri}
+import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
+import akka.stream.Materializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import com.typesafe.scalalogging.StrictLogging
 import io.circe.Decoder
@@ -47,8 +48,9 @@ object RestClient {
   }
 
   object implicits {
+
     implicit class RichHttpResponse(val resp: HttpResponse) extends AnyVal {
-      def as[T: Decoder]: Future[T] = {
+      def as[T: Decoder](implicit ec: ExecutionContext, mat: Materializer): Future[T] = {
         val bytes = resp.entity.dataBytes.runReduce(_ ++ _)
         val jsonStringFuture: Future[String] = bytes.map(_.decodeString(StandardCharsets.UTF_8))
         //          jsonStringFuture
@@ -59,5 +61,4 @@ object RestClient {
       }
     }
   }
-
 }

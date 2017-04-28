@@ -1,9 +1,9 @@
 package jabroni.api.exchange
 
 import io.circe.Decoder.Result
-import io.circe.{Encoder, HCursor}
 import io.circe.generic.auto._
 import io.circe.syntax._
+import io.circe.{Encoder, HCursor}
 import jabroni.api.client.SubmitJob
 import jabroni.api.json.JMatcher
 import jabroni.api.worker.{SubscriptionKey, WorkerDetails}
@@ -17,12 +17,9 @@ case class WorkSubscription(details: WorkerDetails,
                             workMatcher: JMatcher)(val onNext: (SubmitJob, Int) => Unit) extends SubscriptionRequest {
   def matches(job: SubmitJob)(implicit m: JobPredicate): Boolean = m.matches(job, this)
 
-
   def withData[T: Encoder](data: T, name: String = null) = {
-    copy(details = details.withData(data, name))
+    copy(details = details.withData(data, name))(onNext)
   }
-
-
 }
 
 object WorkSubscription {
@@ -38,7 +35,6 @@ object WorkSubscription {
 
     override def apply(c: HCursor): Result[WorkSubscription] = c.as[WorkSubscription]
   }
-
 }
 
 case class WorkSubscriptionAck(id: SubscriptionKey) extends SubscriptionResponse
@@ -50,7 +46,6 @@ object WorkSubscriptionAck {
 
     override def apply(c: HCursor): Result[WorkSubscriptionAck] = c.as[WorkSubscriptionAck]
   }
-
 }
 
 case class RequestWork(id: SubscriptionKey,
@@ -64,7 +59,6 @@ object RequestWork {
 
   implicit object Support extends RequestSupport[RequestWork] {
     override def apply(submit: RequestWork) = submit.asJson
-
     override def apply(c: HCursor): Result[RequestWork] = c.as[RequestWork]
   }
 

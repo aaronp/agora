@@ -1,10 +1,6 @@
 package jabroni.api.exchange
 
-import java.nio.charset.StandardCharsets
-
-import akka.http.scaladsl.model.HttpResponse
-import io.circe.Decoder
-import io.circe.Decoder.Result
+import akka.stream.Materializer
 import jabroni.api.client._
 import jabroni.api.worker.SubscriptionKey
 import jabroni.api.{JobId, nextJobId, nextSubscriptionId}
@@ -12,7 +8,7 @@ import jabroni.rest.client.RestClient
 import jabroni.rest.exchange.ExchangeHttp
 
 import scala.collection.parallel.ParSeq
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 /**
   * An exchange supports both 'client' requests (e.g. offering and cancelling work to be done)
@@ -22,15 +18,19 @@ trait Exchange extends JobScheduler {
 
   def pull(req: SubscriptionRequest): Future[SubscriptionResponse]
 
+  def subscribe(req: WorkSubscription)(implicit ec: ExecutionContext) = pull(req).map(_.asInstanceOf[WorkSubscriptionAck])
+
+  def take(req: RequestWork)(implicit ec: ExecutionContext): Future[RequestWorkAck] = pull(req).map(_.asInstanceOf[RequestWorkAck])
+
+  def take(id: SubscriptionKey, itemsRequested: Int)(implicit ec: ExecutionContext): Future[RequestWorkAck] = take(RequestWork(id, itemsRequested))
 }
 
 object Exchange {
   def apply(implicit matcher: JobPredicate = JobPredicate()): Exchange = new InMemory
 
-  def client(rest: RestClient): Exchange = new RestExchange(rest)
+  def client(rest: RestClient)(implicit ec: ExecutionContext, mat: Materializer): Exchange = new RestExchange(rest)
 
-  class RestExchange(rest: RestClient) extends Exchange {
-
+  class RestExchange(rest: RestClient)(implicit ec: ExecutionContext, mat: Materializer) extends Exchange {
     import RestClient.implicits._
 
     override def pull(request: SubscriptionRequest): Future[SubscriptionResponse] = {
@@ -115,7 +115,7 @@ object Exchange {
 
     protected def onMatch(job: SubmitJob, workers: Seq[(SubscriptionKey, WorkSubscription, Int)]) = {
       workers.foreach {
-        case (key, sub, n) => sub.onNext(job, n)
+        case (_, sub, n) => sub.onNext(job, n)
       }
     }
   }

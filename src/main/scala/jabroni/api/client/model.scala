@@ -1,9 +1,9 @@
 package jabroni.api.client
 
-import io.circe.{Encoder, Json}
 import io.circe.optics.JsonPath
-import jabroni.api.exchange.{SelectionFirst, SelectionMode}
+import io.circe.{Encoder, Json}
 import jabroni.api.User
+import jabroni.api.exchange.{SelectionFirst, SelectionMode}
 import jabroni.api.json.{JMatcher, JsonAppendable}
 
 import scala.util.Properties
@@ -20,7 +20,12 @@ case class SubmissionDetails(aboutMe: Json,
     sys.error(s"Invalid json, 'submissionUser' not set in $aboutMe")
   }
 
-  def withData[T: Encoder](data: T, name: String = null) = copy(aboutMe = mergeJson(aboutMe, data, name))
+  def withData[T: Encoder](data: T, name: String = null): SubmissionDetails = {
+    val namespace = Option(name).getOrElse(data.getClass.getSimpleName)
+    val json: Json = implicitly[Encoder[T]].apply(data)
+    val qualified = Json.obj(namespace -> json)
+    copy(aboutMe = qualified.deepMerge(aboutMe))
+  }
 }
 
 

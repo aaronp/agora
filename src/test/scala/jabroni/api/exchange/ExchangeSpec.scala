@@ -19,8 +19,15 @@ trait ExchangeSpec extends WordSpec with Matchers with ScalaFutures with Eventua
       val ex = newExchange
       val jobId = ex.send(DoubleMe(34).asJob).futureValue.asInstanceOf[SubmitJobResponse].id
 
-      val sub = WorkSubscription()
-      ex.pull(WorkSubscription)
+      val sub = WorkSubscription {
+        case (job, remaining) =>
+      }
+
+      val subscriptionId = ex.pull(sub).futureValue.asInstanceOf[WorkSubscriptionAck].id
+
+      val consumedJob = ex.take(subscriptionId, 1).futureValue
+      consumedJob.totalItemsPending shouldBe 0
+
 
     }
   }
