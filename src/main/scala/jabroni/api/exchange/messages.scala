@@ -1,7 +1,7 @@
 package jabroni.api.exchange
 
 import io.circe.Decoder.Result
-import io.circe.HCursor
+import io.circe.{Encoder, HCursor}
 import io.circe.generic.auto._
 import io.circe.syntax._
 import jabroni.api.client.SubmitJob
@@ -14,12 +14,24 @@ sealed trait SubscriptionRequest
 sealed trait SubscriptionResponse
 
 case class WorkSubscription(details: WorkerDetails,
-                            workMatcher: JMatcher)(val onNext : (SubmitJob, Int) => Unit) extends SubscriptionRequest {
+                            workMatcher: JMatcher)(val onNext: (SubmitJob, Int) => Unit) extends SubscriptionRequest {
   def matches(job: SubmitJob)(implicit m: JobPredicate): Boolean = m.matches(job, this)
+
+
+  def withData[T: Encoder](data: T, name: String = null) = {
+    copy(details = details.withData(data, name))
+  }
+
 
 }
 
 object WorkSubscription {
+
+  def apply(onNext: (SubmitJob, Int) => Unit)(implicit
+                                              details: WorkerDetails = WorkerDetails(),
+                                              workMatcher: JMatcher = JMatcher.matchAll): WorkSubscription = {
+    WorkSubscription(details, workMatcher)(onNext)
+  }
 
   implicit object Support extends RequestSupport[WorkSubscription] {
     override def apply(submit: WorkSubscription) = submit.asJson

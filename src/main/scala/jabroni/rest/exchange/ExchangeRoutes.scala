@@ -28,7 +28,7 @@ import scala.language.reflectiveCalls
 case class ExchangeRoutes(exchange: Exchange)(implicit ec: ExecutionContext) extends FailFastCirceSupport {
 
   def routes: Route = pathPrefix("rest" / "exchange") {
-    worker.routes ~ client.routes
+    worker.routes ~ client.routes ~ health
   }
 
   object client {
@@ -39,15 +39,21 @@ case class ExchangeRoutes(exchange: Exchange)(implicit ec: ExecutionContext) ext
     }
   }
 
+  def health = (get & path("health") & pathEnd) {
+    complete {
+      "meh"
+    }
+  }
+
   object worker {
     def routes: Route = subscribe ~ takeNext
 
     def subscribe = put {
-      jsonRouteFor[WorkSubscription, WorkSubscriptionAck]("subscribe")(exchange.handleWorkerRequest)
+      jsonRouteFor[WorkSubscription, WorkSubscriptionAck]("subscribe")(exchange.pull)
     }
 
     def takeNext = post {
-      jsonRouteFor[RequestWork, RequestWorkAck]("take")(exchange.handleWorkerRequest)
+      jsonRouteFor[RequestWork, RequestWorkAck]("take")(exchange.pull)
     }
   }
 

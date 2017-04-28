@@ -5,6 +5,7 @@ import java.net.InetAddress
 import io.circe.{Encoder, Json}
 import io.circe.optics.JsonPath
 import jabroni.api.User
+import jabroni.api.json.JsonAppendable
 
 import scala.util.Properties
 
@@ -22,7 +23,7 @@ object HostLocation {
   *
   * @param aboutMe
   */
-case class WorkerDetails(aboutMe: Json) {
+case class WorkerDetails(aboutMe: Json) extends JsonAppendable {
 
   def +[T : Encoder](data : T) : WorkerDetails = append(WorkerDetails.asName(data.getClass), data)
   def +[T : Encoder](name : String, data : T) : WorkerDetails = append(name, implicitly[Encoder[T]].apply(data))
@@ -31,6 +32,8 @@ case class WorkerDetails(aboutMe: Json) {
   def append(data : Json) : WorkerDetails = copy(aboutMe.deepMerge(data))
 
   import WorkerDetails._
+
+  def withData[T: Encoder](data: T, name: String = null) = copy(aboutMe = mergeJson(aboutMe, data, name))
 
   private def locationOpt: Option[HostLocation] = {
     for {

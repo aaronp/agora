@@ -1,10 +1,10 @@
 package jabroni.api.client
 
-import io.circe.Json
+import io.circe.{Encoder, Json}
 import io.circe.optics.JsonPath
 import jabroni.api.exchange.{SelectionFirst, SelectionMode}
 import jabroni.api.User
-import jabroni.api.json.JMatcher
+import jabroni.api.json.{JMatcher, JsonAppendable}
 
 import scala.util.Properties
 
@@ -14,11 +14,13 @@ import scala.util.Properties
   */
 case class SubmissionDetails(aboutMe: Json,
                              selection: SelectionMode,
-                             workMatcher: JMatcher) {
+                             workMatcher: JMatcher) extends JsonAppendable {
 
   def submittedBy: User = SubmissionDetails.submissionUser.getOption(aboutMe).getOrElse {
     sys.error(s"Invalid json, 'submissionUser' not set in $aboutMe")
   }
+
+  def withData[T: Encoder](data: T, name: String = null) = copy(aboutMe = mergeJson(aboutMe, data, name))
 }
 
 
@@ -28,7 +30,7 @@ object SubmissionDetails {
 
   def apply(submittedBy: User = Properties.userName,
             matchMode: SelectionMode = SelectionFirst(),
-            workMatcher: JMatcher  = JMatcher.matchAll) = {
+            workMatcher: JMatcher = JMatcher.matchAll) = {
 
     val json = Json.obj("submissionUser" -> Json.fromString(submittedBy))
     new SubmissionDetails(json, matchMode, workMatcher)

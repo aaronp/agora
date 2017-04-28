@@ -1,8 +1,15 @@
 package jabroni.api.exchange
 
+import java.nio.charset.StandardCharsets
+
+import akka.http.scaladsl.model.HttpResponse
+import io.circe.Decoder
+import io.circe.Decoder.Result
 import jabroni.api.client._
 import jabroni.api.worker.SubscriptionKey
 import jabroni.api.{JobId, nextJobId, nextSubscriptionId}
+import jabroni.rest.client.RestClient
+import jabroni.rest.exchange.ExchangeHttp
 
 import scala.collection.parallel.ParSeq
 import scala.concurrent.Future
@@ -13,19 +20,41 @@ import scala.concurrent.Future
   */
 trait Exchange extends JobScheduler {
 
-  def handleWorkerRequest(req: SubscriptionRequest): Future[SubscriptionResponse]
+  def pull(req: SubscriptionRequest): Future[SubscriptionResponse]
 
 }
 
 object Exchange {
   def apply(implicit matcher: JobPredicate = JobPredicate()): Exchange = new InMemory
 
+  def client(rest: RestClient): Exchange = new RestExchange(rest)
+
+  class RestExchange(rest: RestClient) extends Exchange {
+
+    import RestClient.implicits._
+
+    override def pull(request: SubscriptionRequest): Future[SubscriptionResponse] = {
+      request match {
+        case subscribe: WorkSubscription =>
+          rest.send(ExchangeHttp(subscribe)).flatMap(_.as[WorkSubscriptionAck])
+        case take: RequestWork =>
+          rest.send(ExchangeHttp(take)).flatMap(_.as[RequestWorkAck])
+      }
+    }
+
+    override def send(request: ClientRequest): Future[ClientResponse] = {
+      request match {
+        case submit: SubmitJob => rest.send(ExchangeHttp(submit)).flatMap(_.as[SubmitJobResponse])
+      }
+    }
+  }
+
   class InMemory(implicit matcher: JobPredicate) extends Exchange {
     private var subscriptionsById = Map[SubscriptionKey, WorkSubscription]()
     private var pending = Map[SubscriptionKey, Int]()
     private var jobsById = Map[JobId, SubmitJob]()
 
-    override def handleWorkerRequest(req: SubscriptionRequest): Future[SubscriptionResponse] = {
+    override def pull(req: SubscriptionRequest): Future[SubscriptionResponse] = {
       req match {
         case subscription: WorkSubscription =>
           val id = nextSubscriptionId
