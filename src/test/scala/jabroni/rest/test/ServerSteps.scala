@@ -2,7 +2,8 @@ package jabroni.rest.test
 
 import com.typesafe.config.ConfigFactory
 import cucumber.api.scala.{EN, ScalaDsl}
-import jabroni.rest.server.ServerConfig
+import jabroni.rest.ServerConfig
+import jabroni.rest.exchange.ExchangeRoutes
 import org.scalatest.Matchers
 
 class ServerSteps extends ScalaDsl with EN with Matchers {
@@ -14,8 +15,8 @@ class ServerSteps extends ScalaDsl with EN with Matchers {
     state = state.copy(Option(ServerConfig(c)))
   }
 
-  When("""^I start the server$""") {
-    state = state.startServer()
+  When("""^I start the exchange server$""") {
+    state = state.startExchangeServer()
   }
 
   After { _ =>

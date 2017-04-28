@@ -14,6 +14,3 @@ Feature: Exchange should match work with offers
 
 
   Scenario: Match work with offer
-    Then The order book should be
-      | SELL | 1kg | £2 |
-      | BUY  | 3kg | £4 |

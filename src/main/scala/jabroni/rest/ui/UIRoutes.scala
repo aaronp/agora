@@ -1,4 +1,4 @@
-package jabroni.rest.server.routes
+package jabroni.rest.ui
 
 import akka.http.scaladsl.model.{StatusCodes, Uri}
 import akka.http.scaladsl.server.Directives.{encodeResponse, extractUnmatchedPath, get, getFromBrowseableDirectory, getFromResource, mapUnmatchedPath, pathPrefix, redirect, _}

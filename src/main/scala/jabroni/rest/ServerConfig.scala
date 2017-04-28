@@ -1,7 +1,6 @@
-package jabroni.rest.server
+package jabroni.rest
 
 import com.typesafe.config.{Config, ConfigFactory}
-import jabroni.rest.BaseConfig
 
 /**
   * A parsed configuration for our jabroni app

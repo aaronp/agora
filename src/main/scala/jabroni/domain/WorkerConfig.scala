@@ -1,10 +1,9 @@
 package jabroni.domain
 
 import com.typesafe.config.{Config, ConfigFactory}
+import jabroni.api.exchange.WorkSubscription
 import jabroni.api.json.JMatcher
-import jabroni.api.worker.{HostLocation, RequestWork, WorkerDetails}
-
-import scala.util.Properties
+import jabroni.api.worker.{HostLocation, WorkerDetails}
 
 class WorkerConfig(config: Config = WorkerConfig.defaultConfig()) {
   val host = config.getString("host")
@@ -15,8 +14,8 @@ class WorkerConfig(config: Config = WorkerConfig.defaultConfig()) {
   def workerDetails: WorkerDetails = WorkerDetails(runUser, location)
 
   def matcher: JMatcher = ???
-  def newRequestWork(i : Int) : RequestWork = {
-    RequestWork(workerDetails, matcher, i)
+  def newWorkSubscription(i : Int) : WorkSubscription = {
+    WorkSubscription(workerDetails, matcher)
   }
 }
 

@@ -1,4 +1,8 @@
-package jabroni.rest.server
+package jabroni.rest.exchange
+
+import jabroni.api.client.SubmitJob
+import jabroni.api.exchange.Exchange
+import jabroni.rest.BaseSpec
 
 import scala.language.reflectiveCalls
 
@@ -8,22 +12,31 @@ import scala.language.reflectiveCalls
   * that form by e.g. renaming a parameter. that would potentially break clients running against different
   * versions of our service, or dynamic languages (e.g. javascript )
   */
-class RoutesTest extends BaseSpec {
+class ExchangeRoutesTest extends BaseSpec {
 
-  //
-  //  "GET /rest/orders" should {
-  //    "return no orders for empty order books" in {
-  //      Get("/rest/orders") ~> routes() ~> check {
-  //        responseAs[String] shouldBe "{\"buyTotals\":[],\"sellTotals\":[]}"
-  //      }
-  //    }
-  //    "return buy and sell orders" in {
-  //      val ledger = Ledger() buy (1) at (2) sell (3) at (4)
-  //      Get("/rest/orders") ~> routes(ledger) ~> check {
-  //        responseAs[String] shouldBe "{\"buyTotals\":[{\"quantity\":1,\"price\":2}],\"sellTotals\":[{\"quantity\":3,\"price\":4}]}"
-  //      }
-  //    }
-  //  }
+  def routes() = {
+    val exchange: Exchange = Exchange()
+
+    ExchangeRoutes(exchange).routes
+  }
+
+  "GET /rest/orders" should {
+    "return no orders for empty order books" in {
+
+      import jabroni.api.Implicits._
+
+      val submit = 123.asJob()
+      ExchangeHttp(submit) ~> routes() ~> check {
+        responseAs[String] shouldBe "{\"buyTotals\":[],\"sellTotals\":[]}"
+      }
+    }
+    //    "return buy and sell orders" in {
+    //      val ledger = Ledger() buy (1) at (2) sell (3) at (4)
+    //      Get("/rest/orders") ~> routes(ledger) ~> check {
+    //        responseAs[String] shouldBe "{\"buyTotals\":[{\"quantity\":1,\"price\":2}],\"sellTotals\":[{\"quantity\":3,\"price\":4}]}"
+    //      }
+    //    }
+  }
   //
   //  "PUT /rest/buy" should {
   //    "place BUY orders" in {

@@ -1,11 +1,10 @@
-package jabroni.rest.server
+package jabroni.rest
 
 import java.net.URI
 
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
 import com.typesafe.scalalogging.StrictLogging
-import jabroni.rest.server.routes.Routes
 
 import scala.concurrent.Future
 import scala.io.StdIn
@@ -13,7 +12,9 @@ import scala.io.StdIn
 /**
   * Main entry point for the rest service.
   */
-object RestService extends StrictLogging {
+trait Boot extends StrictLogging {
+
+  def routeFromConf(conf: ServerConfig): Route
 
   def main(args: Array[String]) = {
     val conf: ServerConfig = {
@@ -21,17 +22,21 @@ object RestService extends StrictLogging {
       val typesafeConfig = args.asConfig().withFallback(ServerConfig.defaultConfig)
       ServerConfig(typesafeConfig)
     }
-    val future = start(conf)
+
+    import conf.implicits.executionContext
+    val route = routeFromConf(conf)
+    val future = start(route, conf)
 
     if (conf.launchBrowser && java.awt.Desktop.isDesktopSupported()) {
-      import conf.implicits.executionContext
       future.onComplete { _ =>
-        java.awt.Desktop.getDesktop().browse(new URI(s"http://localhost:${conf.port}/ui")) //index.html
+        java.awt.Desktop.getDesktop().browse(new URI(s"http://${conf.host}:${conf.port}/ui")) //index.html
       }
     }
 
-    StdIn.readLine() // let it run until user presses return
-    future.foreach(_.stop)(conf.implicits.executionContext)
+    if (conf.waitOnUserInput) {
+      StdIn.readLine() // let it run until user presses return
+      future.foreach(_.stop)(conf.implicits.executionContext)
+    }
   }
 
   /**
@@ -41,16 +46,12 @@ object RestService extends StrictLogging {
     * @param binding
     */
   case class RunningService(conf: ServerConfig, binding: Http.ServerBinding) {
-    def stop() = {
-      binding.unbind() // trigger unbinding from the port
-      //conf.implicits.system.terminate()
-    }
+    def stop() = binding.unbind()
   }
 
 
-  def start(conf: ServerConfig = ServerConfig()): Future[RunningService] = {
+  def start(route: Route, conf: ServerConfig = ServerConfig()): Future[RunningService] = {
     import conf.implicits._
-    val route: Route = Routes().routes
     logger.info(s"Starting server at http://${conf.host}:${conf.port}")
     val bindingFuture = Http().bindAndHandle(route, conf.host, conf.port)
     bindingFuture.map { b =>

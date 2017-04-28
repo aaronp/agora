@@ -1,11 +1,13 @@
 package jabroni.api
 package client
 
-import io.circe.{Encoder, Json}
-import jabroni.api
-import jabroni.api.exchange.JobPredicate
-import jabroni.api.worker.{RequestWork, WorkerDetails}
+import io.circe.Decoder.Result
+import io.circe.{Decoder, Encoder, HCursor, Json}
+import jabroni.api.exchange.{JobPredicate, WorkSubscription}
+import jabroni.api.worker.WorkerDetails
 
+import io.circe.generic.auto._
+import io.circe.syntax._
 import scala.language.implicitConversions
 
 /**
@@ -13,11 +15,12 @@ import scala.language.implicitConversions
   */
 sealed trait ClientRequest
 
-case class GetSubmission(id: JobId) extends ClientRequest
-
-case class CancelSubmission(id: JobId) extends ClientRequest
-
-case class GetMatchedWorkers(id: JobId, blockUntilMatched: Boolean) extends ClientRequest
+//
+//case class GetSubmission(id: JobId) extends ClientRequest
+//
+//case class CancelSubmission(id: JobId) extends ClientRequest
+//
+//case class GetMatchedWorkers(id: JobId, blockUntilMatched: Boolean) extends ClientRequest
 
 /**
   * Represents anything which can be run as a job
@@ -31,18 +34,15 @@ case class GetMatchedWorkers(id: JobId, blockUntilMatched: Boolean) extends Clie
   *            asking for work
   */
 case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends ClientRequest {
-  def matches(work: RequestWork)(implicit m: JobPredicate) = m.matches(this, work)
-
-  def select(offers: Stream[(api.WorkRequestId, RequestWork)]) = submissionDetails.selection.select(offers)
-
-  def json = {
-    import io.circe.generic.auto._
-    import io.circe.syntax._
-    this.asJson
-  }
+  def matches(work: WorkSubscription)(implicit m: JobPredicate) = m.matches(this, work)
 }
 
 object SubmitJob {
+
+  implicit object ClientRequestSupport extends RequestSupport[SubmitJob] {
+    override def apply(submit: SubmitJob) = submit.asJson
+    override def apply(c: HCursor): Result[SubmitJob] = c.as[SubmitJob]
+  }
 
   trait LowPriorityImplicits {
     implicit def asJob[T: Encoder](value: T) = new {
@@ -59,10 +59,16 @@ object SubmitJob {
 sealed trait ClientResponse
 
 case class SubmitJobResponse(id: JobId) extends ClientResponse
+object SubmitJobResponse {
+  implicit object SubmitJobResponseSupport extends ResponseSupport[SubmitJobResponse] {
+    override def apply(submit: SubmitJobResponse) = submit.asJson
+    override def apply(c: HCursor): Result[SubmitJobResponse] = c.as[SubmitJobResponse]
+  }
+}
 
-case class GetSubmissionResponse(id: JobId, job: Option[SubmitJob]) extends ClientResponse
-
-case class CancelSubmissionResponse(id: JobId, cancelled: Boolean) extends ClientResponse
-
-case class GetMatchedWorkersResponse(id: JobId, workers: List[WorkerDetails]) extends ClientResponse
+//case class GetSubmissionResponse(id: JobId, job: Option[SubmitJob]) extends ClientResponse
+//
+//case class CancelSubmissionResponse(id: JobId, cancelled: Boolean) extends ClientResponse
+//
+//case class GetMatchedWorkersResponse(id: JobId, workers: List[WorkerDetails]) extends ClientResponse
 

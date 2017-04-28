@@ -2,7 +2,9 @@ package jabroni.rest.test
 
 import java.io.Closeable
 
-import jabroni.rest.server.{RestService, ServerConfig}
+import jabroni.api.exchange.Exchange
+import jabroni.rest.exchange.ExchangeRoutes
+import jabroni.rest.{RestService, ServerConfig}
 import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
 
@@ -12,10 +14,14 @@ case class ServerTestState(serverConfig: Option[ServerConfig] = None,
     with ScalaFutures
     with Closeable {
 
-  def startServer() = {
+  def startExchangeServer() = {
     close()
     val conf = serverConfig.get
-    ServerTestState(server = Option(RestService.start(conf).futureValue))
+    import conf.implicits._
+
+    val exchange: Exchange = ???
+    val route = ExchangeRoutes(exchange).routes
+    ServerTestState(server = Option(RestService.start(route, conf).futureValue))
   }
 
 

@@ -1,4 +1,4 @@
-package jabroni.rest.server
+package jabroni.rest
 
 import org.scalatest.{Matchers, WordSpec}
 

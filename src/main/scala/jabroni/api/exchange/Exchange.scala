@@ -1,82 +1,93 @@
 package jabroni.api.exchange
 
-import scala.language.implicitConversions
+import jabroni.api.client._
+import jabroni.api.worker.SubscriptionKey
+import jabroni.api.{JobId, nextJobId, nextSubscriptionId}
 
+import scala.concurrent.Future
+
+/**
+  * An exchange supports both 'client' requests (e.g. offering and cancelling work to be done)
+  * and work subscriptions
+  */
+trait Exchange extends JobScheduler {
+
+  def handleWorkerRequest(req: SubscriptionRequest): Future[SubscriptionResponse]
+
+}
 
 object Exchange {
+  def apply(implicit matcher : JobPredicate = JobPredicate()): Exchange = new InMemory
 
-  def apply[T, C](inputDao: InputDao[T] = InputDao(),
-                  subscriptionDao: SubscriptionDao[T, C] = SubscriptionDao())(implicit filterProvider: FilterProvider[T, C]) = {
+  class InMemory(implicit matcher : JobPredicate) extends Exchange {
+    private var subscriptionsById = Map[SubscriptionKey, WorkSubscription]()
+    private var pending = Map[SubscriptionKey, Int]()
+    private var jobsById = Map[JobId, SubmitJob]()
 
-    new Exchange(inputDao, subscriptionDao)
-  }
-}
-
-class Exchange[T, C](inputDao: InputDao[T], subscriptionDao: SubscriptionDao[T, C])(implicit filterProvider: FilterProvider[T, C]) extends FilteredPublisher[T, C] {
-
-  def offer(data: T) = {
-    val consumerFilter = filterProvider(data)
-
-    val candidateSubscriptions = subscriptionDao.matching(data)
-    val matches: Iterator[(Long, FilteringSubscriber[T, C])] = candidateSubscriptions.filter {
-      case (_, subscription) => consumerFilter(subscription.subscriberData)
-    }
-
-    implicit def asC(pear: (Long, FilteringSubscriber[T, C])) = pear._2.subscriberData
-
-    val chosen = filterProvider.select(matches.toIterable).map(_._2)
-    val notified = notifySubscriber(chosen, data, true)
-    // no eligible subscribers ... save the data to be matched later
-    if (notified == 0) {
-      inputDao.save(data)
-    }
-  }
-
-  private def notifySubscriber(subscribers: Traversable[FilteringSubscriber[T, C]], data: T, decrement: Boolean): Int = {
-    subscribers.foldLeft(0) {
-      case (count, subscription) =>
-        try {
-          subscription.onNext(data)
-          if (decrement) {
-            subscriptionDao.decrement(subscription)
+    override def handleWorkerRequest(req: SubscriptionRequest): Future[SubscriptionResponse] = {
+      req match {
+        case subscription: WorkSubscription =>
+          val id = nextSubscriptionId
+          subscriptionsById = subscriptionsById.updated(id, subscription)
+          Future.successful(WorkSubscriptionAck(id))
+        case RequestWork(id, n) =>
+          subscriptionsById.get(id) match {
+            case None => Future.failed(new Exception(s"$id? WTF?"))
+            case Some(subscription) =>
+              val before = pending.getOrElse(id, 0)
+              if (before == 0) {
+                triggerMatch()
+              }
+              val total = before + n
+              updatePending(id, total)
+              Future.successful(RequestWorkAck(id, total))
           }
-        } catch {
-          case err: Throwable => subscription.onError(err)
-        }
-        count + 1
-    }
-  }
-
-
-  private[exchange] def take(n: Int, subscriber: FilteringSubscriber[T, C]) = {
-    val filter: Filter[T] = subscriber.filter
-
-    val matchingData: Iterator[T] = inputDao.matching(n, filter.accept)
-
-    // check the data likes us back
-    val data: Iterator[T] = matchingData.filter { data =>
-      filterProvider(data)(subscriber.subscriberData)
+      }
     }
 
-    val sent = data.foldLeft(0) {
-      case (count, data) =>
-        notifySubscriber(List(subscriber), data, false)
-        inputDao.remove(data)
-        count + 1
+    private def updatePending(id: SubscriptionKey, n: Int) = pending = pending.updated(id, n)
+
+    override def send(request: ClientRequest): Future[ClientResponse] = {
+      request match {
+        case job: SubmitJob =>
+          val id = nextJobId
+          jobsById = jobsById.updated(id, job)
+          triggerMatch()
+          Future.successful(SubmitJobResponse(id))
+      }
     }
 
-    if (sent < n) {
-      subscriptionDao.increment(n - sent, subscriber)
+    def triggerMatch() = {
+      val newJobs = jobsById.filter {
+        case (id, job) =>
+
+          val candidates = pending.toSeq.par.collect {
+            case (id, requested) if job.matches(subscriptionsById(id)) =>
+              val subscription = subscriptionsById(id)
+              (id, subscription, requested.ensuring(_ > 0) - 1)
+          }
+
+          val chosen = job.submissionDetails.selection.select(candidates.seq)
+          if (chosen.isEmpty) {
+            true
+          } else {
+            pending = chosen.foldLeft(pending) {
+              case (p, (key, _, 0)) => p - key
+              case (p, (key, _, n)) => p.updated(key, n)
+            }
+            onMatch(job, chosen)
+            false // remove the job... it got sent somewhere
+          }
+      }
+      jobsById = newJobs
     }
-  }
 
-  override def subscribe(subscriber: FilteringSubscriber[T, C]): Unit = {
-    subscriber.onSubscribe(new ExchangeSubscription(this, subscriber))
-  }
 
-  private[exchange] def cancel(subscriber: FilteringSubscriber[T, C]) = {
-    subscriptionDao.remove(subscriber)
+    protected def onMatch(job: SubmitJob, workers: Seq[(SubscriptionKey, WorkSubscription, Int)]) = {
+      workers.foreach {
+        case (key, sub, n) => sub.onNext(job, n)
+      }
+    }
   }
 
 }
-

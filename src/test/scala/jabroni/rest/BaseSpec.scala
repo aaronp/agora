@@ -1,4 +1,4 @@
-package jabroni.rest.server
+package jabroni.rest
 
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import org.scalatest.concurrent.ScalaFutures
@@ -11,6 +11,5 @@ class BaseSpec
     with Matchers
     with ScalatestRouteTest
     with ScalaFutures {
-
 
 }
