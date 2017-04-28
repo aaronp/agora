@@ -1,10 +1,9 @@
 package jabroni.api.exchange
 
-import java.nio.channels.SelectionKey
 
 import io.circe.Decoder.Result
 import io.circe.{Decoder, Encoder, HCursor, Json}
-import jabroni.api.WorkRequestId
+import jabroni.api.{SubscriptionKey, WorkRequestId}
 import jabroni.api.json.JPath
 
 import scala.collection.SeqLike
@@ -15,7 +14,7 @@ abstract class SelectionMode(override val toString: String) {
   type Selected = SelectionMode.Selected
   type Remaining = SelectionMode.Remaining
 
-  type Work = (SelectionKey, WorkSubscription, Int)
+  type Work = (SubscriptionKey, WorkSubscription, Int)
   //  def select(offers: Stream[(api.WorkRequestId, RequestWork)]): (Selected, Remaining)
 
   def select[Coll <: SeqLike[Work, Coll]](values: Coll)(implicit bf: CanBuildFrom[Coll, Work, Coll]): Coll

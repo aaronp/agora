@@ -4,6 +4,7 @@ import jabroni.api.client._
 import jabroni.api.worker.SubscriptionKey
 import jabroni.api.{JobId, nextJobId, nextSubscriptionId}
 
+import scala.collection.parallel.ParSeq
 import scala.concurrent.Future
 
 /**
@@ -17,9 +18,9 @@ trait Exchange extends JobScheduler {
 }
 
 object Exchange {
-  def apply(implicit matcher : JobPredicate = JobPredicate()): Exchange = new InMemory
+  def apply(implicit matcher: JobPredicate = JobPredicate()): Exchange = new InMemory
 
-  class InMemory(implicit matcher : JobPredicate) extends Exchange {
+  class InMemory(implicit matcher: JobPredicate) extends Exchange {
     private var subscriptionsById = Map[SubscriptionKey, WorkSubscription]()
     private var pending = Map[SubscriptionKey, Int]()
     private var jobsById = Map[JobId, SubmitJob]()
@@ -61,7 +62,7 @@ object Exchange {
       val newJobs = jobsById.filter {
         case (id, job) =>
 
-          val candidates = pending.toSeq.par.collect {
+          val candidates: ParSeq[(SubscriptionKey, WorkSubscription, Int)] = pending.toSeq.par.collect {
             case (id, requested) if job.matches(subscriptionsById(id)) =>
               val subscription = subscriptionsById(id)
               (id, subscription, requested.ensuring(_ > 0) - 1)

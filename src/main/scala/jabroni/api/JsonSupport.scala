@@ -14,3 +14,5 @@ trait JsonSupport[T] {
   def decoder : Decoder[T]
 }
 trait RequestSupport[T] extends BaseSupport[T]
+
+class SimpleSupport[T](override val encoder : Encoder[T], override val decoder : Decoder[T]) extends JsonSupport[T]

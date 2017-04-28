@@ -16,7 +16,6 @@ class ExchangeRoutesTest extends BaseSpec {
 
   def routes() = {
     val exchange: Exchange = Exchange()
-
     ExchangeRoutes(exchange).routes
   }
 
@@ -25,8 +24,9 @@ class ExchangeRoutesTest extends BaseSpec {
 
       import jabroni.api.Implicits._
 
-      val submit = 123.asJob()
-      ExchangeHttp(submit) ~> routes() ~> check {
+      import io.circe.syntax._
+
+      ExchangeHttp(123.asJob()) ~> routes() ~> check {
         responseAs[String] shouldBe "{\"buyTotals\":[],\"sellTotals\":[]}"
       }
     }

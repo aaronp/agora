@@ -1,6 +1,10 @@
 package jabroni.domain
 
 import com.typesafe.config.{Config, ConfigFactory}
+import io.circe
+import io.circe.Decoder.Result
+import io.circe.ParsingFailure
+import jabroni.api.client.SubmitJob
 import jabroni.api.exchange.WorkSubscription
 import jabroni.api.json.JMatcher
 import jabroni.api.worker.{HostLocation, WorkerDetails}
@@ -13,9 +17,18 @@ class WorkerConfig(config: Config = WorkerConfig.defaultConfig()) {
 
   def workerDetails: WorkerDetails = WorkerDetails(runUser, location)
 
-  def matcher: JMatcher = ???
-  def newWorkSubscription(i : Int) : WorkSubscription = {
-    WorkSubscription(workerDetails, matcher)
+  def matcher: Either[circe.Error, JMatcher] = {
+    import io.circe.syntax._
+    import io.circe.parser._
+    parse(config.getString("matcher")).right.flatMap { json =>
+      json.as[JMatcher]
+    }
+  }
+
+  def newWorkSubscription(i: Int)(onNext: (SubmitJob, Int) => Unit) = {
+    matcher.right.map { matcher =>
+      WorkSubscription(workerDetails, matcher)(onNext)
+    }
   }
 }
 
