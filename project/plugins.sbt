@@ -9,3 +9,7 @@ addSbtPlugin("com.waioeka.sbt" % "cucumber-plugin" % "0.1.2")
 // https://github.com/scoverage/sbt-scoverage
 //sbt clean coverage it:test
 addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.5.0")
+
+addSbtPlugin("com.typesafe.sbt" % "sbt-git" % "0.9.2")
+
+addSbtPlugin("org.scala-js" % "sbt-scalajs" % "0.6.15")

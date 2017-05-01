@@ -1,8 +1,8 @@
 language: scala
 scala:
-- 2.11.6
+  - 2.11.8
 script:
-- sbt clean test
+  - sbt clean test cucumber
 jdk:
-- oraclejdk8
+  - oraclejdk8
 sudo: false
