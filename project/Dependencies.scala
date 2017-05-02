@@ -27,7 +27,7 @@ object Dependencies {
 
   val Api = logging ++ testDependencies ++ circe
 
-  val Rest = Api ++ akkaHttp ++ List(streamsTck)
+  val Rest = Api ++ akkaHttp ++ List(streamsTck) ++ cucumber
 
   val UI = Api
 

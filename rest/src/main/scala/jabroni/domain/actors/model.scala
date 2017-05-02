@@ -2,8 +2,7 @@ package jabroni.domain.actors
 
 import akka.actor.{ActorRef, Props}
 import com.typesafe.scalalogging.StrictLogging
-import jabroni.api.client.SubmitJob
-import jabroni.api.exchange.{RequestWork, WorkSubscription}
+import jabroni.api.exchange.{RequestWork, SubmitJob, WorkSubscription}
 import jabroni.api.worker.SubscriptionKey
 
 

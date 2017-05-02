@@ -1,11 +1,10 @@
 package jabroni.rest.exchange
 
-import jabroni.api.client.{SubmitJob, SubmitJobResponse}
-import jabroni.api.exchange.Exchange
+import jabroni.api.Implicits._
+import jabroni.api.exchange.{Exchange, SubmitJobResponse}
 import jabroni.rest.BaseSpec
 
 import scala.language.reflectiveCalls
-import jabroni.api.Implicits._
 
 /**
   * In this test, we could assert the response marshalling,
@@ -16,7 +15,7 @@ import jabroni.api.Implicits._
 class ExchangeRoutesTest extends BaseSpec {
 
   def routes() = {
-    ExchangeRoutes(Exchange()).routes
+    ExchangeRoutes(onMatch => Exchange(onMatch)).routes
   }
 
   "PUT /rest/exchange/submit" should {

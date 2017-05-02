@@ -19,8 +19,7 @@ case class ServerTestState(serverConfig: Option[ServerConfig] = None,
     val conf = serverConfig.get
     import conf.implicits._
 
-    val exchange: Exchange = ???
-    val route = ExchangeRoutes(exchange).routes
+    val route = ExchangeRoutes(onMatch => Exchange(onMatch)).routes
     ServerTestState(server = Option(RestService.start(route, conf).futureValue))
   }
 

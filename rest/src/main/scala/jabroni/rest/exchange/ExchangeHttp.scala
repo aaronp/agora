@@ -3,8 +3,7 @@ package jabroni.rest.exchange
 import akka.http.scaladsl.client.RequestBuilding
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpRequest}
 import io.circe.Json
-import jabroni.api.client.SubmitJob
-import jabroni.api.exchange.{RequestWork, WorkSubscription}
+import jabroni.api.exchange.{RequestWork, SubmitJob, WorkSubscription}
 
 object ExchangeHttp extends RequestBuilding {
 

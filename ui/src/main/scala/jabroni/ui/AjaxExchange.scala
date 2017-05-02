@@ -9,6 +9,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 import scala.concurrent.ExecutionContext
 import language.reflectiveCalls
+import language.implicitConversions
 
 object AjaxExchange {
 
