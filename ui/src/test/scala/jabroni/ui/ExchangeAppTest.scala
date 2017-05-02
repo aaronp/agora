@@ -1,12 +1,9 @@
-package finance.api.js
+package jabroni.ui
 
 import utest._
-import org.scalajs.jquery.jQuery
+import utest.framework.{Test, Tree}
 
-import scala.scalajs.js
-import scala.scalajs.js.JSON
-
-object FinanceAppTest extends TestSuite {
+object ExchangeAppTest extends TestSuite {
 
   // Initialize App
   //  FinanceApp.setupUI()
@@ -20,4 +17,5 @@ object FinanceAppTest extends TestSuite {
 ////      assert(jQuery("p:contains('Hello World')").length == 1)
 //    }
 //  }
+  override def tests: Tree[Test] = ???
 }

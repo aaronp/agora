@@ -14,26 +14,31 @@ trait Exchange extends JobScheduler {
 
   def pull(req: SubscriptionRequest): Future[SubscriptionResponse] = {
     req match {
-      case ws : WorkSubscription => subscribe(ws)
-      case next : RequestWork => take(next)
+      case ws: WorkSubscription => subscribe(ws)
+      case next: RequestWork => take(next)
     }
   }
-  def subscribe(request : WorkSubscription) = pull(request).mapTo[WorkSubscriptionAck]
-//  def subscribe(req: WorkSubscription)(implicit ec: ExecutionContext) = pull(req).map(_.asInstanceOf[WorkSubscriptionAck])
-  def take(request : RequestWork) = pull(request).mapTo[RequestWorkAck]
-//  def take(req: RequestWork)(implicit ec: ExecutionContext): Future[RequestWorkAck] = pull(req).map(_.asInstanceOf[RequestWorkAck])
 
-  def take(id: SubscriptionKey, itemsRequested: Int) : Future[RequestWorkAck] = take(RequestWork(id, itemsRequested))
+  def subscribe(request: WorkSubscription) = pull(request).mapTo[WorkSubscriptionAck]
+
+  //  def subscribe(req: WorkSubscription)(implicit ec: ExecutionContext) = pull(req).map(_.asInstanceOf[WorkSubscriptionAck])
+  def take(request: RequestWork) = pull(request).mapTo[RequestWorkAck]
+
+  //  def take(req: RequestWork)(implicit ec: ExecutionContext): Future[RequestWorkAck] = pull(req).map(_.asInstanceOf[RequestWorkAck])
+
+  def take(id: SubscriptionKey, itemsRequested: Int): Future[RequestWorkAck] = take(RequestWork(id, itemsRequested))
 }
 
 object Exchange {
-  def apply(onMatch : OnMatch[Unit])(implicit matcher: JobPredicate = JobPredicate()): Exchange = new InMemory(onMatch)
+
+
+  def apply[T](onMatch: OnMatch[T])(implicit matcher: JobPredicate = JobPredicate()): Exchange = new InMemory(onMatch)
 
   type Remaining = Int
   type Match = (SubmitJob, Seq[(SubscriptionKey, WorkSubscription, Remaining)])
-  type OnMatch[T] = Match => T
+  type OnMatch[+T] = Match => T
 
-  class InMemory(onMatch : OnMatch[Unit])(implicit matcher: JobPredicate) extends Exchange {
+  class InMemory(onMatch: OnMatch[Any])(implicit matcher: JobPredicate) extends Exchange {
     private var subscriptionsById = Map[SubscriptionKey, WorkSubscription]()
     private var pending = Map[SubscriptionKey, Int]()
     private var jobsById = Map[JobId, SubmitJob]()

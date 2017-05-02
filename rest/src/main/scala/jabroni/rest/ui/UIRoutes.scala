@@ -67,6 +67,7 @@ object UIRoutes {
   private val SlashPrefixR = "/(.*)".r
   private val JsR = "js/(.*)".r
 
+  def apply() : UIRoutes= new UIRoutes
   private object Unslash {
     def unapply(str: String): Option[String] = str match {
       case SlashPrefixR(str) => Unslash.unapply(str)

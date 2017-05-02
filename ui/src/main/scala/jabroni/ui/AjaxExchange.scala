@@ -8,6 +8,7 @@ import org.scalajs.dom.ext.Ajax
 import scala.concurrent.ExecutionContext.Implicits.global
 
 import scala.concurrent.ExecutionContext
+import language.reflectiveCalls
 
 object AjaxExchange {
 

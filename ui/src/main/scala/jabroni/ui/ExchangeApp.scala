@@ -1,20 +1,12 @@
-package jabroni.ui.js
+package jabroni.ui
+
+import org.scalajs.dom
+import org.scalajs.dom.document
 
 import scala.scalajs.js.JSApp
-import org.scalajs.dom
-import org.scalajs.dom.html.Table
-import org.scalajs.dom.raw.XMLHttpRequest
-import org.scalajs.dom.{document, window}
-
-import scala.concurrent.Future
-import scala.scalajs.js
 import scala.scalajs.js.annotation.JSExportTopLevel
-import scala.scalajs.js.{JSApp, JSON}
-import scalatags.JsDom
-import scalatags.JsDom.implicits._
-import scalatags.JsDom.tags._
 
-object FinanceApp extends JSApp {
+object ExchangeApp extends JSApp {
 
   def main(): Unit = {
     appendPar(document.body, """Jabroni""".stripMargin)
