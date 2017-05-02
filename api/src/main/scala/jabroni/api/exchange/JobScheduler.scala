@@ -1,5 +1,5 @@
-package jabroni.api
-package client
+package jabroni.api.exchange
+
 
 import scala.concurrent.{ExecutionContext, Future}
 

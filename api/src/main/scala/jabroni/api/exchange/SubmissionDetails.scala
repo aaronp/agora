@@ -1,4 +1,4 @@
-package jabroni.api.client
+package jabroni.api.exchange
 
 import io.circe.optics.JsonPath
 import io.circe.{Encoder, Json}
