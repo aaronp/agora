@@ -19,10 +19,17 @@ object ExchangeApp extends JSApp {
     targetNode.appendChild(parNode)
   }
 
-  val svc = Services()
+  val svc: Services = Services()
 
-  @JSExportTopLevel("onSell")
-  def onSell(): Unit = {
+  @JSExportTopLevel("onSubscribe")
+  def onSubscribe(): Unit = Services.Alert("onSubscribe")
+
+  @JSExportTopLevel("onTake")
+  def onTake(n : Int): Unit = Services.Alert(s"onTake($n)")
+
+  @JSExportTopLevel("onSubmit")
+  def onSubmit(): Unit = {
+    Services.Alert("onSubmit")
     //    val newBookFuture: Future[OrderBook] = svc.ledger.placeOrder(Order(svc.user, Sell, 12, 324)).flatMap { _ =>
     //      svc.ledger.orderBook
     //    }

@@ -29,7 +29,7 @@ trait Boot extends StrictLogging {
 
     if (conf.launchBrowser && java.awt.Desktop.isDesktopSupported()) {
       future.onComplete { _ =>
-        java.awt.Desktop.getDesktop().browse(new URI(s"http://${conf.host}:${conf.port}/ui")) //index.html
+        java.awt.Desktop.getDesktop().browse(new URI(s"http://${conf.host}:${conf.port}/ui/index.html"))
       }
     }
 

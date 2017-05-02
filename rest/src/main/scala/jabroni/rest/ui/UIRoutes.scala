@@ -14,6 +14,7 @@ class UIRoutes {
 
   def routes = jsRoute ~ uiRoute ~ rootRoute
 
+  // ui/target/scala-2.11/classes
   private def resolveJsPath(uri: Uri.Path): Uri.Path = {
     uri.toString match {
       case Unslash(JavaScript(js)) => Uri.Path("ui/target/scala-2.11/" + js)

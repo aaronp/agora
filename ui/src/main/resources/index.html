@@ -11,13 +11,14 @@
 <p>
     You can:
 <ol>
-    <li>PUT /buy</li>
-    <ol>
-        where the json body of the PUT and DELETE request should match:
-        <pre>{"user":"somebody","type":"BUY","quantity":1,"price":2}</pre>
+    <li>submit jobs</li>
+    <li>subscribe to jobs</li>
+    <li>take jobs</li>
 </p>
 
-<button id="click-me-button" type="button" onclick="onBuy()"> Buy something</button>
+<button id="on-submit-job-button" type="button" onclick="onSubmit()">Submit Job</button>
+<button id="on-take-button" type="button" onclick="onTake(123)">Take</button>
+<button id="on-subscribe-button" type="button" onclick="onSubscribe()">Subsctibe</button>
 
 </body>
 </html>
