@@ -1,4 +1,4 @@
-package jabroni.domain
+package jabroni.api
 
 import scala.concurrent.Future
 

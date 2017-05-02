@@ -32,9 +32,9 @@ case class ExchangeRoutes(exchange: Exchange)(implicit ec: ExecutionContext) ext
   }
 
   object client {
-    def routes: Route = subscribe
+    def routes: Route = submit
 
-    def subscribe = put {
+    def submit = put {
       jsonRouteFor[SubmitJob, SubmitJobResponse]("submit")(exchange.send)
     }
   }

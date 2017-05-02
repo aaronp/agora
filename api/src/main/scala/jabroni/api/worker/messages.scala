@@ -1,10 +1,8 @@
 package jabroni.api.worker
 
 import io.circe.Json
-import jabroni.api.client.SubmitJob
+import jabroni.api.exchange.SubmitJob
 import jabroni.api.{JobId, WorkRequestId}
-import jabroni.api.exchange.{JobPredicate, SelectionMode}
-import jabroni.api.json.JMatcher
 
 
 /**
@@ -22,8 +20,8 @@ sealed trait WorkerResponse
 case class DispatchWork(workRequestId: WorkRequestId, jobId: JobId, job: SubmitJob) extends WorkerRequest {
 
   override def json: Json = {
-    import io.circe.syntax._
     import io.circe.generic.auto._
+    import io.circe.syntax._
     this.asJson
   }
 }

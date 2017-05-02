@@ -3,7 +3,6 @@ package jabroni.api.exchange
 import io.circe.optics.JsonPath
 import io.circe.{Encoder, Json}
 import jabroni.api.User
-import jabroni.api.exchange.{SelectionFirst, SelectionMode}
 import jabroni.api.json.{JMatcher, JsonAppendable}
 
 import scala.util.Properties

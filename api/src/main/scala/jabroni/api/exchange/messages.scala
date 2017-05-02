@@ -8,6 +8,7 @@ import jabroni.api.json.JMatcher
 import jabroni.api.worker.{SubscriptionKey, WorkerDetails}
 import jabroni.api.{JobId, RequestSupport, ResponseSupport}
 
+import language.implicitConversions
 
 /**
   * A 'client' represents something which submits work to the exchange
@@ -70,44 +71,52 @@ object SubmitJobResponse {
 //case class GetMatchedWorkersResponse(id: JobId, workers: List[WorkerDetails]) extends ClientResponse
 
 
-
-
 sealed trait SubscriptionRequest
+
 sealed trait SubscriptionResponse
 
 case class WorkSubscription(details: WorkerDetails,
-                            workMatcher: JMatcher)(val onNext: (SubmitJob, Int) => Unit) extends SubscriptionRequest {
+                            workMatcher: JMatcher) extends SubscriptionRequest {
   def matches(job: SubmitJob)(implicit m: JobPredicate): Boolean = m.matches(job, this)
 
   def withData[T: Encoder](data: T, name: String = null) = {
-    copy(details = details.withData(data, name))(onNext)
+    copy(details = details.withData(data, name))
   }
+
+//  def json = this.asJson
 }
 
 object WorkSubscription {
 
-  def apply(onNext: (SubmitJob, Int) => Unit)(implicit
-                                              details: WorkerDetails = WorkerDetails(),
-                                              workMatcher: JMatcher = JMatcher.matchAll): WorkSubscription = {
-    WorkSubscription(details, workMatcher)(onNext)
+  def instance(implicit
+            details: WorkerDetails = WorkerDetails(),
+            workMatcher: JMatcher = JMatcher.matchAll): WorkSubscription = {
+    WorkSubscription(details, workMatcher)
   }
 
-  implicit object Support extends RequestSupport[WorkSubscription] {
-    override def apply(submit: WorkSubscription) = submit.asJson
+  //
+  //  implicit object Support extends RequestSupport[WorkSubscription] {
+  //    override def apply(submit: WorkSubscription) = submit.asJson
+  //
+  //    override def apply(c: HCursor): Result[WorkSubscription] = c.as[WorkSubscription]
+  //  }
 
-    override def apply(c: HCursor): Result[WorkSubscription] = c.as[WorkSubscription]
-  }
+  implicit val encoder = exportEncoder[WorkSubscription].instance
+  implicit val decoder = exportDecoder[WorkSubscription].instance
 }
 
 case class WorkSubscriptionAck(id: SubscriptionKey) extends SubscriptionResponse
 
 object WorkSubscriptionAck {
+  //
+  //  implicit object Support extends ResponseSupport[WorkSubscriptionAck] {
+  //    override def apply(submit: WorkSubscriptionAck) = submit.asJson
+  //
+  //    override def apply(c: HCursor): Result[WorkSubscriptionAck] = c.as[WorkSubscriptionAck]
+  //  }
 
-  implicit object Support extends ResponseSupport[WorkSubscriptionAck] {
-    override def apply(submit: WorkSubscriptionAck) = submit.asJson
-
-    override def apply(c: HCursor): Result[WorkSubscriptionAck] = c.as[WorkSubscriptionAck]
-  }
+  implicit val encoder = exportEncoder[WorkSubscriptionAck].instance
+  implicit val decoder = exportDecoder[WorkSubscriptionAck].instance
 }
 
 case class RequestWork(id: SubscriptionKey,
@@ -121,6 +130,7 @@ object RequestWork {
 
   implicit object Support extends RequestSupport[RequestWork] {
     override def apply(submit: RequestWork) = submit.asJson
+
     override def apply(c: HCursor): Result[RequestWork] = c.as[RequestWork]
   }
 

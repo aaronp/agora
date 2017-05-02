@@ -1,11 +1,7 @@
 package jabroni.api.exchange
 
-import akka.stream.Materializer
-import jabroni.api.client._
 import jabroni.api.worker.SubscriptionKey
 import jabroni.api.{JobId, nextJobId, nextSubscriptionId}
-import jabroni.rest.client.RestClient
-import jabroni.rest.exchange.ExchangeHttp
 
 import scala.collection.parallel.ParSeq
 import scala.concurrent.{ExecutionContext, Future}
@@ -16,40 +12,28 @@ import scala.concurrent.{ExecutionContext, Future}
   */
 trait Exchange extends JobScheduler {
 
-  def pull(req: SubscriptionRequest): Future[SubscriptionResponse]
+  def pull(req: SubscriptionRequest): Future[SubscriptionResponse] = {
+    req match {
+      case ws : WorkSubscription => subscribe(ws)
+      case next : RequestWork => take(next)
+    }
+  }
+  def subscribe(request : WorkSubscription) = pull(request).mapTo[WorkSubscriptionAck]
+//  def subscribe(req: WorkSubscription)(implicit ec: ExecutionContext) = pull(req).map(_.asInstanceOf[WorkSubscriptionAck])
+  def take(request : RequestWork) = pull(request).mapTo[RequestWorkAck]
+//  def take(req: RequestWork)(implicit ec: ExecutionContext): Future[RequestWorkAck] = pull(req).map(_.asInstanceOf[RequestWorkAck])
 
-  def subscribe(req: WorkSubscription)(implicit ec: ExecutionContext) = pull(req).map(_.asInstanceOf[WorkSubscriptionAck])
-
-  def take(req: RequestWork)(implicit ec: ExecutionContext): Future[RequestWorkAck] = pull(req).map(_.asInstanceOf[RequestWorkAck])
-
-  def take(id: SubscriptionKey, itemsRequested: Int)(implicit ec: ExecutionContext): Future[RequestWorkAck] = take(RequestWork(id, itemsRequested))
+  def take(id: SubscriptionKey, itemsRequested: Int) : Future[RequestWorkAck] = take(RequestWork(id, itemsRequested))
 }
 
 object Exchange {
-  def apply(implicit matcher: JobPredicate = JobPredicate()): Exchange = new InMemory
+  def apply(onMatch : OnMatch[Unit])(implicit matcher: JobPredicate = JobPredicate()): Exchange = new InMemory(onMatch)
 
-  def client(rest: RestClient)(implicit ec: ExecutionContext, mat: Materializer): Exchange = new RestExchange(rest)
+  type Remaining = Int
+  type Match = (SubmitJob, Seq[(SubscriptionKey, WorkSubscription, Remaining)])
+  type OnMatch[T] = Match => T
 
-  class RestExchange(rest: RestClient)(implicit ec: ExecutionContext, mat: Materializer) extends Exchange {
-    import RestClient.implicits._
-
-    override def pull(request: SubscriptionRequest): Future[SubscriptionResponse] = {
-      request match {
-        case subscribe: WorkSubscription =>
-          rest.send(ExchangeHttp(subscribe)).flatMap(_.as[WorkSubscriptionAck])
-        case take: RequestWork =>
-          rest.send(ExchangeHttp(take)).flatMap(_.as[RequestWorkAck])
-      }
-    }
-
-    override def send(request: ClientRequest): Future[ClientResponse] = {
-      request match {
-        case submit: SubmitJob => rest.send(ExchangeHttp(submit)).flatMap(_.as[SubmitJobResponse])
-      }
-    }
-  }
-
-  class InMemory(implicit matcher: JobPredicate) extends Exchange {
+  class InMemory(onMatch : OnMatch[Unit])(implicit matcher: JobPredicate) extends Exchange {
     private var subscriptionsById = Map[SubscriptionKey, WorkSubscription]()
     private var pending = Map[SubscriptionKey, Int]()
     private var jobsById = Map[JobId, SubmitJob]()
@@ -110,13 +94,6 @@ object Exchange {
           }
       }
       jobsById = newJobs
-    }
-
-
-    protected def onMatch(job: SubmitJob, workers: Seq[(SubscriptionKey, WorkSubscription, Int)]) = {
-      workers.foreach {
-        case (_, sub, n) => sub.onNext(job, n)
-      }
     }
   }
 

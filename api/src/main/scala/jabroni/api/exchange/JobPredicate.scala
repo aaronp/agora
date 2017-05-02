@@ -1,6 +1,5 @@
 package jabroni.api.exchange
 
-import jabroni.api.client.SubmitJob
 import jabroni.api.json.JMatcher
 
 trait JobPredicate {
