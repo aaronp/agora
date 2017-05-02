@@ -1,6 +1,6 @@
 package jabroni.ui.js
 
-import  jabroni.api.exchange._
+import jabroni.api.exchange._
 
 import org.scalajs.dom
 import org.scalajs.dom.window

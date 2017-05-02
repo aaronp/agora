@@ -8,6 +8,7 @@ testFrameworks += new TestFramework("utest.runner.Framework")
 
 //http://www.scala-sbt.org/0.13/docs/Howto-Customizing-Paths.html
 unmanagedSourceDirectories in Compile ++= Seq(
+
 	baseDirectory.value.getParentFile / "api" / "src" / "main" / "scala"
 )
 
