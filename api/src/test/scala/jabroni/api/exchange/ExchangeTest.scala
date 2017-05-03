@@ -1,8 +1,7 @@
 package jabroni.api.exchange
 
+import jabroni.api.exchange.Exchange.OnMatch
+
 class ExchangeTest extends ExchangeSpec {
-  override def newExchange: Exchange = Exchange {
-    case (job, workers) =>
-      println(s"Match: $job, $workers")
-  }
+  override def newExchange[T](observer : OnMatch[T]): Exchange = Exchange(observer)
 }

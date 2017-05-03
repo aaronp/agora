@@ -2,9 +2,12 @@ package jabroni.api.json
 
 import io.circe.Decoder.Result
 import io.circe._
-import io.circe.syntax._
 import io.circe.generic.auto._
-import language.implicitConversions
+import io.circe.syntax._
+
+import io.circe.Json
+import scala.language.implicitConversions
+import scala.util.Try
 
 sealed trait JPredicate {
   def matches(json: Json): Boolean
@@ -12,10 +15,9 @@ sealed trait JPredicate {
   /** @return the json representing this predicate
     */
   def json: Json
+  def and(other: JPredicate, theRest: JPredicate*): JPredicate = And(this :: other :: theRest.toList)
 
-  def &&(other: JPredicate): JPredicate = And(this, other)
-
-  def ||(other: JPredicate): JPredicate = Or(this, other)
+  def or(other: JPredicate, theRest: JPredicate*): JPredicate = Or(this :: other :: theRest.toList)
 }
 
 object JPredicate {
@@ -38,6 +40,7 @@ object JPredicate {
       def !==[J <% Json](value: J): JFilter = Not(Eq(value))
 
       def ===[J <% Json](value: J): JFilter = Eq(value)
+      def equalTo[J <% Json](value: J): JFilter = Eq(value)
 
       def gt[J <% Json](value: J): JFilter = Gt(value)
 
@@ -58,12 +61,9 @@ object JPredicate {
     override def apply(c: HCursor): Result[JPredicate] = {
       import cats.syntax.either._
 
-      def asAnd = c.downField("and").as[And]
 
-      def asOr = c.downField("or").as[Or]
-
-      asAnd.
-        orElse(asOr).
+      c.as[And].
+        orElse(c.as[Or]).
         orElse(c.as[Not]).
         orElse(c.as[Eq]).
         orElse(c.as[JRegex]).
@@ -89,16 +89,22 @@ object JPredicate {
 
 }
 
-case class Or(lhs: JPredicate, rhs: JPredicate) extends JPredicate {
-  override def matches(json: Json) = lhs.matches(json) || rhs.matches(json)
-
-  override def json: Json = Json.obj("or" -> this.asJson)
+case class Or(or: List[JPredicate]) extends JPredicate {
+  override def matches(json: Json) = or.exists(_.matches(json))
+  override def json = Json.obj("or" -> Json.fromValues(or.map(_.json)))
 }
 
-case class And(lhs: JPredicate, rhs: JPredicate) extends JPredicate {
-  override def matches(json: Json) = lhs.matches(json) && rhs.matches(json)
+object Or {
+  def apply(first: JPredicate, second: JPredicate, theRest: JPredicate*): Or = Or(first :: second :: theRest.toList)
+}
 
-  override def json: Json = Json.obj("and" -> this.asJson)
+case class And(and: List[JPredicate]) extends JPredicate {
+  override def matches(json: Json) = and.forall(_.matches(json))
+  override def json = Json.obj("and" -> Json.fromValues(and.map(_.json)))
+}
+
+object And {
+  def apply(first: JPredicate, second: JPredicate, theRest: JPredicate*): And = And(first :: second :: theRest.toList)
 }
 
 case class Not(not: JPredicate) extends JPredicate {
@@ -124,10 +130,16 @@ case class JRegex(regex: String) extends JPredicate {
 sealed abstract class ComparablePredicate(value: Json, op: (Long, Long) => Boolean) extends JPredicate {
 
   import Ordering.Implicits._
+  val refNum = asLong(value)
 
+  private def asLong(json : Json) = {
+    json.asNumber.flatMap(_.toLong).orElse {
+      json.asString.flatMap(s => Try(s.toLong).toOption)
+    }
+  }
   override def matches(json: Json) = {
     val res = json.as[Json].right.map { (tea: Json) =>
-      (value.asNumber.flatMap(_.toLong), tea.asNumber.flatMap(_.toLong)) match {
+      (asLong(tea), refNum) match {
         case (Some(x), Some(y)) => op(x, y)
         case _ => false
       }

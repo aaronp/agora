@@ -2,7 +2,6 @@ package jabroni.api.worker
 
 import io.circe.Json
 import jabroni.api.exchange.SubmitJob
-import jabroni.api.{JobId, WorkRequestId}
 
 
 /**
@@ -17,7 +16,7 @@ sealed trait WorkerResponse
 /**
   * Represents a message from the exchange to the worker
   */
-case class DispatchWork(workRequestId: WorkRequestId, jobId: JobId, job: SubmitJob) extends WorkerRequest {
+case class DispatchWork(subscription: SubscriptionKey, job: SubmitJob, remaining : Int) extends WorkerRequest {
 
   override def json: Json = {
     import io.circe.generic.auto._

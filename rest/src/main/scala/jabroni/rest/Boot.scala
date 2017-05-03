@@ -14,18 +14,19 @@ import scala.io.StdIn
   */
 trait Boot extends StrictLogging {
 
-  def routeFromConf(conf: ServerConfig): Route
+  def routeFromConf(conf: ServerConfig): Future[Route]
+
+  def defaultConfig = ServerConfig.defaultConfig("jabroni.server")
 
   def main(args: Array[String]) = {
     val conf: ServerConfig = {
       import jabroni.domain.RichConfig.implicits._
-      val typesafeConfig = args.asConfig().withFallback(ServerConfig.defaultConfig)
+      val typesafeConfig = args.asConfig().withFallback(defaultConfig)
       ServerConfig(typesafeConfig)
     }
 
     import conf.implicits.executionContext
-    val route = routeFromConf(conf)
-    val future = start(route, conf)
+    val future = routeFromConf(conf).flatMap(route => start(route, conf))
 
     if (conf.launchBrowser && java.awt.Desktop.isDesktopSupported()) {
       future.onComplete { _ =>
@@ -50,7 +51,7 @@ trait Boot extends StrictLogging {
   }
 
 
-  def start(route: Route, conf: ServerConfig = ServerConfig()): Future[RunningService] = {
+  def start(route: Route, conf: ServerConfig): Future[RunningService] = {
     import conf.implicits._
     logger.info(s"Starting server at http://${conf.host}:${conf.port}")
     val bindingFuture = Http().bindAndHandle(route, conf.host, conf.port)

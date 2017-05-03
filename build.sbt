@@ -2,9 +2,11 @@ name := "jabroni"
 
 scalaVersion := "2.11.8"
 
-version := "0.0.1"
+enablePlugins(GitVersioning)
 
 resolvers += Resolver.typesafeRepo("releases")
+
+lazy val jabroni: _root_.sbt.Project = (project in file("."))
 
 val aLotOfResolvers = List(
   "scalaz-bintray" at "http://dl.bintray.com/scalaz/releases",
@@ -27,7 +29,7 @@ val aLotOfResolvers = List(
 )
 
 val commonSettings: Seq[Def.Setting[_]] = Seq(
-    version := "0.0.1",
+    //version := parentProject.settings.ver.value,
     scalaVersion := "2.11.8",
     javacOptions ++= Seq("-source", "1.8", "-target", "1.8"), //, "-Xmx2G"),
     scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature"),

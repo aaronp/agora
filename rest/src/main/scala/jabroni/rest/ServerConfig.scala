@@ -14,7 +14,7 @@ class ServerConfig(override val config: Config) extends BaseConfig {
 }
 
 object ServerConfig {
-  def defaultConfig = ConfigFactory.load().getConfig("jabroni.server")
+  def defaultConfig(path : String) = ConfigFactory.load().getConfig(path)
 
-  def apply(conf: Config = defaultConfig): ServerConfig = new ServerConfig(conf)
+  def apply(conf: Config): ServerConfig = new ServerConfig(conf)
 }

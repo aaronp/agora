@@ -3,12 +3,14 @@ package jabroni.rest.client
 import java.io.Closeable
 import java.nio.charset.StandardCharsets
 
+import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import com.typesafe.scalalogging.StrictLogging
 import io.circe.Decoder
+import jabroni.api.worker.HostLocation
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -19,15 +21,19 @@ trait RestClient extends Closeable {
 
 object RestClient {
 
-  def apply(conf: ClientConfig): RestClient = new AkkaClient(conf)
+  def apply(location : HostLocation)(implicit sys : ActorSystem, mat : Materializer) : RestClient = {
+    new AkkaClient(location)
+  }
 
-  class AkkaClient(config: ClientConfig) extends RestClient with StrictLogging {
+  def apply(conf: ClientConfig): RestClient = {
+    import conf.implicits._
+    apply(conf.location)
+  }
 
-    import config.implicits._
-
+  class AkkaClient(location : HostLocation)(implicit sys : ActorSystem, mat : Materializer) extends RestClient with StrictLogging {
     private lazy val remoteServiceConnectionFlow: Flow[HttpRequest, HttpResponse, Any] = {
-      logger.info(s"Connecting to http://${config.host}:${config.port}")
-      http.outgoingConnection(config.host, config.port)
+      logger.info(s"Connecting to http://${location.host}:${location.port}")
+      http.outgoingConnection(location.host, location.port)
     }
 
     def send(request: HttpRequest): Future[HttpResponse] = {
@@ -37,12 +43,10 @@ object RestClient {
     }
 
 
-    private val http = {
-      Http()
-    }
+    private val http = Http()
 
     override def close(): Unit = {
-      logger.info(s"Closing client to http://${config.host}:${config.port}")
+      logger.info(s"Closing client to http://${location.host}:${location.port}")
       //      http.system.terminate()
     }
   }

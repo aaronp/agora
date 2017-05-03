@@ -21,7 +21,7 @@ case class WorkerRoutes(handlersByName: Map[String, Handler])(implicit ec: Execu
   }
 
 
-  def routeForHandler(name: String, h: Handler) = (put & path(name) & pathEnd) {
+  def routeForHandler(name: String, h: Handler) = (post & path(name) & pathEnd) {
     entity(as[DispatchWork]) { workItem =>
       complete {
         h.onWork(workItem)

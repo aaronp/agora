@@ -1,21 +1,28 @@
 package jabroni.api.json
 
+import io.circe.parser.parse
 import io.circe.{HCursor, Json}
 import org.scalatest.{Matchers, WordSpec}
-import language.implicitConversions
+
+import scala.language.implicitConversions
 
 class JPathTest extends WordSpec with Matchers {
 
-  import io.circe.parser._
+  import JPathTest._
 
+  "JPath.json" should {
 
-  implicit class JsonHelper(sc: StringContext) {
-    def json(args: Any*) = {
-      val text = sc.s(args)
-      parse(text).right.get
+    // TODO ... it does
+    "not look shit" in {
+
+      import jabroni.api.Implicits._
+
+      val filter: JPart = "x" lte 1
+      val path = filter +: JPath("foo", "bar", "3")
+      println(path.json.spaces2)
+      println(path.json.noSpaces)
     }
   }
-
   "JPath.select" should {
     "match JFields" in {
       val json: Json =
@@ -45,13 +52,25 @@ class JPathTest extends WordSpec with Matchers {
     }
   }
   "match JFilter" in {
-    val json: Json =  json"""{ "some-field" : 456 }"""
+    val json: Json = json"""{ "some-field" : 456 }"""
 
     import JPredicate.implicits._
-    val found = JPath.select(("some-field" === "456") :: Nil, json.hcursor)
+    val found = JPath.select(("some-field" === 456) :: Nil, json.hcursor)
     found.succeeded shouldBe true
-    val found2 = JPath.select(("some-field" === "789") :: Nil, json.hcursor)
+    val found2 = JPath.select(("some-field" === 789) :: Nil, json.hcursor)
     found2.succeeded shouldBe false
+  }
+
+}
+
+object JPathTest {
+
+
+  implicit class JsonHelper(sc: StringContext) {
+    def json(args: Any*) = {
+      val text = sc.s(args: _*)
+      parse(text).right.get
+    }
   }
 
 }

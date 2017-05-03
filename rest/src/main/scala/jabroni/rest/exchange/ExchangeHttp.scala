@@ -9,7 +9,7 @@ object ExchangeHttp extends RequestBuilding {
 
   import io.circe.syntax._
 
-  def apply(request: SubmitJob): HttpRequest = put("submit", request.asJson)
+  def apply(request: SubmitJob): HttpRequest = put(s"submit", request.asJson)
 
   def apply(request: WorkSubscription): HttpRequest = put("subscribe", request.asJson)
 
@@ -22,6 +22,6 @@ object ExchangeHttp extends RequestBuilding {
 
   private def post(path: String, json: Json): HttpRequest = {
     val e = HttpEntity(ContentTypes.`application/json`, json.noSpaces)
-    Put(s"/rest/exchange/$path").withEntity(e)
+    Post(s"/rest/exchange/$path").withEntity(e)
   }
 }

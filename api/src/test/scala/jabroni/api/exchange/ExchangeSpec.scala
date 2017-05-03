@@ -2,33 +2,40 @@ package jabroni.api.exchange
 
 import io.circe.generic.auto._
 import jabroni.api.Implicits._
+import jabroni.api.exchange.Exchange.OnMatch
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.{Matchers, WordSpec}
 
-import scala.concurrent.ExecutionContext.Implicits.global
-
-import language.reflectiveCalls
+import scala.language.reflectiveCalls
+import scala.language.postfixOps
 
 trait ExchangeSpec extends WordSpec with Matchers with ScalaFutures with Eventually {
 
   import ExchangeSpec._
 
-  def newExchange: Exchange
+  def newExchange[T](observer: OnMatch[T]): Exchange
 
   "Exchange" should {
     "match jobs with work subscriptions" in {
 
-      val ex: Exchange = newExchange
-      val jobId = ex.send(DoubleMe(34).asJob).futureValue.asInstanceOf[SubmitJobResponse].id
+      object obs extends MatchObserver
+      var matches = List[Exchange.Match]()
+      obs.alwaysWhen {
+        case jobMatch => matches = jobMatch :: matches
+      }
+      val ex: Exchange = newExchange(obs)
 
-      val sub = WorkSubscription.instance()
+      val jobId = ex.submit(DoubleMe(11).asJob).futureValue.id
+      val jobPath = ("value" gt 7) and ("value" lt 17)
 
-      val subscriptionId = ex.pull(sub).futureValue.asInstanceOf[WorkSubscriptionAck].id
+      val sub = WorkSubscription(jobMatcher = jobPath)
 
+      val subscriptionId = ex.subscribe(sub).futureValue.id
       val consumedJob = ex.take(subscriptionId, 1).futureValue
+
+      matches.size shouldBe 1
+
       consumedJob.totalItemsPending shouldBe 0
-
-
     }
   }
 }

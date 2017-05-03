@@ -10,27 +10,42 @@ import io.circe.optics.JsonPath
   * represents part of a json path
   * e.g.
   *
-  * foo/2/{x == 3}/value
+  * foo/2/{x == 3}
   *
   * would be represented as
   *
-  * JField("foo") :: JPos(2) :: JFilterValue("x", 3) :: JField("value") :: Nil
+  * JField("foo") :: JPos(2) :: JFilterValue("x", 3)  :: Nil
   *
   * we may even support wildcards, etc.
   *
   *
   */
-sealed trait JPart
+sealed trait JPart {
+  final def asPath = JPath(this)
+
+  final def asMatcher = asPath.asMatcher
+
+  final def and(other: JMatcher): JMatcher = asMatcher.and(other)
+
+  final def and(other: JPart): JMatcher = and(other.asMatcher)
+
+  final def or(other: JMatcher): JMatcher = asMatcher.or(other)
+
+  final def or(other: JPart): JMatcher = or(other.asMatcher)
+}
 
 object JPart {
 
   def apply(name: String) = JField(name)
+
   def apply(i: Int) = JPos(i)
+
   def apply(field: String, predicate: JPredicate) = JFilter(field, predicate)
 
   import cats.syntax.either._
 
   import JPredicate._
+
   object JFilterDec extends Decoder[JFilter] {
     override def apply(c: HCursor): Result[JFilter] = {
       val fldCurs = c.downField("field").as[String]
@@ -62,8 +77,11 @@ object JPart {
       }
     }
   }
+
 }
 
 case class JField(name: String) extends JPart
+
 case class JPos(i: Int) extends JPart
+
 case class JFilter(field: String, predicate: JPredicate) extends JPart

@@ -11,7 +11,7 @@ class ServerSteps extends ScalaDsl with EN with Matchers {
   var state = ServerTestState()
 
   Given("""^the server configuration$""") { (config: String) =>
-    val c = ConfigFactory.parseString(config).withFallback(ServerConfig.defaultConfig)
+    val c = ConfigFactory.parseString(config).withFallback(ServerConfig.defaultConfig("jabroni.exchange"))
     state = state.copy(Option(ServerConfig(c)))
   }
 

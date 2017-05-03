@@ -1,7 +1,9 @@
 package jabroni.rest.worker
 
 import akka.http.scaladsl.model.HttpResponse
-import jabroni.api.worker.DispatchWork
+import jabroni.api.exchange.{Exchange, SubmitJobResponse, WorkSubscription}
+import jabroni.api.worker.{DispatchWork, SubscriptionKey}
+import jabroni.api.worker.execute.RunProcess
 import org.reactivestreams.Subscription
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -22,13 +24,42 @@ import scala.concurrent.{ExecutionContext, Future}
 case class Handler(onWork: DispatchWork => Future[HttpResponse])
 
 object Handler {
-  def apply(subscription: Subscription)(onWork: DispatchWork => Future[HttpResponse])(implicit ec: ExecutionContext): Handler = {
+  def apply(subscription: Exchange, key: SubscriptionKey)(onWork: DispatchWork => Future[HttpResponse])(implicit ec: ExecutionContext): Handler = {
     val handle = onWork.andThen { f =>
       f.onComplete { _ =>
-        subscription.request(1)
+        subscription.take(key, 1)
       }
       f
     }
     new Handler(handle)
+  }
+
+  def resubmitJob(exchange: Exchange, key: SubscriptionKey, req: DispatchWork): Future[SubmitJobResponse] = {
+    import jabroni.api.Implicits._
+    val original = req.job.submissionDetails.workMatcher
+    val newMatcher = original.and("subscription" =!= key.toString)
+    val newDetails = req.job.submissionDetails.copy(awaitMatch = false, workMatcher = newMatcher)
+    exchange.submit(req.job.copy(submissionDetails = newDetails))
+  }
+
+  def webSocketRequest(exchange: Exchange, key: SubscriptionKey): Handler = {
+    ???
+
+  }
+
+  def execute(exchange: Exchange, key: SubscriptionKey, runner: RunProcess = RunProcess()): Handler = {
+    import runner.ec
+    Handler(exchange, key) { req: DispatchWork =>
+      runner(req) match {
+        case None =>
+          resubmitJob(exchange, key, req).map { resp =>
+            WorkerHttp.execute.failed
+          }
+        case Some(future) =>
+          future.map { lines =>
+            WorkerHttp.execute.response(lines)
+          }
+      }
+    }
   }
 }

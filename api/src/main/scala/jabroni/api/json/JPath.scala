@@ -1,7 +1,6 @@
 package jabroni.api.json
 
 import io.circe._
-import io.circe.optics.{JsonPath, JsonTraversalPath}
 
 object JPath {
 
@@ -62,11 +61,12 @@ object JPath {
 
 case class JPath(parts: List[JPart]) {
 
-  import JPath._
   import io.circe._
   import io.circe.generic.auto._
-  import io.circe.optics._
   import io.circe.syntax._
+
+  def ++(other : JPath) = copy(parts = parts ++ other.parts)
+  def +:(other : JPart) = copy(parts = other +: parts)
 
   def json: Json = {
     new EncoderOps(this).asJson
@@ -75,4 +75,6 @@ case class JPath(parts: List[JPart]) {
   def apply(json : Json): Option[Json] = {
     JPath.select(parts, json.hcursor).focus
   }
+
+  def asMatcher = JMatcher(this)
 }

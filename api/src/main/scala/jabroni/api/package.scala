@@ -2,6 +2,8 @@ package jabroni
 
 import java.util.UUID
 
+import io.circe.Encoder
+
 
 package object api {
 
@@ -9,7 +11,8 @@ package object api {
   type JobId = UUID
   type SubscriptionKey = UUID
 
-  type WorkRequestId = UUID
-  def nextSubscriptionId() = UUID.randomUUID()
-  def nextJobId() = UUID.randomUUID()
+  def nextSubscriptionKey() : SubscriptionKey= UUID.randomUUID()
+
+  def nextJobId() : JobId = UUID.randomUUID()
+
 }

@@ -12,7 +12,7 @@ import scala.util.Properties
 case class HostLocation(host: String, port: Int)
 
 object HostLocation {
-  def apply(port: Int = 8080): HostLocation = {
+  def apply(port: Int): HostLocation = {
     val host = InetAddress.getLocalHost.getHostName
     HostLocation(host, port)
   }
@@ -23,17 +23,21 @@ object HostLocation {
   *
   * @param aboutMe
   */
-case class WorkerDetails(aboutMe: Json) extends JsonAppendable {
+case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
 
-  def +[T : Encoder](data : T) : WorkerDetails = append(WorkerDetails.asName(data.getClass), data)
-  def +[T : Encoder](name : String, data : T) : WorkerDetails = append(name, implicitly[Encoder[T]].apply(data))
-  def append[T : Encoder](name : String, data : T) : WorkerDetails = append(name, implicitly[Encoder[T]].apply(data))
-  def append(name : String, data : Json) : WorkerDetails = append(Json.obj(name -> data))
-  def append(data : Json) : WorkerDetails = copy(aboutMe.deepMerge(data))
+  def +[T: Encoder](data: T): WorkerDetails = append(WorkerDetails.asName(data.getClass), data)
+
+  def +[T: Encoder](name: String, data: T): WorkerDetails = append(name, implicitly[Encoder[T]].apply(data))
+
+  def append[T: Encoder](name: String, data: T): WorkerDetails = append(name, implicitly[Encoder[T]].apply(data))
+
+  def append(name: String, data: Json): WorkerDetails = append(Json.obj(name -> data))
+
+  def append(data: Json): WorkerDetails = copy(aboutMe.deepMerge(data))
 
   import WorkerDetails._
 
-  def withData[T: Encoder](data: T, name: String = null) = copy(aboutMe = mergeJson(aboutMe, data, name))
+  def withData[T: Encoder](data: T, name: String = null) = copy(aboutMe = mergeJson(data, name))
 
   private def locationOpt: Option[HostLocation] = {
     for {
@@ -59,17 +63,20 @@ object WorkerDetails {
   val locationPath = JsonPath.root.location
   val hostPath = locationPath.host.string
   val portPath = locationPath.port.int
+  val pathPath = locationPath.path.int
   val runUserPath = JsonPath.root.runUser.string
+
+  val defaultPort = 1234
 
   private case class DefaultDetails(runUser: String, location: HostLocation)
 
-  def apply(runUser: String = Properties.userName, location: HostLocation = HostLocation()): WorkerDetails = {
+  def apply(runUser: String = Properties.userName, location: HostLocation = HostLocation(defaultPort)): WorkerDetails = {
     val details = DefaultDetails(runUser, location)
     val json = details.asJson
     WorkerDetails(json)
   }
 
-  def asName(c1ass : Class[_]): String = {
+  def asName(c1ass: Class[_]): String = {
     val name = c1ass.getSimpleName.replaceAllLiterally("$", "")
     name.headOption.fold("")(_.toLower +: name.tail)
   }

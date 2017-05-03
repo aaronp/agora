@@ -8,13 +8,13 @@ sealed trait JMatcher {
 
   override def toString = getClass.getSimpleName.replaceAllLiterally("$", "")
 
-  def &&(other: JMatcher): JMatcher = and(other)
-
   def and(other: JMatcher): JMatcher = JMatcher.And(this, other)
-
-  def ||(other: JMatcher): JMatcher = or(other)
+  final def and(other: JPart): JMatcher = and(other.asMatcher)
+  final def and(other: JPath): JMatcher = and(other.asMatcher)
 
   def or(other: JMatcher): JMatcher = JMatcher.Or(this, other)
+  final def or(other: JPart): JMatcher = or(other.asMatcher)
+  final def or(other: JPath): JMatcher = or(other.asMatcher)
 
 
 }

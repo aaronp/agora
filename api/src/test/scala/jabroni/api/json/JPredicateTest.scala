@@ -1,11 +1,12 @@
 package jabroni.api.json
 
+import io.circe.{Decoder, Json}
 import org.scalatest.{FunSuite, Matchers, WordSpec}
 
 class JPredicateTest extends WordSpec with Matchers {
 
   import io.circe.syntax._
-  import io.circe.generic._
+  import io.circe.generic.auto._
   import JPredicate.implicits._
   import JPredicate._
 
@@ -21,8 +22,8 @@ class JPredicateTest extends WordSpec with Matchers {
     JRegex("te.xt?")
   ).foreach { pred =>
     pred.toString should {
-      s"be serializable from ${pred.json.noSpaces}" in {
-        val Right(backAgain) = pred.json.as[JPredicate]
+      s"be serializable from ${pred.asJson.noSpaces}" in {
+        val Right(backAgain) = pred.asJson.as[JPredicate]
         backAgain shouldBe pred
       }
     }

@@ -8,8 +8,11 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.unmarshalling.FromRequestUnmarshaller
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.{Decoder, Encoder}
+import io.circe.syntax._
+import jabroni.api._
 import jabroni.api.exchange.Exchange._
 import jabroni.api.exchange._
+import jabroni.health.HealthDto
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.reflectiveCalls
@@ -25,13 +28,11 @@ import scala.language.reflectiveCalls
   * @param exchangeForHandler
   * @param ec
   */
-case class ExchangeRoutes(exchangeForHandler: OnMatch[Match] => Exchange = Exchange.apply(_)())(implicit ec: ExecutionContext) extends FailFastCirceSupport {
+case class ExchangeRoutes(exchangeForHandler: OnMatch[Unit] => Exchange = Exchange.apply(_)())(implicit ec: ExecutionContext) extends FailFastCirceSupport {
 
-  def onMatch : OnMatch[Match] = { jobMatch =>
-    jobMatch
-  }
-
-  private lazy val exchange = exchangeForHandler(onMatch)
+  // allow things to watch for matches
+  val observer: MatchObserver = MatchObserver()
+  lazy val exchange = exchangeForHandler(observer)
 
   def routes: Route = pathPrefix("rest" / "exchange") {
     worker.routes ~ client.routes ~ health
@@ -41,13 +42,32 @@ case class ExchangeRoutes(exchangeForHandler: OnMatch[Match] => Exchange = Excha
     def routes: Route = submit
 
     def submit = put {
-      jsonRouteFor[SubmitJob, SubmitJobResponse]("submit")(exchange.send)
+      (path("submit") & pathEnd) {
+        entity(as[SubmitJob]) {
+          case submitJob if submitJob.submissionDetails.awaitMatch =>
+            complete {
+              val jobWithId = submitJob.withId(nextJobId())
+              val matchFuture = observer.onJob(jobWithId)
+              exchange.submit(jobWithId).flatMap { _ =>
+                matchFuture.map { r =>
+                  HttpResponse(entity = HttpEntity(`application/json`, r.asJson.noSpaces))
+                }
+              }
+            }
+          case submitJob =>
+            complete {
+              exchange.submit(submitJob).map { r =>
+                HttpResponse(entity = HttpEntity(`application/json`, r.asJson.noSpaces))
+              }
+            }
+        }
+      }
     }
   }
 
   def health = (get & path("health") & pathEnd) {
     complete {
-      "meh"
+      HttpResponse(entity = HttpEntity(`application/json`, HealthDto().asJson.noSpaces))
     }
   }
 
@@ -65,12 +85,14 @@ case class ExchangeRoutes(exchangeForHandler: OnMatch[Match] => Exchange = Excha
 
   private def jsonRouteFor[T, B](name: String)(handle: T => Future[_ >: B])(implicit um: FromRequestUnmarshaller[T], dec: Decoder[T], enc: Encoder[B]) = {
     (path(name) & pathEnd) {
-      entity(as[T]) { input =>
-        complete {
-          handle(input).map { r =>
-            HttpResponse(entity = HttpEntity(`application/json`, enc(r.asInstanceOf[B]).noSpaces))
+      entity(as[T]) {
+        input =>
+          complete {
+            handle(input).map {
+              r =>
+                HttpResponse(entity = HttpEntity(`application/json`, enc(r.asInstanceOf[B]).noSpaces))
+            }
           }
-        }
       }
     }
   }
