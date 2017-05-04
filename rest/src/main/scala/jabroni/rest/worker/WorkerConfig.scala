@@ -31,10 +31,11 @@ class WorkerConfig(serverConfig: ServerConfig) {
   }
 
   def workerDetails: Either[ParsingFailure, WorkerDetails] = {
-    val name = config.getString("name")
-    val id = config.getString("id")
+    val detailsConf = config.getConfig("details")
+    val name = detailsConf.getString("name")
+    val id = detailsConf.getString("id")
     val wd = WorkerDetails(name, id, runUser, location)
-    WorkerConfig.asJson(config.getConfig("details")).right.map { json =>
+    WorkerConfig.asJson(detailsConf).right.map { json =>
       wd.append(json)
     }
   }

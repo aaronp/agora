@@ -8,9 +8,9 @@ class WorkerDetailsTest extends WordSpec with Matchers {
   import io.circe.generic.auto._
   import io.circe.parser
 
-  "WorkerDetails" should {
+  "WorkerDetails +" should {
     "accumulate json data" in {
-      val details = WorkerDetails("bob", HostLocation("nearby", 5)) + SomeData(123, "some text") + MoreData("meh")
+      val details = WorkerDetails(name = "bob", location = HostLocation("nearby", 5)) + SomeData(123, "some text") + MoreData("meh")
       val Right(expected) = parser.parse(
         """{
           |    "moreData" : {

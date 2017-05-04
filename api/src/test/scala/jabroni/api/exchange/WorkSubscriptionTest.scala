@@ -4,17 +4,16 @@ import org.scalatest.{Matchers, WordSpec}
 
 import scala.language.reflectiveCalls
 
-class WorkSubscriptionTest  extends WordSpec with Matchers {
+class WorkSubscriptionTest extends WordSpec with Matchers {
 
   "WorkSubscription.matches" should {
 
-      import jabroni.api.Implicits._
+    import jabroni.api.Implicits._
 
-      val jobPath = (("value" gt 7) and ("value" lt 17)) or ("value" === 123)
-      val sub = WorkSubscription(
-        jobMatcher = jobPath,
-        submissionMatcher = ("topic" === "foo").asMatcher)
-
+    val jobPath = (("value" gt 7) and ("value" lt 17)) or ("value" === 123)
+    val sub = WorkSubscription(
+      jobMatcher = jobPath,
+      submissionMatcher = ("topic" === "foo").asMatcher)
 
 
     "match jobs with work subscriptions" in {
@@ -27,5 +26,10 @@ class WorkSubscriptionTest  extends WordSpec with Matchers {
       sub.matches(Map("value" -> 123).asJob(details)) shouldBe true
       sub.matches(Map("value" -> 121).asJob(details)) shouldBe false
     }
+
+
+    import io.circe.syntax._
+    println(WorkSubscription().asJson)
+    println("")
   }
 }

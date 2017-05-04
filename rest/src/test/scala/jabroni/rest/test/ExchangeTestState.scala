@@ -2,6 +2,7 @@ package jabroni.rest.test
 
 import jabroni.rest.{ExchangeMain, ServerConfig, WorkerMain}
 
+import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.Future
 
 case class ExchangeTestState(
@@ -10,10 +11,14 @@ case class ExchangeTestState(
                             )
   extends ExchangeValidation {
 
+  def close() = {
+    workers.foreach(_.stop())
+    closeExchange()
+    ExchangeTestState()
+  }
+
   def startWorker(serverConfig: ServerConfig): ExchangeTestState = {
     stopWorkers(serverConfig)
-
-    import serverConfig.implicits._
 
     val future = for {
       route <- WorkerMain.routeFromConf(serverConfig)
@@ -28,9 +33,8 @@ case class ExchangeTestState(
 
   def startExchangeServer(serverConfig: ServerConfig): ExchangeTestState = {
     closeExchange()
-    import serverConfig.implicits._
 
-    val future = for {
+    val future: Future[ExchangeTestState] = for {
       route <- ExchangeMain.routeFromConf(serverConfig)
       running <- ExchangeMain.start(route, serverConfig)
     } yield {
@@ -45,6 +49,7 @@ case class ExchangeTestState(
       running.stop()
     }
     Future.sequence(stopFutures).futureValue
+    this
   }
 
   def closeExchange() = {

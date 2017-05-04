@@ -5,7 +5,7 @@ import java.util.UUID
 
 import io.circe.{Encoder, Json}
 import io.circe.optics.JsonPath
-import jabroni.api.User
+import jabroni.api._
 import jabroni.api.json.JsonAppendable
 
 import scala.util.Properties
@@ -53,7 +53,7 @@ case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
 
   def name = namePath.getOption(aboutMe)
 
-  def id = idPath.getOption(aboutMe)
+  def id: Option[SubscriptionKey] = idPath.getOption(aboutMe)
 
   def runUser: User = runUserPath.getOption(aboutMe).getOrElse {
     sys.error(s"invalid json: 'runUser' not set: ${aboutMe}")
@@ -78,7 +78,7 @@ object WorkerDetails {
   private case class DefaultDetails(runUser: String, location: HostLocation, name: String, id: String)
 
   def apply(name: String = "worker",
-            id: String = UUID.randomUUID().toString,
+            id: SubscriptionKey = nextSubscriptionKey(),
             runUser: String = Properties.userName,
             location: HostLocation = HostLocation(defaultPort)): WorkerDetails = {
     val json = DefaultDetails(runUser, location, name, id).asJson

@@ -8,6 +8,11 @@ import scala.language.reflectiveCalls
 
 class SubmitJobTest extends WordSpec with Matchers {
 
+  "SubmitJob.withId" should {
+    "overwrite previous values" in {
+      "something".asJob.withId("first").withId("second").jobId shouldBe Option("second")
+    }
+  }
   "SubmitJob" should {
     "be able to get the json back" in {
 

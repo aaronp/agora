@@ -35,7 +35,7 @@ class ExchangeSteps extends ScalaDsl with EN with Matchers {
 
 
   After { _ =>
-    // meh
+    state = state.close()
   }
 
 }

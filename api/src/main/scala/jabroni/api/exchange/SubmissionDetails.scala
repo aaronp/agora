@@ -28,7 +28,7 @@ case class SubmissionDetails(override val aboutMe: Json,
   def withData[T: Encoder](data: T, name: String = null): SubmissionDetails = {
     val json: Json = implicitly[Encoder[T]].apply(data)
     val qualified = Json.obj(namespace(data.getClass, name) -> json)
-    copy(aboutMe = qualified.deepMerge(aboutMe))
+    copy(aboutMe = aboutMe.deepMerge(qualified))
   }
 
 }

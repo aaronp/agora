@@ -45,7 +45,7 @@ object Exchange {
     private var jobsById = Map[JobId, SubmitJob]()
 
     override def subscribe(subscription: WorkSubscription) = {
-      val id = nextSubscriptionKey
+      val id = subscription.details.id.getOrElse(nextSubscriptionKey)
       subscriptionsById = subscriptionsById.updated(id, subscription -> 0)
       Future.successful(WorkSubscriptionAck(id))
     }

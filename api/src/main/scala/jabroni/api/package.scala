@@ -8,11 +8,11 @@ import io.circe.Encoder
 package object api {
 
   type User = String
-  type JobId = UUID
-  type SubscriptionKey = UUID
+  type JobId = String
+  type SubscriptionKey = String
 
-  def nextSubscriptionKey() : SubscriptionKey= UUID.randomUUID()
+  def nextSubscriptionKey() : SubscriptionKey= UUID.randomUUID().toString
 
-  def nextJobId() : JobId = UUID.randomUUID()
+  def nextJobId() : JobId = UUID.randomUUID().toString
 
 }

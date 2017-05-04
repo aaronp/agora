@@ -43,7 +43,7 @@ case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends Cl
 
   def add[T: Encoder](keyValue: (String, T)): SubmitJob = withData(keyValue._2, keyValue._1)
 
-  def withId(jobId: JobId): SubmitJob = add("jobId" -> nextJobId())
+  def withId(jobId: JobId): SubmitJob = add("jobId" -> jobId)
 
   def withData[T: Encoder](data: T, name: String = null) = {
     copy(submissionDetails = submissionDetails.withData(data, name))

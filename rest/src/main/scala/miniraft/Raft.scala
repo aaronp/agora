@@ -7,6 +7,7 @@ import scala.collection.immutable
 import scala.concurrent.{Future, Promise}
 import scala.util.Try
 
+import scala.concurrent.ExecutionContext.Implicits._
 
 sealed trait Role {
   def isLeader: Boolean = false
@@ -286,7 +287,7 @@ object Broadcast {
       underlying.handle(msg)
     }
 
-    def flushAll: List[Future[RaftRoutesTest.Response]] = {
+    def flushAll: List[Future[Response]] = {
       val r = pending.map(flush)
       pending = Nil
       r
