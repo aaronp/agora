@@ -1,7 +1,7 @@
 package jabroni.ui
 
 import org.scalajs.dom
-import org.scalajs.dom.document
+import org.scalajs.dom.{document, html}
 
 import scala.scalajs.js.JSApp
 import scala.scalajs.js.annotation.JSExportTopLevel

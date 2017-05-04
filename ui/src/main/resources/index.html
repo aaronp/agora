@@ -4,9 +4,13 @@
     <meta charset="UTF-8">
     <title>Jabroni</title>
 </head>
-<body>
+<body onload="loadView(document.getElementById('job-div'))">
 <script type="text/javascript" src="js/ui-fastopt.js"></script>
 <script type="text/javascript" src="js/ui-jsdeps.js"></script>
+
+<link rel="stylesheet" href="./theme/theme.css">
+<script src="./theme/theme.js"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
 
 <p>
     You can:
@@ -14,6 +18,7 @@
     <li>submit jobs</li>
     <li>subscribe to jobs</li>
     <li>take jobs</li>
+</ol>
 </p>
 
 <button id="on-submit-job-button" type="button" onclick="onSubmit()">Submit Job</button>

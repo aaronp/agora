@@ -18,7 +18,7 @@ abstract class SelectionMode(override val toString: String) {
 
   def select[Coll <: SeqLike[Work, Coll]](values: Coll)(implicit bf: CanBuildFrom[Coll, Work, Coll]): Coll
 
-  def json: Json = Json.fromString(toString)
+  //  def json: Json = Json.fromString(toString)
 }
 
 // sends the work to the first matching eligible worker
@@ -40,8 +40,6 @@ case class SelectionAll() extends SelectionMode("select-all") {
 // sends the work to all eligible workers
 case class SelectN(n: Int, fanOut: Boolean) extends SelectionMode(s"select-$n") {
 
-  override def json: Json = Json.obj("select" -> Json.fromInt(n),
-    "fanOut" -> Json.fromBoolean(fanOut))
   override def select[Coll <: SeqLike[Work, Coll]](values: Coll)(implicit bf: CanBuildFrom[Coll, Work, Coll]): Coll = {
     if (fanOut) {
       values.distinct.take(n)
@@ -74,7 +72,6 @@ case class SelectIntMax(path: JPath) extends SelectionMode("select-int-nax") {
 
   }
 
-  override def json: Json = Json.obj("max" -> path.json)
 }
 
 object SelectionMode {
@@ -91,9 +88,13 @@ object SelectionMode {
 
   def max(path: JPath): SelectionMode = SelectIntMax(path)
 
-  implicit def selectionModeFormat = new Encoder[SelectionMode] with Decoder[SelectionMode] {
+  implicit object SelectionModeFormat extends Encoder[SelectionMode] with Decoder[SelectionMode] {
     override def apply(mode: SelectionMode): Json = {
-      mode.json
+      mode match {
+        case SelectN(n, fanOut) => Json.obj("select" -> Json.fromInt(n), "fanOut" -> Json.fromBoolean(fanOut))
+        case SelectIntMax(path) => Json.obj("max" -> path.json)
+        case _ => Json.fromString(mode.toString)
+      }
     }
 
     override def apply(c: HCursor): Result[SelectionMode] = {
