@@ -14,16 +14,8 @@ import scala.io.StdIn
   */
 trait Boot extends StrictLogging {
 
-  def routeFromConf(conf: ServerConfig): Future[Route]
-
-  def defaultConfig = ServerConfig.defaultConfig("jabroni.server")
-
   def main(args: Array[String]) = {
-    val conf: ServerConfig = {
-      import jabroni.domain.RichConfig.implicits._
-      val typesafeConfig = args.asConfig().withFallback(defaultConfig)
-      ServerConfig(typesafeConfig)
-    }
+    val conf: ServerConfig = configForArgs(args)
 
     import conf.implicits.executionContext
     val future = routeFromConf(conf).flatMap(route => start(route, conf))
@@ -40,14 +32,14 @@ trait Boot extends StrictLogging {
     }
   }
 
-  /**
-    * Represents a running services
-    *
-    * @param conf
-    * @param binding
-    */
-  case class RunningService(conf: ServerConfig, binding: Http.ServerBinding) {
-    def stop() = binding.unbind()
+  def routeFromConf(conf: ServerConfig): Future[Route]
+
+  def defaultConfig = ServerConfig.defaultConfig("jabroni.server")
+
+  def configForArgs(args: Array[String]): ServerConfig = {
+    import jabroni.domain.RichConfig.implicits._
+    val typesafeConfig = args.asConfig().withFallback(defaultConfig)
+    ServerConfig(typesafeConfig)
   }
 
 
@@ -60,5 +52,14 @@ trait Boot extends StrictLogging {
     }
   }
 
+  /**
+    * Represents a running services
+    *
+    * @param conf
+    * @param binding
+    */
+  case class RunningService(conf: ServerConfig, binding: Http.ServerBinding) {
+    def stop() = binding.unbind()
+  }
 
 }

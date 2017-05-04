@@ -8,14 +8,14 @@ import jabroni.rest.worker.MatchDispatcher
 
 import scala.concurrent.Future
 
-/**
+/**ExchangeMain
   * Main entry point for the rest service.
   */
 object ExchangeMain extends Boot {
 
   override def defaultConfig = ServerConfig.defaultConfig("jabroni.exchange")
 
-  def routeFromConf(conf: ServerConfig) = {
+  def routeFromConf(conf: ServerConfig): Future[Route] = {
     import conf.implicits._
 
     val er = ExchangeRoutes()

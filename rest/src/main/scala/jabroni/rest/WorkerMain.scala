@@ -19,8 +19,7 @@ object WorkerMain extends Boot {
   def routeFromConf(conf: ServerConfig) = {
     import conf.implicits._
 
-    val workerConf = WorkerConfig(conf.config)
-    routeFromWorkerConf(workerConf)
+    routeFromWorkerConf(WorkerConfig(conf))
   }
 
   def routeFromWorkerConf(workerConf: WorkerConfig)(implicit ec: ExecutionContext) = {

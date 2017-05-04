@@ -1,6 +1,7 @@
 package jabroni.api.worker
 
 import java.net.InetAddress
+import java.util.UUID
 
 import io.circe.{Encoder, Json}
 import io.circe.optics.JsonPath
@@ -50,6 +51,10 @@ case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
     sys.error(s"invalid json: 'location' not set: ${aboutMe}")
   }
 
+  def name = namePath.getOption(aboutMe)
+
+  def id = idPath.getOption(aboutMe)
+
   def runUser: User = runUserPath.getOption(aboutMe).getOrElse {
     sys.error(s"invalid json: 'runUser' not set: ${aboutMe}")
   }
@@ -64,15 +69,19 @@ object WorkerDetails {
   val hostPath = locationPath.host.string
   val portPath = locationPath.port.int
   val pathPath = locationPath.path.int
+  val namePath = JsonPath.root.name.string
+  val idPath = JsonPath.root.id.string
   val runUserPath = JsonPath.root.runUser.string
 
   val defaultPort = 1234
 
-  private case class DefaultDetails(runUser: String, location: HostLocation)
+  private case class DefaultDetails(runUser: String, location: HostLocation, name: String, id: String)
 
-  def apply(runUser: String = Properties.userName, location: HostLocation = HostLocation(defaultPort)): WorkerDetails = {
-    val details = DefaultDetails(runUser, location)
-    val json = details.asJson
+  def apply(name: String = "worker",
+            id: String = UUID.randomUUID().toString,
+            runUser: String = Properties.userName,
+            location: HostLocation = HostLocation(defaultPort)): WorkerDetails = {
+    val json = DefaultDetails(runUser, location, name, id).asJson
     WorkerDetails(json)
   }
 

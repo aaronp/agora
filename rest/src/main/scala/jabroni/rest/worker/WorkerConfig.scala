@@ -6,26 +6,34 @@ import io.circe.parser._
 import io.circe.{Json, ParsingFailure}
 import jabroni.api.exchange.{Exchange, WorkSubscription}
 import jabroni.api.json.JMatcher
-import jabroni.api.worker.{HostLocation, WorkerDetails}
+import jabroni.api.worker.WorkerDetails
+import jabroni.rest.ServerConfig
 import jabroni.rest.client.ClientConfig
 import jabroni.rest.exchange.ExchangeClient
 
 import scala.util.Try
 
-class WorkerConfig(config: Config) {
-  val host = config.getString("host")
-  val port = config.getInt("port")
-  val location = HostLocation(host, port)
-  val runUser: String = config.getString("runUser")
+class WorkerConfig(serverConfig: ServerConfig) {
+
+  def config = serverConfig.config
+
+  def location = serverConfig.location
+
+  def runUser = serverConfig.runUser
+
+
+  def exchangeClientConfig = ClientConfig(serverConfig.config.getConfig("exchange"))
 
   def exchange: Exchange = {
-    val restCC = ClientConfig(config.getConfig("exchange-client"))
+    val restCC = exchangeClientConfig
     import restCC.implicits._
     ExchangeClient(restCC.restClient)
   }
 
   def workerDetails: Either[ParsingFailure, WorkerDetails] = {
-    val wd = WorkerDetails(runUser, location)
+    val name = config.getString("name")
+    val id = config.getString("id")
+    val wd = WorkerDetails(name, id, runUser, location)
     WorkerConfig.asJson(config.getConfig("details")).right.map { json =>
       wd.append(json)
     }
@@ -59,7 +67,7 @@ class WorkerConfig(config: Config) {
 object WorkerConfig {
   def defaultConfig() = ConfigFactory.load().getConfig("jabroni.worker")
 
-  def apply(config: Config = WorkerConfig.defaultConfig()): WorkerConfig = new WorkerConfig(config)
+  def apply(config: ServerConfig = ServerConfig(defaultConfig())): WorkerConfig = new WorkerConfig(config)
 
   def asJson(c: Config): Either[ParsingFailure, Json] = {
     val json = c.root.render(ConfigRenderOptions.concise().setJson(true))
