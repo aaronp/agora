@@ -10,7 +10,7 @@ import scala.concurrent.{ExecutionContext, Future}
   * An exchange supports both 'client' requests (e.g. offering and cancelling work to be done)
   * and work subscriptions
   */
-trait Exchange extends JobScheduler {
+trait Exchange extends JobPublisher with QueueObserver {
 
   def pull(req: SubscriptionRequest): Future[SubscriptionResponse] = {
     req match {
@@ -38,11 +38,26 @@ object Exchange {
   class InMemory(onMatch: OnMatch[Any])(implicit matcher: JobPredicate) extends Exchange {
     private var subscriptionsById = Map[SubscriptionKey, (WorkSubscription, Int)]()
 
-    private def subscriptionFor(key: SubscriptionKey) = subscriptionsById.get(key).map(_._1).getOrElse(sys.error("Unknown subscription: $key"))
-
     private def pending(key: SubscriptionKey) = subscriptionsById.get(key).map(_._2).getOrElse(0)
 
     private var jobsById = Map[JobId, SubmitJob]()
+
+    override def listJobs(request: QueuedJobs): Future[QueuedJobsResponse] = {
+      val found = jobsById.collect {
+        case (_, job) if request.matches(job) => job
+      }
+      val resp = QueuedJobsResponse(found.toList)
+      Future.successful(resp)
+    }
+
+    override def listSubscriptions(request: ListSubscriptions): Future[ListSubscriptionsResponse] = {
+      val found = subscriptionsById.collect {
+        case (key, (sub, pending)) if request.subscriptionCriteria.matches(sub.details.aboutMe) =>
+          PendingSubscription(key, sub, pending)
+      }
+      val resp = ListSubscriptionsResponse(found.toList)
+      Future.successful(resp)
+    }
 
     override def subscribe(subscription: WorkSubscription) = {
       val id = subscription.details.id.getOrElse(nextSubscriptionKey)

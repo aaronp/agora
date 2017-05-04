@@ -9,6 +9,44 @@ import jabroni.api.{JobId, nextJobId}
 import scala.language.implicitConversions
 
 
+sealed trait ObserverRequest
+
+sealed trait ObserverResponse
+
+case class QueuedJobs(subscriptionMatcher: JMatcher, jobMatcher: JMatcher) extends ObserverRequest {
+  def matches(job : SubmitJob) = {
+    jobMatcher.matches(job.job) && subscriptionMatcher.matches(job.submissionDetails.aboutMe)
+  }
+}
+
+object QueuedJobs {
+  implicit val encoder = exportEncoder[QueuedJobs].instance
+  implicit val decoder = exportDecoder[QueuedJobs].instance
+}
+
+case class QueuedJobsResponse(jobs: List[SubmitJob]) extends ObserverResponse
+
+object QueuedJobsResponse {
+  implicit val encoder = exportEncoder[QueuedJobsResponse].instance
+  implicit val decoder = exportDecoder[QueuedJobsResponse].instance
+}
+
+case class ListSubscriptions(subscriptionCriteria: JMatcher) extends ObserverRequest
+
+object ListSubscriptions {
+  implicit val encoder = exportEncoder[ListSubscriptions].instance
+  implicit val decoder = exportDecoder[ListSubscriptions].instance
+}
+
+case class PendingSubscription(key : SubscriptionKey, subscription: WorkSubscription, requested: Int)
+
+case class ListSubscriptionsResponse(jobs: List[PendingSubscription]) extends ObserverResponse
+
+object ListSubscriptionsResponse {
+  implicit val encoder = exportEncoder[ListSubscriptionsResponse].instance
+  implicit val decoder = exportDecoder[ListSubscriptionsResponse].instance
+}
+
 /**
   * A 'client' represents something which submits work to the exchange
   */

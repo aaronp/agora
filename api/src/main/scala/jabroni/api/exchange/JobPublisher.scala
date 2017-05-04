@@ -3,7 +3,7 @@ package jabroni.api.exchange
 
 import scala.concurrent.Future
 
-trait JobScheduler {
+trait JobPublisher {
   def send(request: ClientRequest): Future[ClientResponse] = request match {
     case req : SubmitJob => submit(req)
   }

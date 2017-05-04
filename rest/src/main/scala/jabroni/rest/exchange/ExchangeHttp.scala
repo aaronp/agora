@@ -3,13 +3,17 @@ package jabroni.rest.exchange
 import akka.http.scaladsl.client.RequestBuilding
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpRequest}
 import io.circe.Json
-import jabroni.api.exchange.{RequestWork, SubmitJob, WorkSubscription}
+import jabroni.api.exchange._
 
 object ExchangeHttp extends RequestBuilding {
 
   import io.circe.syntax._
 
-  def apply(request: SubmitJob): HttpRequest = put(s"submit", request.asJson)
+  def apply(request: QueuedJobs): HttpRequest = post("jobs", request.asJson)
+
+  def apply(request: ListSubscriptions): HttpRequest = post("subscriptions", request.asJson)
+
+  def apply(request: SubmitJob): HttpRequest = put("submit", request.asJson)
 
   def apply(request: WorkSubscription): HttpRequest = put("subscribe", request.asJson)
 

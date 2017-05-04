@@ -5,9 +5,9 @@ import io.circe.Decoder
 import jabroni.api.exchange._
 import org.scalajs.dom.{XMLHttpRequest, window}
 import org.scalajs.dom.ext.Ajax
-import scala.concurrent.ExecutionContext.Implicits.global
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{ExecutionContext, Future}
 import language.reflectiveCalls
 import language.implicitConversions
 
@@ -31,6 +31,15 @@ class AjaxExchange(baseUrl: String)(implicit ec : ExecutionContext) extends Exch
         case Right(ack) => ack
       }
     }
+  }
+
+
+  override def listJobs(request: QueuedJobs): Future[QueuedJobsResponse] = {
+    Ajax.post(s"$baseUrl/jobs", request.asJson.noSpaces).map(_.jsonAs[QueuedJobsResponse])
+  }
+
+  override def listSubscriptions(request: ListSubscriptions): Future[ListSubscriptionsResponse] = {
+    Ajax.post(s"$baseUrl/subscriptions", request.asJson.noSpaces).map(_.jsonAs[ListSubscriptionsResponse])
   }
 
   override def subscribe(request: WorkSubscription) = {

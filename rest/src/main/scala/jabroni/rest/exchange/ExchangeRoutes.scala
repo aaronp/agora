@@ -24,6 +24,11 @@ import scala.language.reflectiveCalls
   * PUT rest/exchange/subscribe
   * POST rest/exchange/take
   *
+  * POST rest/exchange/subscriptions
+  * POST rest/exchange/jobs
+  *
+  * see ExchangeHttp for the client-side of this
+  *
   * @see http://doc.akka.io/docs/akka-stream-and-http-experimental/1.0/scala/http/routing-dsl/index.html
   * @param exchangeForHandler
   * @param ec
@@ -35,10 +40,33 @@ case class ExchangeRoutes(exchangeForHandler: OnMatch[Unit] => Exchange = Exchan
   lazy val exchange = exchangeForHandler(observer)
 
   def routes: Route = pathPrefix("rest" / "exchange") {
-    worker.routes ~ client.routes ~ health
+    worker.routes ~ publish.routes ~ query.routes ~ health
   }
 
-  object client {
+  object query {
+    def routes: Route = subscriptions ~ jobs
+
+    def subscriptions = post {
+      (path("subscriptions") & pathEnd) {
+        entity(as[ListSubscriptions]) { request =>
+          complete {
+            exchange.listSubscriptions(request)
+          }
+        }
+      }
+    }
+    def jobs = post {
+      (path("jobs") & pathEnd) {
+        entity(as[QueuedJobs]) { request =>
+          complete {
+            exchange.listJobs(request)
+          }
+        }
+      }
+    }
+  }
+
+  object publish {
     def routes: Route = submit
 
     def submit = put {

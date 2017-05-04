@@ -9,19 +9,18 @@ import scala.concurrent.{ExecutionContext, Future}
 class ExchangeClient(rest: RestClient)(implicit ec: ExecutionContext, mat: Materializer) extends Exchange {
   import RestClient.implicits._
 
-  override def pull(request: SubscriptionRequest): Future[SubscriptionResponse] = {
-    request match {
-      case subscribe: WorkSubscription =>
-        rest.send(ExchangeHttp(subscribe)).flatMap(_.as[WorkSubscriptionAck])
-      case take: RequestWork =>
-        rest.send(ExchangeHttp(take)).flatMap(_.as[RequestWorkAck])
-    }
+  override def subscribe(request: WorkSubscription) = rest.send(ExchangeHttp(request)).flatMap(_.as[WorkSubscriptionAck])
+
+  override def take(request: RequestWork) = rest.send(ExchangeHttp(request)).flatMap(_.as[RequestWorkAck])
+
+  override def submit(submit: SubmitJob) = rest.send(ExchangeHttp(submit)).flatMap(_.as[SubmitJobResponse])
+
+  override def listJobs(request: QueuedJobs) = {
+    rest.send(ExchangeHttp(request)).flatMap(_.as[QueuedJobsResponse])
   }
 
-  override def send(request: ClientRequest): Future[ClientResponse] = {
-    request match {
-      case submit: SubmitJob => rest.send(ExchangeHttp(submit)).flatMap(_.as[SubmitJobResponse])
-    }
+  override def listSubscriptions(request: ListSubscriptions) = {
+    rest.send(ExchangeHttp(request)).flatMap(_.as[ListSubscriptionsResponse])
   }
 }
 
