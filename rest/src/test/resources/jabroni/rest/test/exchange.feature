@@ -1,12 +1,10 @@
 Feature: Exchange should match work with offers
 
-  Background:
-    Given I start an exchange with command line port=1234
-    And I start a worker with command line details.name=W1 exchange.port=2345
 
-
+  @debug
   Scenario: Queueing a job
-    When I submit a job
+    When I start an exchange with command line port=1234
+    And I submit a job
     """
     {
       "submissionDetails" : {
@@ -30,7 +28,9 @@ Feature: Exchange should match work with offers
 
 
   Scenario: Requesting work
-    When worker W1 creates subscription foo with
+    When I start an exchange with command line port=1234
+    And I start a worker with command line details.name=W1 exchange.port=2345
+    And worker W1 creates subscription foo with
     """
     {
       "details" : {

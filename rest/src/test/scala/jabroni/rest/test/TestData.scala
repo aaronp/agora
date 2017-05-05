@@ -10,6 +10,8 @@ object TestData {
 
     import scala.collection.JavaConverters._
 
+    def headers : List[String] = asScala.headOption.getOrElse(Nil)
+
     def toMap: List[Map[String, String]] = {
       table.asMaps(classOf[String], classOf[String]).asScala.toList.map(_.asScala.toMap)
     }

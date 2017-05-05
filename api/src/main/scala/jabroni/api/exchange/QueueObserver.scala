@@ -14,6 +14,9 @@ trait QueueObserver {
   def listJobs(request: QueuedJobs): Future[QueuedJobsResponse] = {
     query(request).mapTo[QueuedJobsResponse]
   }
+  final def listJobs(): Future[QueuedJobsResponse] = listJobs(new QueuedJobs())
+
+  final def listSubscriptions(): Future[ListSubscriptionsResponse] = listSubscriptions(new ListSubscriptions())
 
   def listSubscriptions(request: ListSubscriptions): Future[ListSubscriptionsResponse] = {
     query(request).mapTo[ListSubscriptionsResponse]

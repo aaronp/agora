@@ -6,7 +6,8 @@ import jabroni.rest.client.RestClient
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class ExchangeClient(rest: RestClient)(implicit ec: ExecutionContext, mat: Materializer) extends Exchange {
+class ExchangeClient(rest: RestClient)(implicit mat: Materializer) extends Exchange {
+
   import RestClient.implicits._
 
   override def subscribe(request: WorkSubscription) = rest.send(ExchangeHttp(request)).flatMap(_.as[WorkSubscriptionAck])
@@ -25,7 +26,6 @@ class ExchangeClient(rest: RestClient)(implicit ec: ExecutionContext, mat: Mater
 }
 
 object ExchangeClient {
-
-  def apply(rest: RestClient)(implicit ec: ExecutionContext, mat: Materializer): Exchange = new ExchangeClient(rest)
+  def apply(rest: RestClient)(implicit mat: Materializer): Exchange = new ExchangeClient(rest)
 
 }

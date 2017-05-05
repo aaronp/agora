@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>Jabroni</title>
 </head>
-<body onload="loadView(document.getElementById('job-div'))">
+<body onload="loadView(document.getElementById('job-div'), document.getElementById('create-job-div'), document.getElementById('subscriptions'))">
 <script type="text/javascript" src="js/ui-fastopt.js"></script>
 <script type="text/javascript" src="js/ui-jsdeps.js"></script>
 
@@ -25,7 +25,14 @@
 <button id="on-take-button" type="button" onclick="onTake(123)">Take</button>
 <button id="on-subscribe-button" type="button" onclick="onSubscribe()">Subscribe</button>
 
+<div>
+    <h4>New Job:</h4>
+    <div id="create-job-div"></div>
+</div>
+
 <div id="job-div"></div>
+<div id="subscriptions"></div>
+
 
 </body>
 </html>

@@ -2,7 +2,7 @@ package jabroni.rest
 
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import jabroni.api.exchange.{WorkSubscription, WorkSubscriptionAck}
+import jabroni.api.exchange.WorkSubscriptionAck
 import jabroni.api.worker.execute.RunProcess
 import jabroni.rest.ui.UIRoutes
 import jabroni.rest.worker.{Handler, WorkerConfig, WorkerRoutes}
@@ -20,6 +20,15 @@ object WorkerMain extends Boot {
     import conf.implicits._
 
     routeFromWorkerConf(WorkerConfig(conf))
+  }
+
+  override type Service = WorkerConfig
+
+  override def serviceFromConf(conf: ServerConfig) = WorkerConfig(conf)
+
+  override def routeFromService(conf: ServerConfig, svc: WorkerConfig): Future[Route] = {
+    val routes = routeFromWorkerConf(svc)
+    Future.successful(routes)
   }
 
   def routeFromWorkerConf(workerConf: WorkerConfig)(implicit ec: ExecutionContext) = {
@@ -45,7 +54,7 @@ object WorkerMain extends Boot {
     }
   }
 
-  def newRoutes(handlers: Map[String, Handler])(implicit ec: ExecutionContext) : Route = {
+  def newRoutes(handlers: Map[String, Handler])(implicit ec: ExecutionContext): Route = {
     val er: Route = WorkerRoutes(handlers).routes
     val uiRoutes: Route = UIRoutes().routes
     er ~ uiRoutes

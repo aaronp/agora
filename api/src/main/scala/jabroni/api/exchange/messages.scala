@@ -14,6 +14,7 @@ sealed trait ObserverRequest
 sealed trait ObserverResponse
 
 case class QueuedJobs(subscriptionMatcher: JMatcher, jobMatcher: JMatcher) extends ObserverRequest {
+  def this() = this(JMatcher.matchAll, JMatcher.matchAll)
   def matches(job : SubmitJob) = {
     jobMatcher.matches(job.job) && subscriptionMatcher.matches(job.submissionDetails.aboutMe)
   }
@@ -31,7 +32,9 @@ object QueuedJobsResponse {
   implicit val decoder = exportDecoder[QueuedJobsResponse].instance
 }
 
-case class ListSubscriptions(subscriptionCriteria: JMatcher) extends ObserverRequest
+case class ListSubscriptions(subscriptionCriteria: JMatcher) extends ObserverRequest {
+  def this() = this(JMatcher.matchAll)
+}
 
 object ListSubscriptions {
   implicit val encoder = exportEncoder[ListSubscriptions].instance
@@ -40,7 +43,7 @@ object ListSubscriptions {
 
 case class PendingSubscription(key : SubscriptionKey, subscription: WorkSubscription, requested: Int)
 
-case class ListSubscriptionsResponse(jobs: List[PendingSubscription]) extends ObserverResponse
+case class ListSubscriptionsResponse(subscriptions: List[PendingSubscription]) extends ObserverResponse
 
 object ListSubscriptionsResponse {
   implicit val encoder = exportEncoder[ListSubscriptionsResponse].instance

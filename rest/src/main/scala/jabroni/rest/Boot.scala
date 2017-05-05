@@ -14,11 +14,13 @@ import scala.io.StdIn
   */
 trait Boot extends StrictLogging {
 
+  type Service
+
   def main(args: Array[String]) = {
     val conf: ServerConfig = configForArgs(args)
 
     import conf.implicits.executionContext
-    val future = routeFromConf(conf).flatMap(route => start(route, conf))
+    val future = start(conf)
 
     if (conf.launchBrowser && java.awt.Desktop.isDesktopSupported()) {
       future.onComplete { _ =>
@@ -32,7 +34,13 @@ trait Boot extends StrictLogging {
     }
   }
 
-  def routeFromConf(conf: ServerConfig): Future[Route]
+  def start(conf: ServerConfig): Future[RunningService] = {
+    val svc = serviceFromConf(conf)
+    val routeFuture = routeFromService(conf, svc)
+    routeFuture.flatMap(route => start(route, svc, conf))
+  }
+  protected def serviceFromConf(conf: ServerConfig): Service
+  protected def routeFromService(conf: ServerConfig, svc: Service): Future[Route]
 
   def defaultConfig = ServerConfig.defaultConfig("jabroni.server")
 
@@ -43,12 +51,12 @@ trait Boot extends StrictLogging {
   }
 
 
-  def start(route: Route, conf: ServerConfig): Future[RunningService] = {
+  def start(route: Route, svc : Service, conf: ServerConfig): Future[RunningService] = {
     import conf.implicits._
     logger.info(s"Starting server at http://${conf.host}:${conf.port}")
     val bindingFuture = Http().bindAndHandle(route, conf.host, conf.port)
     bindingFuture.map { b =>
-      RunningService(conf, b)
+      RunningService(conf, svc, b)
     }
   }
 
@@ -58,7 +66,7 @@ trait Boot extends StrictLogging {
     * @param conf
     * @param binding
     */
-  case class RunningService(conf: ServerConfig, binding: Http.ServerBinding) {
+  case class RunningService(conf: ServerConfig, service : Service, binding: Http.ServerBinding) {
     def stop() = binding.unbind()
   }
 
