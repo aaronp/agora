@@ -16,7 +16,7 @@ object MainView {
               ) = {
     val svcs = Services()
     JobsView.refresh(svcs, jobContainer)
-    SubmitJobView(svcs).render(newJobContainer)
+//    SubmitJobView(svcs).render(newJobContainer)
 
   }
 }
