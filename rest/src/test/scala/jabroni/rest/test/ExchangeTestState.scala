@@ -14,7 +14,7 @@ case class ExchangeTestState(
                               submittedJobs: List[(SubmitJob, SubmitJobResponse)] = Nil,
                               workers: List[WorkerMain.RunningService] = Nil
                             )
-  extends ExchangeValidation {
+  extends ExchangeValidation  {
   def submitJob(job: SubmitJob): ExchangeTestState = {
     val (state, client) = stateWithClient
     val resp = client.submit(job).futureValue

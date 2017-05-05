@@ -3,7 +3,7 @@ Feature: Exchange should match work with offers
 
   @debug
   Scenario: Queueing a job
-    When I start an exchange with command line port=1234
+    When I start an exchange with command line port=5555
     And I submit a job
     """
     {

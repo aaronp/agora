@@ -3,9 +3,10 @@ package jabroni.rest.exchange
 
 import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.model.{HttpEntity, HttpResponse}
-import akka.http.scaladsl.server.Directives.{entity, _}
+import akka.http.scaladsl.server.Directives.{entity, pathPrefix, _}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.unmarshalling.FromRequestUnmarshaller
+import akka.stream.Materializer
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.{Decoder, Encoder}
 import io.circe.syntax._
@@ -13,6 +14,7 @@ import jabroni.api._
 import jabroni.api.exchange.Exchange._
 import jabroni.api.exchange._
 import jabroni.health.HealthDto
+import jabroni.rest.LoggingSupport
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.reflectiveCalls
@@ -30,17 +32,21 @@ import scala.language.reflectiveCalls
   * see ExchangeHttp for the client-side of this
   *
   * @see http://doc.akka.io/docs/akka-stream-and-http-experimental/1.0/scala/http/routing-dsl/index.html
-  * @param exchangeForHandler
-  * @param ec
   */
-case class ExchangeRoutes(exchangeForHandler: OnMatch[Unit] => Exchange = Exchange.apply(_)())(implicit ec: ExecutionContext) extends FailFastCirceSupport {
+case class ExchangeRoutes(exchangeForHandler: OnMatch[Unit] => Exchange = Exchange.apply(_)())(implicit mat: Materializer)
+  extends FailFastCirceSupport
+    with LoggingSupport {
+  import mat._
 
   // allow things to watch for matches
   val observer: MatchObserver = MatchObserver()
   lazy val exchange = exchangeForHandler(observer)
 
-  def routes: Route = pathPrefix("rest" / "exchange") {
-    worker.routes ~ publish.routes ~ query.routes ~ health
+  def routes: Route = {
+    val all = pathPrefix("rest" / "exchange") {
+      worker.routes ~ publish.routes ~ query.routes ~ health
+    }
+    logRoute(all)
   }
 
   object query {
@@ -55,6 +61,7 @@ case class ExchangeRoutes(exchangeForHandler: OnMatch[Unit] => Exchange = Exchan
         }
       }
     }
+
     def jobs = post {
       (path("jobs") & pathEnd) {
         entity(as[QueuedJobs]) { request =>
@@ -124,9 +131,4 @@ case class ExchangeRoutes(exchangeForHandler: OnMatch[Unit] => Exchange = Exchan
       }
     }
   }
-
-  //
-  //  private def asResponse[T](r: T)(implicit enc: Encoder[_ <: T]) = {
-  //    HttpResponse(entity = HttpEntity(`application/json`, enc(r).noSpaces))
-  //  }
 }
