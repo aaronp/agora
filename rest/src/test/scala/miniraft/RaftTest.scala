@@ -1,21 +1,9 @@
 package miniraft
 
-import java.util.UUID
-import java.util.concurrent.atomic.AtomicInteger
-
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{Matchers, WordSpec}
-import org.slf4j.LoggerFactory
-
-import scala.collection.immutable
-import scala.concurrent.{Future, Promise}
-import scala.util.Try
-
-import scala.concurrent.ExecutionContext.Implicits.global
 
 class RaftTest extends WordSpec with Matchers with ScalaFutures {
-
-  import RaftRoutesTest._
 
   "Raft.isMajority" should {
     List(
@@ -89,7 +77,7 @@ class RaftTest extends WordSpec with Matchers with ScalaFutures {
         case reply: AppendEntriesResponse =>
           reply.term.value shouldBe 2
           reply.success shouldBe true
-          reply.matchIndex shouldBe 0
+          reply.matchIndex shouldBe 1
       }
       cluster("A").isLeader shouldBe true
       cluster.nodeIds.foreach { id =>
@@ -99,9 +87,4 @@ class RaftTest extends WordSpec with Matchers with ScalaFutures {
       }
     }
   }
-}
-
-object RaftRoutesTest {
-
-
 }

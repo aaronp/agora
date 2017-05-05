@@ -347,10 +347,6 @@ class Cluster(initialNodes: Set[Node] = Set("A", "B", "C", "D", "E").map(Node.ap
     }
 
     private def invoke(id: NodeId, msg: Request): Response = {
-      //        new Transport {
-      //          override def handle(msg: Request): Future[Response] = {
-      //          }
-      //        }
       msg match {
         case req: AppendEntries[_] => nodesById(id).handleAppendEntries(req)
         case req: RequestVote => nodesById(id).handleRequestVote(req)
