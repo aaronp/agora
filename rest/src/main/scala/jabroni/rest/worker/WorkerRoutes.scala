@@ -4,6 +4,7 @@ import akka.http.scaladsl.model.ContentTypes.`application/json`
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.{HttpEntity, HttpRequest, HttpResponse}
 import akka.http.scaladsl.server.Directives.{path, _}
+import akka.http.scaladsl.server.directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.unmarshalling.{FromEntityUnmarshaller, Unmarshaller}
 import akka.stream.Materializer
@@ -11,10 +12,10 @@ import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.{Decoder, Encoder}
 import jabroni.api.exchange.{Exchange, RequestWorkAck, WorkSubscription, WorkSubscriptionAck}
 import jabroni.api.worker.SubscriptionKey
+import jabroni.health.HealthDto
 import jabroni.rest.MatchDetailsExtractor
-import jabroni.rest.exchange.ExchangeClient
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 import scala.language.reflectiveCalls
 
 case class WorkerRoutes(exchange: Exchange, defaultInitialRequest: Int = 1)(implicit mat: Materializer) extends FailFastCirceSupport {
@@ -29,7 +30,18 @@ case class WorkerRoutes(exchange: Exchange, defaultInitialRequest: Int = 1)(impl
 
   def available = workerByPath.keySet.toList.sorted.mkString("[", ",", "]")
 
-  def routes: Route = pathPrefix("rest" / "worker") {
+  def routes: Route = workerRoutes ~ health
+
+
+  def health = (get & path("health") & pathEnd) {
+    import io.circe.generic.auto._
+    import io.circe.syntax._
+    complete {
+      HttpResponse(entity = HttpEntity(`application/json`, HealthDto().asJson.noSpaces))
+    }
+  }
+
+  def workerRoutes: Route = pathPrefix("rest" / "worker") {
     extractRequest { request =>
 
       path(Remaining) { remaining =>

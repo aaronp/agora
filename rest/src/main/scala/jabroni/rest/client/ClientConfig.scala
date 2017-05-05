@@ -19,7 +19,7 @@ class ClientConfig(override val config: Config) extends BaseConfig {
     import implicits._
     ExchangeClient(restClient)
   }
-  def workerRoutes = {
+  def workerRoutes: WorkerRoutes = {
     import implicits._
     WorkerRoutes(exchangeClient)
   }

@@ -19,16 +19,14 @@ object ExchangeMain extends Boot {
   override def serviceFromConf(conf: ServerConfig): Service = {
     import conf.implicits._
     val er = ExchangeRoutes()
-//    er.observer +=[Unit, MatchDispatcher] (new MatchDispatcher)
+    //    er.observer +=[Unit, MatchDispatcher] (new MatchDispatcher)
     er
   }
 
 
   override def routeFromService(conf: ServerConfig, svc: ExchangeRoutes): Future[Route] = {
-    import conf.implicits._
-
-    val uiRoutes: Route = UIRoutes().routes
-    Future(svc.routes ~ uiRoutes)
+    val uiRoutes: Route = UIRoutes("ui/index.html").routes
+    Future.successful(svc.routes ~ uiRoutes)
   }
 
 }

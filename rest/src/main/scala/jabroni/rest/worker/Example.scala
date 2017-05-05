@@ -1,24 +1,24 @@
 package jabroni.rest.worker
 
-import jabroni.rest.client.{ClientConfig, RestClient}
-
-import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits._
 
 object Example extends App {
-  import io.circe.generic.auto._
 
   case class DoubleMe(x: Int)
 
   case class Doubled(x: Int)
 
-  val routes = ClientConfig().workerRoutes
+  import io.circe.generic.auto._
 
-  routes.handle { ctxt: WorkContext[DoubleMe] =>
-    val doubled = ctxt.request.x * ctxt.request.x
-    ctxt.take(1)
-    Doubled(doubled)
+
+  Worker.start(args).map { running =>
+    val routes = running.service.workerRoutes
+
+    routes.handle { ctxt: WorkContext[DoubleMe] =>
+      val doubled = ctxt.request.x * ctxt.request.x
+      ctxt.take(1)
+      Doubled(doubled)
+    }
   }
-
-  val future: Future[Worker.RunningService] = Worker.runWith(routes)
 
 }

@@ -51,6 +51,9 @@ case class ExchangeRoutes(exchangeForHandler: OnMatch[Unit] => Exchange with Que
     logRoute(all)
   }
 
+  /**
+    * Support routes to query the state of the exchange (queues)
+    */
   object query {
     def routes: Route = subscriptions ~ jobs
 
@@ -75,6 +78,9 @@ case class ExchangeRoutes(exchangeForHandler: OnMatch[Unit] => Exchange with Que
     }
   }
 
+  /**
+    * Routes for pushing work (requesting work from) workers
+    */
   object publish {
     def routes: Route = submit
 
@@ -112,6 +118,9 @@ case class ExchangeRoutes(exchangeForHandler: OnMatch[Unit] => Exchange with Que
     }
   }
 
+  /**
+    * subscription routes called from workers requesting work
+    */
   object worker {
     def routes: Route = subscribe ~ takeNext
 

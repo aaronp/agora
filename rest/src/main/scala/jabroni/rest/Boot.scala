@@ -16,7 +16,9 @@ trait Boot extends StrictLogging {
 
   type Service
 
-  def main(args: Array[String]) = {
+  def main(args: Array[String]) : Unit = start(args)
+
+  def start(args: Array[String] = Array.empty): Future[RunningService] = {
     val conf: ServerConfig = configForArgs(args)
 
     import conf.implicits.executionContext
@@ -32,8 +34,8 @@ trait Boot extends StrictLogging {
       StdIn.readLine() // let it run until user presses return
       future.foreach(_.stop)(conf.implicits.executionContext)
     }
+    future
   }
-
   def startFromConfig(conf: ServerConfig): Future[RunningService] = {
     import conf.implicits._
     val svc = serviceFromConf(conf)

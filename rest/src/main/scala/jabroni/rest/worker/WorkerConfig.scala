@@ -21,8 +21,12 @@ class WorkerConfig(serverConfig: ServerConfig) {
 
   def runUser = serverConfig.runUser
 
-
+  /**
+    * @return a client configuration which will talk to an exchange
+    */
   def exchangeClientConfig = ClientConfig(serverConfig.config.getConfig("exchange"))
+
+  lazy val workerRoutes: WorkerRoutes = exchangeClientConfig.workerRoutes
 
   def exchange: Exchange = {
     val restCC = exchangeClientConfig
