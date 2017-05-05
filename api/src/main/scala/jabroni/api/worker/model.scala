@@ -53,7 +53,7 @@ case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
 
   def name = namePath.getOption(aboutMe)
 
-  def id: Option[SubscriptionKey] = idPath.getOption(aboutMe)
+  def id: Option[SubscriptionKey] = idPath.getOption(aboutMe).map(_.trim).filterNot(_.isEmpty)
 
   def runUser: User = runUserPath.getOption(aboutMe).getOrElse {
     sys.error(s"invalid json: 'runUser' not set: ${aboutMe}")
@@ -78,7 +78,7 @@ object WorkerDetails {
   private case class DefaultDetails(runUser: String, location: HostLocation, name: String, id: String)
 
   def apply(name: String = "worker",
-            id: SubscriptionKey = nextSubscriptionKey(),
+            id: SubscriptionKey = "",
             runUser: String = Properties.userName,
             location: HostLocation = HostLocation(defaultPort)): WorkerDetails = {
     val json = DefaultDetails(runUser, location, name, id).asJson

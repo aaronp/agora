@@ -45,10 +45,13 @@ class ExchangeRoutesTest extends BaseSpec {
       var subscription: SubscriptionKey = null
 
       val job = 123.asJob(SubmissionDetails(awaitMatch = true)).withId(nextJobId())
+      val expectedId = job.jobId.get
+
       val matchFuture: Future[BlockingSubmitJobResponse] = route.observer.onJob(job)
 
       // subscribe to work
       val ws = WorkSubscription()
+      ws.details.id shouldBe None
       ExchangeHttp(ws) ~> route.routes ~> check {
         val resp = responseAs[WorkSubscriptionAck]
         subscription = resp.id
@@ -65,7 +68,7 @@ class ExchangeRoutesTest extends BaseSpec {
       // now push the job
       ExchangeHttp(job) ~> route.routes ~> check {
         val resp = responseAs[BlockingSubmitJobResponse]
-        resp.id shouldBe job.jobId.get
+        resp.id shouldBe expectedId
         resp.workers shouldBe List(ws.details)
       }
 

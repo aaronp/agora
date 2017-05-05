@@ -7,7 +7,7 @@ class ServerConfigTest extends WordSpec with Matchers {
     "read its configuration from reference.conf" in {
       val default = ServerConfig.defaultConfig("jabroni.server")
       ServerConfig(default).port shouldBe 1234
-      ServerConfig(default).waitOnUserInput shouldBe true
+      ServerConfig(default).waitOnUserInput shouldBe false
     }
   }
 }

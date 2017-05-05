@@ -6,7 +6,7 @@ import jabroni.rest.client.RestClient
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class ExchangeClient(rest: RestClient)(implicit mat: Materializer) extends Exchange {
+class ExchangeClient(rest: RestClient)(implicit mat: Materializer) extends Exchange with QueueObserver {
 
   import mat._
   import RestClient.implicits._
@@ -27,6 +27,6 @@ class ExchangeClient(rest: RestClient)(implicit mat: Materializer) extends Excha
 }
 
 object ExchangeClient {
-  def apply(rest: RestClient)(implicit mat: Materializer): Exchange = new ExchangeClient(rest)
+  def apply(rest: RestClient)(implicit mat: Materializer): Exchange with QueueObserver = new ExchangeClient(rest)
 
 }

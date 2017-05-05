@@ -30,6 +30,11 @@ trait MatchObserver extends Exchange.OnMatch[Unit] with StrictLogging {
     observer
   }
 
+  /**
+    * Appends a match observer which will trigger when it sees a match with the given job
+    *
+    * @return a future match
+    */
   def onJob(job : SubmitJob)(implicit ec : ExecutionContext) : Future[BlockingSubmitJobResponse]= {
     val promise = Promise[BlockingSubmitJobResponse]()
     onceWhen {

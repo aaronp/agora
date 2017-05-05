@@ -33,14 +33,14 @@ class AjaxExchange(baseUrl: String)(implicit ec : ExecutionContext) extends Exch
     }
   }
 
-
-  override def listJobs(request: QueuedJobs): Future[QueuedJobsResponse] = {
-    Ajax.post(s"$baseUrl/jobs", request.asJson.noSpaces).map(_.jsonAs[QueuedJobsResponse])
-  }
-
-  override def listSubscriptions(request: ListSubscriptions): Future[ListSubscriptionsResponse] = {
-    Ajax.post(s"$baseUrl/subscriptions", request.asJson.noSpaces).map(_.jsonAs[ListSubscriptionsResponse])
-  }
+//
+//  override def listJobs(request: QueuedJobs) : Future[QueuedJobsResponse] = ???
+//    Ajax.post(s"$baseUrl/jobs", request.asJson.noSpaces).map(_.jsonAs[QueuedJobsResponse])
+//  }
+//
+//  override def listSubscriptions(request: ListSubscriptions): Future[ListSubscriptionsResponse] = ???
+//    Ajax.post(s"$baseUrl/subscriptions", request.asJson.noSpaces).map(_.jsonAs[ListSubscriptionsResponse])
+//  }
 
   override def subscribe(request: WorkSubscription) = {
     val json = request.asJson.noSpaces

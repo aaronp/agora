@@ -21,7 +21,7 @@ object JobsView {
 
   @JSExport()
   def refresh(services: Services, jobContainer: html.Div): Unit = {
-    val res = services.exchange.listJobs(QueuedJobs(JMatcher.matchAll, JMatcher.matchAll))
+    val res = services.observer.listJobs(QueuedJobs(JMatcher.matchAll, JMatcher.matchAll))
 //    val res = services.exchange.listJobs(null)
     res.onSuccess {
       case jobs => render(jobContainer, jobs.jobs)

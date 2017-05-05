@@ -33,14 +33,14 @@ import scala.language.reflectiveCalls
   *
   * @see http://doc.akka.io/docs/akka-stream-and-http-experimental/1.0/scala/http/routing-dsl/index.html
   */
-case class ExchangeRoutes(exchangeForHandler: OnMatch[Unit] => Exchange = Exchange.apply(_)())(implicit mat: Materializer)
+case class ExchangeRoutes(exchangeForHandler: OnMatch[Unit] => Exchange with QueueObserver = Exchange.apply(_)())(implicit mat: Materializer)
   extends FailFastCirceSupport
     with LoggingSupport {
   import mat._
 
   // allow things to watch for matches
   val observer: MatchObserver = MatchObserver()
-  lazy val exchange = exchangeForHandler(observer)
+  lazy val exchange: Exchange with QueueObserver = exchangeForHandler(observer)
 
   def routes: Route = {
     val all = pathPrefix("rest" / "exchange") {
@@ -81,7 +81,7 @@ case class ExchangeRoutes(exchangeForHandler: OnMatch[Unit] => Exchange = Exchan
         entity(as[SubmitJob]) {
           case submitJob if submitJob.submissionDetails.awaitMatch =>
             complete {
-              val jobWithId = submitJob.withId(nextJobId())
+              val jobWithId = submitJob.jobId.fold(submitJob.withId(nextJobId()))(_ => submitJob)
               val matchFuture = observer.onJob(jobWithId)
               exchange.submit(jobWithId).flatMap { _ =>
                 matchFuture.map { r =>

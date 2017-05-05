@@ -10,23 +10,23 @@ import scala.concurrent.Future
 
 case class ExchangeTestState(
                               server: Option[ExchangeMain.RunningService] = None,
-                              exchangeClient: Option[Exchange] = None,
+                              exchangeClient: Option[Exchange with QueueObserver] = None,
                               submittedJobs: List[(SubmitJob, SubmitJobResponse)] = Nil,
                               workers: List[WorkerMain.RunningService] = Nil
                             )
-  extends ExchangeValidation  {
+  extends ExchangeValidation {
   def submitJob(job: SubmitJob): ExchangeTestState = {
     val (state, client) = stateWithClient
     val resp = client.submit(job).futureValue
     state.copy(submittedJobs = (job, resp) :: submittedJobs)
   }
 
-  private def stateWithClient: (ExchangeTestState, Exchange) = {
+  private def stateWithClient: (ExchangeTestState, Exchange with QueueObserver) = {
     exchangeClient match {
       case None =>
         val config = server.get.conf
         import config.implicits._
-        val client: Exchange = ExchangeClient(RestClient(config.location))
+        val client = ExchangeClient(RestClient(config.location))
         copy(exchangeClient = Option(client)).stateWithClient
       case Some(c) => this -> c
     }
@@ -42,7 +42,7 @@ case class ExchangeTestState(
 
   def jobQueue: (ExchangeTestState, List[SubmitJob]) = {
     val (state, client) = stateWithClient
-    val jobsFromClient = client.listJobs(new QueuedJobs()).futureValue.jobs
+    val jobsFromClient = client.listJobs().futureValue.jobs
     val jobsFromServerState = server.get.service.exchange.listJobs().futureValue.jobs
     jobsFromClient should contain theSameElementsAs (jobsFromServerState)
     state -> jobsFromServerState
