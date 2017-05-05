@@ -20,7 +20,7 @@ trait Boot extends StrictLogging {
     val conf: ServerConfig = configForArgs(args)
 
     import conf.implicits.executionContext
-    val future = start(conf)
+    val future = startFromConfig(conf)
 
     if (conf.launchBrowser && java.awt.Desktop.isDesktopSupported()) {
       future.onComplete { _ =>
@@ -34,7 +34,7 @@ trait Boot extends StrictLogging {
     }
   }
 
-  def start(conf: ServerConfig): Future[RunningService] = {
+  def startFromConfig(conf: ServerConfig): Future[RunningService] = {
     import conf.implicits._
     val svc = serviceFromConf(conf)
     val routeFuture = routeFromService(conf, svc)

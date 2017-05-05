@@ -4,12 +4,12 @@ import akka.actor.ActorSystem
 import akka.stream.Materializer
 import com.typesafe.scalalogging.StrictLogging
 import jabroni.api.exchange.Exchange
-import jabroni.api.worker.{DispatchWork, WorkerDetails}
+import jabroni.api.worker.WorkerDetails
 
 /**
-  * Sends work to the workers at 'details'
+  * Tells clients about the workers they've been matched with in the case where the Exchange also dispatches the work
   */
-class MatchDispatcher(implicit sys : ActorSystem, mat: Materializer) extends Exchange.OnMatch[Unit] with StrictLogging {
+class MatchDispatcher(implicit sys: ActorSystem, mat: Materializer) extends Exchange.OnMatch[Unit] with StrictLogging {
 
   private var clientForDetails = Map[WorkerDetails, WorkerClient]()
 
@@ -30,7 +30,8 @@ class MatchDispatcher(implicit sys : ActorSystem, mat: Materializer) extends Exc
             }
         }
 
-        workerOpt.foreach(_.dispatch(DispatchWork(key, job, remaining)))
+        //        workerOpt.foreach(_.dispatch(DispatchWork(key, job, remaining)))
+        ???
     }
   }
 

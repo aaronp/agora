@@ -7,7 +7,7 @@ import io.circe.parser.decode
 import jabroni.api.exchange.{SubmitJob, SubscriptionRequest, WorkSubscription}
 import jabroni.rest.exchange.ExchangeMain
 import jabroni.rest.ServerConfig
-import jabroni.rest.worker.WorkerMain
+import jabroni.rest.worker.Worker
 import org.scalatest.Matchers
 
 class ExchangeSteps extends ScalaDsl with EN with Matchers with TestData {
@@ -20,12 +20,12 @@ class ExchangeSteps extends ScalaDsl with EN with Matchers with TestData {
   }
 
   Given("""^I start a worker with command line (.*)$""") { (commandLine: String) =>
-    val config = WorkerMain.configForArgs(commandLine.split("\\s+", -1))
+    val config = Worker.configForArgs(commandLine.split("\\s+", -1))
     state = state.startWorker(config)
   }
   Given("""^I start a worker with config (.*)$""") { (configString: String) =>
     val config = {
-      val conf = ConfigFactory.parseString(configString).withFallback(WorkerMain.defaultConfig)
+      val conf = ConfigFactory.parseString(configString).withFallback(Worker.defaultConfig)
       ServerConfig(conf)
     }
     state = state.startWorker(config)

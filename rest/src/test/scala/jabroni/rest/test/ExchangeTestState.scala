@@ -4,7 +4,7 @@ import jabroni.api.exchange._
 import jabroni.rest.client.RestClient
 import jabroni.rest.exchange.{ExchangeClient, ExchangeMain}
 import jabroni.rest.ServerConfig
-import jabroni.rest.worker.WorkerMain
+import jabroni.rest.worker.Worker
 
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.Future
@@ -13,7 +13,7 @@ case class ExchangeTestState(
                               server: Option[ExchangeMain.RunningService] = None,
                               exchangeClient: Option[Exchange with QueueObserver] = None,
                               submittedJobs: List[(SubmitJob, SubmitJobResponse)] = Nil,
-                              workers: List[WorkerMain.RunningService] = Nil
+                              workers: List[Worker.RunningService] = Nil
                             )
   extends ExchangeValidation {
   def submitJob(job: SubmitJob): ExchangeTestState = {
@@ -58,18 +58,18 @@ case class ExchangeTestState(
 
   def startWorker(serverConfig: ServerConfig): ExchangeTestState = {
     stopWorkers(serverConfig)
-    copy(workers = WorkerMain.start(serverConfig).futureValue :: workers)
+    copy(workers = Worker.startFromConfig(serverConfig).futureValue :: workers)
   }
 
-  def workerForName(name : String): WorkerMain.RunningService = {
-    val found: Option[WorkerMain.RunningService] = workers.find(_.service.workerDetails.right.get.name.exists(_ == name))
+  def workerForName(name : String): Worker.RunningService = {
+    val found: Option[Worker.RunningService] = workers.find(_.service.workerDetails.right.get.name.exists(_ == name))
     found.get
   }
 
 
   def startExchangeServer(serverConfig: ServerConfig): ExchangeTestState = {
     closeExchange()
-    copy(server = Option(ExchangeMain.start(serverConfig).futureValue))
+    copy(server = Option(ExchangeMain.startFromConfig(serverConfig).futureValue))
   }
 
   def stopWorkers(serverConfig: ServerConfig): ExchangeTestState = {

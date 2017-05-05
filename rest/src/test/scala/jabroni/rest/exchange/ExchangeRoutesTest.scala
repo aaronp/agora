@@ -68,12 +68,12 @@ class ExchangeRoutesTest extends BaseSpec {
       // now push the job
       ExchangeHttp(job) ~> route.routes ~> check {
         val resp = responseAs[BlockingSubmitJobResponse]
-        resp.id shouldBe expectedId
+        resp.jobId shouldBe expectedId
         resp.workers shouldBe List(ws.details)
       }
 
       val matchRes: BlockingSubmitJobResponse = matchFuture.futureValue
-      matchRes.id shouldBe job.jobId.get
+      matchRes.jobId shouldBe job.jobId.get
       matchRes.workers shouldBe List(ws.details)
     }
   }

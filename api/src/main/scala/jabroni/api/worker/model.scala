@@ -1,16 +1,17 @@
 package jabroni.api.worker
 
 import java.net.InetAddress
-import java.util.UUID
 
-import io.circe.{Encoder, Json}
 import io.circe.optics.JsonPath
+import io.circe.{Encoder, Json}
 import jabroni.api._
 import jabroni.api.json.JsonAppendable
 
 import scala.util.Properties
 
-case class HostLocation(host: String, port: Int)
+case class HostLocation(host: String, port: Int) {
+  def asURL = s"http://$host:$port"
+}
 
 object HostLocation {
   def apply(port: Int): HostLocation = {
@@ -51,9 +52,13 @@ case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
     sys.error(s"invalid json: 'location' not set: ${aboutMe}")
   }
 
+  def url = path.map(p => s"${location.asURL}/rest/worker/$p")
+
   def name = namePath.getOption(aboutMe)
 
   def id: Option[SubscriptionKey] = idPath.getOption(aboutMe).map(_.trim).filterNot(_.isEmpty)
+
+  def path: Option[String] = pathPath.getOption(aboutMe).map(_.trim).filterNot(_.isEmpty)
 
   def runUser: User = runUserPath.getOption(aboutMe).getOrElse {
     sys.error(s"invalid json: 'runUser' not set: ${aboutMe}")
@@ -68,7 +73,7 @@ object WorkerDetails {
   val locationPath = JsonPath.root.location
   val hostPath = locationPath.host.string
   val portPath = locationPath.port.int
-  val pathPath = locationPath.path.int
+  val pathPath = locationPath.path.string
   val namePath = JsonPath.root.name.string
   val idPath = JsonPath.root.id.string
   val runUserPath = JsonPath.root.runUser.string

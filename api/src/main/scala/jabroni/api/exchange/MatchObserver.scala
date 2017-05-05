@@ -1,8 +1,10 @@
-package jabroni.api.exchange
+package jabroni.api
+package exchange
 
 import java.util.UUID
 
 import com.typesafe.scalalogging.StrictLogging
+import jabroni.api.`match`.MatchDetails
 import jabroni.api.exchange.Exchange.Match
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -38,18 +40,8 @@ trait MatchObserver extends Exchange.OnMatch[Unit] with StrictLogging {
   def onJob(job: SubmitJob)(implicit ec: ExecutionContext): Future[BlockingSubmitJobResponse] = {
     val promise = Promise[BlockingSubmitJobResponse]()
 
-    def jobsMatch(a: SubmitJob, b: SubmitJob) = {
-      val ok = a == b
-      if (ok) {
-        logger.info(s"Got match for $a")
-      } else {
-        logger.info(s"Ignoring match for $a != $b")
-      }
-      ok
-    }
-
     onceWhen {
-      case (j, workers) if jobsMatch(job, j) =>
+      case (`job`, workers) =>
         val idTry = job.jobId match {
           case Some(id) => Success(id)
           case None => Failure(new Exception(s"no job id was set on $job"))
@@ -57,7 +49,11 @@ trait MatchObserver extends Exchange.OnMatch[Unit] with StrictLogging {
         val details = workers.map {
           case (_, workSubscription, _) => workSubscription.details
         }
-        promise.complete(idTry.map(id => BlockingSubmitJobResponse(id, details.toList)))
+
+        val respFuture = idTry.map { id =>
+          BlockingSubmitJobResponse(nextMatchId(), id, epochUTC, details.toList)
+        }
+        promise.complete(respFuture)
     }
     promise.future
   }

@@ -2,9 +2,10 @@ package jabroni.api.exchange
 
 import io.circe.generic.auto._
 import io.circe.{Encoder, Json}
+import jabroni.api.`match`.MatchDetails
 import jabroni.api.json.JMatcher
 import jabroni.api.worker.{SubscriptionKey, WorkerDetails}
-import jabroni.api.{JobId, nextJobId}
+import jabroni.api.{JobId, MatchId, nextJobId}
 
 import scala.language.implicitConversions
 
@@ -15,7 +16,8 @@ sealed trait ObserverResponse
 
 case class QueuedJobs(subscriptionMatcher: JMatcher, jobMatcher: JMatcher) extends ObserverRequest {
   def this() = this(JMatcher.matchAll, JMatcher.matchAll)
-  def matches(job : SubmitJob) = {
+
+  def matches(job: SubmitJob) = {
     jobMatcher.matches(job.job) && subscriptionMatcher.matches(job.submissionDetails.aboutMe)
   }
 }
@@ -41,7 +43,7 @@ object ListSubscriptions {
   implicit val decoder = exportDecoder[ListSubscriptions].instance
 }
 
-case class PendingSubscription(key : SubscriptionKey, subscription: WorkSubscription, requested: Int)
+case class PendingSubscription(key: SubscriptionKey, subscription: WorkSubscription, requested: Int)
 
 case class ListSubscriptionsResponse(subscriptions: List[PendingSubscription]) extends ObserverResponse
 
@@ -117,7 +119,11 @@ object SubmitJobResponse {
   implicit val decoder = exportDecoder[SubmitJobResponse].instance
 }
 
-case class BlockingSubmitJobResponse(id: JobId, workers: List[WorkerDetails]) extends ClientResponse
+case class BlockingSubmitJobResponse(matchId: MatchId, jobId: JobId, matchEpochUTC: Long, workers: List[WorkerDetails]) extends ClientResponse {
+  def firstWorkerUrl = workers.collectFirst {
+    case w if w.url.isDefined => w.url.get
+  }
+}
 
 object BlockingSubmitJobResponse {
   implicit val encoder = exportEncoder[BlockingSubmitJobResponse].instance

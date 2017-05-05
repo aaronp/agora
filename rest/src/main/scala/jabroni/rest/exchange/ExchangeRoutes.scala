@@ -1,8 +1,9 @@
-package jabroni.rest.exchange
+package jabroni.rest
+package exchange
 
 
 import akka.http.scaladsl.model.ContentTypes._
-import akka.http.scaladsl.model.{HttpEntity, HttpResponse}
+import akka.http.scaladsl.model.{HttpEntity, HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives.{entity, pathPrefix, _}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.unmarshalling.FromRequestUnmarshaller
@@ -36,6 +37,7 @@ import scala.language.reflectiveCalls
 case class ExchangeRoutes(exchangeForHandler: OnMatch[Unit] => Exchange with QueueObserver = Exchange.apply(_)())(implicit mat: Materializer)
   extends FailFastCirceSupport
     with LoggingSupport {
+
   import mat._
 
   // allow things to watch for matches
@@ -82,16 +84,20 @@ case class ExchangeRoutes(exchangeForHandler: OnMatch[Unit] => Exchange with Que
           case submitJob if submitJob.submissionDetails.awaitMatch =>
             complete {
               val jobWithId = submitJob.jobId.fold(submitJob.withId(nextJobId()))(_ => submitJob)
-              val matchFuture = observer.onJob(jobWithId)
+              val matchFuture: Future[BlockingSubmitJobResponse] = observer.onJob(jobWithId)
               exchange.submit(jobWithId).flatMap { _ =>
-                matchFuture.map { r =>
-                  HttpResponse(entity = HttpEntity(`application/json`, r.asJson.noSpaces))
+                matchFuture.map { r:  BlockingSubmitJobResponse =>
+                  import implicits._
+                  HttpResponse(
+                    status = StatusCodes.TemporaryRedirect,
+                    headers = r.firstWorkerUrl.map("Location".asHeader).toList,
+                    entity = HttpEntity(`application/json`, r.asJson.noSpaces))
                 }
               }
             }
           case submitJob =>
             complete {
-              exchange.submit(submitJob).map { r =>
+              exchange.submit(submitJob).map { r: SubmitJobResponse =>
                 HttpResponse(entity = HttpEntity(`application/json`, r.asJson.noSpaces))
               }
             }

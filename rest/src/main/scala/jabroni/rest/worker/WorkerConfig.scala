@@ -66,7 +66,7 @@ class WorkerConfig(serverConfig: ServerConfig) {
 }
 
 object WorkerConfig {
-  def defaultConfig() = ConfigFactory.load().getConfig("jabroni.worker")
+  def defaultConfig(): Config = ConfigFactory.load().getConfig("jabroni.worker")
 
   def apply(config: ServerConfig = ServerConfig(defaultConfig())): WorkerConfig = new WorkerConfig(config)
 

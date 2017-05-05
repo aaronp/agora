@@ -3,7 +3,6 @@ package jabroni.rest.exchange
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import jabroni.rest.ui.UIRoutes
-import jabroni.rest.worker.MatchDispatcher
 import jabroni.rest.{Boot, ServerConfig}
 
 import scala.concurrent.Future
@@ -20,7 +19,7 @@ object ExchangeMain extends Boot {
   override def serviceFromConf(conf: ServerConfig): Service = {
     import conf.implicits._
     val er = ExchangeRoutes()
-    er.observer +=[Unit, MatchDispatcher] (new MatchDispatcher)
+//    er.observer +=[Unit, MatchDispatcher] (new MatchDispatcher)
     er
   }
 
