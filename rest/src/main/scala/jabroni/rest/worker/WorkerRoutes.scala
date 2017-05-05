@@ -96,14 +96,13 @@ case class WorkerRoutes(exchange: Exchange, defaultInitialRequest: Int = 1)(impl
     * @tparam R
     * @return
     */
-  def handle[T: Decoder, R: Encoder](onReq: WorkContext[T] => R)(implicit subscription: WorkSubscription = WorkSubscription(), initialRequest: Int = defaultInitialRequest) = {
+  def handle[T: Decoder, R: Encoder](onReq: WorkContext[T] => R)(implicit subscription: WorkSubscription = WorkSubscription(), initialRequest: Int = defaultInitialRequest): Future[RequestWorkAck] = {
     val resp: Future[WorkSubscriptionAck] = exchange.subscribe(subscription)
     val path = subscription.details.path.getOrElse(sys.error("The subscription doesn't contain a path"))
 
     val u: FromEntityUnmarshaller[T] = unmarshaller[T]
     val fromRequest: Unmarshaller[HttpRequest, T] = implicitly[Unmarshaller[HttpRequest, T]]
     val handler = new OnWork[T, R](subscription, initialRequest, fromRequest, onReq)
-
 
     HandlerWriteLock.synchronized {
       workerByPath.get(path).foreach { oldHandler =>

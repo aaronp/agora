@@ -28,7 +28,7 @@ class WorkerConfig(serverConfig: ServerConfig) {
 
   lazy val workerRoutes: WorkerRoutes = exchangeClientConfig.workerRoutes
 
-  def exchange: Exchange = {
+  lazy val exchange: Exchange = {
     val restCC = exchangeClientConfig
     import restCC.implicits._
     ExchangeClient(restCC.restClient)
