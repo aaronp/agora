@@ -1,8 +1,6 @@
 package jabroni.rest.test
 
-import com.sun.xml.internal.org.jvnet.fastinfoset.sax.RestrictedAlphabetContentHandler
 import jabroni.api.exchange._
-import jabroni.api.json.JMatcher
 import jabroni.rest.client.RestClient
 import jabroni.rest.exchange.ExchangeClient
 import jabroni.rest.{ExchangeMain, ServerConfig, WorkerMain}
@@ -13,22 +11,22 @@ import scala.concurrent.Future
 case class ExchangeTestState(
                               server: Option[ExchangeMain.RunningService] = None,
                               exchangeClient: Option[Exchange] = None,
-                              submittedJobs: List[(SubmitJob, Future[SubmitJobResponse])] = Nil,
+                              submittedJobs: List[(SubmitJob, SubmitJobResponse)] = Nil,
                               workers: List[WorkerMain.RunningService] = Nil
                             )
   extends ExchangeValidation {
   def submitJob(job: SubmitJob): ExchangeTestState = {
     val (state, client) = stateWithClient
-    val resp: Future[SubmitJobResponse] = client.submit(job)
+    val resp = client.submit(job).futureValue
     state.copy(submittedJobs = (job, resp) :: submittedJobs)
   }
 
   private def stateWithClient: (ExchangeTestState, Exchange) = {
     exchangeClient match {
       case None =>
-        val loc = server.get.conf.location
-        RestrictedAlphabetContentHandler
-        val client: Exchange = ExchangeClient(RestClient(loc))
+        val config = server.get.conf
+        import config.implicits._
+        val client: Exchange = ExchangeClient(RestClient(config.location))
         copy(exchangeClient = Option(client)).stateWithClient
       case Some(c) => this -> c
     }

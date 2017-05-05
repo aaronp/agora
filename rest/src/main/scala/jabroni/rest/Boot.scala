@@ -35,6 +35,7 @@ trait Boot extends StrictLogging {
   }
 
   def start(conf: ServerConfig): Future[RunningService] = {
+    import conf.implicits._
     val svc = serviceFromConf(conf)
     val routeFuture = routeFromService(conf, svc)
     routeFuture.flatMap(route => start(route, svc, conf))

@@ -8,6 +8,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 class ExchangeClient(rest: RestClient)(implicit mat: Materializer) extends Exchange {
 
+  import mat._
   import RestClient.implicits._
 
   override def subscribe(request: WorkSubscription) = rest.send(ExchangeHttp(request)).flatMap(_.as[WorkSubscriptionAck])

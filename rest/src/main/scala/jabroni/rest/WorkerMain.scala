@@ -27,11 +27,11 @@ object WorkerMain extends Boot {
   override def serviceFromConf(conf: ServerConfig) = WorkerConfig(conf)
 
   override def routeFromService(conf: ServerConfig, svc: WorkerConfig): Future[Route] = {
-    val routes = routeFromWorkerConf(svc)
-    Future.successful(routes)
+    import conf.implicits._
+    routeFromWorkerConf(svc)
   }
 
-  def routeFromWorkerConf(workerConf: WorkerConfig)(implicit ec: ExecutionContext) = {
+  def routeFromWorkerConf(workerConf: WorkerConfig)(implicit ec: ExecutionContext): Future[Route] = {
     workerConf.subscription match {
       case Left(err) => Future.failed(err)
       case Right(baseSubscription) =>
