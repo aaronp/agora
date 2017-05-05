@@ -1,11 +1,11 @@
-package jabroni.rest
+package jabroni.rest.worker
 
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import jabroni.api.exchange.WorkSubscriptionAck
 import jabroni.api.worker.execute.RunProcess
 import jabroni.rest.ui.UIRoutes
-import jabroni.rest.worker.{Handler, WorkerConfig, WorkerRoutes}
+import jabroni.rest.{Boot, ServerConfig}
 
 import scala.concurrent.{ExecutionContext, Future}
 

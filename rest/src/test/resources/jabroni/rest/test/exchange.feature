@@ -1,9 +1,7 @@
 Feature: Exchange should match work with offers
 
-
-  @debug
   Scenario: Queueing a job
-    When I start an exchange with command line port=5555
+    When I start an exchange with command line port=1234
     And I submit a job
     """
     {
@@ -14,7 +12,7 @@ Feature: Exchange should match work with offers
         },
         "selection" : "select-first",
         "workMatcher" : "match-all",
-        "awaitMatch" : true
+        "awaitMatch" : false
       },
       "job" : {
          "replyWith" : "this is a return value"
@@ -26,10 +24,10 @@ Feature: Exchange should match work with offers
       | some id | Georgina       |
     And the worker queue should be empty
 
-
+  @ignore
   Scenario: Requesting work
     When I start an exchange with command line port=1234
-    And I start a worker with command line details.name=W1 exchange.port=2345
+    And I start a worker with command line details.name=W1 exchange.port=1234
     And worker W1 creates subscription foo with
     """
     {
@@ -49,7 +47,11 @@ Feature: Exchange should match work with offers
     }
     """
     And worker W1 asks for 2 work items using subscription foo
+    Then the job queue should be
+      | jobId    | submissionUser |
+      | match me | Georgina       |
 
+    @ignore
   Scenario: Matching a job
     When I submit a job
     """

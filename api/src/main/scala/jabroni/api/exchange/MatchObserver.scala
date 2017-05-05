@@ -35,10 +35,21 @@ trait MatchObserver extends Exchange.OnMatch[Unit] with StrictLogging {
     *
     * @return a future match
     */
-  def onJob(job : SubmitJob)(implicit ec : ExecutionContext) : Future[BlockingSubmitJobResponse]= {
+  def onJob(job: SubmitJob)(implicit ec: ExecutionContext): Future[BlockingSubmitJobResponse] = {
     val promise = Promise[BlockingSubmitJobResponse]()
+
+    def jobsMatch(a: SubmitJob, b: SubmitJob) = {
+      val ok = a == b
+      if (ok) {
+        logger.info(s"Got match for $a")
+      } else {
+        logger.info(s"Ignoring match for $a != $b")
+      }
+      ok
+    }
+
     onceWhen {
-      case (`job`, workers) =>
+      case (j, workers) if jobsMatch(job, j) =>
         val idTry = job.jobId match {
           case Some(id) => Success(id)
           case None => Failure(new Exception(s"no job id was set on $job"))

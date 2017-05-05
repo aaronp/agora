@@ -10,18 +10,19 @@ import akka.http.scaladsl.server.directives.{DebuggingDirectives, LogEntry, Logg
 import akka.stream.Materializer
 import akka.stream.scaladsl.Sink
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 
 trait LoggingSupport {
 
   def entityAsString(entity: HttpEntity)
-                    (implicit m: Materializer, ex: ExecutionContext): Future[String] = {
+                    (implicit m: Materializer): Future[String] = {
     entity.dataBytes
       .map(_.decodeString(entity.contentType.charsetOption.get.value))
       .runWith(Sink.head)
   }
 
-  def logRoute(route: Route, level: LogLevel = Logging.InfoLevel)(implicit m: Materializer, ex: ExecutionContext): Route = {
+  def logRoute(route: Route, level: LogLevel = Logging.InfoLevel)(implicit m: Materializer): Route = {
+    import m._
     def myLoggingFunction(logger: LoggingAdapter)(req: HttpRequest)(res: Any): Unit = {
       val entry = res match {
         case Complete(resp) =>

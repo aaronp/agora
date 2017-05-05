@@ -21,7 +21,7 @@ trait RestClient extends Closeable {
 
 object RestClient {
 
-  def apply(location : HostLocation)(implicit sys : ActorSystem, mat : Materializer) : RestClient = {
+  def apply(location: HostLocation)(implicit sys: ActorSystem, mat: Materializer): RestClient = {
     new AkkaClient(location)
   }
 
@@ -30,16 +30,20 @@ object RestClient {
     apply(conf.location)
   }
 
-  class AkkaClient(location : HostLocation)(implicit sys : ActorSystem, mat : Materializer) extends RestClient with StrictLogging {
+  class AkkaClient(location: HostLocation)(implicit sys: ActorSystem, mat: Materializer) extends RestClient with StrictLogging {
+    import mat._
     private lazy val remoteServiceConnectionFlow: Flow[HttpRequest, HttpResponse, Any] = {
       logger.info(s"Connecting to http://${location.host}:${location.port}")
       http.outgoingConnection(location.host, location.port)
     }
 
     def send(request: HttpRequest): Future[HttpResponse] = {
-      logger.info(s"Sending $request")
-      Source.single(request).via(remoteServiceConnectionFlow).runWith(Sink.head)
-      //      http.singleRequest(request)
+      logger.debug(s"Sending $request")
+      val future = Source.single(request).via(remoteServiceConnectionFlow).runWith(Sink.head)
+      future.onComplete {
+        case result => logger.debug(s"$request got $result")
+      }
+      future
     }
 
 
@@ -57,7 +61,6 @@ object RestClient {
       def as[T: Decoder](implicit ec: ExecutionContext, mat: Materializer): Future[T] = {
         val bytes = resp.entity.dataBytes.runReduce(_ ++ _)
         val jsonStringFuture: Future[String] = bytes.map(_.decodeString(StandardCharsets.UTF_8))
-        //          jsonStringFuture
         jsonStringFuture.map { json =>
           import io.circe.parser._
           parse(json).right.get.as[T].right.get
@@ -65,4 +68,5 @@ object RestClient {
       }
     }
   }
+
 }

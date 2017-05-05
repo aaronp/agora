@@ -1,6 +1,6 @@
 package jabroni.rest
 
-import jabroni.rest.worker.WorkerConfig
+import jabroni.rest.worker.{WorkerConfig, WorkerMain}
 import org.scalatest.{Matchers, WordSpec}
 
 class WorkerMainTest extends WordSpec with Matchers {

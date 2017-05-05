@@ -3,8 +3,11 @@ package jabroni.rest.test
 import com.typesafe.config.ConfigFactory
 import cucumber.api.DataTable
 import cucumber.api.scala.{EN, ScalaDsl}
-import jabroni.api.exchange.SubmitJob
-import jabroni.rest.{ExchangeMain, ServerConfig, WorkerMain}
+import io.circe.parser.decode
+import jabroni.api.exchange.{SubmitJob, SubscriptionRequest, WorkSubscription}
+import jabroni.rest.exchange.ExchangeMain
+import jabroni.rest.ServerConfig
+import jabroni.rest.worker.WorkerMain
 import org.scalatest.Matchers
 
 class ExchangeSteps extends ScalaDsl with EN with Matchers with TestData {
@@ -28,7 +31,10 @@ class ExchangeSteps extends ScalaDsl with EN with Matchers with TestData {
     state = state.startWorker(config)
   }
 
-  When("""^worker (.*) creates a subscription to jobs matching jobs on (.*)$""") { (name: String, configString: String) =>
+  When("""^worker (.*) creates subscription (.*) with$""") { (name: String, subscriptionKey : String, subscriptionJson: String) =>
+    val worker = state.workerForName(name)
+    val Right(subscription) = decode[WorkSubscription](subscriptionJson)
+//    val newState = state.withSubscription(name)
     ???
   }
   When("""^matching details on (.*)$""") { (name: String, configString: String) =>

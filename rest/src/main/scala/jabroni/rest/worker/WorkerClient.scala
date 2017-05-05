@@ -6,6 +6,11 @@ import io.circe.DecodingFailure
 import jabroni.api.worker.{DispatchWork, WorkerDetails}
 import jabroni.rest.client.RestClient
 
+/**
+  * Can send requests to a worker
+  * @param rest
+  * @param path
+  */
 case class WorkerClient(rest: RestClient, path: String) {
   def dispatch(req: DispatchWork) = rest.send(WorkerHttp(path, req))
 }
