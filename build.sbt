@@ -6,26 +6,10 @@ enablePlugins(GitVersioning)
 
 resolvers += Resolver.typesafeRepo("releases")
 
-lazy val jabroni: _root_.sbt.Project = (project in file("."))
+lazy val jabroni = (project in file(".")).aggregate(api, rest, ui)
 
 val aLotOfResolvers = List(
-  "scalaz-bintray" at "http://dl.bintray.com/scalaz/releases",
-  Resolver.bintrayRepo("fcomb", "maven"),
-  Opts.resolver.mavenLocalFile,
-  DefaultMavenRepository,
-  Resolver.defaultLocal,
-  Resolver.mavenLocal,
-  // Resolver.mavenLocal has issues - hence the duplication
-  "Local Maven Repository" at "file://" + Path.userHome.absolutePath + "/.m2/repository",
-  "Apache Staging" at "https://repository.apache.org/content/repositories/staging/",
-  Classpaths.typesafeReleases,
-  Classpaths.sbtPluginReleases,
-  Resolver.typesafeRepo("releases"),
-  "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
-  "Java.net Maven2 Repository" at "http://download.java.net/maven/2/",
-  Resolver.bintrayRepo("hseeberger", "maven"), // for akka circe support
-  "Eclipse repositories" at "https://repo.eclipse.org/service/local/repositories/egit-releases/content/",
-  "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
+  Resolver.defaultLocal
 )
 
 val commonSettings: Seq[Def.Setting[_]] = Seq(

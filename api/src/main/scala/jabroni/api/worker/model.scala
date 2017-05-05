@@ -34,7 +34,7 @@ case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
 
   def append(name: String, data: Json): WorkerDetails = append(Json.obj(name -> data))
 
-  def append(data: Json): WorkerDetails = copy(aboutMe.deepMerge(data))
+  def append(data: Json): WorkerDetails = copy(data.deepMerge(aboutMe))
 
   import WorkerDetails._
 
