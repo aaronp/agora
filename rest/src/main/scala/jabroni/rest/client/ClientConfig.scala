@@ -1,7 +1,7 @@
 package jabroni.rest.client
 
 import com.typesafe.config.{Config, ConfigFactory}
-import jabroni.api.exchange.{Exchange, QueueObserver}
+import jabroni.api.exchange.{Exchange, QueueObserver, WorkSubscription}
 import jabroni.api.worker.HostLocation
 import jabroni.rest.BaseConfig
 import jabroni.rest.exchange.ExchangeClient
@@ -19,9 +19,9 @@ class ClientConfig(override val config: Config) extends BaseConfig {
     import implicits._
     ExchangeClient(restClient)
   }
-  def workerRoutes: WorkerRoutes = {
+  def workerRoutes(subscription : WorkSubscription, initialRequest : Int): WorkerRoutes = {
     import implicits._
-    WorkerRoutes(exchangeClient)
+    WorkerRoutes(exchangeClient, subscription, initialRequest)
   }
 }
 

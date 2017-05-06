@@ -1,32 +1,54 @@
 package jabroni.rest.worker
 
-import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions}
+import akka.http.scaladsl.server.Route
+import com.typesafe.config.{Config, ConfigFactory}
 import io.circe
-import io.circe.parser._
-import io.circe.{Json, ParsingFailure}
 import jabroni.api.exchange.{Exchange, WorkSubscription}
 import jabroni.api.json.JMatcher
 import jabroni.api.worker.WorkerDetails
-import jabroni.rest.ServerConfig
 import jabroni.rest.client.ClientConfig
 import jabroni.rest.exchange.ExchangeClient
+import jabroni.rest.ui.UIRoutes
+import jabroni.rest.{Boot, RunningService, ServerConfig}
+import akka.http.scaladsl.server.Directives._
 
+import scala.concurrent.Future
 import scala.util.Try
 
-class WorkerConfig(serverConfig: ServerConfig) {
+case class WorkerConfig(override val config: Config) extends ServerConfig {
+  override type Me = WorkerConfig
+  override def self = this
+  def initialRequest = {
+    if (!config.hasPath("initialRequest")) {
+      println(config.root.render)
+    }
+    config.getInt("initialRequest")
+  }
 
-  def config = serverConfig.config
+  import WorkerConfig._
 
-  def location = serverConfig.location
+  def startWorker(): Future[RunningWorker] = {
+    val f: Future[RunningService[WorkerConfig, WorkerRoutes]] = runWithRoutes(routes, workerRoutes)
+    f
+  }
 
-  def runUser = serverConfig.runUser
+  def routes: Route = {
+    if (includeUIRoutes) {
+      val uiRoutes: Route = UIRoutes("ui/worker.html").routes
+      workerRoutes.routes ~ uiRoutes
+    } else {
+      workerRoutes.routes
+    }
+  }
 
   /**
     * @return a client configuration which will talk to an exchange
     */
-  def exchangeClientConfig = ClientConfig(serverConfig.config.getConfig("exchange"))
+  def exchangeClientConfig = ClientConfig(config.getConfig("exchange"))
 
-  lazy val workerRoutes: WorkerRoutes = exchangeClientConfig.workerRoutes
+  lazy val workerRoutes: WorkerRoutes = {
+    exchangeClientConfig.workerRoutes(subscription, initialRequest)
+  }
 
   lazy val exchange: Exchange = {
     val restCC = exchangeClientConfig
@@ -34,48 +56,47 @@ class WorkerConfig(serverConfig: ServerConfig) {
     ExchangeClient(restCC.restClient)
   }
 
-  def workerDetails: Either[ParsingFailure, WorkerDetails] = {
+  def workerDetails: WorkerDetails = {
     val detailsConf = config.getConfig("details")
     val name = detailsConf.getString("name")
     val id = detailsConf.getString("id")
-    val wd = WorkerDetails(name, id, runUser, location)
-    WorkerConfig.asJson(detailsConf).right.map { json =>
-      wd.append(json)
-    }
+    WorkerDetails(name, id, runUser, location).append(Boot.asJson(detailsConf))
   }
 
-  import WorkerConfig._
-
-  def asMatcher(at: String) = {
+  def asMatcher(at: String): Either[circe.Error, JMatcher] = {
     val fromConfig: Option[Either[circe.Error, JMatcher]] = Try(config.getConfig(at)).toOption.map { subConf =>
-      asJson(subConf).right.flatMap(_.as[JMatcher])
+      Boot.asJson(subConf).as[JMatcher]
     }
 
-    val fromString = asJson(config).right.flatMap { json =>
-      json.hcursor.downField(at).as[JMatcher]
-    }
+    val fromString = Boot.asJson(config).hcursor.downField(at).as[JMatcher]
 
     fromConfig.getOrElse(fromString)
   }
 
-  def subscription: Either[circe.Error, WorkSubscription] = {
+  def subscription: WorkSubscription = subscriptionEither.right.get
+
+  def subscriptionEither: Either[circe.Error, WorkSubscription] = {
     for {
       jm <- asMatcher("jobMatcher").right
       sm <- asMatcher("submissionMatcher").right
-      wd <- workerDetails.right
     } yield {
-      WorkSubscription(wd, jm, sm)
+      WorkSubscription(workerDetails, jm, sm)
     }
   }
 }
 
 object WorkerConfig {
-  def defaultConfig(): Config = ConfigFactory.load().getConfig("jabroni.worker")
 
-  def apply(config: ServerConfig = ServerConfig(defaultConfig())): WorkerConfig = new WorkerConfig(config)
+  type RunningWorker = RunningService[WorkerConfig, WorkerRoutes]
 
-  def asJson(c: Config): Either[ParsingFailure, Json] = {
-    val json = c.root.render(ConfigRenderOptions.concise().setJson(true))
-    parse(json)
+  def baseConfig(): Config = ConfigFactory.load("worker.conf")
+
+  def defaultConfig(): Config = baseConfig.resolve
+
+  //  def apply(config: Config): WorkerConfig = new WorkerConfig(config)
+
+  def apply(args: Array[String] = Array.empty, defaultConfig: Config = defaultConfig): WorkerConfig = {
+    WorkerConfig(Boot.configForArgs(args, defaultConfig))
   }
+
 }

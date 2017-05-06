@@ -11,9 +11,8 @@ class WorkerConfigTest extends WordSpec with Matchers {
   "WorkerConfig.subscription" should {
     "create a subscription from the default config" in {
       val default = WorkerConfig()
-      val Right(sub) = default.subscription
-      sub.jobMatcher shouldBe JMatcher.matchAll
-      sub.submissionMatcher shouldBe JMatcher.matchAll
+      default.subscription.jobMatcher shouldBe JMatcher.matchAll
+      default.subscription.submissionMatcher shouldBe JMatcher.matchAll
     }
     "use the given details" in {
 
@@ -24,7 +23,7 @@ class WorkerConfigTest extends WordSpec with Matchers {
           |    }
           |    topic : meh
           |}""".stripMargin)
-      val Right(details) = default.workerDetails
+      val details = default.workerDetails
 
       JsonPath.root.foo.bar.int.getOption(details.aboutMe) shouldBe Option(123)
       JsonPath.root.topic.string.getOption(details.aboutMe) shouldBe Option("meh")
@@ -46,7 +45,7 @@ class WorkerConfigTest extends WordSpec with Matchers {
           |      }
           |}
           |""".stripMargin)
-      val Right(sub) = default.subscription
+      val sub = default.subscription
       sub.jobMatcher shouldBe JMatcher.matchAll.and(JMatcher.matchAll)
       sub.submissionMatcher shouldBe JMatcher.matchAll.or(JMatcher.matchAll)
     }
@@ -55,7 +54,7 @@ class WorkerConfigTest extends WordSpec with Matchers {
 
   def asConf(str: String): WorkerConfig = {
     val c: Config = ConfigFactory.parseString(str).withFallback(WorkerConfig.defaultConfig())
-    new WorkerConfig(ServerConfig(c))
+    new WorkerConfig(c)
   }
 
 }

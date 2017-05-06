@@ -5,9 +5,9 @@ import cucumber.api.DataTable
 import cucumber.api.scala.{EN, ScalaDsl}
 import io.circe.parser.decode
 import jabroni.api.exchange.{SubmitJob, SubscriptionRequest, WorkSubscription}
-import jabroni.rest.exchange.ExchangeMain
+import jabroni.rest.exchange.{ExchangeConfig, ExchangeMain}
 import jabroni.rest.ServerConfig
-import jabroni.rest.worker.Worker
+import jabroni.rest.worker.WorkerConfig
 import org.scalatest.Matchers
 
 class ExchangeSteps extends ScalaDsl with EN with Matchers with TestData {
@@ -15,18 +15,18 @@ class ExchangeSteps extends ScalaDsl with EN with Matchers with TestData {
   var state = ExchangeTestState()
 
   Given("""^I start an exchange with command line (.*)$""") { (commandLine: String) =>
-    val config = ExchangeMain.configForArgs(commandLine.split("\\s+", -1))
+    val config = ExchangeConfig(commandLine.split("\\s+", -1))
     state = state.startExchangeServer(config)
   }
 
   Given("""^I start a worker with command line (.*)$""") { (commandLine: String) =>
-    val config = Worker.configForArgs(commandLine.split("\\s+", -1))
+    val config = WorkerConfig(commandLine.split("\\s+", -1))
     state = state.startWorker(config)
   }
   Given("""^I start a worker with config (.*)$""") { (configString: String) =>
     val config = {
-      val conf = ConfigFactory.parseString(configString).withFallback(Worker.defaultConfig)
-      ServerConfig(conf)
+      val conf = ConfigFactory.parseString(configString).withFallback(WorkerConfig.defaultConfig)
+      WorkerConfig(conf)
     }
     state = state.startWorker(config)
   }

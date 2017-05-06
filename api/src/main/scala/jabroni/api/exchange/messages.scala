@@ -3,7 +3,7 @@ package jabroni.api.exchange
 import io.circe.generic.auto._
 import io.circe.{Encoder, Json}
 import jabroni.api.`match`.MatchDetails
-import jabroni.api.json.JMatcher
+import jabroni.api.json.{JMatcher, JPath}
 import jabroni.api.worker.{SubscriptionKey, WorkerDetails}
 import jabroni.api.{JobId, MatchId, nextJobId}
 
@@ -141,6 +141,16 @@ sealed trait SubscriptionRequest
 
 sealed trait SubscriptionResponse
 
+/**
+  * The details contain info about the worker subscribing to work, such as it's location (where work should be sent to),
+  * and any arbitrary json data it wants to expose (nr of CPUs, runAs user, available memory, OS, a 'topic', etc)
+  *
+  * Once a WorkSubscription is sent
+  *
+  * @param details
+  * @param jobMatcher        the json matcher used against the 'job' portion of SubmitJob
+  * @param submissionMatcher the json matcher used against the additional 'details' part of SubmitJob
+  */
 case class WorkSubscription(details: WorkerDetails = WorkerDetails(),
                             jobMatcher: JMatcher = JMatcher.matchAll,
                             submissionMatcher: JMatcher = JMatcher.matchAll) extends SubscriptionRequest {
@@ -149,6 +159,16 @@ case class WorkSubscription(details: WorkerDetails = WorkerDetails(),
   def append(json: Json) = {
     copy(details = details.append(json))
   }
+
+  def and(matcher: JMatcher) = matching(jobMatcher.and(matcher))
+
+  def or(matcher: JMatcher) = matching(jobMatcher.or(matcher))
+
+  /**
+    * @param matcher
+    * @return a subscription with the matcher replaces
+    */
+  def matching(matcher: JMatcher) = copy(jobMatcher = matcher)
 
   def withData[T: Encoder](data: T, name: String = null) = {
     copy(details = details.withData(data, name))

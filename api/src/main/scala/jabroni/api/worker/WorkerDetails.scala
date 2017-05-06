@@ -1,24 +1,13 @@
 package jabroni.api.worker
 
-import java.net.InetAddress
-
-import io.circe.optics.JsonPath
 import io.circe.{Encoder, Json}
-import jabroni.api._
+import io.circe.optics.JsonPath
+import io.circe.optics.JsonPath.root
+import jabroni.api.User
 import jabroni.api.json.JsonAppendable
 
 import scala.util.Properties
 
-case class HostLocation(host: String, port: Int) {
-  def asURL = s"http://$host:$port"
-}
-
-object HostLocation {
-  def apply(port: Int): HostLocation = {
-    val host = InetAddress.getLocalHost.getHostName
-    HostLocation(host, port)
-  }
-}
 
 /**
   * The 'aboutMe' should also contain the location/user
@@ -26,6 +15,8 @@ object HostLocation {
   * @param aboutMe
   */
 case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
+
+  override def toString = aboutMe.spaces2
 
   def +[T: Encoder](data: T): WorkerDetails = append(WorkerDetails.asName(data.getClass), data)
 
@@ -69,14 +60,14 @@ object WorkerDetails {
 
   import io.circe.generic.auto._
   import io.circe.syntax._
-
-  val locationPath = JsonPath.root.location
+  import JsonPath._
+  val locationPath = root.location
   val hostPath = locationPath.host.string
   val portPath = locationPath.port.int
-  val pathPath = locationPath.path.string
-  val namePath = JsonPath.root.name.string
-  val idPath = JsonPath.root.id.string
-  val runUserPath = JsonPath.root.runUser.string
+  val pathPath = root.path.string
+  val namePath = root.name.string
+  val idPath = root.id.string
+  val runUserPath = root.runUser.string
 
   val defaultPort = 1234
 

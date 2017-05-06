@@ -2,18 +2,18 @@ package jabroni.rest.test
 
 import jabroni.api.exchange._
 import jabroni.rest.client.RestClient
-import jabroni.rest.exchange.{ExchangeClient, ExchangeMain}
-import jabroni.rest.ServerConfig
-import jabroni.rest.worker.Worker
+import jabroni.rest.exchange.ExchangeConfig._
+import jabroni.rest.exchange.{ExchangeClient, ExchangeConfig}
+import jabroni.rest.worker.WorkerConfig
+import jabroni.rest.worker.WorkerConfig._
 
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.Future
 
-case class ExchangeTestState(
-                              server: Option[ExchangeMain.RunningService] = None,
-                              exchangeClient: Option[Exchange with QueueObserver] = None,
-                              submittedJobs: List[(SubmitJob, SubmitJobResponse)] = Nil,
-                              workers: List[Worker.RunningService] = Nil
+case class ExchangeTestState(server: Option[RunningExchange] = None,
+                             exchangeClient: Option[Exchange with QueueObserver] = None,
+                             submittedJobs: List[(SubmitJob, SubmitJobResponse)] = Nil,
+                             workers: List[RunningWorker] = Nil
                             )
   extends ExchangeValidation {
   def submitJob(job: SubmitJob): ExchangeTestState = {
@@ -56,24 +56,24 @@ case class ExchangeTestState(
     ExchangeTestState()
   }
 
-  def startWorker(serverConfig: ServerConfig): ExchangeTestState = {
-    stopWorkers(serverConfig)
-    copy(workers = Worker.startFromConfig(serverConfig).futureValue :: workers)
+  def startWorker(workerConfig: WorkerConfig): ExchangeTestState = {
+    stopWorkers(workerConfig)
+    copy(workers = workerConfig.startWorker().futureValue :: workers)
   }
 
-  def workerForName(name : String): Worker.RunningService = {
-    val found: Option[Worker.RunningService] = workers.find(_.service.workerDetails.right.get.name.exists(_ == name))
+  def workerForName(name: String): RunningWorker = {
+    val found: Option[RunningWorker] = workers.find(_.conf.workerDetails.name.exists(_ == name))
     found.get
   }
 
 
-  def startExchangeServer(serverConfig: ServerConfig): ExchangeTestState = {
+  def startExchangeServer(exchangeConfig: ExchangeConfig): ExchangeTestState = {
     closeExchange()
-    copy(server = Option(ExchangeMain.startFromConfig(serverConfig).futureValue))
+    copy(server = Option(exchangeConfig.startExchange().futureValue))
   }
 
-  def stopWorkers(serverConfig: ServerConfig): ExchangeTestState = {
-    val stopFutures = workers.filter(_.conf.location.port == serverConfig.location.port).map { running =>
+  def stopWorkers(workerConfig: WorkerConfig): ExchangeTestState = {
+    val stopFutures = workers.filter(_.conf.location.port == workerConfig.location.port).map { running =>
       running.stop()
     }
     Future.sequence(stopFutures).futureValue

@@ -10,4 +10,6 @@ case class WorkContext[T](exchange: Exchange, subscriptionKey: Option[Subscripti
 
   def take(n: Int): Option[Future[RequestWorkAck]] = subscriptionKey.map(s => exchange.take(s, n))
 
+  def details = subscription.details
+  def path = details.path.get
 }
