@@ -6,6 +6,8 @@ import jabroni.api.exchange.SubmitJobResponse
 import jabroni.rest.worker.WorkerConfig.RunningWorker
 import jabroni.rest.{Boot, RunningService}
 
+import language.reflectiveCalls
+
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}

@@ -18,12 +18,7 @@ import scala.util.Try
 case class WorkerConfig(override val config: Config) extends ServerConfig {
   override type Me = WorkerConfig
   override def self = this
-  def initialRequest = {
-    if (!config.hasPath("initialRequest")) {
-      println(config.root.render)
-    }
-    config.getInt("initialRequest")
-  }
+  def initialRequest = config.getInt("initialRequest")
 
   import WorkerConfig._
 
