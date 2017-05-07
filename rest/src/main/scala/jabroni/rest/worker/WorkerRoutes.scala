@@ -5,19 +5,20 @@ import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.{HttpEntity, HttpRequest, HttpResponse}
 import akka.http.scaladsl.server.Directives.{path, _}
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.unmarshalling.{FromEntityUnmarshaller, Unmarshaller}
+import akka.http.scaladsl.unmarshalling.Unmarshaller
 import akka.stream.Materializer
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
-import io.circe.{Decoder, Encoder}
-import jabroni.api.exchange.{Exchange, RequestWorkAck, WorkSubscription, WorkSubscriptionAck}
+import io.circe.{Decoder, Encoder, Json}
+import jabroni.api.exchange.{RequestWorkAck, WorkSubscription, WorkSubscriptionAck}
 import jabroni.api.worker.SubscriptionKey
 import jabroni.health.HealthDto
 import jabroni.rest.MatchDetailsExtractor
+import jabroni.rest.exchange.ExchangeClient
 
 import scala.concurrent.Future
 import scala.language.reflectiveCalls
 
-case class WorkerRoutes(exchange: Exchange,
+case class WorkerRoutes(exchange: ExchangeClient,
                         defaultSubscription: WorkSubscription,
                         defaultInitialRequest: Int)(implicit mat: Materializer) extends FailFastCirceSupport {
 
@@ -85,6 +86,9 @@ case class WorkerRoutes(exchange: Exchange,
     }
   }
 
+  def handleJson(onReq: WorkContext[Json] => Json)(implicit subscription: WorkSubscription = defaultSubscription, initialRequest: Int = defaultInitialRequest): Future[RequestWorkAck] = {
+    handle(onReq)
+  }
 
   /**
     * Add a handler
@@ -98,10 +102,9 @@ case class WorkerRoutes(exchange: Exchange,
     */
   def handle[T: Decoder, R: Encoder](onReq: WorkContext[T] => R)(implicit subscription: WorkSubscription = defaultSubscription, initialRequest: Int = defaultInitialRequest): Future[RequestWorkAck] = {
 
-    val resp: Future[WorkSubscriptionAck] = exchange.subscribe(subscription)
+    val subscriptionAckFuture: Future[WorkSubscriptionAck] = exchange.subscribe(subscription)
     val path = subscription.details.path.getOrElse(sys.error(s"The subscription doesn't contain a path: ${subscription.details}"))
 
-    val u: FromEntityUnmarshaller[T] = unmarshaller[T]
     val fromRequest: Unmarshaller[HttpRequest, T] = implicitly[Unmarshaller[HttpRequest, T]]
     val handler = new OnWork[T, R](subscription, initialRequest, fromRequest, onReq)
 
@@ -113,7 +116,7 @@ case class WorkerRoutes(exchange: Exchange,
       workerByPath = workerByPath.updated(path, handler)
     }
 
-    resp.flatMap { ack =>
+    subscriptionAckFuture.flatMap { ack =>
       setSubscriptionKeyOnHandler(path, ack.id)
       if (initialRequest > 0) {
         exchange.take(ack.id, initialRequest)

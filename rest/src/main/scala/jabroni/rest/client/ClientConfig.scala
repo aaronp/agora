@@ -15,11 +15,13 @@ class ClientConfig(override val config: Config) extends BaseConfig {
   def location = HostLocation(host, port)
 
   def restClient = RestClient(this)
-  def exchangeClient: Exchange with QueueObserver = {
+
+  def exchangeClient: ExchangeClient = {
     import implicits._
     ExchangeClient(restClient)
   }
-  def workerRoutes(subscription : WorkSubscription, initialRequest : Int): WorkerRoutes = {
+
+  def workerRoutes(subscription: WorkSubscription, initialRequest: Int): WorkerRoutes = {
     import implicits._
     WorkerRoutes(exchangeClient, subscription, initialRequest)
   }

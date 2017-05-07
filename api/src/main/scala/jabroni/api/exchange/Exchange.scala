@@ -78,7 +78,8 @@ object Exchange {
       val RequestWork(id, n) = request
       SubscriptionLock.synchronized {
         subscriptionsById.get(id) match {
-          case None => Future.failed(new Exception(s"subscription $id doesn't exist"))
+          case None =>
+            Future.failed(new Exception(s"subscription '$id' doesn't exist. Known ${subscriptionsById.size} subscriptions are: ${subscriptionsById.take(100).keySet.mkString(",")}"))
           case Some((_, before)) =>
             updatePending(id, before + n)
 
@@ -129,8 +130,8 @@ object Exchange {
             true
           } else {
             subscriptionsById = chosen.foldLeft(subscriptionsById) {
-              case (map, (key, _, 0)) => map - key
               case (map, (key, _, n)) =>
+                require(n >= 0, s"Take cannot be negative ($key, $n)")
                 val pear = map(key)._1
                 map.updated(key, (pear, n))
             }

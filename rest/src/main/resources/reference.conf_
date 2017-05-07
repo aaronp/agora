@@ -1,6 +1,0 @@
-jabroni.exchange{
-  include "exchange.conf"
-}
-jabroni.worker {
-  include "worker.conf"
-}

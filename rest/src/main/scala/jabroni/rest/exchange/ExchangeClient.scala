@@ -2,7 +2,6 @@ package jabroni.rest.exchange
 
 import akka.actor.ActorSystem
 import akka.stream.Materializer
-import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import jabroni.api.exchange._
 import jabroni.api.worker.HostLocation
 import jabroni.rest.client.RestClient

@@ -14,12 +14,27 @@ import scala.concurrent.Future
 trait RoutingClient {
   self: ExchangeClient =>
 
-  type WorkerResponses = Future[List[(WorkerRedirectCoords, HttpResponse)]]
+  type WorkerResponses = Future[CompletedWork]
 
-  def queue(submit: SubmitJob) = sendAndRoute(submit)._2
+  /**
+    * Similar to 'submit', but returns the result from the worker.
+    *
+    * This assumes the job submitted to the exchange can be sent verbatim to the worker.
+    *
+    * The workflow is:
+    *
+    * 1) submit to exchange, awaiting a match
+    * 2) on (redirect) response (when a worker is eventually assigned), submit the work to the matched worked
+    * 3) return the response from the worker ... which could be *anything*
+    *
+    * @param submit the job submission
+    * @return the worker response
+    */
+  def enqueue(submit: SubmitJob): WorkerResponses = sendAndRoute(submit)._2
 
   import RestClient.implicits._
   import RoutingClient._
+//  protected implicit def heresAMaterializer = haveAMaterializer
 
   private def onSubmitResponse[T: ToEntityMarshaller](request: T, resp: BlockingSubmitJobResponse): WorkerResponses = {
     val pears: List[(WorkerRedirectCoords, WorkerDetails)] = resp.workerCoords.zip(resp.workers)
@@ -33,7 +48,7 @@ trait RoutingClient {
         }
     }
 
-    Future.sequence(futures)
+    Future.sequence(futures).map(list => CompletedWork(list)(haveAMaterializer))
   }
 
 

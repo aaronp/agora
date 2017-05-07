@@ -23,8 +23,7 @@ case class WorkerConfig(override val config: Config) extends ServerConfig {
   import WorkerConfig._
 
   def startWorker(): Future[RunningWorker] = {
-    val f: Future[RunningService[WorkerConfig, WorkerRoutes]] = runWithRoutes(routes, workerRoutes)
-    f
+    runWithRoutes("Worker", routes, workerRoutes)
   }
 
   def routes: Route = {
@@ -45,7 +44,7 @@ case class WorkerConfig(override val config: Config) extends ServerConfig {
     exchangeClientConfig.workerRoutes(subscription, initialRequest)
   }
 
-  lazy val exchange: Exchange = {
+  lazy val exchange: ExchangeClient = {
     val restCC = exchangeClientConfig
     import restCC.implicits._
     ExchangeClient(restCC.restClient)

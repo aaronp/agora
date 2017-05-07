@@ -22,7 +22,7 @@ case class ExchangeConfig(override val config: Config) extends ServerConfig {
   override type Me = ExchangeConfig
   override def self : Me = this
 
-  def startExchange() = runWithRoutes(routes, exchangeRoutes)
+  def startExchange() = runWithRoutes("Exchange", routes, exchangeRoutes)
 
   lazy val exchangeRoutes: ExchangeRoutes = {
     import implicits._

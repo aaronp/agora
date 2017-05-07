@@ -17,15 +17,7 @@ trait ServerConfig extends BaseConfig with StrictLogging {
 
   type Me <: ServerConfig
 
-  protected def self : Me
-  //
-//  type Service
-//
-//  protected def routes: Route
-//
-//  protected def newService: Service
-
-  //  val default = ConfigFactory.load("")
+  protected def self: Me
 
   val host = config.getString("host")
   val port = config.getInt("port")
@@ -36,11 +28,12 @@ trait ServerConfig extends BaseConfig with StrictLogging {
 
   def location = HostLocation(host, port)
 
-  def runWithRoutes[T](routes: Route, svc : T): Future[RunningService[Me, T]] = {
+  def runWithRoutes[T](name: String, routes: Route, svc: T): Future[RunningService[Me, T]] = {
     import implicits._
-    logger.info(s"Starting server at http://${host}:${port}")
-    val bindingFuture = Http().bindAndHandle(routes, host, port)
-    val future: Future[RunningService[Me, T]] = bindingFuture.map { b =>
+
+    logger.info(s"Starting $name at http://${host}:${port}")
+
+    val future: Future[RunningService[Me, T]] = Http().bindAndHandle(routes, host, port).map { b =>
       RunningService(self, svc, b)
     }
 
