@@ -60,6 +60,9 @@ case class WorkerRoutes(exchange: ExchangeClient,
     }
   }
 
+  /**
+    * Captures the 'handler' logic for a subscription.
+    */
   private class OnWork[T, R: Encoder](subscription: WorkSubscription, initialRequest: Int, unmarshaller: Unmarshaller[HttpRequest, T], onReq: WorkContext[T] => R) {
     /**
       * we have the case where a worker can actually handle a request at any time from a client ... even before we bother
@@ -86,10 +89,6 @@ case class WorkerRoutes(exchange: ExchangeClient,
     }
   }
 
-  def handleJson(onReq: WorkContext[Json] => Json)(implicit subscription: WorkSubscription = defaultSubscription, initialRequest: Int = defaultInitialRequest): Future[RequestWorkAck] = {
-    handle(onReq)
-  }
-
   /**
     * Add a handler
     *
@@ -100,12 +99,15 @@ case class WorkerRoutes(exchange: ExchangeClient,
     * @tparam R
     * @return
     */
-  def handle[T: Decoder, R: Encoder](onReq: WorkContext[T] => R)(implicit subscription: WorkSubscription = defaultSubscription, initialRequest: Int = defaultInitialRequest): Future[RequestWorkAck] = {
+  def handle[T, R](onReq: WorkContext[T] => R)
+                  (implicit subscription: WorkSubscription = defaultSubscription,
+                   initialRequest: Int = defaultInitialRequest,
+                   fromRequest: Unmarshaller[HttpRequest, T]): Future[RequestWorkAck] = {
 
     val subscriptionAckFuture: Future[WorkSubscriptionAck] = exchange.subscribe(subscription)
     val path = subscription.details.path.getOrElse(sys.error(s"The subscription doesn't contain a path: ${subscription.details}"))
 
-    val fromRequest: Unmarshaller[HttpRequest, T] = implicitly[Unmarshaller[HttpRequest, T]]
+    //    val fromRequest: Unmarshaller[HttpRequest, T] = implicitly[Unmarshaller[HttpRequest, T]]
     val handler = new OnWork[T, R](subscription, initialRequest, fromRequest, onReq)
 
     HandlerWriteLock.synchronized {
@@ -117,7 +119,12 @@ case class WorkerRoutes(exchange: ExchangeClient,
     }
 
     subscriptionAckFuture.flatMap { ack =>
+
+      // update our handler with it's subscription key (see 'OnWork' comment for why it has to be created first,
+      // before we have this subscription key)
       setSubscriptionKeyOnHandler(path, ack.id)
+
+      // ask for some initial work
       if (initialRequest > 0) {
         exchange.take(ack.id, initialRequest)
       } else {
@@ -125,6 +132,16 @@ case class WorkerRoutes(exchange: ExchangeClient,
       }
     }
   }
+
+
+  def handleRequest(onReq: WorkContext[HttpEntity] => HttpEntity)(implicit subscription: WorkSubscription = defaultSubscription, initialRequest: Int = defaultInitialRequest): Future[RequestWorkAck] = {
+    handle(onReq)
+  }
+
+  def handleJson(onReq: WorkContext[Json] => Json)(implicit subscription: WorkSubscription = defaultSubscription, initialRequest: Int = defaultInitialRequest): Future[RequestWorkAck] = {
+    handle(onReq)
+  }
+
 
   private def setSubscriptionKeyOnHandler(path: String, key: SubscriptionKey) = {
     HandlerWriteLock.synchronized {

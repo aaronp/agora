@@ -7,7 +7,7 @@ import jabroni.api.exchange.{Exchange, WorkSubscription}
 import jabroni.api.json.JMatcher
 import jabroni.api.worker.WorkerDetails
 import jabroni.rest.client.ClientConfig
-import jabroni.rest.exchange.ExchangeClient
+import jabroni.rest.exchange.{ExchangeClient, ExchangeConfig}
 import jabroni.rest.ui.UIRoutes
 import jabroni.rest.{Boot, RunningService, ServerConfig}
 import akka.http.scaladsl.server.Directives._
@@ -87,7 +87,7 @@ object WorkerConfig {
 
   def defaultConfig(): Config = baseConfig.resolve
 
-  //  def apply(config: Config): WorkerConfig = new WorkerConfig(config)
+  def apply(firstArg: String, theRest: String*): WorkerConfig = apply(firstArg +: theRest.toArray)
 
   def apply(args: Array[String] = Array.empty, defaultConfig: Config = defaultConfig): WorkerConfig = {
     WorkerConfig(Boot.configForArgs(args, defaultConfig))

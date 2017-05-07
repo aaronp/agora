@@ -11,6 +11,8 @@ object ExchangeConfig {
 
   def defaultConfig = baseConfig.resolve
 
+  def apply(firstArg: String, theRest: String*): ExchangeConfig = apply(firstArg +: theRest.toArray)
+
   def apply(args: Array[String] = Array.empty, defaultConfig: Config = defaultConfig): ExchangeConfig = {
     ExchangeConfig(Boot.configForArgs(args, defaultConfig))
   }
@@ -20,7 +22,8 @@ object ExchangeConfig {
 
 case class ExchangeConfig(override val config: Config) extends ServerConfig {
   override type Me = ExchangeConfig
-  override def self : Me = this
+
+  override def self: Me = this
 
   def startExchange() = runWithRoutes("Exchange", routes, exchangeRoutes)
 
