@@ -12,7 +12,7 @@ import scala.concurrent.Future
 
 case class ExchangeTestState(server: Option[RunningExchange] = None,
                              exchangeClient: Option[Exchange with QueueObserver] = None,
-                             submittedJobs: List[(SubmitJob, SubmitJobResponse)] = Nil,
+                             submittedJobs: List[(SubmitJob, ClientResponse)] = Nil,
                              workers: List[RunningWorker] = Nil
                             )
   extends ExchangeValidation {

@@ -1,20 +1,23 @@
 package jabroni.rest.exchange
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.marshalling.{Marshalling, PredefinedToRequestMarshallers, ToEntityMarshaller, ToRequestMarshaller}
-import akka.http.scaladsl.model.{HttpResponse, MessageEntity}
 import akka.stream.Materializer
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
-import io.circe.{Encoder, Json}
-import jabroni.api.`match`.MatchDetails
 import jabroni.api.exchange._
-import jabroni.api.worker.{HostLocation, WorkerDetails, WorkerRedirectCoords}
+import jabroni.api.worker.HostLocation
 import jabroni.rest.client.RestClient
 import jabroni.rest.worker.WorkerClient
 
 import scala.concurrent.Future
 
-class ExchangeClient(val rest: RestClient)(implicit sys : ActorSystem, mat: Materializer) extends Exchange with QueueObserver with RoutingClient with  FailFastCirceSupport {
+class ExchangeClient(val rest: RestClient)(implicit val sys: ActorSystem, mat: Materializer)
+  extends Exchange
+    with QueueObserver
+    with RoutingClient
+    //    with  FailFastCirceSupport {
+{
+
+  protected def haveAMaterializer = mat
 
   type JobResponse = Future[_ <: ClientResponse]
 
@@ -50,6 +53,6 @@ class ExchangeClient(val rest: RestClient)(implicit sys : ActorSystem, mat: Mate
 }
 
 object ExchangeClient {
-  def apply(rest: RestClient)(implicit mat: Materializer): Exchange with QueueObserver = new ExchangeClient(rest)
+  def apply(rest: RestClient)(implicit sys: ActorSystem, mat: Materializer): ExchangeClient = new ExchangeClient(rest)
 
 }
