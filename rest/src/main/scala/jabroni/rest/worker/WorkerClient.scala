@@ -2,11 +2,12 @@ package jabroni.rest.worker
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.marshalling.{Marshaller, Marshalling, ToRequestMarshaller}
-import akka.http.scaladsl.model.{HttpCharsets, HttpRequest}
+import akka.http.scaladsl.model.{HttpCharsets, HttpRequest, HttpResponse}
 import akka.stream.Materializer
 import io.circe.DecodingFailure
+import jabroni.api.{JobId, MatchId}
 import jabroni.api.`match`.MatchDetails
-import jabroni.api.worker.WorkerDetails
+import jabroni.api.worker.{HostLocation, WorkerDetails}
 import jabroni.rest.MatchDetailsExtractor
 import jabroni.rest.client.RestClient
 
@@ -16,14 +17,14 @@ import scala.concurrent.{ExecutionContext, Future}
   * Can send requests to a worker
   *
   * @param rest
-  * @param path
   */
-case class WorkerClient(rest: RestClient, path: String) {
-  def dispatch[T: ToRequestMarshaller](matchDetails: MatchDetails, request: T)(implicit ec: ExecutionContext) = {
+case class WorkerClient(rest: RestClient) {
+
+  def dispatch[T: ToRequestMarshaller](path: String, matchDetails: MatchDetails, request: T)(implicit ec: ExecutionContext): Future[HttpResponse] = {
     val m = implicitly[ToRequestMarshaller[T]]
 
     import Marshalling._
-    m(request).map { (marshallings: List[Marshalling[HttpRequest]]) =>
+    m(request).flatMap { (marshallings: List[Marshalling[HttpRequest]]) =>
       val httpRequestOpt: Option[HttpRequest] = marshallings.collectFirst {
         case fixed: WithOpenCharset[HttpRequest] => fixed.marshal(HttpCharsets.`UTF-8`)
         case fixed: WithFixedContentType[HttpRequest] => fixed.marshal()
@@ -40,10 +41,9 @@ case class WorkerClient(rest: RestClient, path: String) {
 }
 
 object WorkerClient {
-  def apply(detail: WorkerDetails)(implicit sys: ActorSystem, mat: Materializer): Either[DecodingFailure, WorkerClient] = {
-    val rest = RestClient(detail.location)
-    detail.valueOf[String]("path").right.map { path =>
-      new WorkerClient(rest, path)
-    }
+  def apply(location: HostLocation)(implicit sys: ActorSystem, mat: Materializer): WorkerClient = {
+    val rest = RestClient(location)
+    new WorkerClient(rest)
   }
+
 }

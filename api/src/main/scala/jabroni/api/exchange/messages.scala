@@ -4,7 +4,7 @@ import io.circe.generic.auto._
 import io.circe.{Encoder, Json}
 import jabroni.api.`match`.MatchDetails
 import jabroni.api.json.{JMatcher, JPath}
-import jabroni.api.worker.{SubscriptionKey, WorkerDetails}
+import jabroni.api.worker.{SubscriptionKey, WorkerDetails, WorkerRedirectCoords}
 import jabroni.api.{JobId, MatchId, nextJobId}
 
 import scala.language.implicitConversions
@@ -88,6 +88,8 @@ case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends Cl
 
   def withId(jobId: JobId): SubmitJob = add("jobId" -> jobId)
 
+  def withAwaitMatch(awaitMatch: Boolean): SubmitJob = copy(submissionDetails = submissionDetails.copy(awaitMatch = awaitMatch))
+
   def withData[T: Encoder](data: T, name: String = null) = {
     copy(submissionDetails = submissionDetails.withData(data, name))
   }
@@ -119,7 +121,7 @@ object SubmitJobResponse {
   implicit val decoder = exportDecoder[SubmitJobResponse].instance
 }
 
-case class BlockingSubmitJobResponse(matchId: MatchId, jobId: JobId, matchEpochUTC: Long, workers: List[WorkerDetails]) extends ClientResponse {
+case class BlockingSubmitJobResponse(matchId: MatchId, jobId: JobId, matchEpochUTC: Long, workerCoords: List[WorkerRedirectCoords], workers: List[WorkerDetails]) extends ClientResponse {
   def firstWorkerUrl = workers.collectFirst {
     case w if w.url.isDefined => w.url.get
   }

@@ -7,7 +7,7 @@ import MatchDetails._
 
 object MatchDetailsExtractor {
 
-  def headersFor(matchDetails: MatchDetails) = {
+  def headersFor(matchDetails: MatchDetails): List[HttpHeader] = {
     import implicits._
     List(
       MatchIdHeader.asHeader(matchDetails.matchId),

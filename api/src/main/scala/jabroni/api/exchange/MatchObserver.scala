@@ -6,6 +6,7 @@ import java.util.UUID
 import com.typesafe.scalalogging.StrictLogging
 import jabroni.api.`match`.MatchDetails
 import jabroni.api.exchange.Exchange.Match
+import jabroni.api.worker.WorkerRedirectCoords
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util._
@@ -46,12 +47,16 @@ trait MatchObserver extends Exchange.OnMatch[Unit] with StrictLogging {
           case Some(id) => Success(id)
           case None => Failure(new Exception(s"no job id was set on $job"))
         }
-        val details = workers.map {
-          case (_, workSubscription, _) => workSubscription.details
+        val coordsAndDetails = workers.map {
+          case (key, workSubscription, remaining) =>
+            val d = workSubscription.details
+            val c = WorkerRedirectCoords(workSubscription.details.location, key, remaining)
+            (c, d)
         }
+        val (coords, details) = coordsAndDetails.unzip
 
         val respFuture = idTry.map { id =>
-          BlockingSubmitJobResponse(nextMatchId(), id, epochUTC, details.toList)
+          BlockingSubmitJobResponse(nextMatchId(), id, epochUTC, coords.toList, details.toList)
         }
         promise.complete(respFuture)
     }

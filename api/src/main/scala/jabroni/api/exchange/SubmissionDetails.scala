@@ -41,7 +41,7 @@ object SubmissionDetails {
   def apply(submittedBy: User = Properties.userName,
             matchMode: SelectionMode = SelectionFirst(),
             workMatcher: JMatcher = JMatcher.matchAll,
-            awaitMatch : Boolean = false) = {
+            awaitMatch : Boolean = true) = {
     val json = Json.obj("submissionUser" -> Json.fromString(submittedBy))
     new SubmissionDetails(json, matchMode, workMatcher, awaitMatch)
   }

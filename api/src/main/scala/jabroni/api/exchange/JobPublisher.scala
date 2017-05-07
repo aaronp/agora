@@ -8,5 +8,5 @@ trait JobPublisher {
     case req : SubmitJob => submit(req)
   }
 
-  def submit(req: SubmitJob) = send(req).mapTo[SubmitJobResponse]
+  def submit(req: SubmitJob) : Future[ClientResponse] = send(req)
 }

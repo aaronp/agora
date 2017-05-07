@@ -2,15 +2,13 @@ package jabroni.rest.worker
 
 import com.typesafe.scalalogging.StrictLogging
 import jabroni.api._
-import jabroni.api.exchange.SubmitJobResponse
+import jabroni.api.exchange.{ClientResponse, SubmitJobResponse}
 import jabroni.rest.worker.WorkerConfig.RunningWorker
-import jabroni.rest.{Boot, RunningService}
-
-import language.reflectiveCalls
 
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
+import scala.language.reflectiveCalls
 
 
 object Example extends App with StrictLogging {
@@ -54,14 +52,13 @@ object Example extends App with StrictLogging {
 
   import Implicits._
 
-  (0 to 10).map { input =>
+  (0 to 2).map { input =>
     val job = DoubleMe(input).asJob
-    val resp: Future[SubmitJobResponse] = exchange.submit(job)
+    val resp: Future[ClientResponse] = exchange.submit(job)
     resp.onComplete {
       case acked =>
 
         println(acked)
-
     }
   }
 

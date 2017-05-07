@@ -25,7 +25,7 @@ trait ExchangeSpec extends WordSpec with Matchers with ScalaFutures with Eventua
       }
       val ex: Exchange = newExchange(obs)
 
-      val jobId = ex.submit(DoubleMe(11).asJob).futureValue.id
+      val jobId = ex.submit(DoubleMe(11).asJob.withAwaitMatch(false)).futureValue.asInstanceOf[SubmitJobResponse].id
       val jobPath = ("value" gt 7) and ("value" lt 17)
 
       val sub = WorkSubscription(jobMatcher = jobPath)

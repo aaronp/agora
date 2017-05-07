@@ -103,8 +103,9 @@ case class ExchangeRoutes(exchangeForHandler: OnMatch[Unit] => Exchange with Que
             }
           case submitJob =>
             complete {
-              exchange.submit(submitJob).map { r: SubmitJobResponse =>
-                HttpResponse(entity = HttpEntity(`application/json`, r.asJson.noSpaces))
+              exchange.submit(submitJob).map {
+                case r: SubmitJobResponse =>
+                  HttpResponse(entity = HttpEntity(`application/json`, r.asJson.noSpaces))
               }
             }
         }
