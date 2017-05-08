@@ -3,12 +3,17 @@ package jabroni.rest.worker
 import com.typesafe.scalalogging.StrictLogging
 import jabroni.api._
 import jabroni.api.exchange.{ClientResponse, SubmitJobResponse}
+import jabroni.rest.RunningService
+import jabroni.rest.exchange.{CompletedWork, ExchangeClient, ExchangeConfig, ExchangeRoutes}
+import jabroni.rest.worker.Example.exchange
 import jabroni.rest.worker.WorkerConfig.RunningWorker
 
+import scala.collection.immutable
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.language.reflectiveCalls
+import scala.util.{Failure, Success, Try}
 
 
 object Example extends App with StrictLogging {
@@ -22,7 +27,7 @@ object Example extends App with StrictLogging {
   def compute(ctxt: WorkContext[DoubleMe]): Doubled = {
     val doubled = ctxt.request.x * ctxt.request.x
     logger.info(s"${ctxt.path} calculating ${ctxt.request}")
-    Thread.sleep(1000)
+    Thread.sleep(100)
     ctxt.take(1)
     Doubled(doubled)
   }
@@ -39,28 +44,37 @@ object Example extends App with StrictLogging {
     }
   }
 
+  // start an exchange:
+  val exchangeServerFuture: Future[RunningService[ExchangeConfig, ExchangeRoutes]] = ExchangeConfig().startExchange()
+  Await.result(exchangeServerFuture, 5 seconds)
+
 
   // start some workers
-//  val workerFutures2 = (0 to 4).map { i =>
-//    startWorker(i)
-//  }
-  val workerFutures = List(startWorker(100))
+  val workerFutures = (0 to 4).map { i =>
+    startWorker(i)
+  }
 
-  val workers = Await.result(Future.sequence(workerFutures), 10.seconds)
+  val workers: immutable.Seq[RunningWorker] = Await.result(Future.sequence(workerFutures), 10.seconds)
 
-  val exchange = workers.head.service.exchange
+  // create a client of the exchange ... here we just nick one of the worker's clients
+  val exchange: ExchangeClient = workers.head.service.exchange
 
   import Implicits._
 
-  (0 to 2).map { input =>
+  val results = (0 to 2).map { input =>
     val job = DoubleMe(input).asJob
-    val resp: Future[ClientResponse] = exchange.submit(job)
+    val resp = exchange.enqueue(job).flatMap(_.jsonResponse)
     resp.onComplete {
-      case acked =>
+      case Success(work) =>
+        println(work)
+      case Failure(err) =>
 
-        println(acked)
+        println(err)
     }
+    resp
   }
 
+
+  println(results)
 
 }
