@@ -122,7 +122,7 @@ object Exchange {
 
           val candidates: ParSeq[(SubscriptionKey, WorkSubscription, Int)] = subscriptionsById.toSeq.par.collect {
             case (id, (subscription, requested)) if job.matches(subscription) =>
-              (id, subscription, requested.ensuring(_ > 0) - 1)
+              (id, subscription, (requested - 1).max(0))
           }
 
           val chosen = job.submissionDetails.selection.select(candidates.seq)
