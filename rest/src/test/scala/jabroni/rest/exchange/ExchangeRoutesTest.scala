@@ -8,6 +8,8 @@ import jabroni.api.worker.SubscriptionKey
 import jabroni.rest.BaseSpec
 
 import scala.concurrent.Future
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration._
 import scala.language.reflectiveCalls
 
 /**
@@ -17,6 +19,8 @@ import scala.language.reflectiveCalls
   * versions of our service, or dynamic languages (e.g. javascript )
   */
 class ExchangeRoutesTest extends BaseSpec {
+
+//  implicit val timeout: Duration = 15.seconds
 
   def routes(): Route = {
     ExchangeRoutes().routes

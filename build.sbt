@@ -36,3 +36,18 @@ lazy val ui = project.
   settings(commonSettings: _*).
   settings(libraryDependencies ++= Dependencies.UI).
   enablePlugins(ScalaJSPlugin)
+
+// see https://leonard.io/blog/2017/01/an-in-depth-guide-to-deploying-to-maven-central/
+
+homepage := Some(url("https://github.com/aaronp/jabroni"))
+
+scmInfo := Some(ScmInfo(url("https://github.com/aaronp/jabroni"), "git@github.com:aaronp/jabroni.git"))
+
+developers += Developer("aaronp",
+                        "Aaron Pritzlaff",
+                        "aaron.pritzlaff@gmail.com",
+                        url("https://github.com/aaronp"))
+
+licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))
+
+pomIncludeRepository := (_ => false)
