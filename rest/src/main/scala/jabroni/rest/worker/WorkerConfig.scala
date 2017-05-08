@@ -1,7 +1,8 @@
-package jabroni.rest.worker
+package jabroni.rest
+package worker
 
 import akka.http.scaladsl.server.Route
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions}
 import io.circe
 import jabroni.api.exchange.{Exchange, WorkSubscription}
 import jabroni.api.json.JMatcher
@@ -9,7 +10,7 @@ import jabroni.api.worker.WorkerDetails
 import jabroni.rest.client.ClientConfig
 import jabroni.rest.exchange.{ExchangeClient, ExchangeConfig}
 import jabroni.rest.ui.UIRoutes
-import jabroni.rest.{Boot, RunningService, ServerConfig}
+import jabroni.rest.{RunningService, ServerConfig}
 import akka.http.scaladsl.server.Directives._
 
 import scala.concurrent.Future
@@ -17,7 +18,23 @@ import scala.util.Try
 
 case class WorkerConfig(override val config: Config) extends ServerConfig {
   override type Me = WorkerConfig
+
   override def self = this
+
+
+  override def toString = {
+    import jabroni.domain.RichConfig.implicits._
+    //    config.intersect(WorkerConfig.defaultConfig)
+
+    config.withPaths("port",
+      "host",
+      "details",
+      "submissionMatcher",
+      "jobMatcher",
+      "subscription",
+      "exchange").root.render(ConfigRenderOptions.concise().setFormatted(true))
+  }
+
   def initialRequest = config.getInt("initialRequest")
 
   import WorkerConfig._
@@ -54,20 +71,24 @@ case class WorkerConfig(override val config: Config) extends ServerConfig {
     val detailsConf = config.getConfig("details")
     val name = detailsConf.getString("name")
     val id = detailsConf.getString("id")
-    WorkerDetails(name, id, runUser, location).append(Boot.asJson(detailsConf))
+    val path = detailsConf.getString("path")
+    WorkerDetails(name, id, runUser, path, location).append(asJson(detailsConf))
   }
 
   def asMatcher(at: String): Either[circe.Error, JMatcher] = {
     val fromConfig: Option[Either[circe.Error, JMatcher]] = Try(config.getConfig(at)).toOption.map { subConf =>
-      Boot.asJson(subConf).as[JMatcher]
+      asJson(subConf).as[JMatcher]
     }
 
-    val fromString = Boot.asJson(config).hcursor.downField(at).as[JMatcher]
+    val fromString = asJson(config).hcursor.downField(at).as[JMatcher]
 
     fromConfig.getOrElse(fromString)
   }
 
-  def subscription: WorkSubscription = subscriptionEither.right.get
+  def subscription: WorkSubscription = subscriptionEither match {
+    case Left(err) => sys.error(s"Couldn't parse the config as a subscription: $err")
+    case Right(s) => s
+  }
 
   def subscriptionEither: Either[circe.Error, WorkSubscription] = {
     for {
@@ -83,14 +104,14 @@ object WorkerConfig {
 
   type RunningWorker = RunningService[WorkerConfig, WorkerRoutes]
 
-  def baseConfig(): Config = ConfigFactory.load("worker.conf")
+  def baseConfig(): Config = ConfigFactory.parseResourcesAnySyntax("worker")
 
   def defaultConfig(): Config = baseConfig.resolve
 
   def apply(firstArg: String, theRest: String*): WorkerConfig = apply(firstArg +: theRest.toArray)
 
-  def apply(args: Array[String] = Array.empty, defaultConfig: Config = defaultConfig): WorkerConfig = {
-    WorkerConfig(Boot.configForArgs(args, defaultConfig))
+  def apply(args: Array[String] = Array.empty, defaultConfig: Config = baseConfig): WorkerConfig = {
+    WorkerConfig(configForArgs(args, defaultConfig))
   }
 
 }

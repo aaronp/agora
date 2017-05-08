@@ -1,10 +1,11 @@
-package jabroni.rest.exchange
+package jabroni.rest
+package exchange
 
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import com.typesafe.config.{Config, ConfigFactory}
+import jabroni.rest.client.RestClient
 import jabroni.rest.ui.UIRoutes
-import jabroni.rest.{Boot, RunningService, ServerConfig}
 
 object ExchangeConfig {
   def baseConfig = ConfigFactory.load("exchange.conf")
@@ -14,7 +15,7 @@ object ExchangeConfig {
   def apply(firstArg: String, theRest: String*): ExchangeConfig = apply(firstArg +: theRest.toArray)
 
   def apply(args: Array[String] = Array.empty, defaultConfig: Config = defaultConfig): ExchangeConfig = {
-    ExchangeConfig(Boot.configForArgs(args, defaultConfig))
+    ExchangeConfig(configForArgs(args, defaultConfig))
   }
 
   type RunningExchange = RunningService[ExchangeConfig, ExchangeRoutes]
@@ -26,6 +27,11 @@ case class ExchangeConfig(override val config: Config) extends ServerConfig {
   override def self: Me = this
 
   def startExchange() = runWithRoutes("Exchange", routes, exchangeRoutes)
+
+  def client(): ExchangeClient = {
+    import implicits._
+    ExchangeClient(RestClient(location))
+  }
 
   lazy val exchangeRoutes: ExchangeRoutes = {
     import implicits._

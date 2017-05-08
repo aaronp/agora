@@ -5,9 +5,11 @@ import jabroni.api.Implicits._
 import jabroni.api._
 import jabroni.api.exchange._
 import jabroni.api.worker.SubscriptionKey
-import jabroni.rest.BaseSpec
+import jabroni.rest.{BaseRoutesSpec, BaseSpec}
 
 import scala.concurrent.Future
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration._
 import scala.language.reflectiveCalls
 
 /**
@@ -16,7 +18,9 @@ import scala.language.reflectiveCalls
   * that form by e.g. renaming a parameter. that would potentially break clients running against different
   * versions of our service, or dynamic languages (e.g. javascript )
   */
-class ExchangeRoutesTest extends BaseSpec {
+class ExchangeRoutesTest extends BaseRoutesSpec {
+
+//  implicit val timeout: Duration = 15.seconds
 
   def routes(): Route = {
     ExchangeRoutes().routes
@@ -24,7 +28,7 @@ class ExchangeRoutesTest extends BaseSpec {
 
   "PUT /rest/exchange/submit" should {
     "submit jobs" in {
-      ExchangeHttp(123.asJob()) ~> routes() ~> check {
+      ExchangeHttp(123.asJob().withAwaitMatch(false)) ~> routes() ~> check {
         val resp = responseAs[SubmitJobResponse]
         resp.id should not be (null)
       }
@@ -50,8 +54,8 @@ class ExchangeRoutesTest extends BaseSpec {
       val matchFuture: Future[BlockingSubmitJobResponse] = route.observer.onJob(job)
 
       // subscribe to work
-      val ws = WorkSubscription()
-      ws.details.id shouldBe None
+      val ws = WorkSubscription().withSubscriptionKey("i'll tell you the key, thank you very much!")
+      //ws.details.id should not be(None)
       ExchangeHttp(ws) ~> route.routes ~> check {
         val resp = responseAs[WorkSubscriptionAck]
         subscription = resp.id

@@ -1,10 +1,9 @@
 package jabroni.domain
 
 import com.typesafe.config.{Config, ConfigFactory}
-import io.circe.optics.JsonPath
 import jabroni.api.json.JMatcher
-import jabroni.rest.ServerConfig
 import jabroni.rest.worker.WorkerConfig
+import _root_.io.circe.optics.JsonPath
 import org.scalatest.{Matchers, WordSpec}
 
 class WorkerConfigTest extends WordSpec with Matchers {

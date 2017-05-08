@@ -3,6 +3,7 @@ package jabroni.ui
 import jabroni.api.exchange.SubmitJob
 import org.scalajs.dom.html.Table
 
+import scalatags.JsDom
 import scalatags.JsDom.all._
 
 
@@ -17,7 +18,9 @@ object Tables {
     )
   }
 
-  def render(jobs: List[SubmitJob]): Table = {
+  def render(jobs: List[SubmitJob]) = forJobs(jobs).render
+
+  def forJobs(jobs: List[SubmitJob]): JsDom.TypedTag[Table] = {
     val header = thead(tr(
       th("id"),
       th("user"),
@@ -25,7 +28,7 @@ object Tables {
     ))
     val tableBody = tbody(jobs.map(asRow): _*)
 
-    table(header, tableBody).render
+    table(header, tableBody)
   }
 
 }

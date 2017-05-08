@@ -1,15 +1,18 @@
 package jabroni.rest.worker
 
 import com.typesafe.scalalogging.StrictLogging
+import jabroni.api.Implicits._
 import jabroni.api._
-import jabroni.api.exchange.{ClientResponse, SubmitJobResponse}
+import jabroni.rest.RunningService
+import jabroni.rest.exchange.{ExchangeClient, ExchangeConfig, ExchangeRoutes}
 import jabroni.rest.worker.WorkerConfig.RunningWorker
 
+import scala.collection.immutable
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
-import scala.language.reflectiveCalls
-
+import scala.language.{postfixOps, reflectiveCalls}
+import scala.util.{Failure, Success}
 
 object Example extends App with StrictLogging {
 
@@ -19,48 +22,68 @@ object Example extends App with StrictLogging {
 
   import io.circe.generic.auto._
 
+  // define some computation. Instead of just
+  // f = DoubleMe => Doubled
+  // we have 
+  // f = WorkContext[DoubleMe] => Doubled
+  // where the 'WorkContext' holds things like the exchange client, subscription key, match details (e.g. job and worker ids), etc
   def compute(ctxt: WorkContext[DoubleMe]): Doubled = {
-    val doubled = ctxt.request.x * ctxt.request.x
+    val doubled = ctxt.request.x * 2
     logger.info(s"${ctxt.path} calculating ${ctxt.request}")
-    Thread.sleep(1000)
-    ctxt.take(1)
+    Thread.sleep(1000) // make believe this is a longer computation
+
+    // we know we've completed one work item now, so we're going to ask for more work
+    // this can be done obviously at any time, and depends on whatever the worker is doing
+    // e.g. the compute calculation know's when it's done the computationally hard bit, 
+    // so it can decide when it asks for more work (or even what sort of work it wants to 
+    // ask for)
+    ctxt.request(1)
+
     Doubled(doubled)
   }
+
+  // now start an exchange endpoint ...
+  val exchangeServerFuture: Future[RunningService[ExchangeConfig, ExchangeRoutes]] = ExchangeConfig().startExchange()
+  Await.result(exchangeServerFuture, 5 seconds)
+
+
+  // ... and connect start some workers
+  val workerFutures = (0 to 4).map { i =>
+    startWorker(i)
+  }
+  val workers: immutable.Seq[RunningWorker] = Await.result(Future.sequence(workerFutures), 10.seconds)
+
+  // and double some numbers!
+  val exchange: ExchangeClient = WorkerConfig().exchange
+
+  (0 to 100).foreach { input =>
+    
+    val job = DoubleMe(input).asJob // asJob converts some 'T' to a SubmitJob which holds that T as a json request
+
+    // 'enqueue' is a form of submit job ... redirect which returns the worker's response, not the exchange's,
+    // so we can do things like ask for the worker's 'jsonResponse'
+    val resp = exchange.enqueue(job).flatMap(_.jsonResponse)
+    resp.onComplete {
+      case Success(work) =>
+        println(work)
+      case Failure(err) => throw err
+    }
+    resp
+  }
+
 
   def startWorker(portOffset: Int): Future[RunningWorker] = {
     val port = 5000 + portOffset
     val name = s"worker-$portOffset"
     val conf = WorkerConfig(s"details.path=$name" +: s"port=$port" +: args)
+    require(conf.subscription.details.location.port == port, s"${conf.subscription.details.location.port} != ${port}")
     for {
       running: RunningWorker <- conf.startWorker()
+      // add our computation handler to the worker. 
+      // We can dynamically add/remove handlers at any time
       _ <- conf.workerRoutes.handle(compute)
     } yield {
       running
     }
   }
-
-
-  // start some workers
-//  val workerFutures2 = (0 to 4).map { i =>
-//    startWorker(i)
-//  }
-  val workerFutures = List(startWorker(100))
-
-  val workers = Await.result(Future.sequence(workerFutures), 10.seconds)
-
-  val exchange = workers.head.service.exchange
-
-  import Implicits._
-
-  (0 to 2).map { input =>
-    val job = DoubleMe(input).asJob
-    val resp: Future[ClientResponse] = exchange.submit(job)
-    resp.onComplete {
-      case acked =>
-
-        println(acked)
-    }
-  }
-
-
 }

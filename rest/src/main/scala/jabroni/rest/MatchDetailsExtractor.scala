@@ -1,9 +1,8 @@
 package jabroni.rest
 
-import akka.http.scaladsl.model.HttpHeader.ParsingResult
 import akka.http.scaladsl.model.{HttpHeader, HttpMessage}
 import jabroni.api.`match`.MatchDetails
-import MatchDetails._
+import jabroni.api.`match`.MatchDetails._
 
 object MatchDetailsExtractor {
 

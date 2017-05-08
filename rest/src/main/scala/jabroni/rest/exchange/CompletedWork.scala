@@ -11,6 +11,15 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration._
 
+/**
+  * This represents the result of some client having submitting some work to the exchange,
+  * that work matching one or more handlers (according with the SubmissionDetails of the
+  * job), that client receiving a redirect to that/those worker(s), submitting the work
+  * to them, and then this ... the final result.
+  *
+  * @param work the matched workers and their responses
+  * @param mat  a materializer, so we can be a bit more helpful in getting some results out of one of these puppies
+  */
 case class CompletedWork(work: List[(WorkerRedirectCoords, HttpResponse)])(implicit mat: Materializer) {
 
   import mat.executionContext

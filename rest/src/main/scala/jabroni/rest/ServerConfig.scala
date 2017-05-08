@@ -19,12 +19,12 @@ trait ServerConfig extends BaseConfig with StrictLogging {
 
   protected def self: Me
 
-  val host = config.getString("host")
-  val port = config.getInt("port")
-  val launchBrowser = config.getBoolean("launchBrowser")
-  val waitOnUserInput = config.getBoolean("waitOnUserInput")
-  val runUser = config.getString("runUser")
-  val includeUIRoutes = config.getBoolean("includeUIRoutes")
+  def host = config.getString("host")
+  def port = config.getInt("port")
+  def launchBrowser = config.getBoolean("launchBrowser")
+  def waitOnUserInput = config.getBoolean("waitOnUserInput")
+  def runUser = config.getString("runUser")
+  def includeUIRoutes = config.getBoolean("includeUIRoutes")
 
   def location = HostLocation(host, port)
 
@@ -52,10 +52,3 @@ trait ServerConfig extends BaseConfig with StrictLogging {
 
 
 }
-
-//
-//object ServerConfig {
-////  def defaultConfig(path : String) = ConfigFactory.load().getConfig(path)
-//
-//  def apply(conf: Config): ServerConfig = new ServerConfig(conf)
-//}

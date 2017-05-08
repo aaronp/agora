@@ -5,6 +5,11 @@ import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpRequest}
 import io.circe.Json
 import jabroni.api.exchange._
 
+/**
+  * Contains the functions for converting our messages into HttpRequests.
+  *
+  * This should go hand-in-glove with ExchangeRoutes
+  */
 object ExchangeHttp extends RequestBuilding {
 
   import io.circe.syntax._

@@ -5,7 +5,7 @@ import jabroni.api.json.JMatcher
 import org.scalajs.dom.html
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.scalajs.js.annotation.{JSExport, JSExportTopLevel}
+import scala.scalajs.js.annotation.JSExport
 
 /**
   * http://www.lihaoyi.com/hands-on-scala-js/#Hands-onScala.js
@@ -16,13 +16,17 @@ object JobsView {
 
   def render(jobContainer: html.Div, jobs: List[SubmitJob]): Unit = {
     jobContainer.innerHTML = ""
-    jobContainer.appendChild(Tables.render(jobs))
+    jobContainer.appendChild(tableForJobs(jobs).render)
+  }
+
+  def tableForJobs(jobs: List[SubmitJob]) = {
+    Tables.forJobs(jobs)
   }
 
   @JSExport()
   def refresh(services: Services, jobContainer: html.Div): Unit = {
     val res = services.observer.listJobs(QueuedJobs(JMatcher.matchAll, JMatcher.matchAll))
-//    val res = services.exchange.listJobs(null)
+    //    val res = services.exchange.listJobs(null)
     res.onSuccess {
       case jobs => render(jobContainer, jobs.jobs)
     }

@@ -3,7 +3,7 @@ package jabroni.ui
 import jabroni.api.exchange._
 import org.scalajs.dom
 
-class Services(val user: String, val exchange: AjaxExchange, val observer : QueueObserver) {
+class Services(val user: String, val exchange: Exchange, val observer : QueueObserver) {
   def onError(err: Throwable) = Services.Alert(err.toString)
 }
 

@@ -39,7 +39,7 @@ Feature: Exchange should match work with offers
             "port" : 1235
           },
           "name" : "worker",
-          "id" : "81319ee2-6fb7-493f-ba3e-d5e1fb2c64f0"
+          "id" : "match me"
         }
       },
       "jobMatcher" : "match-all",
@@ -59,7 +59,7 @@ Feature: Exchange should match work with offers
       "submissionDetails" : {
         "aboutMe" : {
           "submissionUser" : "Georgina",
-          "jobId" : "match me"
+          "jobId" : "some id"
         },
         "selection" : "select-first",
         "workMatcher" : "match-all",

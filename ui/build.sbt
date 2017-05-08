@@ -1,10 +1,10 @@
+name := "jabroni-ui"
+
 enablePlugins(ScalaJSPlugin)
 
 scalaJSUseMainModuleInitializer in Compile := true
 
 scalaJSUseMainModuleInitializer in Test := false
-
-testFrameworks += new TestFramework("utest.runner.Framework")
 
 //http://www.scala-sbt.org/0.13/docs/Howto-Customizing-Paths.html
 unmanagedSourceDirectories in Compile ++= Seq(
@@ -46,6 +46,8 @@ libraryDependencies ++= Seq(
   "com.lihaoyi" %%% "scalatags" % "0.6.1",
   "com.github.japgolly.scalajs-react" %%% "core" % "1.0.0-RC2"
 )
+
+test in assembly := {}
 
 scalaJSStage in Global := FullOptStage
 

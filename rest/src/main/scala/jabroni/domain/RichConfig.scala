@@ -11,9 +11,12 @@ import scala.language.implicitConversions
   *
   * @param config
   */
-class RichConfig(val config: Config) {
+class RichConfig(val config: Config) extends RichConfig.LowPriorityImplicits {
 
   import RichConfig._
+
+  import ConfigFactory._
+  import scala.collection.JavaConverters._
 
   /**
     * If 'show' specified, either by just 'show' on its own or 'show=path.to.config.or.value', then this will return
@@ -63,6 +66,31 @@ class RichConfig(val config: Config) {
     }
   }
 
+
+  /** And example which uses most of the below stuff to showcase what this is for
+    * Note : writing a 'diff' using this would be pretty straight forward
+    */
+  def uniquePaths = unique.paths.toList.sorted
+  def unique = withoutSystem.filterNot(_.startsWith("akka"))
+  /** this config w/o the system props and stuff */
+  def withoutSystem: Config = without(systemEnvironment.or(systemProperties).paths)
+  def or(other: Config) = config.withFallback(other)
+  def without(other: Config): Config = without(asRichConfig(other).paths)
+  def without(firstPath: String, theRest: String*): Config = without(firstPath +: theRest)
+  def without(paths: TraversableOnce[String]): Config = paths.foldLeft(config)(_ withoutPath _)
+  def filterNot(path : String => Boolean) = without(paths.filter(path))
+  def describe(implicit opts: ConfigRenderOptions = ConfigRenderOptions.concise().setFormatted(true)) = config.root.render(opts)
+  def paths: Set[String] = config.entrySet().asScala.map(_.getKey).toSet
+  def pathRoots = paths.map { p => ConfigUtil.splitPath(p).get(0) }
+
+  def intersect(other: Config): Config = {
+    withPaths(other.paths)
+  }
+  def withPaths(first : String, theRest : String*): Config = withPaths(theRest.toSet + first)
+  def withPaths(paths : Set[String]): Config = {
+    paths.map(config.withOnlyPath).reduce(_ withFallback _)
+  }
+
 }
 
 object RichConfig {
@@ -72,15 +100,17 @@ object RichConfig {
     *
     * mostly for converting user-args into a config
     */
-  object implicits {
+  object implicits extends LowPriorityImplicits
 
-    implicit class RichString(val str: String) extends AnyVal {
+  trait LowPriorityImplicits {
+
+    implicit class RichString(val str: String) {
       def quoted = ConfigUtil.quoteString(str)
     }
 
-    implicit def asRichConfig(c: Config) = new RichConfig(c)
+    implicit def asRichConfig(c: Config): RichConfig = new RichConfig(c)
 
-    implicit class RichArgs(val args: Array[String]) extends AnyVal {
+    implicit class RichArgs(val args: Array[String]) {
       def asConfig(unrecognizedArg: String => Config = ParseArg.Throw): Config = {
         ConfigFactory.load().withUserArgs(args, unrecognizedArg)
       }

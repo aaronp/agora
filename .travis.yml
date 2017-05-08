@@ -2,6 +2,12 @@ language: scala
 scala:
    - 2.11.8
 script:
-   - sbt test "rest/cucumber"
+   - sbt test
 jdk:
     - oraclejdk8
+install:
+  - . $HOME/.nvm/nvm.sh
+  - nvm install stable
+  - nvm use stable
+  - npm install
+  - npm install jsdom

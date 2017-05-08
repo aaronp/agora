@@ -2,7 +2,8 @@ package jabroni.rest
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigRenderOptions}
+import jabroni.rest.worker.WorkerConfig
 
 trait BaseConfig {
 
