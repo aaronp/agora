@@ -12,11 +12,13 @@ case class RestRaftClient(name: String, rest: RestClient)(implicit val sys: Acto
   import RestClient.implicits._
 
   override def onAppendEntries[T: Encoder : Decoder](append: AppendEntries[T]): Future[AppendEntriesResponse] = {
-    rest.send(forAppend(append)).flatMap(_.as[AppendEntriesResponse])
+    //rest.send(forAppend(append)).flatMap(_.as[AppendEntriesResponse])
+    ???
   }
 
   override def onRequestVote(vote: RequestVote): Future[RequestVoteResponse] = {
-    rest.send(forVote(vote)).flatMap(_.as[RequestVoteResponse])
+//    rest.send(forVote(vote)).flatMap(_.as[RequestVoteResponse])
+    ???
   }
 }
 

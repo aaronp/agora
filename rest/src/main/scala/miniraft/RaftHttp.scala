@@ -2,6 +2,7 @@ package miniraft
 
 import akka.http.scaladsl.client.RequestBuilding
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpRequest}
+import io.circe.{Decoder, Encoder}
 
 object RaftHttp extends RequestBuilding {
 
@@ -14,7 +15,7 @@ object RaftHttp extends RequestBuilding {
     Post(s"/rest/raft/vote").withEntity(e)
   }
 
-  def forAppend[T](append: AppendEntries[T]): HttpRequest = {
+  def forAppend[T : Encoder : Decoder](append: AppendEntries[T]): HttpRequest = {
     val json = append.asJson
     val e = HttpEntity(ContentTypes.`application/json`, json.noSpaces)
     Post(s"/rest/raft/append").withEntity(e)
