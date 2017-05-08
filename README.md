@@ -1,7 +1,7 @@
 # A reactive restful exchange
 
 
-Your Client Here                                    Exchange                           Your Worker(s) Here
+      Your Client Here                             Exchange                           Your Worker(s) Here
 
                       Submit Job
               { submissionDetails :{}, job: {} }       +                                       +
