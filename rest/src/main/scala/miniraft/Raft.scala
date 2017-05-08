@@ -4,6 +4,7 @@ import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
 import io.circe.{Decoder, Encoder}
+import jabroni.rest.client.RestClient
 
 import scala.collection.immutable
 import scala.concurrent.{Future, Promise}
@@ -75,7 +76,7 @@ object Journal {
   def apply(commitIndex: CommitIndex = 0, lastLogTerm: Term = Term(0)) = new Journal(commitIndex, lastLogTerm)
 }
 
-class Node private(val id: NodeId, journal: Journal, initialTerm: Term) {
+class RaftNode private(val id: NodeId, journal: Journal, initialTerm: Term) {
   var currentTerm: Term = initialTerm
 
   def commitIndex = journal.commitIndex
@@ -219,8 +220,8 @@ class Node private(val id: NodeId, journal: Journal, initialTerm: Term) {
 }
 
 
-object Node {
-  def apply(id: NodeId = UUID.randomUUID().toString) = new Node(id, Journal(0, Term(0)), Term(1))
+object RaftNode {
+  def apply(id: NodeId = UUID.randomUUID().toString) = new RaftNode(id, Journal(0, Term(0)), Term(1))
 }
 
 trait ClusterClient {
@@ -244,128 +245,31 @@ sealed trait RaftRequest {
 sealed trait RaftResponse
 
 trait Transport {
-  //  def handle(msg: RaftRequest): Future[RaftResponse] = {
-  //    msg match {
-  //      case req: AppendEntries[_] => onAppendEntries(req)
-  //      case req: RequestVote => onRequestVote(req)
-  //    }
-  //  }
 
   def onAppendEntries[T: Encoder : Decoder](req: AppendEntries[T]): Future[AppendEntriesResponse]
 
   def onRequestVote(req: RequestVote): Future[RequestVoteResponse]
 }
 
-trait Broadcast extends Transport {
-  def nodeIds: Set[NodeId]
-}
+object Transport {
 
-object Broadcast {
-  //
-  //  case class Record(underlying: Broadcast) extends Broadcast {
-  //    private var pending = List[(RaftRequest, Promise[RaftResponse])]()
-  //
-  //    def pendingRequests = pending
-  //
-  //    def filter(f: RaftRequest => Boolean): List[(RaftRequest, Promise[RaftResponse])] = {
-  //      val found = pending.filter {
-  //        case (r, p) => f(r)
-  //      }
-  //      pending = pending.filterNot {
-  //        case (r, p) => f(r)
-  //      }
-  //      found
-  //    }
-  //
-  //    def remove(r: RaftRequest) = filter(_ == r)
-  //
-  //    override def nodeIds: Set[NodeId] = underlying.nodeIds
-  //
-  //    def justSend(msg: RaftRequest): Future[RaftResponse] = synchronized {
-  //      //    msg match {
-  //      //      case req: AppendEntries[_] => onAppendEntries(req)
-  //      //      case req: RequestVote => onRequestVote(req)
-  //      //    }
-  ////
-  ////      underlying.handle(msg)
-  //      ???
-  //    }
-  //
-  //    def flushAll: List[Future[RaftResponse]] = {
-  //      val r = pending.map(flush)
-  //      pending = Nil
-  //      r
-  //    }
-  //
-  //    def flush(pear: (RaftRequest, Promise[RaftResponse])): Future[RaftResponse] = synchronized {
-  //      val (r, p) = pear
-  //      val resp = justSend(r)
-  //      p.completeWith(resp)
-  //      resp
-  //    }
-  //
-  //    override def handle(msg: RaftRequest): Future[RaftResponse] = synchronized {
-  //      val promise = Promise[RaftResponse]()
-  //      pending = (msg, promise) :: pending
-  //      promise.future
-  //    }
-  //  }
+  import RestClient.implicits._
 
-}
-
-class Cluster(initialNodes: Set[Node] = Set("A", "B", "C", "D", "E").map(Node.apply)) {
-
-  val nodesById: Map[NodeId, Node] = {
-    val map = initialNodes.map { node =>
-      node.id -> node
-    }.toMap
-    map.values.foreach(_.setNodes(initialNodes.map(_.id)))
-    map
-  }
-
-  def nodeIds = nodesById.keySet
-
-  def size = nodesById.size
-
-  def apply(id: NodeId) = nodesById(id)
-
-  def triggerHeartbeatTimeout(id: NodeId, broadcast: Broadcast = EventBus, replyBroadcast: Broadcast = EventBus): Future[Set[RequestVoteResponse]] = {
-    val responses = nodesById(id).onHeartbeatTimeout(broadcast)
-    responses.foreach {
-      case (_, future: Future[RequestVoteResponse]) =>
-        future.onSuccess {
-          case resp: RequestVoteResponse => nodesById(id).onRequestVoteResponse(resp, replyBroadcast)
-        }
-    }
-    Future.sequence(responses.map(_._2))
-  }
-
-  object EventBus extends Broadcast {
-    self =>
-    override val nodeIds = nodesById.keySet
-
-
+  case class RaftRestTransport(rest: RestClient) extends Transport {
     override def onAppendEntries[T: Encoder : Decoder](req: AppendEntries[T]): Future[AppendEntriesResponse] = {
-      Future.successful(nodesById(req.to).handleAppendEntries(req))
+      rest.send(RaftHttp.forAppend(req)).flatMap(_.as[AppendEntriesResponse])
     }
 
     override def onRequestVote(req: RequestVote): Future[RequestVoteResponse] = {
-      Future.successful(nodesById(req.to).handleRequestVote(req))
+      rest.send(RaftHttp.forVote(req)).flatMap(_.as[RequestVoteResponse])
     }
   }
 
-  def nodes = nodesById.values.toSet
+  def apply(rest: RestClient): Transport = new RaftRestTransport(rest)
+}
 
-  val client: ClusterClient = {
-    new ClusterClient {
-      def append[T: Encoder : Decoder](values: List[T]): Future[Boolean] = {
-        nodes.find(_.isLeader) match {
-          case Some(leader) => leader.clientAppend(values, EventBus)
-          case None => Future.failed(new Exception("No leader available!"))
-        }
-      }
-    }
-  }
+trait Broadcast extends Transport {
+  def nodeIds: Set[NodeId]
 }
 
 case class AppendEntries[T: Encoder : Decoder](from: NodeId,

@@ -4,16 +4,20 @@ import io.circe.{Decoder, Encoder}
 
 import scala.concurrent.Future
 
-class RestBroadcast(initialNodes : Map[NodeId, Transport]) extends Broadcast {
-  override def nodeIds: Set[NodeId] = initialNodes.keySet
+class RestBroadcast(initialNodes: Map[NodeId, Transport]) extends Broadcast {
+  private var nodesById = initialNodes
 
-  var nodesById = initialNodes
-  def nodes = nodesById.values
+  override def nodeIds: Set[NodeId] = nodesById.keySet
+
   override def onRequestVote(req: RequestVote): Future[RequestVoteResponse] = {
     nodesById(req.to).onRequestVote(req)
   }
 
-  override def onAppendEntries[T : Encoder : Decoder](req: AppendEntries[T]): Future[AppendEntriesResponse] = {
+  override def onAppendEntries[T: Encoder : Decoder](req: AppendEntries[T]): Future[AppendEntriesResponse] = {
     nodesById(req.to).onAppendEntries(req)
   }
+}
+
+object RestBroadcast {
+  def apply(initialNodes: Map[NodeId, Transport]) = new RestBroadcast(initialNodes)
 }

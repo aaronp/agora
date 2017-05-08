@@ -72,6 +72,7 @@ object Example extends App with StrictLogging {
         println(work)
       case Failure(err) => throw err
     }
+    resp
   }
 
 
@@ -79,6 +80,7 @@ object Example extends App with StrictLogging {
     val port = 5000 + portOffset
     val name = s"worker-$portOffset"
     val conf = WorkerConfig(s"details.path=$name" +: s"port=$port" +: args)
+    require(conf.subscription.details.location.port == port, s"${conf.subscription.details.location.port} != ${port}")
     for {
       running: RunningWorker <- conf.startWorker()
       // add our computation handler to the worker. 
