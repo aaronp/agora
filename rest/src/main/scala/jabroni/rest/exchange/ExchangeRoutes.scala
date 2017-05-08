@@ -9,15 +9,14 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.unmarshalling.FromRequestUnmarshaller
 import akka.stream.Materializer
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
-import io.circe.{Decoder, Encoder}
 import io.circe.syntax._
+import io.circe.{Decoder, Encoder}
 import jabroni.api._
 import jabroni.api.exchange.Exchange._
 import jabroni.api.exchange._
 import jabroni.health.HealthDto
-import jabroni.rest.LoggingSupport
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 import scala.language.reflectiveCalls
 
 /**
@@ -55,7 +54,7 @@ case class ExchangeRoutes(exchangeForHandler: OnMatch[Unit] => Exchange with Que
     * Support routes to query the state of the exchange (queues)
     */
   object query {
-    def routes: Route = subscriptions ~ jobs
+    def routes: Route = subscriptions ~ subscriptionsGet ~ jobs ~ jobsGet
 
     def subscriptions = post {
       (path("subscriptions") & pathEnd) {
@@ -67,12 +66,28 @@ case class ExchangeRoutes(exchangeForHandler: OnMatch[Unit] => Exchange with Que
       }
     }
 
+    def subscriptionsGet = get {
+      (path("subscriptions") & pathEnd) {
+        complete {
+          exchange.listSubscriptions()
+        }
+      }
+    }
+
     def jobs = post {
       (path("jobs") & pathEnd) {
         entity(as[QueuedJobs]) { request =>
           complete {
             exchange.listJobs(request)
           }
+        }
+      }
+    }
+
+    def jobsGet = get {
+      (path("jobs") & pathEnd) {
+        complete {
+          exchange.listJobs()
         }
       }
     }
@@ -92,7 +107,7 @@ case class ExchangeRoutes(exchangeForHandler: OnMatch[Unit] => Exchange with Que
               val jobWithId = submitJob.jobId.fold(submitJob.withId(nextJobId()))(_ => submitJob)
               val matchFuture: Future[BlockingSubmitJobResponse] = observer.onJob(jobWithId)
               exchange.submit(jobWithId).flatMap { _ =>
-                matchFuture.map { r:  BlockingSubmitJobResponse =>
+                matchFuture.map { r: BlockingSubmitJobResponse =>
                   import implicits._
                   HttpResponse(
                     status = StatusCodes.TemporaryRedirect,

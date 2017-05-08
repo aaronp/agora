@@ -3,10 +3,11 @@ package miniraft
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
+import io.circe.{Decoder, Encoder}
+
 import scala.collection.immutable
 import scala.concurrent.{Future, Promise}
 import scala.util.Try
-
 import scala.concurrent.ExecutionContext.Implicits._
 
 sealed trait Role {
@@ -233,27 +234,27 @@ object PeerState {
 
 sealed trait Message
 
-sealed trait Request {
+sealed trait RaftRequest {
   def from: NodeId
 
   def to: NodeId
 }
 
-sealed trait Response
+sealed trait RaftResponse
 
 trait Transport {
-  def handle(msg: Request): Future[Response] = {
+  def handle(msg: RaftRequest): Future[RaftResponse] = {
     msg match {
       case req: AppendEntries[_] => onAppendEntries(req)
       case req: RequestVote => onRequestVote(req)
     }
   }
 
-  def onAppendEntries[T](req: AppendEntries[T]): Future[AppendEntriesResponse] = {
+  def onAppendEntries[T: Encoder : Decoder](req: AppendEntries[T]): Future[AppendEntriesResponse] = {
     handle(req).mapTo[AppendEntriesResponse]
   }
 
-  def onRequestVote[T](req: RequestVote): Future[RequestVoteResponse] = {
+  def onRequestVote(req: RequestVote): Future[RequestVoteResponse] = {
     handle(req).mapTo[RequestVoteResponse]
   }
 }
@@ -265,11 +266,11 @@ trait Broadcast extends Transport {
 object Broadcast {
 
   case class Record(underlying: Broadcast) extends Broadcast {
-    private var pending = List[(Request, Promise[Response])]()
+    private var pending = List[(RaftRequest, Promise[RaftResponse])]()
 
     def pendingRequests = pending
 
-    def filter(f: Request => Boolean): List[(Request, Promise[Response])] = {
+    def filter(f: RaftRequest => Boolean): List[(RaftRequest, Promise[RaftResponse])] = {
       val found = pending.filter {
         case (r, p) => f(r)
       }
@@ -279,29 +280,29 @@ object Broadcast {
       found
     }
 
-    def remove(r: Request) = filter(_ == r)
+    def remove(r: RaftRequest) = filter(_ == r)
 
     override def nodeIds: Set[NodeId] = underlying.nodeIds
 
-    def justSend(msg: Request): Future[Response] = synchronized {
+    def justSend(msg: RaftRequest): Future[RaftResponse] = synchronized {
       underlying.handle(msg)
     }
 
-    def flushAll: List[Future[Response]] = {
+    def flushAll: List[Future[RaftResponse]] = {
       val r = pending.map(flush)
       pending = Nil
       r
     }
 
-    def flush(pear: (Request, Promise[Response])): Future[Response] = synchronized {
+    def flush(pear: (RaftRequest, Promise[RaftResponse])): Future[RaftResponse] = synchronized {
       val (r, p) = pear
       val resp = justSend(r)
       p.completeWith(resp)
       resp
     }
 
-    override def handle(msg: Request): Future[Response] = synchronized {
-      val promise = Promise[Response]()
+    override def handle(msg: RaftRequest): Future[RaftResponse] = synchronized {
+      val promise = Promise[RaftResponse]()
       pending = (msg, promise) :: pending
       promise.future
     }
@@ -340,13 +341,13 @@ class Cluster(initialNodes: Set[Node] = Set("A", "B", "C", "D", "E").map(Node.ap
     self =>
     override val nodeIds = nodesById.keySet
 
-    override def handle(msg: Request): Future[Response] = {
+    override def handle(msg: RaftRequest): Future[RaftResponse] = {
       val response = invoke(msg.to, msg)
       logger.info(s"\n$msg\nyields\n$response\n\n")
       Future.successful(response)
     }
 
-    private def invoke(id: NodeId, msg: Request): Response = {
+    private def invoke(id: NodeId, msg: RaftRequest): RaftResponse = {
       msg match {
         case req: AppendEntries[_] => nodesById(id).handleAppendEntries(req)
         case req: RequestVote => nodesById(id).handleRequestVote(req)
@@ -368,20 +369,20 @@ class Cluster(initialNodes: Set[Node] = Set("A", "B", "C", "D", "E").map(Node.ap
   }
 }
 
-case class AppendEntries[T](from: NodeId,
-                            to: NodeId,
-                            term: Term,
-                            knownState: PeerState,
-                            entries: List[T],
-                            commitIndex: CommitIndex) extends Request {
+case class AppendEntries[T: Encoder : Decoder](from: NodeId,
+                                               to: NodeId,
+                                               term: Term,
+                                               knownState: PeerState,
+                                               entries: List[T],
+                                               commitIndex: CommitIndex) extends RaftRequest {
   def prevIndex = knownState.matchIndex
 
   def prevTerm = knownState.term
 }
 
 
-case class AppendEntriesResponse(from: NodeId, to: NodeId, term: Term, success: Boolean, matchIndex: CommitIndex) extends Response
+case class AppendEntriesResponse(from: NodeId, to: NodeId, term: Term, success: Boolean, matchIndex: CommitIndex) extends RaftResponse
 
-case class RequestVote(from: NodeId, to: NodeId, term: Term, lastLogIndex: CommitIndex, lastLogTerm: Term) extends Request
+case class RequestVote(from: NodeId, to: NodeId, term: Term, lastLogIndex: CommitIndex, lastLogTerm: Term) extends RaftRequest
 
-case class RequestVoteResponse(from: NodeId, to: NodeId, term: Term, granted: Boolean) extends Response
+case class RequestVoteResponse(from: NodeId, to: NodeId, term: Term, granted: Boolean) extends RaftResponse
