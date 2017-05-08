@@ -15,11 +15,11 @@
       | |                                              |                                       |
       | |                                              |                                       |
       | |                                              |                                       |
-      +++         Dude, good news! Here's              +<--------- take {key:X, n:1} ----------+
-       | <-----+ somebody who says they'll-------------+                                       |
+      +++         Dude, good news! Here's              +<--------- take {key:X, n:1} ----------+   // at this point the 1 work 
+       | <-----+ somebody who says they'll-------------+                                       |   // item is decremented
        |              take your job!                   |                                       |
        |                                               |                                       |
-                                                       +                                       |
+       |                                               +                                       |
        |               I have it on good authority that if I send you request X                |
        |               (1) you can handle it ('cause you asked for it)                         |
        +-------------- (2) it won't overload you                                    ---------> |
