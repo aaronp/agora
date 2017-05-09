@@ -81,7 +81,7 @@ object JMatcher {
       def asMatchAll: Result[JMatcher] = c.as[String] match {
         case Right("match-all") => Right(MatchAll): Result[JMatcher]
         case Right(other) => Left(DecodingFailure(s"Expected 'match-all', but got '$other'", c.history)): Result[JMatcher]
-        case left: Result[JMatcher] => left
+        case left: Result[_] => left.asInstanceOf[Result[JMatcher]]
       }
 
       import io.circe.generic.auto._

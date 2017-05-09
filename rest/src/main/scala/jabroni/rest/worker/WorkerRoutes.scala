@@ -33,10 +33,6 @@ case class WorkerRoutes(exchange: Exchange = Exchange(),
 
   private var workerByPath = Map[String, OnWork[_]]()
 
-  /** @return the available route handlers a string
-    */
-  private def availableHandlers: String = workerByPath.keySet.toList.sorted.mkString("[", ",", "]")
-
   def routes: Route = workerRoutes ~ multipartRoutes ~ health
 
 
@@ -65,13 +61,19 @@ case class WorkerRoutes(exchange: Exchange = Exchange(),
   }
 
   /**
-    * Add a handler
+    * The main body for a handler ... registers a function ('onReq') which does some work.
     *
-    * @param onReq
-    * @param subscription
-    * @param initialRequest
-    * @tparam T
-    * @return
+    * Instead of a thinking of a generic computation as a function from A => B, This exposes
+    * the function as WorkContext[A] => ResponseEntity
+    *
+    * The WorkContext exposes a handle onto the exchange (so the computation can request more work)
+    * and access details about the work sent to it
+    *
+    * @param onReq          the compute functions
+    * @param subscription   the subscription to use when asking for work for this computation
+    * @param initialRequest how many work items to initially ask for
+    * @tparam T the request input type
+    * @return a future of the 'request work' ack
     */
   def handleAny[T](onReq: WorkContext[T] => ResponseEntity)
                   (implicit subscription: WorkSubscription = defaultSubscription,

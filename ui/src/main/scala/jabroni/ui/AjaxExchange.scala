@@ -2,7 +2,9 @@ package jabroni.ui
 
 import io.circe
 import io.circe.Decoder
+import io.circe.generic.auto._
 import jabroni.api.exchange._
+import jabroni.api.json.JMatcher
 import org.scalajs.dom.{XMLHttpRequest, window}
 import org.scalajs.dom.ext.Ajax
 
@@ -18,7 +20,7 @@ object AjaxExchange {
   def apply(baseUrl: String = baseUrlFromWindow): AjaxExchange = new AjaxExchange(baseUrl)
 }
 
-class AjaxExchange(baseUrl: String)(implicit ec : ExecutionContext) extends Exchange {
+class AjaxExchange(baseUrl: String)(implicit ec: ExecutionContext) extends Exchange {
 
   import io.circe.syntax._
   import io.circe.parser._
@@ -33,14 +35,24 @@ class AjaxExchange(baseUrl: String)(implicit ec : ExecutionContext) extends Exch
     }
   }
 
-//
-//  override def listJobs(request: QueuedJobs) : Future[QueuedJobsResponse] = ???
-//    Ajax.post(s"$baseUrl/jobs", request.asJson.noSpaces).map(_.jsonAs[QueuedJobsResponse])
-//  }
-//
-//  override def listSubscriptions(request: ListSubscriptions): Future[ListSubscriptionsResponse] = ???
-//    Ajax.post(s"$baseUrl/subscriptions", request.asJson.noSpaces).map(_.jsonAs[ListSubscriptionsResponse])
-//  }
+  def jobs(subscriptionMatcher : JMatcher): Future[List[SubmitJob]] = {
+    Ajax.get(s"$baseUrl/jobs").map(_.jsonAs[List[SubmitJob]])
+  }
+
+  def subscriptions(jobMatcher : JMatcher): Future[List[PendingSubscription]] = {
+    //    Ajax.post(s"$baseUrl/subscriptions", request.asJson.noSpaces).map(_.jsonAs[ListSubscriptionsResponse])
+    Ajax.get(s"$baseUrl/subscriptions").map(_.jsonAs[List[PendingSubscription]])
+  }
+
+  // weird .. this breaks scalajs
+  //
+  //  override def listJobs(request: QueuedJobs) : Future[QueuedJobsResponse] = ???
+  //    Ajax.post(s"$baseUrl/jobs", request.asJson.noSpaces).map(_.jsonAs[QueuedJobsResponse])
+  //  }
+  //
+  //  override def listSubscriptions(request: ListSubscriptions): Future[ListSubscriptionsResponse] = ???
+  //    Ajax.post(s"$baseUrl/subscriptions", request.asJson.noSpaces).map(_.jsonAs[ListSubscriptionsResponse])
+  //  }
 
   override def subscribe(request: WorkSubscription) = {
     val json = request.asJson.noSpaces

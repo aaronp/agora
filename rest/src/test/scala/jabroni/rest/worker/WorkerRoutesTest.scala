@@ -1,10 +1,9 @@
 package jabroni.rest
 package worker
 
-import java.nio.file.{Files, Path, Paths, StandardOpenOption}
+import java.nio.file.{Files, Path, Paths}
 
-import akka.http.scaladsl.model.Multipart.FormData
-import akka.{Done, NotUsed}
+import akka.Done
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpRequest, StatusCodes}
 import akka.stream.IOResult
 import akka.stream.scaladsl.{FileIO, Sink, Source}
@@ -14,10 +13,8 @@ import io.circe.Json
 import io.circe.generic.auto._
 import jabroni.api._
 import jabroni.api.`match`.MatchDetails
-import jabroni.rest.BaseSpec
 import jabroni.rest.multipart.MultipartBuilder
 
-import scala.collection.immutable
 import scala.concurrent.Future
 import scala.language.reflectiveCalls
 
@@ -29,7 +26,6 @@ class WorkerRoutesTest extends BaseSpec {
 
     "be able to upload from sourceWithUnknownSize" ignore {
       val wr = WorkerRoutes()
-
 
       wr.handleMultipart { ctxt =>
 
@@ -100,16 +96,7 @@ class WorkerRoutesTest extends BaseSpec {
         val expectedSize = Files.size(path)
         val upload = MultipartBuilder().
           json("someData", """{ "x" : 1 """).
-                    source("some.file", expectedSize, content).multipart
-//          sourceWithComputedSize("some.file", content).block.multipart
-
-//        val part: FormData.BodyPart = MultipartBuilder().sourceWithComputedSize("some.file", content).block.listParts.head
-//        val fuck = part.entity.dataBytes.runForeach { bs =>
-//
-//          println(s"test sanity check : ${bs.size} " + bs.decodeString("UTF-8"))
-//
-//        }
-//        fuck.block
+          source("some.file", expectedSize, content).multipart
 
         val httpRequest = WorkerClient.multipartRequest("uploadTest", matchDetails, upload)
 
