@@ -1,3 +1,5 @@
+name := "jabroni-ui"
+
 enablePlugins(ScalaJSPlugin)
 
 scalaJSUseMainModuleInitializer in Compile := true
