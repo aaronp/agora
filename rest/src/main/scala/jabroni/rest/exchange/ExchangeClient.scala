@@ -13,7 +13,6 @@ class ExchangeClient(val rest: RestClient)(implicit val sys: ActorSystem, mat: M
   extends Exchange
     with QueueObserver
     with RoutingClient
-    //    with  FailFastCirceSupport {
 {
 
   protected def haveAMaterializer = mat

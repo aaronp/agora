@@ -3,6 +3,7 @@ package miniraft
 import io.circe.{Decoder, Encoder}
 
 import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits._
 
 class Cluster(initialNodes: Set[RaftNode] = Set("A", "B", "C", "D", "E").map(RaftNode.apply)) {
 

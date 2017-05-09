@@ -2,6 +2,9 @@ package jabroni.api.exchange
 
 import scala.concurrent.Future
 
+/**
+  * Represents something which can check the current state of the exchange queues
+  */
 trait QueueObserver {
 
 

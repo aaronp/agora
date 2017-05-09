@@ -26,10 +26,5 @@ class WorkSubscriptionTest extends WordSpec with Matchers {
       sub.matches(Map("value" -> 123).asJob(details)) shouldBe true
       sub.matches(Map("value" -> 121).asJob(details)) shouldBe false
     }
-
-
-    import io.circe.syntax._
-    println(WorkSubscription().asJson)
-    println("")
   }
 }

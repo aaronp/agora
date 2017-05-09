@@ -1,20 +1,18 @@
 package jabroni.rest.worker
 
 import com.typesafe.scalalogging.StrictLogging
+import jabroni.api.Implicits._
 import jabroni.api._
-import jabroni.api.exchange.{ClientResponse, SubmitJobResponse}
 import jabroni.rest.RunningService
-import jabroni.rest.exchange.{CompletedWork, ExchangeClient, ExchangeConfig, ExchangeRoutes}
-import jabroni.rest.worker.Example.exchange
+import jabroni.rest.exchange.{ExchangeClient, ExchangeConfig, ExchangeRoutes}
 import jabroni.rest.worker.WorkerConfig.RunningWorker
 
 import scala.collection.immutable
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
-import scala.language.reflectiveCalls
-import scala.util.{Failure, Success, Try}
-import Implicits._
+import scala.language.{postfixOps, reflectiveCalls}
+import scala.util.{Failure, Success}
 
 object Example extends App with StrictLogging {
 
@@ -56,9 +54,7 @@ object Example extends App with StrictLogging {
   val workers: immutable.Seq[RunningWorker] = Await.result(Future.sequence(workerFutures), 10.seconds)
 
   // and double some numbers!
-  // here we just nick one of the worker's exchange clients, 
-  // but we could just as easily connect to the exchange from elsewhere (e.g. a non-worker)
-  val exchange: ExchangeClient = workers.head.service.exchange
+  val exchange: ExchangeClient = WorkerConfig().exchange
 
   (0 to 100).foreach { input =>
     

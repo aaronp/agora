@@ -8,7 +8,7 @@ import scala.concurrent.ExecutionContext
 
 object WorkerHttp extends RequestBuilding {
 
-  def apply[T: ToEntityMarshaller](path: String, request: T)(implicit ec: ExecutionContext): HttpRequest = {
-    Post(s"/rest/worker/$path", request)
+  def apply[T: ToEntityMarshaller](prefix : String, path: String, request: T)(implicit ec: ExecutionContext): HttpRequest = {
+    Post(s"/rest/$prefix/$path", request)
   }
 }

@@ -28,7 +28,7 @@ class ExchangeRoutesTest extends BaseSpec {
 
   "PUT /rest/exchange/submit" should {
     "submit jobs" in {
-      ExchangeHttp(123.asJob()) ~> routes() ~> check {
+      ExchangeHttp(123.asJob().withAwaitMatch(false)) ~> routes() ~> check {
         val resp = responseAs[SubmitJobResponse]
         resp.id should not be (null)
       }

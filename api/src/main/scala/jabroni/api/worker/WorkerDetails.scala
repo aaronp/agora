@@ -32,6 +32,8 @@ case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
 
   def withData[T: Encoder](data: T, name: String = null) = copy(aboutMe = mergeJson(data, name))
 
+  def withPath(path : String) = append("path", path)
+
   private def locationOpt: Option[HostLocation] = {
     for {
       host <- hostPath.getOption(aboutMe)
@@ -43,7 +45,7 @@ case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
     sys.error(s"invalid json: 'location' not set: ${aboutMe}")
   }
 
-  def url = path.map(p => s"${location.asURL}/rest/worker/$p")
+  def url = path.map(p => s"${location.asURL}/$p")
 
   def name = namePath.getOption(aboutMe)
 

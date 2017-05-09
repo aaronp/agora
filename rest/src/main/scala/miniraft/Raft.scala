@@ -3,7 +3,9 @@ package miniraft
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
+import akka.stream.Materializer
 import io.circe.{Decoder, Encoder}
+import io.circe.generic.auto._
 import jabroni.rest.client.RestClient
 
 import scala.collection.immutable
@@ -255,7 +257,7 @@ object Transport {
 
   import RestClient.implicits._
 
-  case class RaftRestTransport(rest: RestClient) extends Transport {
+  case class RaftRestTransport(rest: RestClient)(implicit mat : Materializer) extends Transport {
     override def onAppendEntries[T: Encoder : Decoder](req: AppendEntries[T]): Future[AppendEntriesResponse] = {
       rest.send(RaftHttp.forAppend(req)).flatMap(_.as[AppendEntriesResponse])
     }
@@ -265,7 +267,7 @@ object Transport {
     }
   }
 
-  def apply(rest: RestClient): Transport = new RaftRestTransport(rest)
+  def apply(rest: RestClient)(implicit mat : Materializer): Transport = new RaftRestTransport(rest)
 }
 
 trait Broadcast extends Transport {

@@ -37,13 +37,14 @@ case class RaftConfig(override val config: Config) extends ServerConfig {
   val raftId = config.getString("raftId")
 
   def broadcast: Broadcast = {
-    new RestBroadcast()
+    new RestBroadcast(Map.empty)
   }
 
   lazy val raftNode = RaftNode(raftId)
   lazy val raftRoutes: RaftRoutes[NodeState] = {
+    import io.circe.generic.auto._
     import implicits._
-    RaftRoutes[NodeState](raftNode, broadcast)
+    RaftRoutes[NodeState](raftNode)
   }
 
   def routes: Route = {

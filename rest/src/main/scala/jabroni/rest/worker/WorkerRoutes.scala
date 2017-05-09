@@ -11,31 +11,33 @@ import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.{Decoder, Encoder, Json}
-import jabroni.api.exchange.{RequestWorkAck, WorkSubscription, WorkSubscriptionAck}
+import jabroni.api.exchange.{Exchange, RequestWorkAck, WorkSubscription, WorkSubscriptionAck}
 import jabroni.api.worker.SubscriptionKey
 import jabroni.health.HealthDto
 import jabroni.rest.MatchDetailsExtractor
-import jabroni.rest.exchange.ExchangeClient
 
 import scala.concurrent.Future
 import scala.language.reflectiveCalls
 
-// see http://doc.akka.io/docs/akka-stream-and-http-experimental/1.0/scala/http/routing-dsl/index.html
-case class WorkerRoutes(exchange: ExchangeClient,
-                        defaultSubscription: WorkSubscription,
-                        defaultInitialRequest: Int)(implicit mat: Materializer) extends FailFastCirceSupport {
 
-  import mat._
+// see http://doc.akka.io/docs/akka-stream-and-http-experimental/1.0/scala/http/routing-dsl/index.html
+case class WorkerRoutes(exchange: Exchange,
+                        defaultSubscription: WorkSubscription,
+                        defaultInitialRequest: Int)(implicit mat: Materializer)
+  extends FailFastCirceSupport
+    with MultipartRouteSupport {
+
+  implicit val ec = mat.executionContext
 
   private object HandlerWriteLock
 
   private var workerByPath = Map[String, OnWork[_]]()
 
-  /** @return the available route handlers
+  /** @return the available route handlers a string
     */
-  def available = workerByPath.keySet.toList.sorted.mkString("[", ",", "]")
+  private def availableHandlers: String = workerByPath.keySet.toList.sorted.mkString("[", ",", "]")
 
-  def routes: Route = workerRoutes ~ health
+  def routes: Route = workerRoutes ~ multipartRoutes ~ health
 
 
   def health = (get & path("health") & pathEnd) {
@@ -45,46 +47,19 @@ case class WorkerRoutes(exchange: ExchangeClient,
     }
   }
 
-  def workerRoutes: Route = pathPrefix("rest" / "worker") {
-    extractRequest { request =>
 
+  def workerRoutes: Route = pathPrefix("rest" / "worker") {
+    post {
       path(Remaining) { remaining =>
         find(remaining) match {
-          case None =>
-            complete(
-              HttpResponse(BadRequest, entity = s"No handler found for '$remaining'. Available handlers are: ${available}")
-            )
+          case None => reject
           case Some(worker) =>
-            complete {
-              worker.handle(request)
+            extractRequest { request =>
+              complete {
+                worker.handle(request)
+              }
             }
         }
-      }
-    }
-  }
-
-  /**
-    * Captures the 'handler' logic for a subscription.
-    */
-  private class OnWork[T](subscription: WorkSubscription, initialRequest: Int, unmarshaller: Unmarshaller[HttpRequest, T], onReq: WorkContext[T] => ResponseEntity) {
-    /**
-      * we have the case where a worker can actually handle a request at any time from a client ... even before we bother
-      * subscribing to the exchange.
-      *
-      * This isn't even a race condition ... there's nothing to say requests to a worker 'microservice' (ahem) has to
-      * have gone through our exchange at all.
-      *
-      * Hence, the subscription key is optional
-      */
-    var key: Option[SubscriptionKey] = None
-
-    def handle(req: HttpRequest): Future[HttpResponse] = {
-      unmarshaller(req).map { tea =>
-        val details = MatchDetailsExtractor.unapply(req)
-
-        val context = WorkContext(exchange, key, subscription, details, tea)
-        val respEntity: ResponseEntity = onReq(context)
-        HttpResponse(entity = respEntity)
       }
     }
   }
@@ -103,8 +78,8 @@ case class WorkerRoutes(exchange: ExchangeClient,
                    initialRequest: Int = defaultInitialRequest,
                    fromRequest: Unmarshaller[HttpRequest, T]): Future[RequestWorkAck] = {
 
-    val subscriptionAckFuture: Future[WorkSubscriptionAck] = exchange.subscribe(subscription)
     val path = subscription.details.path.getOrElse(sys.error(s"The subscription doesn't contain a path: ${subscription.details}"))
+    val subscriptionAckFuture: Future[WorkSubscriptionAck] = exchange.subscribe(subscription)
 
     val handler = new OnWork[T](subscription, initialRequest, fromRequest, onReq)
 
@@ -138,8 +113,8 @@ case class WorkerRoutes(exchange: ExchangeClient,
     * @return
     */
   def handle[In: Decoder, Out: Encoder](onReq: WorkContext[In] => Out)
-                                          (implicit subscription: WorkSubscription = defaultSubscription,
-                                           initialRequest: Int = defaultInitialRequest): Future[RequestWorkAck] = {
+                                       (implicit subscription: WorkSubscription = defaultSubscription,
+                                        initialRequest: Int = defaultInitialRequest): Future[RequestWorkAck] = {
     handleJson[In] { (ctxt: WorkContext[In]) =>
       val resp: Out = onReq(ctxt)
       implicitly[Encoder[Out]].apply(resp)
@@ -158,9 +133,9 @@ case class WorkerRoutes(exchange: ExchangeClient,
 
 
   def handleSource[T: Decoder](onReq: WorkContext[T] => Source[ByteString, Any])
-                     (implicit subscription: WorkSubscription = defaultSubscription,
-                      initialRequest: Int = defaultInitialRequest,
-                      contentType: ContentType = ContentTypes.`application/octet-stream`): Future[RequestWorkAck] = {
+                              (implicit subscription: WorkSubscription = defaultSubscription,
+                               initialRequest: Int = defaultInitialRequest,
+                               contentType: ContentType = ContentTypes.`application/octet-stream`): Future[RequestWorkAck] = {
     handleAny[T] { (ctxt: WorkContext[T]) =>
       val dataSource: Source[ByteString, Any] = onReq(ctxt)
       HttpEntity(contentType, dataSource)
@@ -177,5 +152,33 @@ case class WorkerRoutes(exchange: ExchangeClient,
     }
   }
 
-  private def find(workerName: String) = workerByPath.get(workerName)
+  private def find(workerName: String): Option[OnWork[_]] = workerByPath.get(workerName)
+
+
+  /**
+    * Captures the 'handler' logic for a subscription.
+    */
+  private class OnWork[T](subscription: WorkSubscription, initialRequest: Int, unmarshaller: Unmarshaller[HttpRequest, T], onReq: WorkContext[T] => ResponseEntity) {
+    /**
+      * we have the case where a worker can actually handle a request at any time from a client ... even before we bother
+      * subscribing to the exchange.
+      *
+      * This isn't even a race condition ... there's nothing to say requests to a worker 'microservice' (ahem) has to
+      * have gone through our exchange at all.
+      *
+      * Hence, the subscription key is optional
+      */
+    var key: Option[SubscriptionKey] = None
+
+    def handle(req: HttpRequest): Future[HttpResponse] = {
+      unmarshaller(req).map { tea =>
+        val details = MatchDetailsExtractor.unapply(req)
+
+        val context = WorkContext(exchange, key, subscription, details, tea)
+        val respEntity: ResponseEntity = onReq(context)
+        HttpResponse(entity = respEntity)
+      }
+    }
+  }
+
 }

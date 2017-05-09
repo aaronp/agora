@@ -1,5 +1,7 @@
 name := "jabroni"
 
+organization := "com.github.aaronp"
+
 scalaVersion := "2.11.8"
 
 enablePlugins(GitVersioning)
@@ -14,6 +16,7 @@ val aLotOfResolvers = List(
 
 val commonSettings: Seq[Def.Setting[_]] = Seq(
     //version := parentProject.settings.ver.value,
+    organization := "com.github.aaronp",
     scalaVersion := "2.11.8",
     javacOptions ++= Seq("-source", "1.8", "-target", "1.8"), //, "-Xmx2G"),
     scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature"),

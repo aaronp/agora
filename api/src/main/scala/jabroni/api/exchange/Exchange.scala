@@ -5,7 +5,7 @@ import jabroni.api.worker.SubscriptionKey
 import jabroni.api.{JobId, nextJobId, nextSubscriptionKey}
 
 import scala.collection.parallel.ParSeq
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 
 /**
   * An exchange supports both 'client' requests (e.g. offering and cancelling work to be done)

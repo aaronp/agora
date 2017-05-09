@@ -172,8 +172,11 @@ case class WorkSubscription(details: WorkerDetails = WorkerDetails(),
     */
   def matching(matcher: JMatcher) = copy(jobMatcher = matcher)
 
-  def withData[T: Encoder](data: T, name: String = null) = {
-    copy(details = details.withData(data, name))
+  def withData[T: Encoder](data: T, name: String = null) = withDetails(_.withData(data, name))
+  def withPath(path : String) = withDetails(_.withPath(path))
+
+  def withDetails(f : WorkerDetails => WorkerDetails) = {
+    copy(details = f(details))
   }
 
 }
