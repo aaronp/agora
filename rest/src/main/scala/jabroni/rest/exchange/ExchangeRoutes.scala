@@ -33,7 +33,7 @@ import scala.language.reflectiveCalls
   *
   * @see http://doc.akka.io/docs/akka-stream-and-http-experimental/1.0/scala/http/routing-dsl/index.html
   */
-case class ExchangeRoutes(exchangeForHandler: OnMatch[Unit] => Exchange with QueueObserver = Exchange.apply(_)())(implicit mat: Materializer)
+case class ExchangeRoutes(exchangeForHandler: OnMatch => Exchange with QueueObserver = Exchange.apply(_)())(implicit mat: Materializer)
   extends FailFastCirceSupport
     with LoggingSupport {
 

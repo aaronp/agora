@@ -21,9 +21,9 @@ import scala.language.reflectiveCalls
 
 
 // see http://doc.akka.io/docs/akka-stream-and-http-experimental/1.0/scala/http/routing-dsl/index.html
-case class WorkerRoutes(exchange: Exchange,
-                        defaultSubscription: WorkSubscription,
-                        defaultInitialRequest: Int)(implicit mat: Materializer)
+case class WorkerRoutes(exchange: Exchange = Exchange(),
+                        defaultSubscription: WorkSubscription = WorkSubscription(),
+                        defaultInitialRequest: Int = 1)(implicit mat: Materializer)
   extends FailFastCirceSupport
     with MultipartRouteSupport {
 

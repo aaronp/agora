@@ -13,7 +13,7 @@ trait ExchangeSpec extends WordSpec with Matchers with ScalaFutures with Eventua
 
   import ExchangeSpec._
 
-  def newExchange[T](observer: OnMatch[T]): Exchange
+  def newExchange(observer: OnMatch): Exchange
 
   "Exchange" should {
     "match jobs with work subscriptions" in {

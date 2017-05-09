@@ -15,20 +15,20 @@ import scala.util.control.NonFatal
 /**
   * Represents a match 'handler' which delegates out to other observers
   */
-trait MatchObserver extends Exchange.OnMatch[Unit] with StrictLogging {
+trait MatchObserver extends Exchange.OnMatch with StrictLogging {
 
   import Exchange._
   import MatchObserver._
 
-  private var observers = List[OnMatch[Any]]()
+  private var observers = List[OnMatch]()
 
-  def -=[T](observer: OnMatch[T]): Boolean = {
+  def -=(observer: OnMatch): Boolean = {
     val before = observers.size
     observers = observers.diff(List(observer))
     before != observers.size
   }
 
-  def +=[T, O <: OnMatch[T]](observer: O): O = {
+  def +=[O <: OnMatch](observer: O): O = {
     observers = observer :: observers
     observer
   }
@@ -63,9 +63,15 @@ trait MatchObserver extends Exchange.OnMatch[Unit] with StrictLogging {
     promise.future
   }
 
-  def onceWhen(pf: PartialFunction[Match, Unit]) = +=[Unit, PartialHandler](new PartialHandler(this, pf, true))
+  /**
+    * Invoke the partial function when it applies, then remove it
+    */
+  def onceWhen(pf: PartialFunction[Match, Unit]): PartialHandler = +=(new PartialHandler(this, pf, true))
 
-  def alwaysWhen(pf: PartialFunction[Match, Unit]) = +=[Unit, PartialHandler](new PartialHandler(this, pf, false))
+  /**
+    * Always invoke the partial function whenever it applies
+    */
+  def alwaysWhen(pf: PartialFunction[Match, Unit]): PartialHandler = +=(new PartialHandler(this, pf, false))
 
   override def apply(jobMatch: Exchange.Match): Unit = {
     observers.foreach { obs =>
@@ -85,7 +91,7 @@ object MatchObserver {
 
   def apply(): MatchObserver = new Instance
 
-  abstract class BaseHandler extends Exchange.OnMatch[Unit] {
+  abstract class BaseHandler extends Exchange.OnMatch {
     private val id = UUID.randomUUID()
 
     override def hashCode = id.hashCode() * 7

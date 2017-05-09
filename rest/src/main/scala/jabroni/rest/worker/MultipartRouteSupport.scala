@@ -1,16 +1,19 @@
 package jabroni.rest.worker
 
-import akka.http.scaladsl.model.StatusCodes.BadRequest
+import java.nio.file.{Files, Paths, StandardOpenOption}
+
 import akka.http.scaladsl.model.{HttpResponse, ResponseEntity}
 import akka.http.scaladsl.server.Directives.{complete, extractRequest, path, pathPrefix, _}
 import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.server.directives.BasicDirectives.extractRequestContext
+import akka.stream.scaladsl.FileIO
 import jabroni.api.`match`.MatchDetails
 import jabroni.api.exchange.{RequestWorkAck, WorkSubscription, WorkSubscriptionAck}
 import jabroni.api.worker.SubscriptionKey
 import jabroni.rest.MatchDetailsExtractor
 import jabroni.rest.multipart.{MultipartDirectives, MultipartPieces}
 
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
 import scala.language.reflectiveCalls
 
 // TODO- I'm sure we can remove this entirely, just using a multipart unmarshaller
@@ -19,14 +22,14 @@ trait MultipartRouteSupport extends MultipartDirectives {
 
   def multipartRoutes: Route = post {
     pathPrefix("rest" / "multipart") {
-      extractRequest { request =>
+      extractRequestContext { ctx =>
+        val request = ctx.request
         path(Remaining) { remaining =>
-
-          println(s"Checking multipart '$remaining' against ${availableMultipartHandlers}")
           findOnWork(remaining) match {
             case None => reject
             case Some(worker) =>
               multipartData { (sourcesByKey: MultipartPieces) =>
+
                 complete {
                   val details = MatchDetailsExtractor.unapply(request)
                   val httpResp = worker.handle(details, sourcesByKey)

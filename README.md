@@ -39,3 +39,7 @@
 ![sbt test cucumber](https://travis-ci.org/aaronp/jabroni.svg?branch=release)
 
 
+TODO:
+1) get a streaming client working w/ the workerroutes test
+2) write a two worker feature test where the same work goes to both
+3) add a worker UI for handling json jobs

@@ -2,7 +2,7 @@ package jabroni.api.exchange
 
 import com.typesafe.scalalogging.StrictLogging
 import jabroni.api.worker.SubscriptionKey
-import jabroni.api.{JobId, nextJobId, nextSubscriptionKey}
+import jabroni.api.{JobId, nextJobId}
 
 import scala.collection.parallel.ParSeq
 import scala.concurrent.Future
@@ -30,13 +30,14 @@ trait Exchange extends JobPublisher { //with QueueObserver {
 object Exchange {
 
 
-  def apply[T](onMatch: OnMatch[T])(implicit matcher: JobPredicate = JobPredicate()): Exchange with QueueObserver = new InMemory(onMatch)
+  def apply(onMatch: OnMatch = MatchObserver.apply())(implicit matcher: JobPredicate = JobPredicate()): Exchange with QueueObserver = new InMemory(onMatch)
 
   type Remaining = Int
   type Match = (SubmitJob, Seq[(SubscriptionKey, WorkSubscription, Remaining)])
-  type OnMatch[+T] = Match => T
 
-  class InMemory(onMatch: OnMatch[Any])(implicit matcher: JobPredicate) extends Exchange with QueueObserver with StrictLogging {
+  type OnMatch = Match => Unit
+
+  class InMemory(onMatch: OnMatch)(implicit matcher: JobPredicate) extends Exchange with QueueObserver with StrictLogging {
 
     private object SubscriptionLock
 
@@ -66,7 +67,7 @@ object Exchange {
     }
 
     override def subscribe(subscription: WorkSubscription) = {
-      val id = subscription.details.id.getOrElse(nextSubscriptionKey)
+      val id = subscription.key
       logger.debug(s"Creating new subscription [$id] $subscription")
       SubscriptionLock.synchronized {
         subscriptionsById = subscriptionsById.updated(id, subscription -> 0)

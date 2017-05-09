@@ -1,8 +1,11 @@
-package jabroni.rest.multipart
+package jabroni.rest
+package multipart
 
 import java.nio.file.{Files, Path}
 
 import akka.http.scaladsl.marshalling.Marshal
+import akka.http.scaladsl.model.HttpEntity.IndefiniteLength
+import akka.http.scaladsl.model.Multipart.FormData
 import akka.http.scaladsl.model._
 import akka.stream.IOResult
 import akka.stream.scaladsl.{FileIO, Source}
@@ -15,17 +18,14 @@ class MultipartBuilder {
 
   private var parts = List[Multipart.FormData.BodyPart]()
 
+  def listParts = parts
+
   def file(key: String, fileName: String, entity: HttpEntity.Strict): MultipartBuilder = {
     val part: Multipart.FormData.BodyPart = Multipart.FormData.BodyPart.Strict(
       key,
       entity,
       Map("filename" -> fileName))
     add(part)
-  }
-
-  def add(part: Multipart.FormData.BodyPart) = {
-    parts = part :: parts
-    this
   }
 
   def upload(filePath: Path, chunkSize: Int = 1000) = {
@@ -37,37 +37,68 @@ class MultipartBuilder {
   def source(fileName: String,
              contentLength: Long,
              data: Source[ByteString, Any],
-             contentType: ContentType = ContentTypes.`application/octet-stream`) = {
-    val part = Multipart.FormData.BodyPart(fileName, _entity = HttpEntity(contentType, contentLength, data))
+             contentType: ContentType = ContentTypes.`application/octet-stream`): MultipartBuilder = {
+    val entity = HttpEntity(contentType, contentLength, data)
+    val part: FormData.BodyPart = Multipart.FormData.BodyPart(fileName, _entity = entity, Map("filename" -> fileName))
     add(part)
   }
+//
+//  def sourceWithComputedSize(fileName: String,
+//                             data: Source[ByteString, Any],
+//                             contentType: ContentType = ContentTypes.`application/octet-stream`)(implicit materializer: akka.stream.Materializer): Future[MultipartBuilder] = {
+//    import materializer._
+//    sizeOf(data).map { size =>
+//      source(fileName, size, data, contentType)
+//    }
+//  }
+  //
+  //  def sizeOf(src: Source[ByteString, Any])(implicit materializer: akka.stream.Materializer): Future[Long] = {
+  //    src.map { bs =>
+  //      val len = bs.size.toLong
+  //      val x = bs.decodeString("UTF-8")
+  //      val len2 = x.length
+  //
+  //      println(s"$len vs $len2 for $x")
+  //      len2.toLong
+  //
+  //    }.runReduce(_ + _)
+  //  }
 
-  def json[T: Encoder](value: T, key: String = "json") = {
+  def json[T: Encoder](key: String, value: T): MultipartBuilder = {
     val jsonString = implicitly[Encoder[T]].apply(value)
-    val jsonPart = Multipart.FormData.BodyPart.Strict(
-      key,
-      HttpEntity(ContentTypes.`application/json`, jsonString.noSpaces))
+    json(key, jsonString.noSpaces)
+  }
 
+  def json(key: String, jsonString: String): MultipartBuilder = text(key, jsonString, ContentTypes.`application/json`)
+
+  def text(key: String, text: String, contentType: ContentType = ContentTypes.`text/plain(UTF-8)`): MultipartBuilder = {
+    val textPart = Multipart.FormData.BodyPart.Strict(
+      key,
+      HttpEntity(contentType, ByteString(text)))
+    add(textPart)
+  }
+
+  def sourceWithUnknownSize(key: String, data: Source[ByteString, Any], contentType: ContentType = ContentTypes.`text/plain(UTF-8)`) = {
+    val entity: BodyPartEntity = IndefiniteLength(contentType, data)
+    val jsonPart = Multipart.FormData.BodyPart(
+      key,
+      _entity = entity,
+      Map("filename" -> key))
     add(jsonPart)
+  }
+
+
+  def add(part: Multipart.FormData.BodyPart) = {
+    parts = part :: parts
+    this
   }
 
   def multipart: Multipart = Multipart.FormData(parts: _*)
 
-  def request(implicit ec : ExecutionContext): Future[MessageEntity] = Marshal(multipart).to[RequestEntity]
+  def request(implicit ec: ExecutionContext): Future[MessageEntity] = Marshal(multipart).to[RequestEntity]
 
 }
 
 object MultipartBuilder {
   def apply(): MultipartBuilder = new MultipartBuilder
-
-  //
-  //  object implicits {
-  //
-  //    implicit final def toResponseMarshaller[A](implicit ec: ExecutionContext): ToResponseMarshaller[Source[String, A]] =
-  //      Marshaller.withFixedContentType(ContentTypes.`text/plain(UTF-8)`) { messages =>
-  //        val data = messages.map(ByteString(_))
-  //        HttpResponse(entity = HttpEntity.CloseDelimited(MediaTypes.`text/plain`, data))
-  //      }
-  //
-  //  }
 }
