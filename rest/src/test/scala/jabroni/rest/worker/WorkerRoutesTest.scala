@@ -1,22 +1,17 @@
 package jabroni.rest
 package worker
 
-import java.nio.file.{Files, Path, Paths, StandardOpenOption}
+import java.nio.file.{Files, Path, StandardOpenOption}
 
-import akka.Done
 import akka.http.scaladsl.model._
-import akka.stream.IOResult
-import akka.stream.scaladsl.{FileIO, Sink, Source}
+import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
-import io.circe.Decoder.Result
-import io.circe.Json
 import io.circe.generic.auto._
 import jabroni.api._
 import jabroni.api.`match`.MatchDetails
 import jabroni.domain.IterableSubscriber
 import jabroni.rest.multipart.MultipartBuilder
 
-import scala.concurrent.Future
 import scala.language.reflectiveCalls
 
 class WorkerRoutesTest extends BaseSpec {
@@ -95,13 +90,13 @@ class WorkerRoutesTest extends BaseSpec {
         text shouldBe "2,3,5\n7,11,13,17,23\n29,31,37"
       }
     }
-    "be able to upload from sourceWithComputedSize" in {
+    "be able to upload from sourceWithComputedSize" ignore {
       val wr = WorkerRoutes()
 
       withTmpFile { uploadFile =>
         withTmpFile { downloadFile =>
 
-          import scala.collection.JavaConverters._
+
           val expectedContent =
             """I like this:
               |https://twitter.com/shitmydadsays/status/862102283638587392

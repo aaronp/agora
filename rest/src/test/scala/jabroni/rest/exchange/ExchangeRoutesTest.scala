@@ -54,8 +54,8 @@ class ExchangeRoutesTest extends BaseSpec {
       val matchFuture: Future[BlockingSubmitJobResponse] = route.observer.onJob(job)
 
       // subscribe to work
-      val ws = WorkSubscription()
-      ws.details.id shouldBe None
+      val ws = WorkSubscription().withPath("")
+      //ws.details.id should not be(None)
       ExchangeHttp(ws) ~> route.routes ~> check {
         val resp = responseAs[WorkSubscriptionAck]
         subscription = resp.id

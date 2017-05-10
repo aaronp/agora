@@ -50,7 +50,7 @@ case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
   def name = namePath.getOption(aboutMe)
 
   private def computedId = {
-    s"${location.host}:${location.port}/${path}/${name.getOrElse("")}"
+    s"${location.host}:${location.port}/${path.getOrElse("no-path")}/${name.getOrElse("")}"
   }
   lazy val id: SubscriptionKey = {
     val opt = idPath.getOption(aboutMe).map(_.trim).filterNot(_.isEmpty)
