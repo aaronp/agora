@@ -1,12 +1,10 @@
 package jabroni.rest.worker
 
-import java.nio.file.{Files, Paths, StandardOpenOption}
-
 import akka.http.scaladsl.model.{HttpResponse, ResponseEntity}
-import akka.http.scaladsl.server.Directives.{complete, extractRequest, path, pathPrefix, _}
-import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.server.Directives.{complete, path, pathPrefix, _}
 import akka.http.scaladsl.server.directives.BasicDirectives.extractRequestContext
-import akka.stream.scaladsl.FileIO
+import akka.http.scaladsl.server.{RequestContext, Route}
+import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import jabroni.api.`match`.MatchDetails
 import jabroni.api.exchange.{RequestWorkAck, WorkSubscription, WorkSubscriptionAck}
 import jabroni.api.worker.SubscriptionKey
@@ -14,26 +12,27 @@ import jabroni.rest.MatchDetailsExtractor
 import jabroni.rest.multipart.{MultipartDirectives, MultipartPieces}
 
 import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
 import scala.language.reflectiveCalls
 
 // TODO- I'm sure we can remove this entirely, just using a multipart unmarshaller
-trait MultipartRouteSupport extends MultipartDirectives {
+trait MultipartHandlerSupport extends MultipartDirectives with FailFastCirceSupport {
   self: WorkerRoutes =>
 
   def multipartRoutes: Route = post {
     pathPrefix("rest" / "multipart") {
-      extractRequestContext { ctx =>
-        val request = ctx.request
+      extractRequestContext { (ctxt: RequestContext) =>
+        val request = ctxt.request
+        implicit val mat = ctxt.materializer
+
         path(Remaining) { remaining =>
           findOnWork(remaining) match {
             case None => reject
             case Some(worker) =>
               multipartData { (sourcesByKey: MultipartPieces) =>
-
                 complete {
                   val details = MatchDetailsExtractor.unapply(request)
-                  val httpResp = worker.handle(details, sourcesByKey)
-                  Future.successful(httpResp)
+                  worker.handle(details, sourcesByKey)
                 }
               }
           }
@@ -46,9 +45,7 @@ trait MultipartRouteSupport extends MultipartDirectives {
 
   private var multipartByPath = Map[String, OnMultipartWork]()
 
-  private def availableMultipartHandlers: String = multipartByPath.keySet.toList.sorted.mkString("[", ",", "]")
-
-  def handleMultipart(onReq: WorkContext[MultipartPieces] => ResponseEntity)
+  def handleMultipart(onReq: WorkContext[MultipartPieces] => HttpResponse)
                      (implicit subscription: WorkSubscription = defaultSubscription,
                       initialRequest: Int = defaultInitialRequest): Future[RequestWorkAck] = {
 
@@ -90,7 +87,8 @@ trait MultipartRouteSupport extends MultipartDirectives {
     }
   }
 
-  private class OnMultipartWork(subscription: WorkSubscription, initialRequest: Int, onReq: WorkContext[MultipartPieces] => ResponseEntity) {
+
+  private class OnMultipartWork(subscription: WorkSubscription, initialRequest: Int, onReq: WorkContext[MultipartPieces] => HttpResponse) {
     /**
       * we have the case where a worker can actually handle a request at any time from a client ... even before we bother
       * subscribing to the exchange.
@@ -104,8 +102,7 @@ trait MultipartRouteSupport extends MultipartDirectives {
 
     def handle(details: Option[MatchDetails], req: MultipartPieces): HttpResponse = {
       val context = WorkContext(exchange, key, subscription, details, req)
-      val respEntity: ResponseEntity = onReq(context)
-      HttpResponse(entity = respEntity)
+      onReq(context)
     }
   }
 

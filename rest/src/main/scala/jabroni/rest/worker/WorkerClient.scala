@@ -38,7 +38,7 @@ object WorkerClient {
   def multipartRequest(path: String, matchDetails: MatchDetails, multipart: Multipart)(implicit ec: ExecutionContext): HttpRequest = {
     val httpRequest: HttpRequest = WorkerHttp("multipart", path, multipart)
     val headers = MatchDetailsExtractor.headersFor(matchDetails)
-    httpRequest.withHeaders(headers)
+    httpRequest.withHeaders(headers ++ httpRequest.headers)
   }
 
   def dispatchRequest[T: ToEntityMarshaller](path: String, matchDetails: MatchDetails, request: T)(implicit ec: ExecutionContext): HttpRequest = {

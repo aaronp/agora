@@ -1,8 +1,11 @@
 package jabroni.rest
 package worker
 
-import akka.stream.Materializer
-import akka.stream.scaladsl.Source
+import java.nio.file.{Path, StandardOpenOption}
+
+import akka.http.scaladsl.server.RequestContext
+import akka.stream.{IOResult, Materializer}
+import akka.stream.scaladsl.{FileIO, Source}
 import akka.util.ByteString
 import io.circe.Json
 import jabroni.api.SubscriptionKey
@@ -21,7 +24,11 @@ import scala.concurrent.Future
   * @param request      the job input
   * @tparam T the request type
   */
-case class WorkContext[T](exchange: Exchange, subscriptionKey : Option[SubscriptionKey], subscription: WorkSubscription, matchDetails: Option[MatchDetails], request: T) {
+case class WorkContext[T](exchange: Exchange,
+                          subscriptionKey: Option[SubscriptionKey],
+                          subscription: WorkSubscription,
+                          matchDetails: Option[MatchDetails],
+                          request: T) {
 
   /**
     * @param n the number of work items to request (typically 1, as we take one for each one we compute)
@@ -40,6 +47,7 @@ case class WorkContext[T](exchange: Exchange, subscriptionKey : Option[Subscript
       case (MultipartInfo(field, _, _), _) => field == key
     }
   }
+
   /** @return the multipart details for the given file name, available only on multipart request inputs
     */
   def multipartForFileName(fileName: String)(implicit ev: T =:= MultipartPieces, mat: Materializer) = {
@@ -47,15 +55,25 @@ case class WorkContext[T](exchange: Exchange, subscriptionKey : Option[Subscript
       case pear@(MultipartInfo(_, Some(`fileName`), _), _) => pear
     }
   }
+
   /** @return the multipart source bytes for the given field (key), available only on multipart request inputs
     */
   def multipartSource(key: String)(implicit ev: T =:= MultipartPieces, mat: Materializer): Option[Source[ByteString, Any]] = {
     multipartForKey(key).map(_._2)
   }
+
   /** @return the multipart source bytes for the given field (key), available only on multipart request inputs
     */
   def multipartUpload(fileName: String)(implicit ev: T =:= MultipartPieces, mat: Materializer): Option[Source[ByteString, Any]] = {
     multipartForFileName(fileName).map(_._2)
+  }
+
+  def multipartSavedTo(key: String, path: Path, openOptions: java.nio.file.StandardOpenOption*)(implicit ev: T =:= MultipartPieces, mat: Materializer): Future[IOResult] = {
+    val opt = multipartForKey(key).orElse(multipartForFileName(key)).map {
+      case (_, src) =>
+        src.runWith(FileIO.toPath(path, openOptions.toSet + StandardOpenOption.WRITE))
+    }
+    opt.getOrElse(Future.failed(new Exception(s"multipart doesn't exist for $key: ${multipartKeys}")))
   }
 
   def multipartJson(key: String)(implicit ev: T =:= MultipartPieces, mat: Materializer): Future[Json] = {

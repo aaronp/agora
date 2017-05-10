@@ -16,9 +16,17 @@ import scala.concurrent.{ExecutionContext, Future}
 
 class MultipartBuilder {
 
-  private var parts = List[Multipart.FormData.BodyPart]()
+  private var partsList = List[Multipart.FormData.BodyPart]()
 
-  def listParts = parts
+  def parts = partsList
+
+  def file(key: String, file: Path, chunkSize: Int = 1024): MultipartBuilder = {
+    val src: Source[ByteString, Future[IOResult]] = FileIO.fromPath(file, chunkSize)
+    val len = Files.size(file)
+    val entity = HttpEntity(ContentTypes.`application/octet-stream`, len, src)
+    val part = Multipart.FormData.BodyPart(key, entity)
+    add(part)
+  }
 
   def file(key: String, fileName: String, entity: HttpEntity.Strict): MultipartBuilder = {
     val part: Multipart.FormData.BodyPart = Multipart.FormData.BodyPart.Strict(
@@ -42,27 +50,27 @@ class MultipartBuilder {
     val part: FormData.BodyPart = Multipart.FormData.BodyPart(fileName, _entity = entity, Map("filename" -> fileName))
     add(part)
   }
-//
-//  def sourceWithComputedSize(fileName: String,
-//                             data: Source[ByteString, Any],
-//                             contentType: ContentType = ContentTypes.`application/octet-stream`)(implicit materializer: akka.stream.Materializer): Future[MultipartBuilder] = {
-//    import materializer._
-//    sizeOf(data).map { size =>
-//      source(fileName, size, data, contentType)
-//    }
-//  }
-  //
-  //  def sizeOf(src: Source[ByteString, Any])(implicit materializer: akka.stream.Materializer): Future[Long] = {
-  //    src.map { bs =>
-  //      val len = bs.size.toLong
-  //      val x = bs.decodeString("UTF-8")
-  //      val len2 = x.length
-  //
-  //      println(s"$len vs $len2 for $x")
-  //      len2.toLong
-  //
-  //    }.runReduce(_ + _)
-  //  }
+
+  def sourceWithComputedSize(fileName: String,
+                             data: Source[ByteString, Any],
+                             contentType: ContentType = ContentTypes.`application/octet-stream`)(implicit materializer: akka.stream.Materializer): Future[MultipartBuilder] = {
+    import materializer._
+    sizeOf(data).map { size =>
+      source(fileName, size, data, contentType)
+    }
+  }
+
+  def sizeOf(src: Source[ByteString, Any])(implicit materializer: akka.stream.Materializer): Future[Long] = {
+    src.map { bs =>
+      val len = bs.size.toLong
+      val x = bs.decodeString("UTF-8")
+      val len2 = x.length
+
+      println(s"$len vs $len2 for $x")
+      len2.toLong
+
+    }.runReduce(_ + _)
+  }
 
   def json[T: Encoder](key: String, value: T): MultipartBuilder = {
     val jsonString = implicitly[Encoder[T]].apply(value)
@@ -89,7 +97,7 @@ class MultipartBuilder {
 
 
   def add(part: Multipart.FormData.BodyPart) = {
-    parts = part :: parts
+    partsList = part :: partsList
     this
   }
 
