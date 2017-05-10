@@ -7,6 +7,7 @@ import scala.util.control.NonFatal
 
 /**
   * Provides a publisher view over summat which can make an iterator
+  *
   * @param mkIter
   * @param consumeOnCancel
   * @tparam T
@@ -22,28 +23,32 @@ object IteratorPublisher {
 
   case class IteratorSubscription[T](s: Subscriber[_ >: T],
                                      iterator: Iterator[T],
-                                     consumeOnCancel: Boolean)
+                                     consumeOnCancel: Boolean,
+                                     maxLimitToConsumeOnCancel: Option[Int] = Option(10000))
     extends Subscription
       with StrictLogging {
     override def cancel(): Unit = {
       if (consumeOnCancel) {
-        logger.info(s"Cancelling subscription, consumeOnCancel is $consumeOnCancel")
+        logger.info(s"Cancelling subscription, consumeOnCancel is $consumeOnCancel with maxLimitToConsumeOnCancel $maxLimitToConsumeOnCancel")
         // exhaust the remaining ... hopefully it's not infinite!
-        val remaining = iterator.take(1000).size
-        logger.info(s"Exhausted $remaining ")
+        val limitedIterator = maxLimitToConsumeOnCancel.map(iterator.take).getOrElse(iterator)
+        val remaining = limitedIterator.size
+        if (limitedIterator.hasNext) {
+          logger.warn(s"Tried to exhaust the remaining elements on cancel. We read $remaining, but there are more! maxLimitToConsumeOnCancel is $maxLimitToConsumeOnCancel")
+        }
       } else {
-        logger.info(s"Subscription cancelled")
+        logger.info(s"Subscription cancelled (iterator may not be exhausted! Set consumeOnCancel if you fancy it next time)")
       }
     }
 
     override def request(n: Long): Unit = {
-      iterator.take(n.toInt).foreach { x =>
-        try {
+      try {
+        iterator.take(n.toInt).foreach { x =>
           s.onNext(x)
-        } catch {
-          case NonFatal(e) =>
-            s.onError(e)
         }
+      } catch {
+        case NonFatal(e) =>
+          s.onError(e)
       }
     }
   }

@@ -9,8 +9,9 @@ import org.scalatest.time.{Millis, Seconds, Span}
 import concurrent.duration._
 import org.scalatest.{Matchers, WordSpec}
 
-import scala.concurrent.{Await, Future}
-import scala.language.implicitConversions
+import concurrent.{Await, Future}
+import language.implicitConversions
+import language.postfixOps
 
 class BaseSpec
   extends WordSpec
@@ -19,13 +20,20 @@ class BaseSpec
     with FailFastCirceSupport
     with ScalaFutures {
 
-  implicit def default(implicit system: ActorSystem) = RouteTestTimeout(30.seconds)
+
+  /**
+    * All the timeouts!
+    */
+
+  implicit def testTimeout: FiniteDuration = 105 seconds
+
+  implicit def default(implicit system: ActorSystem) = RouteTestTimeout(testTimeout)
 
   implicit override val patienceConfig =
-    PatienceConfig(timeout = scaled(Span(13, Seconds)), interval = scaled(Span(150, Millis)))
+    PatienceConfig(timeout = scaled(Span(testTimeout.toSeconds, Seconds)), interval = scaled(Span(150, Millis)))
 
-  implicit def richFuture[T](fut : Future[T]) = new {
-    def block = Await.result(fut, 10.seconds)
+  implicit def richFuture[T](fut: Future[T]) = new {
+    def block = Await.result(fut, testTimeout)
   }
 
 }

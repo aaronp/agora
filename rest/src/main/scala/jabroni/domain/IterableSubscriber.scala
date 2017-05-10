@@ -1,67 +1,100 @@
 package jabroni.domain
+
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.{ArrayBlockingQueue, TimeUnit}
 
+import com.typesafe.scalalogging.StrictLogging
 import org.reactivestreams.{Subscriber, Subscription}
-import org.slf4j.LoggerFactory
 
-class IterableSubscriber(bufferSize : Int = 10000) extends Subscriber[String] {
+import scala.concurrent.TimeoutException
+import scala.concurrent.duration._
+
+class IterableSubscriber[T](val initialRequestToTake: Int = 10)(implicit pollTimeout: FiniteDuration = 10.seconds)
+  extends Subscriber[T]
+    with StrictLogging {
+  require(initialRequestToTake >= 0)
+
+  private[this] sealed trait Next
+
+  private[this] case class Value(t: T) extends Next
+
+  private[this] case class Err(t: Throwable) extends Next
+
+  private[this] case object Done extends Next
+
   private var subscriptionOpt = Option.empty[Subscription]
-  private val complete = new AtomicBoolean(false)
-  private val buffer = new ArrayBlockingQueue[String](bufferSize)
-  private val logger = LoggerFactory.getLogger(getClass)
-  @transient private var errorOpt = Option.empty[Throwable]
+
+  private def bufferSize: Int = (initialRequestToTake * 2) + 1
+
+  private val buffer = new ArrayBlockingQueue[Next](bufferSize)
+  private val readBuffer = new ArrayBlockingQueue[Next](bufferSize)
 
   override def onError(t: Throwable): Unit = {
-    errorOpt = errorOpt.orElse(Option(t))
     logger.error(s"onError($t)")
-    complete.compareAndSet(false, true)
-    throw t
+    buffer.put(Err(t))
   }
 
   override def onComplete(): Unit = {
-    logger.info(s"onComplete")
-    complete.compareAndSet(false, true)
+    logger.trace(s"onComplete")
+    buffer.put(Done)
   }
 
-  override def onNext(t: String): Unit = {
-    logger.info(s"onNext($t)")
-    buffer.put(t)
-    subscription.request(1)
+  override def onNext(t: T): Unit = {
+    logger.trace(s"onNext($t)")
+    buffer.put(Value(t))
+    logger.trace(s"buffer size after having put ($t) : ${buffer.size()}")
   }
 
   def subscription = subscriptionOpt.get
 
   override def onSubscribe(s: Subscription): Unit = {
-    logger.info(s"onSubscribe(...)")
+    logger.trace(s"onSubscribe(...) requesting initial work of $initialRequestToTake")
     require(subscriptionOpt.isEmpty)
     subscriptionOpt = Option(s)
-    subscription.request(1)
+    subscription.request(initialRequestToTake)
   }
 
-  def lines : Iterator[String] = iterator
-  object iterator extends Iterator[String] {
-    override def hasNext: Boolean = {
-      errorOpt.foreach(throw _)
-      nextOpt match {
-        case Some(_) => true
-        case None if isDone => false
-        case None =>
-          nextOpt = Option(buffer.poll(100, TimeUnit.MILLISECONDS))
-          hasNext
+  object iterator extends Iterator[T] {
+    override def next(): T = {
+      logger.trace("Asking for next...")
+      if (!hasNext) throw new NoSuchElementException
+      val n = readBuffer.poll(pollTimeout.toMillis, MILLISECONDS)
+      logger.trace(s"next is $n")
+      n match {
+        case Value(t) => t
+        case Err(t) => throw t
+        case Done => throw new NoSuchElementException
       }
     }
 
-    private var nextOpt: Option[String] = None
+    @transient private var isDone = false
 
-    def isDone = complete.get() && nextOpt.isEmpty
-
-    override def next(): String = {
-      require(hasNext)
-      val value = nextOpt.getOrElse(throw new NoSuchElementException)
-      nextOpt = None
-      value
+    override def hasNext: Boolean = {
+      !readBuffer.isEmpty || (!isDone && pollForHasNext)
     }
+
+    private def pollForHasNext: Boolean = {
+      logger.trace(s"hasNext reading from write buffer of ${buffer.size}")
+      val hnOpt = Option(buffer.poll(pollTimeout.toMillis, MILLISECONDS))
+      logger.trace(s"hasNext read $hnOpt")
+      hnOpt match {
+        case Some(Done) =>
+          isDone = true
+          readBuffer.put(Done)
+          false
+        case Some(next) =>
+          subscription.request(1)
+          readBuffer.put(next)
+          true
+        case None =>
+          isDone = true
+          subscription.cancel()
+          val exp = new TimeoutException(s"Timeout waiting for the next elm after $pollTimeout")
+          readBuffer.put(Err(exp))
+          true
+      }
+    }
+
   }
 
 }
