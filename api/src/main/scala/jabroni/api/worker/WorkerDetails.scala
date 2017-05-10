@@ -32,7 +32,11 @@ case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
 
   def withData[T: Encoder](data: T, name: String = null) = copy(aboutMe = mergeJson(data, name))
 
-  def withPath(path : String) = append("path", path)
+  def withPath(path: String) = append("path", path)
+
+  def withSubscriptionKey(key: SubscriptionKey) = append("id", key)
+
+  def subscriptionKey = keyPath.getOption(aboutMe).map(_.trim).filterNot(_.isEmpty)
 
   private def locationOpt: Option[HostLocation] = {
     for {
@@ -49,14 +53,6 @@ case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
 
   def name = namePath.getOption(aboutMe)
 
-  private def computedId = {
-    s"${location.host}:${location.port}/${path.getOrElse("no-path")}/${name.getOrElse("")}"
-  }
-  lazy val id: SubscriptionKey = {
-    val opt = idPath.getOption(aboutMe).map(_.trim).filterNot(_.isEmpty)
-    opt.getOrElse(computedId)
-  }
-
   def path: Option[String] = pathPath.getOption(aboutMe).map(_.trim).filterNot(_.isEmpty)
 
   def runUser: User = runUserPath.getOption(aboutMe).getOrElse {
@@ -69,12 +65,13 @@ object WorkerDetails {
   import io.circe.generic.auto._
   import io.circe.syntax._
   import JsonPath._
+
   val locationPath = root.location
   val hostPath = locationPath.host.string
   val portPath = locationPath.port.int
   val pathPath = root.path.string
   val namePath = root.name.string
-  val idPath = root.id.string
+  val keyPath = root.id.string
   val runUserPath = root.runUser.string
 
   val defaultPort = 1234

@@ -2,8 +2,8 @@ package jabroni.domain
 
 import com.typesafe.scalalogging.StrictLogging
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
-
-import scala.util.control.NonFatal
+import language.existentials
+import util.control.NonFatal
 
 /**
   * Provides a publisher view over summat which can make an iterator

@@ -158,7 +158,7 @@ case class WorkSubscription(details: WorkerDetails = WorkerDetails(),
                             submissionMatcher: JMatcher = JMatcher.matchAll) extends SubscriptionRequest {
   def matches(job: SubmitJob)(implicit m: JobPredicate): Boolean = m.matches(job, this)
 
-  def key : SubscriptionKey = details.id
+  def key = details.subscriptionKey
 
   def append(json: Json) = {
     copy(details = details.append(json))
@@ -176,6 +176,7 @@ case class WorkSubscription(details: WorkerDetails = WorkerDetails(),
 
   def withData[T: Encoder](data: T, name: String = null) = withDetails(_.withData(data, name))
   def withPath(path : String) = withDetails(_.withPath(path))
+  def withSubscriptionKey(path : String) = withDetails(_.withSubscriptionKey(path))
 
   def withDetails(f : WorkerDetails => WorkerDetails) = {
     copy(details = f(details))

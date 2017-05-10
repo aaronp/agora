@@ -2,7 +2,7 @@ package jabroni.api.exchange
 
 import com.typesafe.scalalogging.StrictLogging
 import jabroni.api.worker.SubscriptionKey
-import jabroni.api.{JobId, nextJobId}
+import jabroni.api._
 
 import scala.collection.parallel.ParSeq
 import scala.concurrent.Future
@@ -66,8 +66,14 @@ object Exchange {
       Future.successful(resp)
     }
 
-    override def subscribe(subscription: WorkSubscription) = {
-      val id = subscription.key
+    override def subscribe(inputSubscription: WorkSubscription) = {
+      val (id, subscription) = inputSubscription.key match {
+        case Some(key) => (key, inputSubscription)
+        case None =>
+          val key = nextSubscriptionKey()
+          key -> inputSubscription.withDetails(_.withSubscriptionKey(key))
+      }
+
       logger.debug(s"Creating new subscription [$id] $subscription")
       SubscriptionLock.synchronized {
         subscriptionsById = subscriptionsById.updated(id, subscription -> 0)

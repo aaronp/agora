@@ -16,11 +16,13 @@ class RoutingClientTest extends WordSpec with Matchers with ScalaFutures with ja
 
   "RoutingClient.handleSource" should {
     "Stream work from workers" in {
-      val exConf = ExchangeConfig("port=6666")
+      val exchangePort = 9000
+      val workerPort = exchangePort + 1
+      val exConf = ExchangeConfig(s"port=$exchangePort")
       val running: RunningService[ExchangeConfig, ExchangeRoutes] = exConf.startExchange().futureValue
+      val workerConf = WorkerConfig(s"port=$workerPort", s"exchange.port=$exchangePort")
+      val worker = workerConf.startWorker().futureValue
       try {
-        val workerConf = WorkerConfig("port=7777", "exchange.port=6666")
-        val worker = workerConf.startWorker().futureValue
         import exConf.implicits._
 
         val subscriptionAckFuture = worker.service.handleSource[Int] { (ctxt: WorkContext[Int]) =>
@@ -44,6 +46,7 @@ class RoutingClientTest extends WordSpec with Matchers with ScalaFutures with ja
         stringList.size shouldBe 100
       } finally {
         running.stop()
+        worker.stop()
       }
     }
     "Route match responses to workers" in {

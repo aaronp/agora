@@ -9,13 +9,6 @@ import org.scalatest.{Matchers, WordSpec}
 
 class WorkerConfigTest extends WordSpec with Matchers {
   "WorkerConfig.subscription" should {
-    "include the port in the subscription key" in {
-      val wc1 = WorkerConfig("port=1")
-      val wc2 = WorkerConfig("port=2")
-      wc1.subscription.details.location.port shouldBe 1
-      wc2.subscription.details.location.port shouldBe 2
-      wc1.subscription.key should not equal(wc2.subscription.key)
-    }
     "create a subscription from the default config" in {
       val default = WorkerConfig()
       default.subscription.jobMatcher shouldBe JMatcher.matchAll

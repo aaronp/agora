@@ -30,14 +30,12 @@ class IteratorPublisherTest extends BaseSpec {
 
       subscriber.iterator.next shouldBe 2
       tookCounter shouldBe 3 // initially 3 as the 'hasNext' look-ahead from the subscriber + the read from the publisher
-
       subscriber.iterator.next shouldBe 3
-      tookCounter shouldBe 4
-
       subscriber.iterator.next shouldBe 4
-      tookCounter shouldBe 5
+
 
       //... and on and on...
+      tookCounter < 10 shouldBe true
     }
   }
 
