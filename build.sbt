@@ -49,8 +49,31 @@ scmInfo := Some(ScmInfo(url("https://github.com/aaronp/jabroni"), "git@github.co
 developers += Developer("aaronp",
                         "Aaron Pritzlaff",
                         "aaron.pritzlaff@gmail.com",
-                        url("https://github.com/aaronp"))
+                        url("https://github.com/aaronp/jabroni"))
 
 licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))
 
 pomIncludeRepository := (_ => false)
+
+// To sync with Maven central, you need to supply the following information:
+pomExtra in Global := {
+  <url>https://github.com/aaronp/jabroni</url>
+  <licenses>
+    <license>
+      <name>Apache 2</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+    </license>
+  </licenses>
+  <scm>
+    <connection>scm:git:github.com/aaronp/jabroni</connection>
+    <developerConnection>scm:git:git@github.com:aaronp/jabroni</developerConnection>
+    <url>github.com/aaronp/jabroni</url>
+  </scm>
+  <developers>
+    <developer>
+      <id>aaronp</id>
+      <name>Aaron Pritzlaff</name>
+      <url>https://github.com/aaronp/jabroni</url>
+    </developer>
+  </developers>
+}
