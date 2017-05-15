@@ -28,7 +28,7 @@ case class ExchangeConfig(override val config: Config) extends ServerConfig {
 
   def startExchange() = runWithRoutes("Exchange", routes, exchangeRoutes)
 
-  def client(): ExchangeClient = {
+  lazy val client: ExchangeClient = {
     import implicits._
     ExchangeClient(RestClient(location))
   }

@@ -1,17 +1,16 @@
 package jabroni.rest
 package worker
 
+import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions}
 import io.circe
-import jabroni.api.exchange.{Exchange, WorkSubscription}
+import jabroni.api.exchange.WorkSubscription
 import jabroni.api.json.JMatcher
 import jabroni.api.worker.WorkerDetails
-import jabroni.rest.client.ClientConfig
+import jabroni.rest.client.RestClient
 import jabroni.rest.exchange.{ExchangeClient, ExchangeConfig}
 import jabroni.rest.ui.UIRoutes
-import jabroni.rest.{RunningService, ServerConfig}
-import akka.http.scaladsl.server.Directives._
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -21,10 +20,8 @@ case class WorkerConfig(override val config: Config) extends ServerConfig {
 
   override def self = this
 
-
   override def toString = {
     import jabroni.domain.RichConfig.implicits._
-    //    config.intersect(WorkerConfig.defaultConfig)
 
     config.withPaths("port",
       "host",
@@ -35,6 +32,8 @@ case class WorkerConfig(override val config: Config) extends ServerConfig {
       "exchange").root.render(ConfigRenderOptions.concise().setFormatted(true))
   }
 
+  /** @return the initial amount of work to request from the exchange
+    */
   def initialRequest = config.getInt("initialRequest")
 
   import WorkerConfig._
@@ -43,28 +42,44 @@ case class WorkerConfig(override val config: Config) extends ServerConfig {
     runWithRoutes("Worker", routes, workerRoutes)
   }
 
+  def includeExchangeRoutes = config.getBoolean("includeExchangeRoutes")
+
   def routes: Route = {
-    if (includeUIRoutes) {
+    val withUI = if (includeUIRoutes) {
       val uiRoutes: Route = UIRoutes("ui/worker.html").routes
       workerRoutes.routes ~ uiRoutes
     } else {
       workerRoutes.routes
     }
+    if (includeExchangeRoutes) {
+      withUI ~ exchangeConfig.exchangeRoutes.routes
+    } else {
+      withUI
+    }
   }
 
-  /**
-    * @return a client configuration which will talk to an exchange
+  /** @return exchange pointed at by this worker
     */
-  def exchangeClientConfig = ClientConfig(config.getConfig("exchange"))
+  lazy val exchangeConfig = ExchangeConfig(config.getConfig("exchange"))
 
   lazy val workerRoutes: WorkerRoutes = {
-    exchangeClientConfig.workerRoutes(subscription, initialRequest)
+    import implicits._
+
+    val exchange = if (includeExchangeRoutes) {
+      exchangeConfig.exchangeRoutes.exchange
+    } else {
+      exchangeClient
+    }
+    WorkerRoutes(exchange, subscription, initialRequest)
   }
 
-  lazy val exchange: ExchangeClient = {
-    val restCC = exchangeClientConfig
-    import restCC.implicits._
-    ExchangeClient(restCC.restClient)
+  lazy val exchangeClient: ExchangeClient = {
+    import implicits._
+    if (includeExchangeRoutes) {
+      ExchangeClient(location)
+    } else {
+      exchangeConfig.client
+    }
   }
 
   def workerDetails: WorkerDetails = {

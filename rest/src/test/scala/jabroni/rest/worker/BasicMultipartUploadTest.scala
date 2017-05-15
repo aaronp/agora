@@ -98,9 +98,9 @@ class BasicMultipartUploadTest extends BaseRoutesSpec with MultipartDirectives {
           }
         }
 
-      import WorkerRoutesTest._
+      import jabroni.rest.test.TestUtils._
 
-      withTmpFile { uploadFile =>
+      withTmpFile("multipart-upload") { uploadFile =>
 
         // tests:
         uploadFile.text = "hello world!"

@@ -45,7 +45,7 @@ trait LowPriorityIOImplicits {
 
     def mkParentDirs(atts: FileAttribute[_]*) = parent.foreach(_.mkDirs(atts: _*))
 
-    def mkDirs(atts: FileAttribute[_]*) = Files.createDirectories(path, atts: _*)
+    def mkDirs(atts: FileAttribute[_]*): Path = Files.createDirectories(path, atts: _*)
 
     def size = Files.size(path)
 
@@ -59,10 +59,14 @@ trait LowPriorityIOImplicits {
 
     def delete(): Unit = {
       if (isDir) {
+        println(s"Deleting dir $path")
         children.foreach(_.delete())
         Files.delete(path)
       } else if (isFile) {
+        println(s"Deleting file $path")
         Files.delete(path)
+      } else {
+        println(s"Leaving alone $path")
       }
     }
   }

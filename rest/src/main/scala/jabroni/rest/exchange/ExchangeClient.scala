@@ -32,7 +32,7 @@ class ExchangeClient(val rest: RestClient)(implicit val sys: ActorSystem, mat: M
     with QueueObserver
     with RoutingClient
     with FailFastCirceSupport
-with AutoCloseable {
+    with AutoCloseable {
 
   // exposes our implicit materialzer to mixed-in traits and stuff
   protected def haveAMaterializer = mat
@@ -81,4 +81,7 @@ with AutoCloseable {
 object ExchangeClient {
   def apply(rest: RestClient)(implicit sys: ActorSystem, mat: Materializer): ExchangeClient = new ExchangeClient(rest)
 
+  def apply(location: HostLocation)(implicit sys: ActorSystem, mat: Materializer): ExchangeClient = apply(RestClient(location))
+
+  def apply(host: String, port: Int)(implicit sys: ActorSystem, mat: Materializer): ExchangeClient = apply(HostLocation(host, port))
 }

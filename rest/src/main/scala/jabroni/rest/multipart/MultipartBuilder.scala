@@ -14,6 +14,7 @@ import io.circe.Encoder
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
+import scala.reflect.ClassTag
 
 /**
   * Just exposes convenience methods for putting together multipart requests
@@ -44,18 +45,25 @@ class MultipartBuilder(defaultSourceContentType: ContentType) {
     add(key, HttpEntity(contentType, contentLength, data), Option(fileName))
   }
 
-  def fromSource(key: String, length: Long, data: Source[ByteString, Any], contentType: ContentType = defaultSourceContentType, fileName: String = null) = {
+  def fromSource(key: String,
+                 length: Long,
+                 data: Source[ByteString, Any],
+                 contentType: ContentType = defaultSourceContentType,
+                 fileName: String = null): MultipartBuilder = {
     val entity: BodyPartEntity = HttpEntity.Default(contentType, length, data)
-    //    val entity: BodyPartEntity = IndefiniteLength(contentType, data)
     add(key, entity, Option(fileName))
   }
 
-  def json[T: Encoder](key: String, value: T): MultipartBuilder = {
-    val jsonString = implicitly[Encoder[T]].apply(value)
-    json(key, jsonString.noSpaces)
+  def json[T: Encoder : ClassTag](value: T): MultipartBuilder = {
+    val key = implicitly[ClassTag[T]].runtimeClass.getName
+    json(key, value)
   }
 
-  def json(key: String, jsonString: String): MultipartBuilder = text(key, jsonString, `application/json`)
+  def json[T: Encoder](key: String, value: T): MultipartBuilder = {
+    jsonString(key, implicitly[Encoder[T]].apply(value).noSpaces)
+  }
+
+  def jsonString(key: String, jsonString: String): MultipartBuilder = text(key, jsonString, `application/json`)
 
   def text(key: String, text: String, contentType: ContentType = `text/plain(UTF-8)`): MultipartBuilder = {
     val textPart = Multipart.FormData.BodyPart.Strict(
@@ -75,11 +83,11 @@ class MultipartBuilder(defaultSourceContentType: ContentType) {
 
   def asFormData: Multipart.FormData = Multipart.FormData(parts: _*)
 
-  def formData(implicit mat: Materializer, timeout: FiniteDuration = 13.seconds) = {
+  def formData(implicit mat: Materializer, timeout: FiniteDuration): Future[FormData.Strict] = {
     asFormData.toStrict(timeout)
   }
 
-  def asRequest(implicit mat: Materializer): Future[MessageEntity] = {
+  def asRequest(implicit mat: Materializer, timeout: FiniteDuration): Future[RequestEntity] = {
     import mat._
     Marshal(formData).to[RequestEntity]
   }

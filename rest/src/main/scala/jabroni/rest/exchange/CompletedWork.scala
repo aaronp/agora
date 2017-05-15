@@ -35,7 +35,7 @@ case class CompletedWork(work: List[(WorkerRedirectCoords, HttpResponse)])(impli
 
   def sourceResponse: Source[ByteString, Any] = onlyResponse.entity.dataBytes
 
-  def iterateResponse(timeout: FiniteDuration = 10.seconds)(implicit ec: ExecutionContext) = {
+  def iterateResponse(timeout: FiniteDuration)(implicit ec: ExecutionContext): Iterator[ByteString] = {
     import CompletedWork._
     val q: SinkQueueWithCancel[ByteString] = sourceResponse.runWith(Sink.queue())
     q.iterator(timeout)

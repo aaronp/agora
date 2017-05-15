@@ -121,6 +121,7 @@ case class ExchangeRoutes(exchangeForHandler: OnMatch => Exchange with QueueObse
               exchange.submit(submitJob).map {
                 case r: SubmitJobResponse =>
                   HttpResponse(entity = HttpEntity(`application/json`, r.asJson.noSpaces))
+                case _: BlockingSubmitJobResponse => sys.error(s"received a blocking submit response after submitting a 'await match' job $submitJob")
               }
             }
         }

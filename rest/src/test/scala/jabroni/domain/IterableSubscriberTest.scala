@@ -1,6 +1,11 @@
 package jabroni.domain
 
+import akka.actor.ActorSystem
+import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.Source
+import akka.util.ByteString
 import jabroni.rest.BaseSpec
+import jabroni.rest.test.TestUtils
 import org.reactivestreams.Subscription
 
 import scala.concurrent.Future
@@ -19,6 +24,27 @@ class IterableSubscriberTest extends BaseSpec {
     }
   }
 
+  "IterableSubscriber.iterate" should {
+
+    val longLine = "longLine".padTo(500, '.')
+    val expected =
+      s"""Here is some text
+         |It doesn't
+         |even have to be anything special
+         |it does contain a
+         |${longLine}
+         |however
+        """.stripMargin
+
+    "iterate a source of bytes" in {
+      TestUtils.withMaterializer { implicit mat =>
+        def lines = IterableSubscriber.iterate(Source.single(ByteString(expected)), longLine.length, true)
+
+        lines.mkString("\n") shouldBe expected
+        lines.size shouldBe expected.lines.size
+      }
+    }
+  }
   "IterableSubscriber.iterator" should {
     "block on .next until there is an element in the queue" in {
       val is = new IterableSubscriber[Int](3)(3.seconds)

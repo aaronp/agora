@@ -36,13 +36,9 @@
        +
 
 
-![sbt test cucumber](https://travis-ci.org/aaronp/jabroni.svg?branch=release)
+![sbt test cucumber](https://travis-ci.org/aaronp/jabroni.svg?branch=master)
 
 
 TODO:
-1) get a streaming client working w/ the workerroutes test
-2) write a two worker feature test where the same work goes to both
-3) add a worker UI for handling json jobs
-
-4) make work handler return a Future[HttpResponse] and then put in convenience 'complete' method on the work context
-5) get initite source multipart shit working
+*) the worker UI for handling json jobs
+*) make work handler return a Future[HttpResponse] and then put in convenience 'complete' method on the work context

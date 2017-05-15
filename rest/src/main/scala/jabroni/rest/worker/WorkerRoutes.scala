@@ -1,19 +1,15 @@
 package jabroni.rest.worker
 
 import akka.http.scaladsl.model.ContentTypes.`application/json`
-import akka.http.scaladsl.model.{ContentType, _}
+import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives.{path, _}
 import akka.http.scaladsl.server.directives.BasicDirectives.extractRequestContext
 import akka.http.scaladsl.server.{RejectionHandler, RequestContext, Route}
 import akka.http.scaladsl.unmarshalling.Unmarshaller
 import akka.stream.Materializer
-import akka.stream.scaladsl.Source
-import akka.util.ByteString
-import io.circe.{Decoder, Encoder, Json}
 import jabroni.api.exchange.{Exchange, RequestWorkAck, WorkSubscription, WorkSubscriptionAck}
 import jabroni.api.worker.SubscriptionKey
 import jabroni.health.HealthDto
-import jabroni.rest.MatchDetailsExtractor
 
 import scala.concurrent.Future
 import scala.language.reflectiveCalls
@@ -90,7 +86,7 @@ case class WorkerRoutes(exchange: Exchange = Exchange(),
     * @tparam T the request input type
     * @return a future of the 'request work' ack
     */
-  def handleAny[T](onReq: WorkContext[T] => HttpResponse)
+  def addHandler[T](onReq: WorkContext[T] => Unit)
                   (implicit subscription: WorkSubscription = defaultSubscription,
                    initialRequest: Int = defaultInitialRequest,
                    fromRequest: Unmarshaller[HttpRequest, T]): Future[RequestWorkAck] = {
@@ -123,42 +119,6 @@ case class WorkerRoutes(exchange: Exchange = Exchange(),
     }
   }
 
-
-  /**
-    * A generic handler
-    *
-    * @return
-    */
-  def handle[In: Decoder, Out: Encoder](onReq: WorkContext[In] => Out)
-                                       (implicit subscription: WorkSubscription = defaultSubscription,
-                                        initialRequest: Int = defaultInitialRequest): Future[RequestWorkAck] = {
-    handleJson[In] { (ctxt: WorkContext[In]) =>
-      val resp: Out = onReq(ctxt)
-      implicitly[Encoder[Out]].apply(resp)
-    }
-  }
-
-
-  def handleJson[T: Decoder](onReq: WorkContext[T] => Json)(implicit subscription: WorkSubscription = defaultSubscription, initialRequest: Int = defaultInitialRequest): Future[RequestWorkAck] = {
-
-    val jsonHandler: WorkContext[T] => HttpResponse = { ctxt =>
-      val response: Json = onReq(ctxt)
-      HttpResponse(entity = HttpEntity(`application/json`, response.noSpaces))
-    }
-    handleAny(jsonHandler)
-  }
-
-  def handleSource[T: Decoder](onReq: WorkContext[T] => Source[ByteString, Any])
-                              (implicit subscription: WorkSubscription = defaultSubscription,
-                               initialRequest: Int = defaultInitialRequest,
-                               contentType: ContentType = ContentTypes.`application/octet-stream`): Future[RequestWorkAck] = {
-    handleAny[T] { (ctxt: WorkContext[T]) =>
-      val dataSource: Source[ByteString, Any] = onReq(ctxt)
-      HttpResponse(entity = HttpEntity(contentType, dataSource))
-    }
-  }
-
-
   private def setSubscriptionKeyOnHandler(path: String, key: SubscriptionKey) = {
     HandlerWriteLock.synchronized {
       workerByPath.get(path).foreach { handler =>
@@ -174,7 +134,7 @@ case class WorkerRoutes(exchange: Exchange = Exchange(),
   /**
     * Captures the 'handler' logic for a subscription.
     */
-  private class OnWork[T](subscription: WorkSubscription, initialRequest: Int, unmarshaller: Unmarshaller[HttpRequest, T], onReq: WorkContext[T] => HttpResponse) {
+  private class OnWork[T](subscription: WorkSubscription, initialRequest: Int, unmarshaller: Unmarshaller[HttpRequest, T], onReq: WorkContext[T] => Unit) {
     /**
       * we have the case where a worker can actually handle a request at any time from a client ... even before we bother
       * subscribing to the exchange.
@@ -187,11 +147,10 @@ case class WorkerRoutes(exchange: Exchange = Exchange(),
     var key: Option[SubscriptionKey] = None
 
     def handle(ctxt: RequestContext): Future[HttpResponse] = {
-      unmarshaller(ctxt.request).map { tea =>
-        val details = MatchDetailsExtractor.unapply(ctxt.request)
-
-        val context = WorkContext(exchange, key, subscription, details, tea)
+      unmarshaller(ctxt.request).flatMap { tea =>
+        val context = WorkContext(exchange, key, subscription, ctxt, tea)
         onReq(context)
+        context.responseFuture
       }
     }
   }

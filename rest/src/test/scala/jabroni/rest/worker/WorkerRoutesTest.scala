@@ -1,8 +1,6 @@
 package jabroni.rest
 package worker
 
-import java.nio.file.{Files, Path}
-
 import akka.http.scaladsl.model._
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
@@ -24,14 +22,15 @@ class WorkerRoutesTest extends BaseRoutesSpec {
     "be able to upload from strict multipart requests" in {
       val wr = WorkerRoutes()
 
-      wr.handleMultipart { workContext =>
+      wr.addMultipartHandler { workContext =>
         val Some(upload) = workContext.multipartUpload("some.file")
 
         val subscriber = new IterableSubscriber[ByteString]()
         upload.runWith(Sink.fromSubscriber(subscriber))
         val lines = subscriber.iterator.map(_.utf8String).toList
         val e: ResponseEntity = lines.mkString("\n")
-        HttpResponse(entity = e.withContentType(ContentTypes.`text/plain(UTF-8)`))
+        val resp = HttpResponse(entity = e.withContentType(ContentTypes.`text/plain(UTF-8)`))
+        workContext.complete(resp)
       }(wr.defaultSubscription.withPath("uploadTest"))
 
 
@@ -56,14 +55,15 @@ class WorkerRoutesTest extends BaseRoutesSpec {
     "be able to upload from indefinite multipart requests" in {
       val wr = WorkerRoutes()
 
-      wr.handleMultipart { (workContext: WorkContext[MultipartPieces]) =>
+      wr.addMultipartHandler { (workContext: WorkContext[MultipartPieces]) =>
         val Some(upload) = workContext.multipartUpload("some.file")
 
         val subscriber = new IterableSubscriber[ByteString]()
         upload.runWith(Sink.fromSubscriber(subscriber))
         val lines = subscriber.iterator.map(_.utf8String).toList
         val e: ResponseEntity = lines.mkString("\n")
-        HttpResponse(entity = e.withContentType(ContentTypes.`text/plain(UTF-8)`))
+        val resp = HttpResponse(entity = e.withContentType(ContentTypes.`text/plain(UTF-8)`))
+        workContext.complete(resp)
       }(wr.defaultSubscription.withPath("uploadTest"))
 
 
@@ -95,9 +95,10 @@ class WorkerRoutesTest extends BaseRoutesSpec {
       val wr = WorkerRoutes()
 
       import jabroni.domain.io.implicits._
+      import jabroni.rest.test.TestUtils._
 
-      withTmpFile { uploadFile =>
-        withTmpFile { downloadFile =>
+      withTmpFile("worker-routes-upload") { uploadFile =>
+        withTmpFile("worker-routes-download") { downloadFile =>
 
           val expectedContent =
             """I like this:
@@ -111,10 +112,11 @@ class WorkerRoutesTest extends BaseRoutesSpec {
 
           uploadFile.text = expectedContent
 
-          wr.handleMultipart { ctxt =>
+          wr.addMultipartHandler { ctxt =>
             ctxt.multipartSavedTo("james.comey", downloadFile).block
-            ctxt.request(1)
-            HttpResponse(entity = (downloadFile.toAbsolutePath.toString))
+            ctxt.complete {
+              HttpResponse(entity = (downloadFile.toAbsolutePath.toString))
+            }
           }(wr.defaultSubscription.withPath("uploadTest"))
 
           val upload = MultipartBuilder().fromPath(uploadFile, fileName = "james.comey").formData.futureValue
@@ -145,7 +147,7 @@ class WorkerRoutesTest extends BaseRoutesSpec {
       val wr = WorkerRoutes()
 
       // add a handler for 'doit'
-      wr.handleMultipart { ctxt =>
+      wr.addMultipartHandler { ctxt =>
 
         val first = ctxt.multipartText("first").block
         first shouldBe """{"foo":"hello","bar":654}"""
@@ -153,7 +155,7 @@ class WorkerRoutesTest extends BaseRoutesSpec {
         ctxt.multipartText("third").block shouldBe """{"foo":"again","bar":8}"""
         ctxt.multipartText("key1").block shouldBe "2,3,5\n4,5,6"
 
-        HttpResponse(entity = first)
+        ctxt.complete(HttpResponse(entity = first))
       }(wr.defaultSubscription.withPath("doit"))
 
       httpReq ~> wr.routes ~> check {
@@ -169,13 +171,5 @@ object WorkerRoutesTest {
 
   val matchDetails = MatchDetails(nextMatchId(), nextSubscriptionKey(), nextJobId(), 3, 1234567)
 
-  def withTmpFile[T](f: Path => T) = {
-    val tmpFile = Files.createTempFile(getClass.getSimpleName, ".test")
-    try {
-      f(tmpFile)
-    } finally {
-      Files.delete(tmpFile)
-    }
-  }
 
 }
