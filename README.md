@@ -36,7 +36,7 @@
        +
 
 
-![sbt test cucumber](https://travis-ci.org/aaronp/jabroni.svg?branch=release)
+![sbt test cucumber](https://travis-ci.org/aaronp/jabroni.svg?branch=master)
 
 
 TODO:
