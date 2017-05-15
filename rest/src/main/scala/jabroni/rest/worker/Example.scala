@@ -1,11 +1,13 @@
 package jabroni.rest.worker
 
 import com.typesafe.scalalogging.StrictLogging
+import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import jabroni.api.Implicits._
 import jabroni.api._
 import jabroni.rest.RunningService
 import jabroni.rest.exchange.{ExchangeClient, ExchangeConfig, ExchangeRoutes}
 import jabroni.rest.worker.WorkerConfig.RunningWorker
+import io.circe.generic.auto._
 
 import scala.collection.immutable
 import scala.concurrent.ExecutionContext.Implicits._
@@ -14,7 +16,7 @@ import scala.concurrent.{Await, Future}
 import scala.language.{postfixOps, reflectiveCalls}
 import scala.util.{Failure, Success}
 
-object Example extends App with StrictLogging {
+object Example extends App with StrictLogging with FailFastCirceSupport {
 
   case class DoubleMe(x: Int)
 
@@ -27,19 +29,12 @@ object Example extends App with StrictLogging {
   // we have 
   // f = WorkContext[DoubleMe] => Doubled
   // where the 'WorkContext' holds things like the exchange client, subscription key, match details (e.g. job and worker ids), etc
-  def compute(ctxt: WorkContext[DoubleMe]): Doubled = {
+  def compute(ctxt: WorkContext[DoubleMe]) : Unit = {
     val doubled = ctxt.request.x * 2
     logger.info(s"${ctxt.path} calculating ${ctxt.request}")
     Thread.sleep(1000) // make believe this is a longer computation
 
-    // we know we've completed one work item now, so we're going to ask for more work
-    // this can be done obviously at any time, and depends on whatever the worker is doing
-    // e.g. the compute calculation know's when it's done the computationally hard bit, 
-    // so it can decide when it asks for more work (or even what sort of work it wants to 
-    // ask for)
-    ctxt.request(1)
-
-    Doubled(doubled)
+    ctxt.completeWithJson(Doubled(doubled))
   }
 
   // now start an exchange endpoint ...
@@ -54,7 +49,7 @@ object Example extends App with StrictLogging {
   val workers: immutable.Seq[RunningWorker] = Await.result(Future.sequence(workerFutures), 10.seconds)
 
   // and double some numbers!
-  val exchange: ExchangeClient = WorkerConfig().exchange
+  val exchange: ExchangeClient = WorkerConfig().exchangeClient
 
   (0 to 100).foreach { input =>
     
@@ -81,7 +76,7 @@ object Example extends App with StrictLogging {
       running: RunningWorker <- conf.startWorker()
       // add our computation handler to the worker. 
       // We can dynamically add/remove handlers at any time
-      _ <- conf.workerRoutes.handle(compute)
+      _ <- conf.workerRoutes.addHandler[DoubleMe](compute)
     } yield {
       running
     }

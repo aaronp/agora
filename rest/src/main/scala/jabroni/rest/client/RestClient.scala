@@ -26,11 +26,6 @@ object RestClient {
     new AkkaClient(location)
   }
 
-  def apply(conf: ClientConfig): RestClient = {
-    import conf.implicits._
-    apply(conf.location)
-  }
-
   class AkkaClient(location: HostLocation)(implicit sys: ActorSystem, mat: Materializer) extends RestClient with StrictLogging {
 
     import mat._
@@ -53,7 +48,7 @@ object RestClient {
     private val http = Http()
 
     override def close(): Unit = {
-      logger.info(s"Closing client to http://${location.host}:${location.port}")
+      logger.info(s"(not) Closing client to http://${location.host}:${location.port}")
       //      http.system.terminate()
     }
   }

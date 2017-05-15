@@ -1,13 +1,13 @@
 enablePlugins(CucumberPlugin)
 
-name := "jabroni-rest"
+name := "jabroni-exec"
 
-mainClass in(Compile, run) := Some("jabroni.rest.exchange.ExchangeMain")
+mainClass in(Compile, run) := Some("jabroni.exec.Main")
 
-CucumberPlugin.glue := "classpath:jabroni.rest.test"
+CucumberPlugin.glue := "classpath:jabroni.exec.test"
 
-CucumberPlugin.features := List("classpath:jabroni.rest.test",
-  "rest/src/test/resources/jabroni/rest/test")
+CucumberPlugin.features := List("classpath:jabroni.exec.test",
+  "exec/src/test/resources/jabroni/exec/test")
 
 ///import scoverage.ScoverageKeys.{coverageFailOnMinimum, coverageMinimum}
 coverageMinimum := 80

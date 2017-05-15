@@ -1,13 +1,26 @@
 package jabroni.domain
 
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.{ArrayBlockingQueue, TimeUnit}
+import java.util.concurrent.ArrayBlockingQueue
 
+import akka.stream.Materializer
+import akka.stream.scaladsl.{Framing, Sink, Source}
+import akka.util.ByteString
 import com.typesafe.scalalogging.StrictLogging
 import org.reactivestreams.{Subscriber, Subscription}
 
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
+
+object IterableSubscriber {
+  def iterate(dataBytes: Source[ByteString, Any],
+              maximumFrameLength: Int,
+              allowTruncation: Boolean = false)(implicit mat: Materializer): Iterator[String] = {
+    val subscriber = new IterableSubscriber[String]()
+    val linesFlow = Framing.delimiter(ByteString("\n"), maximumFrameLength, allowTruncation = allowTruncation)
+    dataBytes.via(linesFlow.map(_.utf8String)).runWith(Sink.fromSubscriber(subscriber))
+    subscriber.iterator
+  }
+}
 
 class IterableSubscriber[T](val initialRequestToTake: Int = 10)(implicit pollTimeout: FiniteDuration = 10.seconds)
   extends Subscriber[T]
@@ -94,7 +107,6 @@ class IterableSubscriber[T](val initialRequestToTake: Int = 10)(implicit pollTim
           true
       }
     }
-
   }
 
 }

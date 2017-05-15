@@ -1,6 +1,5 @@
 package jabroni.rest
 
-import com.typesafe.config.ConfigFactory
 import jabroni.rest.worker.WorkerConfig
 import org.scalatest.{Matchers, WordSpec}
 
@@ -10,7 +9,7 @@ class WorkerTest extends WordSpec with Matchers {
     "produce a worker config from user args" in {
       val wc: WorkerConfig = WorkerConfig("details.path=foo", "port=1122", "exchange.port=567")
       wc.location.port shouldBe 1122
-      wc.exchangeClientConfig.location.port shouldBe 567
+      wc.exchangeConfig.location.port shouldBe 567
 
       wc.subscription.details shouldBe wc.workerDetails
 

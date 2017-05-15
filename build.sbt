@@ -18,7 +18,7 @@ git.gitTagToVersionNumber := { tag: String =>
   } else None
 }
 
-lazy val jabroni = (project in file(".")).aggregate(apiJVM, apiJS, rest, ui)
+lazy val jabroni = (project in file(".")).aggregate(apiJVM, apiJS, rest, ui, exec)
 
 val commonSettings: Seq[Def.Setting[_]] = Seq(
   //version := parentProject.settings.ver.value,
@@ -51,6 +51,11 @@ lazy val rest = project.
   settings(commonSettings).
   settings(libraryDependencies ++= Dependencies.Rest)
 
+lazy val exec = project.
+  dependsOn(rest, rest % "test->test;compile->compile").
+  settings(commonSettings).
+  settings(libraryDependencies ++= Dependencies.Rest)
+
 lazy val ui = project.
   dependsOn(apiJS).
   settings(commonSettings: _*).
@@ -58,18 +63,6 @@ lazy val ui = project.
   enablePlugins(ScalaJSPlugin)
 
 // see https://leonard.io/blog/2017/01/an-in-depth-guide-to-deploying-to-maven-central/
-
-// homepage := Some(url("https://github.com/aaronp/jabroni"))
-
-// scmInfo := Some(ScmInfo(url("https://github.com/aaronp/jabroni"), "git@github.com:aaronp/jabroni.git"))
-
-// developers += Developer("aaronp",
-//                         "Aaron Pritzlaff",
-//                         "aaron.pritzlaff@gmail.com",
-//                         url("https://github.com/aaronp/jabroni"))
-
-// licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))
-
 pomIncludeRepository := (_ => false)
 
 // To sync with Maven central, you need to supply the following information:
