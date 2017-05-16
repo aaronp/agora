@@ -13,7 +13,9 @@ import jabroni.rest.multipart.MultipartBuilder
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.reflectiveCalls
+import scala.sys.process.{FileProcessLogger, ProcessLogger}
 import scala.util._
+import scala.sys.process._
 
 /**
   * prepresents something which can be run
@@ -31,7 +33,15 @@ object ProcessRunner {
     * Creates a process runner to run under the given directory
     *
     */
-  def apply(workDir: Path, errorLimit: Option[Int] = None)(implicit mat: Materializer) = new Runner(workDir, errorLimit)
+  def apply(uploadDir: Path,
+            workDir: Option[Path] = None,
+            logDir: Option[Path] = None,
+            errorLimit: Option[Int] = None)(implicit mat: Materializer) = {
+    new Runner(workDir,
+      uploadDir,
+      logDir,
+      errorLimit)
+  }
 
   /**
     * @param worker the worker client used to send requests
@@ -47,7 +57,7 @@ object ProcessRunner {
   case class RemoteRunner(exchange: ExchangeClient,
                           maximumFrameLength: Int,
                           allowTruncation: Boolean)(implicit mat: Materializer,
-                                                    uploadTimeout: FiniteDuration) extends ProcessRunner with AutoCloseable{
+                                                    uploadTimeout: FiniteDuration) extends ProcessRunner with AutoCloseable {
 
     import mat._
 
@@ -76,14 +86,17 @@ object ProcessRunner {
   /**
     * Something which can run commands
     */
-  case class Runner(workDir: Path, errorLimit: Option[Int])(implicit mat: Materializer) extends ProcessRunner with LazyLogging {
+  case class Runner(workDir: Option[Path],
+                    uploadDir: Path,
+                    logDir: Option[Path],
+                    errorLimit: Option[Int])(implicit mat: Materializer) extends ProcessRunner with LazyLogging {
 
     import mat._
 
     override def run(proc: RunProcess, inputFiles: List[Upload]) = {
       val futures = inputFiles.map {
         case Upload(name, _, src) =>
-          val dest = workDir.resolve(name)
+          val dest = uploadDir.resolve(name)
           val writeFut = src.runWith(FileIO.toPath(dest, Set(StandardOpenOption.CREATE, StandardOpenOption.WRITE)))
 
           writeFut.onComplete {
@@ -100,55 +113,62 @@ object ProcessRunner {
           }
         }
         logger.debug(s"Running $proc w/ ${paths.size} uploads ${paths.mkString(";")}")
-        runUnsafe(proc, Option(workDir.toFile), errorLimit)
+
+        val stdOut: StreamLogger = StreamLogger()
+        val stdOutIterator = stdOut.iterator
+        val log: SplitLogger = newLogger(stdOut, logDir, errorLimit)
+        val future = runUnsafe(proc, workDir.map(_.toFile), log)
+
+        future.onComplete {
+          case Success(code) => stdOut.complete(code)
+          case Failure(err) => stdOut.complete(-1)
+        }
+        stdOutIterator
       }
+    }
+
+  }
+
+
+  def newLogger(stdOut: StreamLogger,
+                logDir: Option[Path],
+                errorLimit: Option[Int]): SplitLogger = {
+    logDir.fold(SplitLogger(JustStdOut(stdOut))) { wd =>
+      import ProcessLoggers._
+      val errLog = {
+        val fileLogger: FileProcessLogger = ProcessLogger(wd.resolve("std.err").toFile)
+        errorLimit.fold(fileLogger: ProcessLogger) { limit => LimitedLogger(limit, fileLogger) }
+      }
+      val outLog = ProcessLogger(wd.resolve("std.out").toFile)
+
+      SplitLogger(
+        JustStdOut(stdOut),
+        JustStdErr(errLog),
+        JustStdOut(outLog)
+      )
     }
   }
 
   def runUnsafe(proc: RunProcess,
                 workDir: Option[java.io.File],
-                errorLimit: Option[Int])(implicit ec: ExecutionContext): Iterator[String] = {
-    import scala.sys.process._
-
-    val stdOut = StreamLogger()
-    val log: SplitLogger = workDir.fold(SplitLogger(JustStdOut(stdOut))) { wd =>
-      import ProcessLoggers._
-      val errLog = {
-        val fileLogger: FileProcessLogger = ProcessLogger(wd.toPath.resolve("std.err").toFile)
-        errorLimit.fold(fileLogger: ProcessLogger) { limit => LimitedLogger(limit, fileLogger) }
-      }
-      val outLog = ProcessLogger(wd.toPath.resolve("std.out").toFile)
-
-      val printLog = ProcessLogger(
-        (out: String) => println("OUT: " + out),
-        (err: String) => println("ERR: " + err)
-      )
-      SplitLogger(
-        JustStdOut(stdOut),
-        printLog,
-        JustStdErr(errLog),
-        JustStdOut(outLog)
-      )
-    }
-
-    val stdOutIterator = stdOut.iterator
+                log: SplitLogger)(implicit ec: ExecutionContext): Future[Int] = {
 
     val startedTry: Try[Process] = Try {
       Process(proc.command, workDir, proc.env.toSeq: _*).run(log)
     }
     startedTry match {
-      case Success(process) => Future(process.exitValue()).onComplete { res =>
-        log.flush()
-        log.close()
-        stdOut.complete(res)
-      }
+      case Success(process) =>
+        val future = Future(process.exitValue())
+        future.onComplete { res =>
+          log.flush()
+          log.close()
+        }
+        future
       case Failure(err) =>
         log.flush()
         log.close()
-        stdOut.complete(-1)
-        throw err
+        Future.failed(err)
     }
-    stdOutIterator
   }
 
 }
