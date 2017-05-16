@@ -51,9 +51,9 @@ trait LowPriorityIOImplicits {
 
     def exists = Files.exists(path)
 
-    def isDir = Files.isDirectory(path)
+    def isDir = exists && Files.isDirectory(path)
 
-    def isFile = Files.isRegularFile(path)
+    def isFile = exists && Files.isRegularFile(path)
 
     def children: Iterator[Path] = if (isDir) Files.list(path).iterator().asScala else Iterator.empty
 

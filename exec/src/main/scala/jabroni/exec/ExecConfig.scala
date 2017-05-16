@@ -1,36 +1,53 @@
 package jabroni.exec
 
+import java.nio.file.Path
 import java.util.concurrent.TimeUnit
 
 import com.typesafe.config.ConfigFactory
+import jabroni.api.nextJobId
 import jabroni.exec.ExecutionWorker.onRun
-import jabroni.rest.exchange.ExchangeClient
 import jabroni.rest.multipart.MultipartPieces
 import jabroni.rest.worker.{WorkContext, WorkerConfig}
 
 import scala.concurrent.duration._
+import scala.util.Try
 
 class ExecConfig(val workerConfig: WorkerConfig) {
   def exec = workerConfig.config.getConfig("exec")
 
-  import workerConfig.implicits._
   import jabroni.domain.io.implicits._
+  import workerConfig.implicits._
 
   private lazy val configuredWorker = {
     workerConfig.workerRoutes.addMultipartHandler { (req: WorkContext[MultipartPieces]) =>
-      import jabroni.api._
-      val jobDir = workDir.resolve(req.matchDetails.map(_.jobId).getOrElse("_" + nextJobId())).mkDirs()
-      val runner = ProcessRunner(jobDir, errorLimit)
+      val runner = newRunner(req)
       req.completeWith(onRun(runner, req, uploadTimeout))
     }
     workerConfig
+  }
+
+  /** @return a process runner to execute the given request
+    */
+  protected def newRunner(req: WorkContext[MultipartPieces]): ProcessRunner = {
+    import jabroni.api.nextJobId
+    val jobId = req.matchDetails.map(_.jobId).getOrElse(nextJobId)
+    val logDir = baseLogDir.map(_.resolve(jobId).mkDirs())
+    val uploadDir = baseUploadDir.resolve(jobId).mkDirs()
+    val workDir = baseWorkDir.map(_.resolve(jobId).mkDirs())
+    ProcessRunner(uploadDir, workDir, logDir, errorLimit, includeConsoleAppender)
   }
 
   def start() = configuredWorker.startWorker
 
   override def toString = exec.root.render()
 
-  def workDir = exec.getString("workDir").asPath.mkDirs()
+  def baseWorkDir = Try(exec.getString("workDir")).toOption.filterNot(_.isEmpty).map(_.asPath.mkDirs())
+
+  def baseUploadDir = exec.getString("uploadDir").asPath.mkDirs()
+
+  def includeConsoleAppender = exec.getBoolean("includeConsoleAppender")
+
+  def baseLogDir: Option[Path] = Try(exec.getString("logDir")).toOption.filterNot(_.isEmpty).map(_.asPath.mkDirs())
 
   def allowTruncation = exec.getBoolean("allowTruncation")
 
@@ -41,7 +58,9 @@ class ExecConfig(val workerConfig: WorkerConfig) {
   implicit def uploadTimeout: FiniteDuration = exec.getDuration("uploadTimeout", TimeUnit.MILLISECONDS).millis
 
   def remoteRunner(): ProcessRunner with AutoCloseable = {
+
     import workerConfig.implicits._
+
     ProcessRunner(workerConfig.exchangeClient, maximumFrameLength, allowTruncation)
   }
 }
