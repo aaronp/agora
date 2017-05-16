@@ -10,23 +10,12 @@ git.useGitDescribe := false
 
 git.gitTagToVersionNumber := { tag: String =>
   if (tag matches "v?[0-9]+\\..*") {
-    if (tag.contains("SNAPSHOT")) {
-      Some(tag)
-    } else {
-      Some(tag)
-    }
+    Some(tag)
   } else None
 }
 
+
 lazy val jabroni = (project in file(".")).
-  enablePlugins(BuildInfoPlugin).
-  settings(
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "jabroni.version",
-    buildInfoOptions += BuildInfoOption.ToMap,
-    buildInfoOptions += BuildInfoOption.ToJson,
-    buildInfoOptions += BuildInfoOption.BuildTime
-  ).
   aggregate(apiJVM, apiJS, rest, ui, exec)
 
 val commonSettings: Seq[Def.Setting[_]] = Seq(
@@ -45,13 +34,17 @@ lazy val jabroniApi = crossProject.in(file("api")).
   settings(commonSettings: _*).
   settings(libraryDependencies ++= Dependencies.Api).
   jvmSettings(
-    // no JVM-specific settings as of yet
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "jabroni.api.version",
+    buildInfoOptions += BuildInfoOption.ToMap,
+    buildInfoOptions += BuildInfoOption.ToJson,
+    buildInfoOptions += BuildInfoOption.BuildTime
   ).
   jsSettings(
     // no JS-specific settings so far
   )
 
-lazy val apiJVM = jabroniApi.jvm
+lazy val apiJVM = jabroniApi.jvm.enablePlugins(BuildInfoPlugin)
 
 lazy val apiJS = jabroniApi.js
 
@@ -83,11 +76,6 @@ pomExtra in Global := {
         <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
       </license>
     </licenses>
-    <scm>
-      <connection>scm:git:github.com/aaronp/jabroni</connection>
-      <developerConnection>scm:git:git@github.com:aaronp/jabroni</developerConnection>
-      <url>github.com/aaronp/jabroni</url>
-    </scm>
     <developers>
       <developer>
         <id>aaronp</id>

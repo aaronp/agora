@@ -15,6 +15,7 @@ object Dependencies {
   val testDependencies = Seq(
     "org.scalactic" %% "scalactic" % "3.0.1" % "test",
     "org.scalatest" %% "scalatest" % "3.0.1" % ("test->*"),
+    "org.pegdown" % "pegdown" % "1.6.0" % ("test->*"),
     "junit" % "junit" % "4.12" % "test")
 
   val circe = Seq("core", "generic", "parser", "optics").map(name => "io.circe" %% s"circe-$name" % "0.7.0")

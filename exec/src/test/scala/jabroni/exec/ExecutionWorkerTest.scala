@@ -35,6 +35,7 @@ class ExecutionWorkerTest extends BaseSpec with BeforeAndAfterAll {
   }
 
   "ExecutionWorker" should {
+
     "run simple commands remotely" in {
       val res: Iterator[String] = remoteRunner.run("echo", "testing 123").futureValue
       res.mkString(" ") shouldBe "testing 123"

@@ -29,19 +29,23 @@ case class WorkerRoutes(exchange: Exchange = Exchange(),
 
   def routes: Route = {
     val all = workerRoutes ~ multipartRoutes ~ health
+    all
+  }
 
+
+  def withRejectionHandler(r: Route) = {
     handleRejections(onNotFound) {
-      all
+      r
     }
   }
 
-  private def onNotFound  = RejectionHandler.newBuilder().handleNotFound(notFoundRoute).result
+  private def onNotFound = RejectionHandler.newBuilder().handleNotFound(notFoundRoute).result
 
   def notFoundRoute: Route = extractRequest { req =>
     complete((StatusCodes.NotFound, HttpEntity(ContentTypes.`text/plain(UTF-8)`,
       s""" Invalid path: ${req.uri}
          |
-        |  Known handlers include:
+         |  Known handlers include:
          |  ${workerByPath.keySet.toList.sorted.mkString("\n")}
          |
       """.stripMargin)))
@@ -71,7 +75,7 @@ case class WorkerRoutes(exchange: Exchange = Exchange(),
     }
   }
 
-  def usingSubscription(f : WorkSubscription => WorkSubscription) = new WithSubscriptionWord(this, f)
+  def usingSubscription(f: WorkSubscription => WorkSubscription) = new WithSubscriptionWord(this, f)
 
   /**
     * The main body for a handler ... registers a function ('onReq') which does some work.
@@ -89,9 +93,9 @@ case class WorkerRoutes(exchange: Exchange = Exchange(),
     * @return a future of the 'request work' ack
     */
   def addHandler[T](onReq: WorkContext[T] => Unit)
-                  (implicit subscription: WorkSubscription = defaultSubscription,
-                   initialRequest: Int = defaultInitialRequest,
-                   fromRequest: Unmarshaller[HttpRequest, T]): Future[RequestWorkAck] = {
+                   (implicit subscription: WorkSubscription = defaultSubscription,
+                    initialRequest: Int = defaultInitialRequest,
+                    fromRequest: Unmarshaller[HttpRequest, T]): Future[RequestWorkAck] = {
 
     val path = subscription.details.path.getOrElse(sys.error(s"The subscription doesn't contain a path: ${subscription.details}"))
     val subscriptionAckFuture: Future[WorkSubscriptionAck] = exchange.subscribe(subscription)
