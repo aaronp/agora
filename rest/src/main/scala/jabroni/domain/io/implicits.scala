@@ -4,7 +4,8 @@ package jabroni.domain.io
 
 import java.nio.charset.{Charset, StandardCharsets}
 import java.nio.file._
-import java.nio.file.attribute.FileAttribute
+import java.nio.file.attribute.{BasicFileAttributes, FileAttribute}
+import java.time.format.DateTimeFormatter
 
 object implicits extends LowPriorityIOImplicits
 
@@ -27,6 +28,8 @@ trait LowPriorityIOImplicits {
     def getText(charset: Charset = StandardCharsets.UTF_8): String = new String(bytes, charset)
 
     def text: String = getText()
+
+    def lines: Iterator[String] = Files.lines(path).iterator().asScala
 
     def text_=(str: String) = {
       createIfNotExists()
@@ -57,16 +60,20 @@ trait LowPriorityIOImplicits {
 
     def children: Iterator[Path] = if (isDir) Files.list(path).iterator().asScala else Iterator.empty
 
-    def delete(): Unit = {
-      if (isDir) {
-        println(s"Deleting dir $path")
+    def attributes: BasicFileAttributes = Files.readAttributes(path, classOf[BasicFileAttributes])
+
+    def created = attributes.creationTime.toInstant
+
+    def createdString = DateTimeFormatter.ISO_ZONED_DATE_TIME.format(created)
+
+    def fileName = path.getFileName.toString
+
+    def delete(recursive: Boolean = true): Unit = {
+      if (isDir && recursive) {
         children.foreach(_.delete())
         Files.delete(path)
       } else if (isFile) {
-        println(s"Deleting file $path")
         Files.delete(path)
-      } else {
-        println(s"Leaving alone $path")
       }
     }
   }

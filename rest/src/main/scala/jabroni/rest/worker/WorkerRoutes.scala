@@ -71,6 +71,8 @@ case class WorkerRoutes(exchange: Exchange = Exchange(),
     }
   }
 
+  def usingSubscription(f : WorkSubscription => WorkSubscription) = new WithSubscriptionWord(this, f)
+
   /**
     * The main body for a handler ... registers a function ('onReq') which does some work.
     *

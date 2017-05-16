@@ -42,8 +42,8 @@ trait MultipartHandlerSupport extends MultipartDirectives with FailFastCirceSupp
   private var multipartByPath = Map[String, OnMultipartWork]()
 
   def addMultipartHandler(onReq: WorkContext[MultipartPieces] => Unit)
-                     (implicit subscription: WorkSubscription = defaultSubscription,
-                      initialRequest: Int = defaultInitialRequest): Future[RequestWorkAck] = {
+                         (implicit subscription: WorkSubscription = defaultSubscription,
+                          initialRequest: Int = defaultInitialRequest): Future[RequestWorkAck] = {
 
     val path = subscription.details.path.getOrElse(sys.error(s"The subscription doesn't contain a path: ${subscription.details}"))
     val subscriptionAckFuture: Future[WorkSubscriptionAck] = exchange.subscribe(subscription)

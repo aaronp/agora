@@ -175,7 +175,7 @@ case class WorkSubscription(details: WorkerDetails = WorkerDetails(),
   def matching(matcher: JMatcher) = copy(jobMatcher = matcher)
 
   def withData[T: Encoder](data: T, name: String = null) = withDetails(_.withData(data, name))
-  def withPath(path : String) = withDetails(_.withPath(path))
+  def withPath(path : String): WorkSubscription = withDetails(_.withPath(path))
   def withSubscriptionKey(path : String) = withDetails(_.withSubscriptionKey(path))
 
   def withDetails(f : WorkerDetails => WorkerDetails) = {

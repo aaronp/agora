@@ -18,7 +18,16 @@ git.gitTagToVersionNumber := { tag: String =>
   } else None
 }
 
-lazy val jabroni = (project in file(".")).aggregate(apiJVM, apiJS, rest, ui, exec)
+lazy val jabroni = (project in file(".")).
+  enablePlugins(BuildInfoPlugin).
+  settings(
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "jabroni.version",
+    buildInfoOptions += BuildInfoOption.ToMap,
+    buildInfoOptions += BuildInfoOption.ToJson,
+    buildInfoOptions += BuildInfoOption.BuildTime
+  ).
+  aggregate(apiJVM, apiJS, rest, ui, exec)
 
 val commonSettings: Seq[Def.Setting[_]] = Seq(
   //version := parentProject.settings.ver.value,

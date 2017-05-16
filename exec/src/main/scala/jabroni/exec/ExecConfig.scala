@@ -3,9 +3,7 @@ package jabroni.exec
 import java.nio.file.Path
 import java.util.concurrent.TimeUnit
 
-import com.typesafe.config.ConfigFactory
-import jabroni.api.nextJobId
-import jabroni.exec.ExecutionWorker.onRun
+import com.typesafe.config.{Config, ConfigFactory}
 import jabroni.rest.multipart.MultipartPieces
 import jabroni.rest.worker.{WorkContext, WorkerConfig}
 
@@ -18,17 +16,13 @@ class ExecConfig(val workerConfig: WorkerConfig) {
   import jabroni.domain.io.implicits._
   import workerConfig.implicits._
 
-  private lazy val configuredWorker = {
-    workerConfig.workerRoutes.addMultipartHandler { (req: WorkContext[MultipartPieces]) =>
-      val runner = newRunner(req)
-      req.completeWith(onRun(runner, req, uploadTimeout))
-    }
-    workerConfig
+  private lazy val executionRoutes = {
+    ExecutionRoutes(this)
   }
 
   /** @return a process runner to execute the given request
     */
-  protected def newRunner(req: WorkContext[MultipartPieces]): ProcessRunner = {
+  def newRunner(req: WorkContext[MultipartPieces]): ProcessRunner = {
     import jabroni.api.nextJobId
     val jobId = req.matchDetails.map(_.jobId).getOrElse(nextJobId)
     val logDir = baseLogDir.map(_.resolve(jobId).mkDirs())
@@ -37,7 +31,9 @@ class ExecConfig(val workerConfig: WorkerConfig) {
     ProcessRunner(uploadDir, workDir, logDir, errorLimit, includeConsoleAppender)
   }
 
-  def start() = configuredWorker.startWorker
+  def start() = {
+    executionRoutes.start
+  }
 
   override def toString = exec.root.render()
 
@@ -67,8 +63,8 @@ class ExecConfig(val workerConfig: WorkerConfig) {
 
 object ExecConfig {
 
-  def apply(args: Array[String] = Array.empty) = {
-    new ExecConfig(WorkerConfig(args, defaultConfig))
+  def apply(args: Array[String] = Array.empty, fallbackConfig: Config = defaultConfig) = {
+    new ExecConfig(WorkerConfig(args, fallbackConfig))
   }
 
   def defaultConfig = {

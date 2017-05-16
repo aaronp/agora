@@ -1,13 +1,10 @@
-package jabroni.exec
+package jabroni.exec.log
 
-import jabroni.exec.ProcessLoggers.StreamLogger
 import jabroni.rest.BaseSpec
 
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.Future
-
-import language.reflectiveCalls
-import language.implicitConversions
+import scala.language.{implicitConversions, reflectiveCalls}
 
 class ProcessLoggersTest extends BaseSpec {
 
@@ -15,8 +12,6 @@ class ProcessLoggersTest extends BaseSpec {
     // could potentially block the test indefinitely,so do this in (and out) of a future
     def asList(max: Int): List[String] = Future(sl.iterator.take(max).toList).futureValue
   }
-
-  import ProcessLoggers._
 
   "ProcessLoggers.StreamLogger" should {
     "produce an iterator of output" in {
@@ -26,10 +21,10 @@ class ProcessLoggersTest extends BaseSpec {
       log.asList(2) shouldBe List("first", "second")
     }
   }
-  "LimitedLogger" should {
+  "LimitLogger" should {
     "limit input up to a limit" in {
       val stream = StreamLogger()
-      val log = LimitedLogger(limit = 3, stream)
+      val log = LimitLogger(limit = 3, stream)
       log.out("first out")
       log.err("first err")
       log.out("second out")
