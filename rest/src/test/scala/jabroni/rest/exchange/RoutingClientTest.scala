@@ -4,6 +4,7 @@ import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import io.circe.Json
 import io.circe.optics.JsonPath
+import jabroni.integration.BaseIntegrationTest
 import jabroni.rest.worker.WorkerConfig.RunningWorker
 import jabroni.rest.worker.{WorkContext, WorkerConfig}
 import jabroni.rest.{BaseSpec, RunningService}
@@ -11,7 +12,7 @@ import org.scalatest.time.{Millis, Seconds, Span}
 
 import scala.language.reflectiveCalls
 
-class RoutingClientTest extends BaseSpec with jabroni.api.Implicits {
+trait RoutingClientTest extends jabroni.api.Implicits { self : BaseIntegrationTest =>
 
   "RoutingClient.handleSource" should {
     "Stream work from workers" in {
@@ -22,7 +23,6 @@ class RoutingClientTest extends BaseSpec with jabroni.api.Implicits {
       val workerConf = WorkerConfig(s"port=$workerPort", s"exchange.port=$exchangePort")
       val worker: RunningWorker = workerConf.startWorker().futureValue
       try {
-        import exConf.implicits._
 
         val subscriptionAckFuture = worker.service.addHandler[Int] { (ctxt: WorkContext[Int]) =>
           def iter = Iterator.continually(ctxt.request).zipWithIndex.map {
@@ -34,7 +34,6 @@ class RoutingClientTest extends BaseSpec with jabroni.api.Implicits {
           ctxt.completeWithSource(Source.fromIterator(() => iter))
         }
         subscriptionAckFuture.futureValue
-
 
         val res: CompletedWork = workerConf.exchangeClient.enqueue(12345.asJob).futureValue
         val values = res.iterateResponse(testTimeout)

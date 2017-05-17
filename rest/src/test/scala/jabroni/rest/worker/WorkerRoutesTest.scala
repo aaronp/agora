@@ -12,8 +12,6 @@ import jabroni.domain.io.Sources
 import jabroni.rest.multipart.{MultipartBuilder, MultipartPieces}
 import jabroni.rest.test.TestUtils._
 
-import scala.language.reflectiveCalls
-
 class WorkerRoutesTest extends BaseRoutesSpec {
 
   import WorkerRoutesTest._

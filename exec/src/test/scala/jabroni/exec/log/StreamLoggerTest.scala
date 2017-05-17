@@ -28,20 +28,22 @@ class StreamLoggerTest extends BaseSpec with Matchers {
       // we should be able to call 'iterator' here, before any output is given
       val streamIter = log.iterator
       Future(
-        Iterator.continually("some text").zipWithIndex.take(300).foreach {
+        Iterator.continually("some text").zipWithIndex.take(22).foreach {
           case (s, i) => log.out(s"$i: $s")
         }
       )
-      val oneHundred = streamIter.take(100)
-      oneHundred.size shouldBe 100
+      val firstTen = streamIter.take(10).toList
+      firstTen.size shouldBe 10
 
-      // next 100
-      streamIter.take(100).size shouldBe 100
+      // next 10
+      val secondTen = streamIter.take(10).toList
+      secondTen.size shouldBe 10
 
       // finally complete the logger
       log.complete(0)
 
-      streamIter.size should be > 200
+      // we should still have elements left
+      streamIter.size shouldBe 2
     }
   }
 }

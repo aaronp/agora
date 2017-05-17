@@ -14,7 +14,6 @@ class JMatcherTest extends WordSpec with Matchers {
       val matcher: JMatcher = JMatcher.matchAll or JMatcher.matchAll
 
       val json = matcher.asJson
-      println(json)
       val Right(backAgain) = json.as[JMatcher]
       matcher shouldBe backAgain
     }

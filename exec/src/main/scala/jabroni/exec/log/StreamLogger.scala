@@ -2,14 +2,12 @@ package jabroni.exec.log
 
 import java.util.concurrent.LinkedBlockingQueue
 
-import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
-
 import scala.collection.immutable.Stream
 import scala.concurrent.{Future, Promise}
 import scala.sys.process.ProcessLogger
 import scala.util.Try
 
-object StreamLogger extends StrictLogging {
+object StreamLogger {
 
   def apply(name: String = "process") = new StreamLogger(handle(name)(PartialFunction.empty))
 
@@ -18,15 +16,7 @@ object StreamLogger extends StrictLogging {
   }
 
   def handle(name: String = "process")(pf: PartialFunction[Int, Stream[String]]): Int => Stream[String] = {
-    val loggingCode: (Int) => Option[Stream[String]] = pf.lift.compose { code: Int =>
-      if (code != 0) {
-        logger.error(s"$name completed with non-zero exit code: " + code)
-      } else {
-        logger.trace(s"$name completed")
-      }
-      code
-    }
-    loggingCode.andThen(_.getOrElse(Stream.empty[String]))
+    pf.lift.andThen(_.getOrElse(Stream.empty[String]))
   }
 
 }
@@ -63,13 +53,13 @@ case class StreamLogger(exitCodeHandler: Int => Stream[String]) extends ProcessL
     exitCode
   }
 
-  def close() = {
-    complete(-10)
-  }
+  def close() = complete(-10)
 
   def exitCode = exitCodePromise.future
 
-  private def append(s: => String) = q.put(Right(s))
+  private def append(s: => String) = {
+    q.put(Right(s))
+  }
 
   override def out(s: => String): Unit = append(s)
 

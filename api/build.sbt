@@ -6,3 +6,5 @@ assemblyMergeStrategy in assembly := {
     val oldStrategy = (assemblyMergeStrategy in assembly).value
     oldStrategy(x)
 }
+
+scalaJSOptimizerOptions ~= { _.withDisableOptimizer(true) }

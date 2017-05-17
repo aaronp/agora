@@ -8,7 +8,7 @@ import jabroni.rest.multipart.MultipartBuilder
 
 import scala.language.reflectiveCalls
 
-class WorkerIntegrationTest extends BaseIntegrationTest {
+trait WorkerIntegrationTest { self : BaseIntegrationTest =>
 
   import jabroni.api.Implicits._
 

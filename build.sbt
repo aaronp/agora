@@ -43,6 +43,7 @@ lazy val jabroniApi = crossProject.in(file("api")).
   ).
   jsSettings(
     // no JS-specific settings so far
+    scalaJSOptimizerOptions ~= { _.withDisableOptimizer(true) }
   )
 
 lazy val apiJVM = jabroniApi.jvm.enablePlugins(BuildInfoPlugin)
