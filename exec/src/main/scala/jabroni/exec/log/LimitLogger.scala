@@ -4,7 +4,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import scala.sys.process.ProcessLogger
 
-case class LimitLogger(limit: Int, logger: ProcessLogger) extends DelegateLogger(logger) {
+case class LimitLogger(limit: Int, override val logger: ProcessLogger) extends DelegateLogger(logger) {
   private val count = new AtomicInteger(0)
 
   def canAppend = count.incrementAndGet() <= limit

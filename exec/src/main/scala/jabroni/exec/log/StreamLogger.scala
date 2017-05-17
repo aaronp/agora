@@ -2,30 +2,55 @@ package jabroni.exec.log
 
 import java.util.concurrent.LinkedBlockingQueue
 
+import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
+
 import scala.collection.immutable.Stream
 import scala.concurrent.{Future, Promise}
 import scala.sys.process.ProcessLogger
 import scala.util.Try
 
+object StreamLogger extends StrictLogging {
+
+  def apply(name: String = "process") = new StreamLogger(handle(name)(PartialFunction.empty))
+
+  def forProcess(name: String)(pf: PartialFunction[Int, Stream[String]]): StreamLogger = {
+    StreamLogger(handle(name)(pf))
+  }
+
+  def handle(name: String = "process")(pf: PartialFunction[Int, Stream[String]]): Int => Stream[String] = {
+    val loggingCode: (Int) => Option[Stream[String]] = pf.lift.compose { code: Int =>
+      if (code != 0) {
+        logger.error(s"$name completed with non-zero exit code: " + code)
+      } else {
+        logger.trace(s"$name completed")
+      }
+      code
+    }
+    loggingCode.andThen(_.getOrElse(Stream.empty[String]))
+  }
+
+}
 
 /**
   * Made available from BasicIO
   *
-  * @param nonzeroException
+  * @param exitCodeHandler a function on what to return for the given exit code
   */
-case class StreamLogger(nonzeroException: Boolean = true) extends ProcessLogger {
+case class StreamLogger(exitCodeHandler: Int => Stream[String]) extends ProcessLogger with AutoCloseable {
 
   private val q = new LinkedBlockingQueue[Either[Int, String]]
 
   private val exitCodePromise = Promise[Int]()
+
+  // we append an empty one with 'next' so the call to 'iterator' doesn't block,
+  // since the first call to 'next' is blocking!
   lazy val iterator = {
     Iterator.empty ++ (next().iterator)
   }
 
   private def next(): Stream[String] = {
     q.take match {
-      case Left(0) => Stream.empty
-      case Left(code) => if (nonzeroException) scala.sys.error("Nonzero exit code: " + code) else Stream.empty
+      case Left(code) => exitCodeHandler(code)
       case Right(s) => Stream.cons(s, next())
     }
   }
@@ -36,6 +61,10 @@ case class StreamLogger(nonzeroException: Boolean = true) extends ProcessLogger 
     q.put(Left(code.getOrElse(-1)))
     exitCodePromise.complete(code)
     exitCode
+  }
+
+  def close() = {
+    complete(-10)
   }
 
   def exitCode = exitCodePromise.future

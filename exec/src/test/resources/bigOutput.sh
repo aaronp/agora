@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-N=$1
+DIR=$1
+N=$2
 
 for i in $(seq 0 1 `echo $((N))`); do
-  find ../../ -name '*.scala' -exec cat {} \;
+  find $DIR -name '*.scala' -exec cat {} \;
 done
 

@@ -4,14 +4,14 @@ package jabroni.domain.io
 
 import java.nio.charset.{Charset, StandardCharsets}
 import java.nio.file._
-import java.nio.file.attribute.{BasicFileAttributes, FileAttribute}
+import java.nio.file.attribute.{BasicFileAttributes, FileAttribute, PosixFilePermission}
 import java.time.format.DateTimeFormatter
 
 object implicits extends LowPriorityIOImplicits
 
 trait LowPriorityIOImplicits {
 
-  implicit class RichString(val path: String) {
+  implicit class RichPathString(val path: String) {
     def asPath = Paths.get(path)
   }
 
@@ -50,7 +50,17 @@ trait LowPriorityIOImplicits {
 
     def mkDirs(atts: FileAttribute[_]*): Path = Files.createDirectories(path, atts: _*)
 
-    def mkDir(atts: FileAttribute[_]*): Path = Files.createDirectory(path, atts: _*)
+    def mkDir(atts: FileAttribute[_]*): Path = {
+      if (!exists) Files.createDirectory(path, atts: _*) else path
+    }
+
+    def setFilePermissions(permission: PosixFilePermission, theRest : PosixFilePermission*): Path = {
+      setFilePermissions(theRest.toSet + permission)
+    }
+    def setFilePermissions(permissions: Set[PosixFilePermission]): Path = {
+      Files.setPosixFilePermissions(path, permissions.asJava)
+    }
+    def grantAllPermissions: Path = setFilePermissions(PosixFilePermission.values().toSet)
 
     def size = Files.size(path)
 

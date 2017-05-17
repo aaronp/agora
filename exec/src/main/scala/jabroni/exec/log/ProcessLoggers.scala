@@ -4,50 +4,45 @@ import java.nio.file.Path
 
 import jabroni.api.JobId
 
-import scala.sys.process.{FileProcessLogger, ProcessLogger}
+import scala.sys.process.ProcessLogger
+
+case class ProcessLoggers(jobName: String,
+                          logDirOpt: Option[Path],
+                          errorLimit: Option[Int],
+                          includeConsoleAppender: Boolean,
+                          successErrorCodes: Set[Int] = Set(0)) {
+  val stdErrLog = StreamLogger()
+
+  private val limitedErrorLog = errorLimit.fold(stdErrLog: ProcessLogger) { limit => LimitLogger(limit, stdErrLog) }
+  val stdOutLog = StreamLogger.forProcess(jobName) {
+    case n if !successErrorCodes.contains(n) => stdErrLog.iterator.toStream
+  }
+
+  val splitLogger: SplitLogger = {
+    val all = SplitLogger(JustStdOut(stdOutLog), JustStdErr(limitedErrorLog))
+
+    logDirOpt.foreach { logDir =>
+      val errLog = ProcessLogger(logDir.resolve("std.err").toFile)
+      all.add(JustStdErr(errLog))
+
+      val outLog = ProcessLogger(logDir.resolve("std.out").toFile)
+      all.add(JustStdOut(outLog))
+    }
+
+    if (includeConsoleAppender) {
+      val console = ProcessLogger(
+        (s: String) => Console.out.println(s"OUT: $s"),
+        (s: String) => Console.err.println(s"ERR: $s"))
+      all.add(console)
+    }
+    all
+  }
+}
 
 object ProcessLoggers {
 
 
-  /**
-    *
-    * @param stdOut
-    * @param logDir
-    * @param errorLimit
-    * @param includeConsoleAppender
-    * @return
-    */
-  def newLogger(stdOut: StreamLogger,
-                logDir: Option[Path],
-                errorLimit: Option[Int],
-                includeConsoleAppender: Boolean): SplitLogger = {
-    logDir.fold(SplitLogger(JustStdOut(stdOut))) { wd =>
-
-      val errLog = {
-        val fileLogger: FileProcessLogger = ProcessLogger(wd.resolve("std.err").toFile)
-        errorLimit.fold(fileLogger: ProcessLogger) { limit => LimitLogger(limit, fileLogger) }
-      }
-      val outLog = ProcessLogger(wd.resolve("std.out").toFile)
-
-      val log = SplitLogger(
-        JustStdOut(stdOut),
-        JustStdErr(errLog),
-        JustStdOut(outLog)
-      )
-      if (includeConsoleAppender) {
-        val console = ProcessLogger(
-          (s: String) => Console.out.println(s"OUT: $s"),
-          (s: String) => Console.err.println(s"ERR: $s"))
-        log.add(console)
-      } else {
-        log
-      }
-
-    }
-  }
-
-
-  def pathForJob(configPath : String, baseDir: Option[Path], jobId: JobId, fileNameOpt: Option[String]): Either[String, Path] = {
+  def pathForJob(configPath: String, baseDir: Option[Path], jobId: JobId, fileNameOpt: Option[String]): Either[String, Path] = {
     import jabroni.domain.io.implicits._
 
     baseDir match {

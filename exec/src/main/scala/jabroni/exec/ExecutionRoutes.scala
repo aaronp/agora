@@ -2,6 +2,7 @@ package jabroni.exec
 
 import java.nio.file.Path
 
+import akka.NotUsed
 import log._
 import log.ProcessLoggers._
 import akka.http.scaladsl.model.ContentTypes._
@@ -138,9 +139,7 @@ case class ExecutionRoutes(execConfig: ExecConfig) extends StrictLogging with Fa
     } yield {
       def run = Await.result(runner.run(runProc, uploads), uploadTimeout)
 
-      val src = Source.fromIterator(() => run)
-      val bytes = src.map(line => ByteString(s"$line\n"))
-
+      val bytes = Source.fromIterator(() => run).map(line => ByteString(s"$line\n"))
       HttpResponse(entity = HttpEntity(outputContentType, bytes))
     }
   }

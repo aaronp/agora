@@ -1,49 +1,50 @@
 package jabroni.exec
 
-import java.net.URL
-import java.nio.file.Paths
+import java.nio.file.Path
 
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import jabroni.rest.BaseSpec
 import jabroni.rest.worker.WorkerConfig.RunningWorker
 import org.scalatest.BeforeAndAfterAll
+import jabroni.rest.test.TestUtils._
+
+import scala.util.Properties
 
 class ExecutionWorkerTest extends BaseSpec with BeforeAndAfterAll {
 
   var runningWorker: RunningWorker = null
   var remoteRunner: ProcessRunner with AutoCloseable = null
 
-  implicit class RichString(resource: String) {
-
-    def onClasspath: URL = {
-      val url = getClass.getClassLoader.getResource(resource)
-      require(url != null, s"Couldn't find $resource")
-      url
-    }
-
-    def absolutePath = Paths.get(onClasspath.toURI).toAbsolutePath.toString
-  }
-
 
   "ExecutionRoutes" should {
 
-
     "stream results" in {
-      val firstResults = remoteRunner.run("bigOutput.sh".absolutePath, "1").futureValue
-      firstResults.foreach(println)
-      println("")
+      val srcDir = {
+        def jabroni(p: Path): Path = {
+          if (p.fileName == "jabroni") p else {
+            p.parent.map(jabroni).getOrElse(sys.error("Hit file root looking for source root"))
+          }
+        }
 
+        jabroni(Properties.userDir.asPath)
+      }
+      println("Running under " + srcDir)
+
+      val runMe = "bigOutput.sh".executable
+      val firstResults = remoteRunner.run(runMe, srcDir.toAbsolutePath.toString, "1").futureValue
+      val all = firstResults.toList
+      all.size should be > 10
     }
     "return the error output when the worker returns a specified error code" ignore {
-      val firstResults = remoteRunner.run("throwError.sh".absolutePath, "123").futureValue
+      val firstResults = remoteRunner.run("throwError.sh".executable, "123").futureValue
 
     }
     "run multiple processes concurrently" ignore {
       val secondWorkerConf = ExecConfig(Array("port=" + (conf.port + 1)))
       val secondWorker = secondWorkerConf.start.futureValue
       try {
-        val firstResults = remoteRunner.run("printRange.sh".absolutePath, "1", "1000", "0").futureValue
+        val firstResults = remoteRunner.run("printRange.sh".executable, "1", "1000", "0").futureValue
         secondWorker
 
       } finally {

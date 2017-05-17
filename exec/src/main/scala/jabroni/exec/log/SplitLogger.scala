@@ -14,8 +14,10 @@ object SplitLogger {
   }
 }
 
-case class SplitLogger(loggers: List[ProcessLogger]) extends ProcessLogger with LazyLogging with AutoCloseable with Flushable {
-  def add(pl: ProcessLogger) = copy(loggers = loggers :+ pl)
+case class SplitLogger(loggerList: List[ProcessLogger]) extends ProcessLogger with LazyLogging with AutoCloseable with Flushable {
+  def add(pl: ProcessLogger) = copy(loggerList = pl :: loggerList)
+
+  private lazy val loggers = loggerList.par
 
   override def out(s: => String): Unit = {
     lazy val string = s
@@ -25,6 +27,13 @@ case class SplitLogger(loggers: List[ProcessLogger]) extends ProcessLogger with 
   override def err(s: => String): Unit = {
     lazy val string = s
     withLogger(_.err(string))
+  }
+
+  private object Underlying {
+    def unapply(pl: ProcessLogger): Option[ProcessLogger] = pl match {
+      case DelegateLogger(other) => Underlying.unapply(other)
+      case underlying => Option(underlying)
+    }
   }
 
   private def withLogger(f: ProcessLogger => Unit): Unit = {
@@ -40,20 +49,29 @@ case class SplitLogger(loggers: List[ProcessLogger]) extends ProcessLogger with 
 
   override def buffer[T](f: => T): T = {
     val tea = f
-    loggers.foreach(_.buffer(tea))
+    withLogger(_.buffer(tea))
     tea
   }
 
+  def complete(code: Int) = {
+    streamLoggers.foreach(_.complete(code))
+  }
+
+  def streamLoggers = loggerList.collect {
+    case Underlying(x: StreamLogger) => x
+  }
+
   override def close(): Unit = {
+    flush()
     withLogger {
-      case c: Closeable => c.close()
+      case Underlying(c: Closeable) => c.close()
       case _ =>
     }
   }
 
   override def flush(): Unit = {
     withLogger {
-      case f: Flushable => f.flush()
+      case Underlying(f: Flushable) => f.flush()
       case _ =>
     }
   }

@@ -50,6 +50,7 @@ trait ExecConfig extends WorkerConfig {
     val jobId: JobId = req.matchDetails.map(_.jobId).getOrElse(nextJobId)
     ProcessRunner(
       uploadDir = uploads.dir(jobId).getOrElse(sys.error("uploadDir not set")),
+      description = jobId,
       workDir = workingDirectory.dir(jobId),
       logDir = logs.dir(jobId),
       errorLimit = errorLimit,

@@ -1,17 +1,30 @@
 package jabroni.rest.test
 
-import java.nio.file.{Files, Path, Paths}
+import java.net.URL
+import java.nio.file.{Path, Paths}
 import java.time.LocalDateTime
 import java.time.format._
 
 import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer, Materializer}
+import jabroni.domain.io.LowPriorityIOImplicits
 
 import scala.util.Try
 
-object TestUtils {
+object TestUtils extends LowPriorityIOImplicits {
 
-  import jabroni.domain.io.implicits._
+  implicit class RichResource(val resource: String) extends AnyVal {
+
+    def onClasspath: URL = {
+      val url = getClass.getClassLoader.getResource(resource)
+      require(url != null, s"Couldn't find $resource")
+      url
+    }
+
+    def absolutePath: Path = Paths.get(onClasspath.toURI).toAbsolutePath
+
+    def executable = absolutePath.grantAllPermissions.toString
+  }
 
   private def timestamp = {
     DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(LocalDateTime.now())

@@ -1,12 +1,12 @@
 package jabroni.exec
 
 import java.nio.file.{Path, StandardOpenOption}
-import log._
-import log.ProcessLoggers._
-import akka.stream.{IOResult, Materializer}
+
 import akka.stream.scaladsl.FileIO
-import com.typesafe.scalalogging.LazyLogging
+import akka.stream.{IOResult, Materializer}
+import com.typesafe.scalalogging.StrictLogging
 import jabroni.exec.ProcessRunner._
+import jabroni.exec.log._
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
@@ -15,16 +15,26 @@ import scala.util.{Failure, Success}
 /**
   * Something which can run commands
   */
-case class LocalRunner(workDir: Option[Path],
-                       uploadDir: Path,
-                       logDir: Option[Path],
-                       errorLimit: Option[Int],
-                       includeConsoleAppender: Boolean)(implicit mat: Materializer) extends ProcessRunner with LazyLogging {
+case class LocalRunner(uploadDir: Path,
+                       description: String = "process",
+                       workDir: Option[Path] = None,
+                       logDir: Option[Path] = None,
+                       errorLimit: Option[Int] = None,
+                       includeConsoleAppender: Boolean = true)(implicit mat: Materializer) extends ProcessRunner with StrictLogging {
 
   import mat._
 
   override def run(inputProc: RunProcess, inputFiles: List[Upload]) = {
 
+    logger.debug(
+      s"""Executing w/ ${inputFiles.size} input(s) [${inputFiles.map(u => s"${u.name} ${u.size} bytes").mkString(",")}]:
+         |    workDir    : $workDir
+         |    uploadDir  : $uploadDir
+         |    logDir     : $logDir
+         |    errorLimit : $errorLimit
+         |$inputProc
+         |
+      """.stripMargin)
     /**
       * write down the multipart input(s)
       */
@@ -47,7 +57,7 @@ case class LocalRunner(workDir: Option[Path],
           path
         }
       }
-      execute(insertEnv(inputProc), paths)
+      execute(description, insertEnv(inputProc), paths)
     }
   }
 
@@ -63,21 +73,17 @@ case class LocalRunner(workDir: Option[Path],
     )
   }
 
-  def execute(proc: RunProcess, paths: List[Path]) = {
-    logger.debug(s"Running $proc w/ ${paths.size} uploads ${paths.mkString(";")}")
-
-    val stdOut: StreamLogger = StreamLogger()
-    val stdOutIterator = stdOut.iterator
-    val log: SplitLogger = newLogger(stdOut, logDir, errorLimit, includeConsoleAppender)
-    val future = runUnsafe(proc, workDir.map(_.toFile), log)
+  def execute(name: String, proc: RunProcess, paths: List[Path]) = {
+    val loggers = ProcessLoggers(name, logDir, errorLimit, includeConsoleAppender)
+    val future = runUnsafe(proc, workDir.map(_.toFile), loggers.splitLogger)
 
     future.onComplete {
-      case Success(code) => stdOut.complete(code)
+      case Success(code) => loggers.splitLogger.complete(code)
       case Failure(err) =>
         logger.error(s"$proc failed with $err", err)
-        stdOut.complete(-1)
+        loggers.splitLogger.complete(-1)
     }
-    stdOutIterator
+    loggers.stdOutLog.iterator
   }
 
 }

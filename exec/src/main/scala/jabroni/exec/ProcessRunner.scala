@@ -9,7 +9,7 @@ import jabroni.rest.exchange.ExchangeClient
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.reflectiveCalls
-import scala.sys.process.{FileProcessLogger, ProcessLogger, _}
+import scala.sys.process._
 import scala.util._
 
 /**
@@ -25,7 +25,7 @@ object ProcessRunner {
   type ProcessOutput = Future[Iterator[String]]
 
   def apply(uploadDir: Path)(implicit mat: Materializer): LocalRunner = {
-    apply(uploadDir, Option(uploadDir), Option(uploadDir), errorLimit = None, true)
+    apply(uploadDir, "process", Option(uploadDir), Option(uploadDir), errorLimit = None, true)
   }
 
   /**
@@ -33,12 +33,14 @@ object ProcessRunner {
     *
     */
   def apply(uploadDir: Path,
+            description: String,
             workDir: Option[Path],
             logDir: Option[Path],
             errorLimit: Option[Int],
             includeConsoleAppender: Boolean)(implicit mat: Materializer) = {
-    new LocalRunner(workDir,
-      uploadDir,
+    new LocalRunner(uploadDir,
+      description,
+      workDir,
       logDir,
       errorLimit,
       includeConsoleAppender)
@@ -54,7 +56,6 @@ object ProcessRunner {
                                       uploadTimeout: FiniteDuration): ProcessRunner with AutoCloseable = {
     RemoteRunner(worker, maximumFrameLength, allowTruncation)
   }
-
 
 
   /**
