@@ -33,7 +33,6 @@ class IteratorPublisherTest extends BaseSpec {
       subscriber.iterator.next shouldBe 3
       subscriber.iterator.next shouldBe 4
 
-
       //... and on and on...
       tookCounter < 10 shouldBe true
     }

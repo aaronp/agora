@@ -22,8 +22,6 @@ class RichConfigTest extends WordSpec with Matchers {
           | foo : x
         """.stripMargin)
 
-      val cro = ConfigRenderOptions.concise().setFormatted(true)
-
       import RichConfig.implicits._
       a.intersect(b).paths shouldBe Set("thing.b")
     }

@@ -5,9 +5,7 @@ import org.scalatest.Matchers
 
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.Future
-
-import language.implicitConversions
-import language.reflectiveCalls
+import scala.language.{implicitConversions, reflectiveCalls}
 
 class StreamLoggerTest extends BaseSpec with Matchers {
 
@@ -30,9 +28,8 @@ class StreamLoggerTest extends BaseSpec with Matchers {
       // we should be able to call 'iterator' here, before any output is given
       val streamIter = log.iterator
       Future(
-        Iterator.continually("some text").zipWithIndex.foreach {
-          case (s, i) =>
-            log.out(s"$i: $s")
+        Iterator.continually("some text").zipWithIndex.take(300).foreach {
+          case (s, i) => log.out(s"$i: $s")
         }
       )
       val oneHundred = streamIter.take(100)

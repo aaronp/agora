@@ -4,6 +4,7 @@ import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import io.circe.Json
 import io.circe.optics.JsonPath
+import jabroni.rest.worker.WorkerConfig.RunningWorker
 import jabroni.rest.worker.{WorkContext, WorkerConfig}
 import jabroni.rest.{BaseSpec, RunningService}
 import org.scalatest.time.{Millis, Seconds, Span}
@@ -19,7 +20,7 @@ class RoutingClientTest extends BaseSpec with jabroni.api.Implicits {
       val exConf = ExchangeConfig(s"port=$exchangePort")
       val running: RunningService[ExchangeConfig, ExchangeRoutes] = exConf.startExchange().futureValue
       val workerConf = WorkerConfig(s"port=$workerPort", s"exchange.port=$exchangePort")
-      val worker = workerConf.startWorker().futureValue
+      val worker: RunningWorker = workerConf.startWorker().futureValue
       try {
         import exConf.implicits._
 

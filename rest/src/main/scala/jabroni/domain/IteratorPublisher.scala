@@ -1,9 +1,9 @@
 package jabroni.domain
 
-import com.typesafe.scalalogging.StrictLogging
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
-import language.existentials
-import util.control.NonFatal
+
+import scala.language.existentials
+import scala.util.control.NonFatal
 
 /**
   * Provides a publisher view over summat which can make an iterator
@@ -25,19 +25,12 @@ object IteratorPublisher {
                                      iterator: Iterator[T],
                                      consumeOnCancel: Boolean,
                                      maxLimitToConsumeOnCancel: Option[Int] = Option(10000))
-    extends Subscription
-      with StrictLogging {
+    extends Subscription {
     override def cancel(): Unit = {
       if (consumeOnCancel) {
-        logger.info(s"Cancelling subscription, consumeOnCancel is $consumeOnCancel with maxLimitToConsumeOnCancel $maxLimitToConsumeOnCancel")
         // exhaust the remaining ... hopefully it's not infinite!
         val limitedIterator = maxLimitToConsumeOnCancel.map(iterator.take).getOrElse(iterator)
-        val remaining = limitedIterator.size
-        if (limitedIterator.hasNext) {
-          logger.warn(s"Tried to exhaust the remaining elements on cancel. We read $remaining, but there are more! maxLimitToConsumeOnCancel is $maxLimitToConsumeOnCancel")
-        }
-      } else {
-        logger.info(s"Subscription cancelled (iterator may not be exhausted! Set consumeOnCancel if you fancy it next time)")
+        limitedIterator.size
       }
     }
 

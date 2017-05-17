@@ -25,7 +25,6 @@ class BaseSpec
   /**
     * All the timeouts!
     */
-
   implicit def testTimeout: FiniteDuration = 10.seconds
 
   implicit def default(implicit system: ActorSystem) = RouteTestTimeout(testTimeout)
@@ -37,8 +36,10 @@ class BaseSpec
     def block = Await.result(fut, testTimeout)
   }
 
-
-  def srcDir: Path = {
+  def srcDir: Path = BaseSpec.srcDir
+}
+object BaseSpec extends LowPriorityIOImplicits {
+  lazy val srcDir: Path = {
     def root(p: Path): Path = {
       if (p.fileName == "jabroni") p else {
         p.parent.map(root).getOrElse(sys.error("Hit file root looking for source root"))
