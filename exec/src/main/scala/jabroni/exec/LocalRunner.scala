@@ -74,7 +74,7 @@ case class LocalRunner(uploadDir: Path,
   }
 
   def execute(name: String, proc: RunProcess, paths: List[Path]) = {
-    val loggers = ProcessLoggers(name, logDir, errorLimit, includeConsoleAppender)
+    val loggers = ProcessLoggers(name, logDir, errorLimit, includeConsoleAppender, proc.successExitCodes)
     val future = runUnsafe(proc, workDir.map(_.toFile), loggers.splitLogger)
 
     future.onComplete {

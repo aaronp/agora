@@ -1,6 +1,6 @@
 package jabroni.exec
 
-case class RunProcess(command: List[String], env: Map[String, String]) {
+case class RunProcess(command: List[String], env: Map[String, String] = Map.empty, successExitCodes: Set[Int] = Set(0)) {
   def withEnv(key: String, value: String): RunProcess = copy(env = env.updated(key, value))
 }
 
@@ -8,7 +8,8 @@ object RunProcess {
   def apply(first: String, theRest: String*): RunProcess = new RunProcess(first :: theRest.toList, Map[String, String]())
 }
 
-case class OperationResult(messages : List[String])
+case class OperationResult(messages: List[String])
+
 object OperationResult {
-  def apply(first : String, theRest :String*) = new OperationResult(first :: theRest.toList)
+  def apply(first: String, theRest: String*) = new OperationResult(first :: theRest.toList)
 }

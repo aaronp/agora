@@ -31,25 +31,6 @@ case class WorkerRoutes(exchange: Exchange = Exchange(),
     workerRoutes ~ multipartRoutes ~ health
   }
 
-
-  def withRejectionHandler(r: Route) = {
-    handleRejections(onNotFound) {
-      r
-    }
-  }
-
-  private def onNotFound = RejectionHandler.newBuilder().handleNotFound(notFoundRoute).result
-
-  def notFoundRoute: Route = extractRequest { req =>
-    complete((StatusCodes.NotFound, HttpEntity(ContentTypes.`text/plain(UTF-8)`,
-      s""" Invalid path: ${req.uri}
-         |
-         |  Known handlers include:
-         |  ${workerByPath.keySet.toList.sorted.mkString("\n")}
-         |
-      """.stripMargin)))
-  }
-
   def health = (get & path("health") & pathEnd) {
     import io.circe.syntax._
     complete {
@@ -62,7 +43,14 @@ case class WorkerRoutes(exchange: Exchange = Exchange(),
     post {
       path(Remaining) { remaining =>
         find(remaining) match {
-          case None => reject
+          case None =>
+            extractRequest { req =>
+              complete((StatusCodes.NotFound, HttpEntity(
+                s""" Invalid path: ${req.uri}
+                   |
+                   |Known handlers include:
+                   |  ${workerByPath.keySet.toList.sorted.mkString("\n")}""".stripMargin)))
+            }
           case Some(worker) =>
             extractRequestContext { ctxt =>
               complete {

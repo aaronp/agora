@@ -5,6 +5,7 @@ package jabroni.domain.io
 import java.nio.charset.{Charset, StandardCharsets}
 import java.nio.file._
 import java.nio.file.attribute.{BasicFileAttributes, FileAttribute, PosixFilePermission}
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 object implicits extends LowPriorityIOImplicits
@@ -54,12 +55,14 @@ trait LowPriorityIOImplicits {
       if (!exists) Files.createDirectory(path, atts: _*) else path
     }
 
-    def setFilePermissions(permission: PosixFilePermission, theRest : PosixFilePermission*): Path = {
+    def setFilePermissions(permission: PosixFilePermission, theRest: PosixFilePermission*): Path = {
       setFilePermissions(theRest.toSet + permission)
     }
+
     def setFilePermissions(permissions: Set[PosixFilePermission]): Path = {
       Files.setPosixFilePermissions(path, permissions.asJava)
     }
+
     def grantAllPermissions: Path = setFilePermissions(PosixFilePermission.values().toSet)
 
     def size = Files.size(path)
@@ -76,7 +79,9 @@ trait LowPriorityIOImplicits {
 
     def created = attributes.creationTime.toInstant
 
-    def createdString = DateTimeFormatter.ISO_ZONED_DATE_TIME.format(created)
+    def createdUTC = created.atZone(ZoneId.of("UTC"))
+
+    def createdString = DateTimeFormatter.ISO_ZONED_DATE_TIME.format(createdUTC)
 
     def fileName = path.getFileName.toString
 

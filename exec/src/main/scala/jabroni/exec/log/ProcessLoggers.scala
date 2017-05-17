@@ -6,11 +6,14 @@ import jabroni.api.JobId
 
 import scala.sys.process.ProcessLogger
 
+/**
+  * Contains all the places where stuff will be logged
+  */
 case class ProcessLoggers(jobName: String,
                           logDirOpt: Option[Path],
                           errorLimit: Option[Int],
                           includeConsoleAppender: Boolean,
-                          successErrorCodes: Set[Int] = Set(0)) {
+                          successErrorCodes: Set[Int]) {
   val stdErrLog = StreamLogger()
 
   private val limitedErrorLog = errorLimit.fold(stdErrLog: ProcessLogger) { limit => LimitLogger(limit, stdErrLog) }

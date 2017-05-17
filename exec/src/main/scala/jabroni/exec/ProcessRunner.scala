@@ -16,7 +16,7 @@ import scala.util._
   * prepresents something which can be run
   */
 trait ProcessRunner {
-  def run(proc: RunProcess, inputFiles: List[Upload]): ProcessRunner.ProcessOutput
+  def run(proc: RunProcess, inputFiles: List[Upload] = Nil): ProcessRunner.ProcessOutput
 
   def run(cmd: String, theRest: String*): ProcessRunner.ProcessOutput = run(RunProcess(cmd :: theRest.toList, Map[String, String]()), Nil)
 }

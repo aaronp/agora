@@ -59,9 +59,9 @@ case class ExecutionRoutes(execConfig: ExecConfig) extends StrictLogging with Fa
       (path("jobs") & pathEnd) {
         complete {
           val ids = logs.path.fold(List[Json]()) { dir =>
-            dir.children.map { child =>
+            dir.children.toList.sortBy(_.created.toEpochMilli).map { child =>
               Json.obj("id" -> Json.fromString(child.fileName), "started" -> Json.fromString(child.createdString))
-            }.toList
+            }
           }
           Json.arr(ids: _*)
         }
@@ -72,7 +72,7 @@ case class ExecutionRoutes(execConfig: ExecConfig) extends StrictLogging with Fa
   /**
     * remove the output for a job
     */
-  def removeJob = { //(baseLogDir: Option[Path], baseUploadDir: Path) = {
+  def removeJob = {
     delete {
       (path("job") & parameters('id.as[String])) { jobId =>
         complete {
@@ -102,9 +102,9 @@ case class ExecutionRoutes(execConfig: ExecConfig) extends StrictLogging with Fa
     */
   def jobOutput = {
     get {
-      (path("job") & parameters('id.as[String], 'file.as[String])) { (jobId, fileName) =>
+      (path("job") & parameters('id.as[String], 'file.?)) { (jobId, fileName) =>
         complete {
-          onJobOutput(jobId, fileName)
+          onJobOutput(jobId, fileName.getOrElse("std.out"))
         }
       }
     }

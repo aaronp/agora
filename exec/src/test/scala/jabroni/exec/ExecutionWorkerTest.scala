@@ -17,29 +17,43 @@ class ExecutionWorkerTest extends BaseSpec with BeforeAndAfterAll {
   var remoteRunner: ProcessRunner with AutoCloseable = null
 
 
+  val srcDir = {
+    def jabroni(p: Path): Path = {
+      if (p.fileName == "jabroni") p else {
+        p.parent.map(jabroni).getOrElse(sys.error("Hit file root looking for source root"))
+      }
+    }
+
+    jabroni(Properties.userDir.asPath)
+  }
+  "load test" ignore {
+
+    "stream a whole lot of results" in {
+      val firstResults = remoteRunner.run("bigOutput.sh".executable, srcDir.toAbsolutePath.toString, "1000").futureValue
+      firstResults.foreach(println)
+      println("done")
+    }
+  }
+
+
   "ExecutionRoutes" should {
 
     "stream results" in {
-      val srcDir = {
-        def jabroni(p: Path): Path = {
-          if (p.fileName == "jabroni") p else {
-            p.parent.map(jabroni).getOrElse(sys.error("Hit file root looking for source root"))
-          }
-        }
-
-        jabroni(Properties.userDir.asPath)
-      }
-      println("Running under " + srcDir)
-
-      val runMe = "bigOutput.sh".executable
-      val firstResults = remoteRunner.run(runMe, srcDir.toAbsolutePath.toString, "1").futureValue
+      val firstResults = remoteRunner.run("bigOutput.sh".executable, srcDir.toAbsolutePath.toString, "1").futureValue
       val all = firstResults.toList
       all.size should be > 10
     }
-    "return the error output when the worker returns a specified error code" ignore {
+    "return the error output when the worker returns a specified error code" in {
       val firstResults = remoteRunner.run("throwError.sh".executable, "123").futureValue
-
+      firstResults.toList shouldBe List("first info output", "second info output", "about to exit with 123", "first error output", "second error output")
     }
+
+    "be able to specify acceptable return codes" in {
+      // like the above test, but doesn't include the stderr as '123' is our success code
+      val firstResults = remoteRunner.run(RunProcess(List("throwError.sh".executable, "123"), successExitCodes = Set(123))).futureValue
+      firstResults.toList shouldBe List("first info output", "second info output", "about to exit with 123")
+    }
+
     "run multiple processes concurrently" ignore {
       val secondWorkerConf = ExecConfig(Array("port=" + (conf.port + 1)))
       val secondWorker = secondWorkerConf.start.futureValue
@@ -52,8 +66,6 @@ class ExecutionWorkerTest extends BaseSpec with BeforeAndAfterAll {
       }
 
     }
-  }
-  "ExecutionRoutes handler" should {
 
     "run simple commands remotely" in {
       val res: Iterator[String] = remoteRunner.run("echo", "testing 123").futureValue
