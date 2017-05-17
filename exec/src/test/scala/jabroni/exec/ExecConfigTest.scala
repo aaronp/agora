@@ -14,6 +14,7 @@ class ExecConfigTest extends BaseSpec {
 
       val ec = ExecConfig(ConfigFactory.parseString(
         """exec.workingDirectory.dir=wd
+          |exec.workingDirectory.appendJobId = false
           |exec.logs.dir=logs
           |exec.uploads.dir=uploads
         """.stripMargin).withFallback(ExecConfig.defaultConfig))

@@ -1,17 +1,18 @@
 package jabroni.rest
 
+import java.nio.file.{Path, Paths}
+
 import akka.actor.ActorSystem
-import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
+import akka.http.scaladsl.testkit.RouteTestTimeout
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
-
-import concurrent.duration._
 import org.scalatest.{Matchers, WordSpec}
 
-import concurrent.{Await, Future}
-import language.implicitConversions
-import language.postfixOps
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
+import scala.language.{implicitConversions, postfixOps}
+import scala.util.Properties
 
 class BaseSpec
   extends WordSpec
@@ -34,4 +35,15 @@ class BaseSpec
     def block = Await.result(fut, testTimeout)
   }
 
+
+  def srcDir = {
+    import jabroni.domain.io.implicits._
+    def root(p: Path): Path = {
+      if (p.fileName == "jabroni") p else {
+        p.parent.map(root).getOrElse(sys.error("Hit file root looking for source root"))
+      }
+    }
+
+    root(Properties.userDir.asPath)
+  }
 }

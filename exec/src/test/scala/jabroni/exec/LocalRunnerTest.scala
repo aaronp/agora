@@ -11,10 +11,9 @@ class LocalRunnerTest extends BaseSpec with ScalaFutures {
     "LocalRunner" should {
       "execute" in {
 
-
         val runner = LocalRunner("target/localRunnerTest".asPath.mkDirs())
 
-        val res: ProcessOutput = runner.run("bigOutput.sh".executable)
+        val res: ProcessOutput = runner.run("bigOutput.sh".executable, srcDir.toAbsolutePath.toString, "1")
         val iter = res.futureValue.toStream
         // big output echos out all scala files, which should include this line
         // which we're about to test for ...

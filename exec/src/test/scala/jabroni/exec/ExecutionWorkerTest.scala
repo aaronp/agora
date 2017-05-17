@@ -17,15 +17,6 @@ class ExecutionWorkerTest extends BaseSpec with BeforeAndAfterAll {
   var remoteRunner: ProcessRunner with AutoCloseable = null
 
 
-  val srcDir = {
-    def jabroni(p: Path): Path = {
-      if (p.fileName == "jabroni") p else {
-        p.parent.map(jabroni).getOrElse(sys.error("Hit file root looking for source root"))
-      }
-    }
-
-    jabroni(Properties.userDir.asPath)
-  }
   "load test" ignore {
 
     "stream a whole lot of results" in {
@@ -35,11 +26,10 @@ class ExecutionWorkerTest extends BaseSpec with BeforeAndAfterAll {
     }
   }
 
-
   "ExecutionRoutes" should {
 
     "stream results" in {
-      val firstResults = remoteRunner.run("bigOutput.sh".executable, srcDir.toAbsolutePath.toString, "1").futureValue
+      val firstResults = remoteRunner.run("bigOutput.sh".executable, "1").futureValue
       val all = firstResults.toList
       all.size should be > 10
     }
