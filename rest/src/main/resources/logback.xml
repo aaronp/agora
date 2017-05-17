@@ -1,5 +1,5 @@
 <configuration debug="false">
-    <statusListener>ch.qos.logback.core.status.NoopStatusListener</statusListener>
+    <statusListener>ch.qos.logback.core.status.NopStatusListener</statusListener>
     <!--
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/jabroni.log</file>
@@ -17,10 +17,8 @@
     -->
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-        <!-- encoders are  by default assigned the type
-             ch.qos.logback.classic.encoder.PatternLayoutEncoder -->
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>MAIN: %d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
 

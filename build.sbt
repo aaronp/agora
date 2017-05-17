@@ -14,7 +14,7 @@ git.gitTagToVersionNumber := { tag: String =>
   } else None
 }
 
-scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-language:implicitConversions")
+scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-language:implicitConversions", "-language:reflectiveCalls")
 
 lazy val jabroni = (project in file(".")).
   aggregate(apiJVM, apiJS, rest, ui, exec)
@@ -24,7 +24,7 @@ val commonSettings: Seq[Def.Setting[_]] = Seq(
   organization := "com.github.aaronp",
   scalaVersion := "2.11.8",
   javacOptions ++= Seq("-source", "1.8", "-target", "1.8"), //, "-Xmx2G"),
-  scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-language:implicitConversions"),
+  scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-language:implicitConversions", "-language:reflectiveCalls"),
   //resolvers ++= moreResolvers,
   (testOptions in Test) += (Tests.Argument(TestFrameworks.ScalaTest, "-h", s"target/scalatest-reports-${name.value}"))
 )

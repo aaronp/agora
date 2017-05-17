@@ -1,33 +1,34 @@
 package jabroni.exec
 
-import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import jabroni.rest.BaseSpec
+import jabroni.rest.test.TestUtils.{withMaterializer, withTmpDir}
 
 class ProcessRunnerTest extends BaseSpec {
 
-  implicit val sys = ActorSystem()
-  implicit val mat = ActorMaterializer()
+  withMaterializer { implicit mat =>
 
-  import jabroni.domain.io.implicits._
+    "ProcessRunner.run" should {
+      "return the output of a job and write it to file" in {
 
-  "ProcessRunner.run" should {
-    "return the output of a job and write it to file" in {
-
-      import jabroni.rest.test.TestUtils._
-      withTmpDir("process-runner-test") { dir =>
-        val res = ProcessRunner(dir).run("echo", "hello world").futureValue
-        res.toList shouldBe List("hello world")
-        dir.resolve("std.out").text shouldBe "hello world\n"
+        withTmpDir("process-runner-test") { dir =>
+          val runner = ProcessRunner(dir)
+          val res = runner.run("echo", "hello world").futureValue
+          res.toList shouldBe List("hello world")
+          runner.logDir.map(_.resolve("std.out")).foreach { logFile =>
+            logFile.text shouldBe "hello world\n"
+          }
+        }
       }
-    }
-    "be able to access env variables" in {
+      "be able to access env variables" in {
 
-      import jabroni.rest.test.TestUtils._
-      withTmpDir("process-runner-test-2") { dir =>
-        val res = ProcessRunner(dir).run(RunProcess("/bin/bash", "-c", "echo FOO is $FOO").withEnv("FOO", "bar"), Nil).futureValue
-        res.toList shouldBe List("FOO is bar")
-        dir.resolve("std.out").text shouldBe "FOO is bar\n"
+        withTmpDir("process-runner-test-2") { dir =>
+          val runner = ProcessRunner(dir)
+          val res = runner.run(RunProcess("/bin/bash", "-c", "echo FOO is $FOO").withEnv("FOO", "bar"), Nil).futureValue
+          res.toList shouldBe List("FOO is bar")
+          runner.logDir.map(_.resolve("std.out")).foreach { logFile =>
+            logFile.text shouldBe "FOO is bar\n"
+          }
+        }
       }
     }
   }

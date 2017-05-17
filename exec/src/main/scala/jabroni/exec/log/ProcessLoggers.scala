@@ -2,6 +2,7 @@ package jabroni.exec.log
 
 import java.nio.file.Path
 
+import com.typesafe.scalalogging.LazyLogging
 import jabroni.api.JobId
 
 import scala.sys.process.ProcessLogger
@@ -12,31 +13,34 @@ import scala.sys.process.ProcessLogger
 case class ProcessLoggers(jobName: String,
                           logDirOpt: Option[Path],
                           errorLimit: Option[Int],
-                          includeConsoleAppender: Boolean,
-                          successErrorCodes: Set[Int]) {
-  val stdErrLog = StreamLogger()
+                          successErrorCodes: Set[Int]) extends LazyLogging {
+
+
+  private val stdErrLog = StreamLogger()
 
   private val limitedErrorLog = errorLimit.fold(stdErrLog: ProcessLogger) { limit => LimitLogger(limit, stdErrLog) }
-  val stdOutLog = StreamLogger.forProcess(jobName) {
+  private val stdOutLog = StreamLogger.forProcess(jobName) {
     case n if !successErrorCodes.contains(n) => stdErrLog.iterator.toStream
   }
 
-  val splitLogger: SplitLogger = {
-    val all = SplitLogger(JustStdOut(stdOutLog), JustStdErr(limitedErrorLog))
+  def processLogger: ProcessLogger = splitLogger
 
+  def complete(code: Int) = splitLogger.complete(code)
+
+  def iterator = stdOutLog.iterator
+
+  def add(pl: ProcessLogger) = {
+    splitLogger = splitLogger.add(pl)
+  }
+
+  private var splitLogger: SplitLogger = {
+    val all = SplitLogger(JustStdOut(stdOutLog), JustStdErr(limitedErrorLog))
     logDirOpt.foreach { logDir =>
       val errLog = ProcessLogger(logDir.resolve("std.err").toFile)
       all.add(JustStdErr(errLog))
 
       val outLog = ProcessLogger(logDir.resolve("std.out").toFile)
       all.add(JustStdOut(outLog))
-    }
-
-    if (includeConsoleAppender) {
-      val console = ProcessLogger(
-        (s: String) => Console.out.println(s"OUT: $s"),
-        (s: String) => Console.err.println(s"ERR: $s"))
-      all.add(console)
     }
     all
   }
@@ -52,7 +56,6 @@ object ProcessLoggers {
       case Some(dir) =>
         val logDir = dir.resolve(jobId)
         if (logDir.isDir) {
-
           fileNameOpt match {
             // we're done -- we found the dir!
             case None => Right(logDir)

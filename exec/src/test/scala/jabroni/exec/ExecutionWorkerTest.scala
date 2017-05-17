@@ -29,7 +29,7 @@ class ExecutionWorkerTest extends BaseSpec with BeforeAndAfterAll {
   "ExecutionRoutes" should {
 
     "stream results" in {
-      val firstResults = remoteRunner.run("bigOutput.sh".executable, "1").futureValue
+      val firstResults = remoteRunner.run("bigOutput.sh".executable, srcDir.toString, "1").futureValue
       val all = firstResults.toList
       all.size should be > 10
     }

@@ -16,12 +16,12 @@ import scala.concurrent.Future
 import scala.language.reflectiveCalls
 
 
+import jabroni.rest.test.TestUtils.withTmpFile
+
 /**
   * http://doc.akka.io/docs/akka-http/10.0.3/scala/http/routing-dsl/directives/file-upload-directives/fileUpload.html
   */
 class BasicMultipartUploadTest extends BaseRoutesSpec with MultipartDirectives {
-
-  import jabroni.domain.io.implicits._
 
   "Just big" should {
     "handle unknown lengths" in {
@@ -32,9 +32,6 @@ class BasicMultipartUploadTest extends BaseRoutesSpec with MultipartDirectives {
           implicit val ec = ctx.executionContext
 
           multipartData { (sourcesByKey: MultipartPieces) =>
-            //          fileUpload("csv") {
-            //            case (metadata, byteSource) =>
-
 
             val bs = sourcesByKey.collectFirst {
               case (metadata, byteSource) if metadata.fieldName == "ints" => byteSource
@@ -98,7 +95,6 @@ class BasicMultipartUploadTest extends BaseRoutesSpec with MultipartDirectives {
           }
         }
 
-      import jabroni.rest.test.TestUtils._
 
       withTmpFile("multipart-upload") { uploadFile =>
 

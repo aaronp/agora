@@ -10,7 +10,6 @@ class ExecConfigTest extends BaseSpec {
   "ExecConfig.defaultConfig" should {
     "contain uploadTimeout" in {
 
-      import jabroni.domain.io.implicits._
 
       val ec = ExecConfig(ConfigFactory.parseString(
         """exec.workingDirectory.dir=wd

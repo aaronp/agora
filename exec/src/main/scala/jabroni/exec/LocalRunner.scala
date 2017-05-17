@@ -5,11 +5,12 @@ import java.nio.file.{Path, StandardOpenOption}
 import akka.stream.scaladsl.FileIO
 import akka.stream.{IOResult, Materializer}
 import com.typesafe.scalalogging.StrictLogging
-import jabroni.exec.ProcessRunner._
 import jabroni.exec.log._
 
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.sys.process.Process
+import scala.sys.process.ProcessBuilder
+import scala.util.{Failure, Success, Try}
 
 
 /**
@@ -50,14 +51,11 @@ case class LocalRunner(uploadDir: Path,
     }
     val inputsWritten: Future[List[(Path, IOResult)]] = Future.sequence(futures)
     inputsWritten.map { (list: List[(Path, IOResult)]) =>
-
-      val paths = list.map {
-        case (path, res) => {
-          require(res.wasSuccessful, s"Writing to $path failed : $res")
-          path
-        }
+      val preparedProcess: RunProcess = insertEnv(inputProc)
+      val builder: ProcessBuilder = {
+        Process(preparedProcess.command, workDir.map(_.toFile), preparedProcess.env.toSeq: _*)
       }
-      execute(description, insertEnv(inputProc), paths)
+      execute(description, builder, preparedProcess)
     }
   }
 
@@ -73,17 +71,29 @@ case class LocalRunner(uploadDir: Path,
     )
   }
 
-  def execute(name: String, proc: RunProcess, paths: List[Path]) = {
-    val loggers = ProcessLoggers(name, logDir, errorLimit, includeConsoleAppender, proc.successExitCodes)
-    val future = runUnsafe(proc, workDir.map(_.toFile), loggers.splitLogger)
+  def execute(name: String, builder: ProcessBuilder, proc: RunProcess) = {
+    val loggers = ProcessLoggers(name, logDir, errorLimit, proc.successExitCodes)
+    if (includeConsoleAppender) {
+      loggers.add(loggingProcessLogger)
+    }
+    val future = {
+      val startedTry: Try[Process] = Try {
+        builder.run(loggers.processLogger)
+      }
+      startedTry match {
+        case Success(process) => Future(process.exitValue())
+        case Failure(err) => Future.failed(err)
+      }
+    }
 
     future.onComplete {
-      case Success(code) => loggers.splitLogger.complete(code)
+      case Success(code) =>
+        loggers.complete(code)
       case Failure(err) =>
         logger.error(s"$proc failed with $err", err)
-        loggers.splitLogger.complete(-1)
+        loggers.complete(-1)
     }
-    loggers.stdOutLog.iterator
+    loggers.iterator
   }
 
 }

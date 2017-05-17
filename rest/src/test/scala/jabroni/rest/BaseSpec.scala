@@ -13,12 +13,14 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.language.{implicitConversions, postfixOps}
 import scala.util.Properties
+import jabroni.domain.io.LowPriorityIOImplicits
 
 class BaseSpec
   extends WordSpec
     with Matchers
     with FailFastCirceSupport
-    with ScalaFutures {
+    with ScalaFutures
+    with LowPriorityIOImplicits {
 
   /**
     * All the timeouts!
@@ -36,14 +38,13 @@ class BaseSpec
   }
 
 
-  def srcDir = {
-    import jabroni.domain.io.implicits._
+  def srcDir: Path = {
     def root(p: Path): Path = {
       if (p.fileName == "jabroni") p else {
         p.parent.map(root).getOrElse(sys.error("Hit file root looking for source root"))
       }
     }
 
-    root(Properties.userDir.asPath)
+    root(Properties.userDir.asPath).toAbsolutePath
   }
 }
