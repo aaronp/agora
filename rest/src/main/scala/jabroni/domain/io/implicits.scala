@@ -50,6 +50,8 @@ trait LowPriorityIOImplicits {
 
     def mkDirs(atts: FileAttribute[_]*): Path = Files.createDirectories(path, atts: _*)
 
+    def mkDir(atts: FileAttribute[_]*): Path = Files.createDirectory(path, atts: _*)
+
     def size = Files.size(path)
 
     def exists = Files.exists(path)

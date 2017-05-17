@@ -35,14 +35,13 @@ case class ExecutionRoutes(execConfig: ExecConfig) extends StrictLogging with Fa
 
   import execConfig._
 
-  val workerRoutes = workerConfig.workerRoutes
   workerRoutes.addMultipartHandler { (req: WorkContext[MultipartPieces]) =>
     val runner = newRunner(req)
     req.completeWith(onRun(runner, req, uploadTimeout))
   }
 
   def routes: Route = {
-    workerConfig.routes ~ jobRoutes
+    execConfig.routes ~ jobRoutes
   }
 
   def jobRoutes = pathPrefix("rest") {
@@ -50,7 +49,7 @@ case class ExecutionRoutes(execConfig: ExecConfig) extends StrictLogging with Fa
   }
 
   def start(): Future[RunningService[WorkerConfig, WorkerRoutes]] = {
-    workerConfig.runWithRoutes("Exec", routes, workerRoutes)
+    runWithRoutes("Exec", routes, workerRoutes)
   }
 
 
@@ -58,7 +57,7 @@ case class ExecutionRoutes(execConfig: ExecConfig) extends StrictLogging with Fa
     get {
       (path("jobs") & pathEnd) {
         complete {
-          val ids = baseLogDir.fold(List[Json]()) { dir =>
+          val ids = logs.path.fold(List[Json]()) { dir =>
             dir.children.map { child =>
               Json.obj("id" -> Json.fromString(child.fileName), "started" -> Json.fromString(child.createdString))
             }.toList
@@ -84,14 +83,13 @@ case class ExecutionRoutes(execConfig: ExecConfig) extends StrictLogging with Fa
   }
 
   private def onRemoveJob(jobId: JobId): OperationResult = {
-    val logMsg = pathForJob(baseLogDir, jobId, None) match {
+    val logMsg = pathForJob("logs", logs.path, jobId, None) match {
       case Left(err) => err
       case Right(logDir) =>
         logDir.delete()
         s"Removed ${logDir.toAbsolutePath.toString}"
     }
-    val jobUploadDir = baseUploadDir.resolve(jobId)
-
+    val jobUploadDir = uploads.dir(jobId).getOrElse(sys.error("upload dir can't be empty"))
     val uploadCount = jobUploadDir.children.size
     jobUploadDir.delete()
     val uploadMsg = s"Removed ${uploadCount} uploads"
@@ -112,7 +110,7 @@ case class ExecutionRoutes(execConfig: ExecConfig) extends StrictLogging with Fa
   }
 
   private def onJobOutput(jobId: JobId, logFileName: String): HttpResponse = {
-    pathForJob(baseLogDir, jobId, Option(logFileName)) match {
+    pathForJob("logs", logs.path, jobId, Option(logFileName)) match {
       case Left(err) =>
         HttpResponse(NotFound, entity = HttpEntity(`application/json`, OperationResult(err).asJson.noSpaces))
       case Right(logFile) =>

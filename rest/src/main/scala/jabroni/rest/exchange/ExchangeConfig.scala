@@ -15,13 +15,16 @@ object ExchangeConfig {
   def apply(firstArg: String, theRest: String*): ExchangeConfig = apply(firstArg +: theRest.toArray)
 
   def apply(args: Array[String] = Array.empty, defaultConfig: Config = defaultConfig): ExchangeConfig = {
-    ExchangeConfig(configForArgs(args, defaultConfig))
+    apply(configForArgs(args, defaultConfig))
+  }
+  def apply(config: Config): ExchangeConfig = {
+    new BaseConfig(config.resolve) with ExchangeConfig
   }
 
   type RunningExchange = RunningService[ExchangeConfig, ExchangeRoutes]
 }
 
-case class ExchangeConfig(override val config: Config) extends ServerConfig {
+trait ExchangeConfig extends ServerConfig {
   override type Me = ExchangeConfig
 
   override def self: Me = this

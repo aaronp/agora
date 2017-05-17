@@ -15,7 +15,7 @@ import jabroni.rest.ui.UIRoutes
 import scala.concurrent.Future
 import scala.util.Try
 
-case class WorkerConfig(override val config: Config) extends ServerConfig {
+trait WorkerConfig extends ServerConfig {
   override type Me = WorkerConfig
 
   override def self = this
@@ -126,7 +126,9 @@ object WorkerConfig {
   def apply(firstArg: String, theRest: String*): WorkerConfig = apply(firstArg +: theRest.toArray)
 
   def apply(args: Array[String] = Array.empty, defaultConfig: Config = baseConfig): WorkerConfig = {
-    WorkerConfig(configForArgs(args, defaultConfig))
+    apply(configForArgs(args, defaultConfig))
   }
+
+  def apply(config: Config): WorkerConfig = new BaseConfig(config.resolve) with WorkerConfig
 
 }

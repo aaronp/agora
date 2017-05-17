@@ -2,9 +2,12 @@ package jabroni.rest
 
 import java.net.URI
 
+import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
-import com.typesafe.scalalogging.StrictLogging
+import akka.stream.ActorMaterializer
+import com.typesafe.config.Config
+import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
 import jabroni.api.worker.HostLocation
 
 import scala.concurrent.Future
@@ -13,11 +16,21 @@ import scala.io.StdIn
 /**
   * A parsed configuration for our jabroni app
   */
-trait ServerConfig extends BaseConfig with StrictLogging {
+trait ServerConfig extends LazyLogging {
 
   type Me <: ServerConfig
 
+  def config: Config
+
   protected def self: Me
+
+  def actorSystemName: String = "jabroni"
+
+  object implicits {
+    implicit lazy val system = ActorSystem(actorSystemName)
+    implicit lazy val materializer = ActorMaterializer()
+    implicit lazy val executionContext = system.dispatcher
+  }
 
   def host = config.getString("host")
   def port = config.getInt("port")

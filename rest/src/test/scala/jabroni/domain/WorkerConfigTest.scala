@@ -53,7 +53,7 @@ class WorkerConfigTest extends WordSpec with Matchers {
 
   def asConf(str: String): WorkerConfig = {
     val c: Config = ConfigFactory.parseString(str).withFallback(WorkerConfig.defaultConfig())
-    new WorkerConfig(c)
+    WorkerConfig(c)
   }
 
 }

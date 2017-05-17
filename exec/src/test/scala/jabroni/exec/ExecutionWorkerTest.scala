@@ -1,5 +1,8 @@
 package jabroni.exec
 
+import java.net.URL
+import java.nio.file.Paths
+
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import jabroni.rest.BaseSpec
@@ -11,7 +14,45 @@ class ExecutionWorkerTest extends BaseSpec with BeforeAndAfterAll {
   var runningWorker: RunningWorker = null
   var remoteRunner: ProcessRunner with AutoCloseable = null
 
-  "ExecutionWorker" should {
+  implicit class RichString(resource: String) {
+
+    def onClasspath: URL = {
+      val url = getClass.getClassLoader.getResource(resource)
+      require(url != null, s"Couldn't find $resource")
+      url
+    }
+
+    def absolutePath = Paths.get(onClasspath.toURI).toAbsolutePath.toString
+  }
+
+
+  "ExecutionRoutes" should {
+
+
+    "stream results" in {
+      val firstResults = remoteRunner.run("bigOutput.sh".absolutePath, "1").futureValue
+      firstResults.foreach(println)
+      println("")
+
+    }
+    "return the error output when the worker returns a specified error code" ignore {
+      val firstResults = remoteRunner.run("throwError.sh".absolutePath, "123").futureValue
+
+    }
+    "run multiple processes concurrently" ignore {
+      val secondWorkerConf = ExecConfig(Array("port=" + (conf.port + 1)))
+      val secondWorker = secondWorkerConf.start.futureValue
+      try {
+        val firstResults = remoteRunner.run("printRange.sh".absolutePath, "1", "1000", "0").futureValue
+        secondWorker
+
+      } finally {
+
+      }
+
+    }
+  }
+  "ExecutionRoutes handler" should {
 
     "run simple commands remotely" in {
       val res: Iterator[String] = remoteRunner.run("echo", "testing 123").futureValue
@@ -40,8 +81,9 @@ class ExecutionWorkerTest extends BaseSpec with BeforeAndAfterAll {
     stopAll
   }
 
+  val conf = ExecConfig()
+
   def startAll = {
-    val conf = ExecConfig()
     runningWorker = conf.start.futureValue
     remoteRunner = conf.remoteRunner()
   }
@@ -52,4 +94,5 @@ class ExecutionWorkerTest extends BaseSpec with BeforeAndAfterAll {
     runningWorker = null
     remoteRunner = null
   }
+
 }

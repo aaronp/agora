@@ -47,10 +47,10 @@ object ProcessLoggers {
   }
 
 
-  def pathForJob(baseLogDir: Option[Path], jobId: JobId, fileNameOpt: Option[String]): Either[String, Path] = {
+  def pathForJob(configPath : String, baseDir: Option[Path], jobId: JobId, fileNameOpt: Option[String]): Either[String, Path] = {
     import jabroni.domain.io.implicits._
 
-    baseLogDir match {
+    baseDir match {
       case Some(dir) =>
         val logDir = dir.resolve(jobId)
         if (logDir.isDir) {
@@ -70,7 +70,7 @@ object ProcessLoggers {
         } else {
           Left(s"Couldn't find job '${jobId}' under ${logDir.toAbsolutePath.toString}")
         }
-      case None => Left("Logging job output isn't configured. Restart w/ 'exec.logDir' set")
+      case None => Left(s"The '$configPath' isn't set, so no output is available")
     }
   }
 }
