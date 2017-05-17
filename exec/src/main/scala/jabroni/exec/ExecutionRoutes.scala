@@ -42,7 +42,11 @@ case class ExecutionRoutes(execConfig: ExecConfig) extends StrictLogging with Fa
   }
 
   def routes: Route = {
-    workerConfig.routes ~ listJobs ~ removeJob ~ jobOutput
+    workerConfig.routes ~ jobRoutes
+  }
+
+  def jobRoutes = pathPrefix("rest") {
+    listJobs ~ removeJob ~ jobOutput
   }
 
   def start(): Future[RunningService[WorkerConfig, WorkerRoutes]] = {

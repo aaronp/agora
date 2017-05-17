@@ -28,8 +28,7 @@ case class WorkerRoutes(exchange: Exchange = Exchange(),
   private var workerByPath = Map[String, OnWork[_]]()
 
   def routes: Route = {
-    val all = workerRoutes ~ multipartRoutes ~ health
-    all
+    workerRoutes ~ multipartRoutes ~ health
   }
 
 

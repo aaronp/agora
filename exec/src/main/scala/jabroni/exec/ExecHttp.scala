@@ -5,9 +5,9 @@ import jabroni.api.JobId
 
 object ExecHttp extends RequestBuilding {
 
-  def output(jobId: JobId, file: String) = Get(s"/job?id=$jobId&file=$file")
+  def output(jobId: JobId, file: String) = Get(s"/rest/job?id=$jobId&file=$file")
 
-  def listJobs = Get("/jobs")
+  def listJobs = Get("/rest/jobs")
 
-  def remove(jobId: JobId)= Delete(s"/job?id=$jobId")
+  def remove(jobId: JobId)= Delete(s"/rest/job?id=$jobId")
 }
