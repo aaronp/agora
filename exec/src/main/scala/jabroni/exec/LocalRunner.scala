@@ -25,11 +25,17 @@ object LocalRunner {
 /**
   * Something which can run commands
   */
-class LocalRunner(uploadDir: Path,
-                  workDir: Option[Path] = None,
-                  loggerForProcess: RunProcess => IterableLogger)(implicit mat: Materializer) extends ProcessRunner with StrictLogging {
+class LocalRunner(val uploadDir: Path,
+                  val workDir: Option[Path] = None,
+                  val loggerForProcess: RunProcess => IterableLogger)(implicit mat: Materializer) extends ProcessRunner with StrictLogging {
 
   import mat._
+
+  def copy(newUploadDir: Path = uploadDir,
+           newWorkDir: Option[Path] = workDir,
+           newLoggerForProcess: RunProcess => IterableLogger = loggerForProcess) = {
+    new LocalRunner(newUploadDir, newWorkDir, newLoggerForProcess)
+  }
 
   override def run(inputProc: RunProcess, inputFiles: List[Upload]) = {
 
