@@ -8,31 +8,36 @@ import com.typesafe.scalalogging.StrictLogging
 import jabroni.exec.log._
 
 import scala.concurrent.Future
-import scala.sys.process.Process
-import scala.sys.process.ProcessBuilder
+import scala.sys.process.{Process, ProcessBuilder}
 import scala.util.{Failure, Success, Try}
 
+
+object LocalRunner {
+
+  def apply(uploadDir: Path,
+            workDir: Option[Path],
+            loggerForProcess: RunProcess => IterableLogger)(implicit mat: Materializer): LocalRunner = {
+    new LocalRunner(uploadDir, workDir, loggerForProcess)
+  }
+
+}
 
 /**
   * Something which can run commands
   */
-case class LocalRunner(uploadDir: Path,
-                       description: String = "process",
-                       workDir: Option[Path] = None,
-                       logDir: Option[Path] = None,
-                       errorLimit: Option[Int] = None,
-                       includeConsoleAppender: Boolean = true)(implicit mat: Materializer) extends ProcessRunner with StrictLogging {
+class LocalRunner(uploadDir: Path,
+                  workDir: Option[Path] = None,
+                  loggerForProcess: RunProcess => IterableLogger)(implicit mat: Materializer) extends ProcessRunner with StrictLogging {
 
   import mat._
 
   override def run(inputProc: RunProcess, inputFiles: List[Upload]) = {
 
+    val processLogger = loggerForProcess(inputProc)
     logger.debug(
       s"""Executing w/ ${inputFiles.size} input(s) [${inputFiles.map(u => s"${u.name} ${u.size} bytes").mkString(",")}]:
-         |    workDir    : $workDir
          |    uploadDir  : $uploadDir
-         |    logDir     : $logDir
-         |    errorLimit : $errorLimit
+         |    logger     : $processLogger
          |$inputProc
          |
       """.stripMargin)
@@ -50,12 +55,12 @@ case class LocalRunner(uploadDir: Path,
         writeFut.map(r => (dest, r))
     }
     val inputsWritten: Future[List[(Path, IOResult)]] = Future.sequence(futures)
-    inputsWritten.map { (list: List[(Path, IOResult)]) =>
+    inputsWritten.map { _ =>
       val preparedProcess: RunProcess = insertEnv(inputProc)
       val builder: ProcessBuilder = {
         Process(preparedProcess.command, workDir.map(_.toFile), preparedProcess.env.toSeq: _*)
       }
-      execute(description, builder, preparedProcess)
+      execute(builder, preparedProcess, processLogger)
     }
   }
 
@@ -66,19 +71,15 @@ case class LocalRunner(uploadDir: Path,
   def insertEnv(inputProc: RunProcess) = {
     inputProc.copy(env = inputProc.env.
       updated("EXEC_WORK_DIR", workDir.map(_.toAbsolutePath.toString).getOrElse("")).
-      updated("EXEC_UPLOAD_DIR", uploadDir.toAbsolutePath.toString).
-      updated("EXEC_LOG_DIR", logDir.map(_.toAbsolutePath.toString).getOrElse(""))
+      updated("EXEC_UPLOAD_DIR", uploadDir.toAbsolutePath.toString)
     )
   }
 
-  def execute(name: String, builder: ProcessBuilder, proc: RunProcess) = {
-    val loggers = ProcessLoggers(name, logDir, errorLimit, proc.successExitCodes)
-    if (includeConsoleAppender) {
-      loggers.add(loggingProcessLogger)
-    }
+  def execute(builder: ProcessBuilder, proc: RunProcess, iterableLogger: IterableLogger) = {
+
     val future = {
       val startedTry: Try[Process] = Try {
-        builder.run(loggers.processLogger)
+        builder.run(iterableLogger)
       }
       startedTry match {
         case Success(process) => Future(process.exitValue())
@@ -88,12 +89,12 @@ case class LocalRunner(uploadDir: Path,
 
     future.onComplete {
       case Success(code) =>
-        loggers.complete(code)
+        iterableLogger.complete(code)
       case Failure(err) =>
         logger.error(s"$proc failed with $err", err)
-        loggers.complete(-1)
+        iterableLogger.complete(err)
     }
-    loggers.iterator
+    iterableLogger.iterator
   }
 
 }

@@ -5,17 +5,17 @@ import java.util.concurrent.LinkedBlockingQueue
 import scala.collection.immutable.Stream
 import scala.concurrent.{Future, Promise}
 import scala.sys.process.ProcessLogger
-import scala.util.Try
+import scala.util.{Failure, Try}
 
 object StreamLogger {
 
   def apply(name: String = "process") = new StreamLogger(handle(name)(PartialFunction.empty))
 
-  def forProcess(name: String)(pf: PartialFunction[Int, Stream[String]]): StreamLogger = {
+  def forProcess(name: String)(pf: PartialFunction[Try[Int], Stream[String]]): StreamLogger = {
     StreamLogger(handle(name)(pf))
   }
 
-  def handle(name: String = "process")(pf: PartialFunction[Int, Stream[String]]): Int => Stream[String] = {
+  def handle(name: String = "process")(pf: PartialFunction[Try[Int], Stream[String]]): Try[Int] => Stream[String] = {
     pf.lift.andThen(_.getOrElse(Stream.empty[String]))
   }
 
@@ -26,9 +26,9 @@ object StreamLogger {
   *
   * @param exitCodeHandler a function on what to return for the given exit code
   */
-case class StreamLogger(exitCodeHandler: Int => Stream[String]) extends ProcessLogger with AutoCloseable {
+case class StreamLogger(exitCodeHandler: Try[Int] => Stream[String]) extends ProcessLogger with AutoCloseable {
 
-  private val q = new LinkedBlockingQueue[Either[Int, String]]
+  private val q = new LinkedBlockingQueue[Either[Try[Int], String]]
 
   private val exitCodePromise = Promise[Int]()
 
@@ -47,9 +47,13 @@ case class StreamLogger(exitCodeHandler: Int => Stream[String]) extends ProcessL
 
   def complete(code: => Int): Future[Int] = complete(Try(code))
 
+  def complete(err: Throwable): Future[Int] = complete(Failure(err))
+
   def complete(code: Try[Int]): Future[Int] = {
-    q.put(Left(code.getOrElse(-1)))
-    exitCodePromise.complete(code)
+    if (exitCodePromise.tryComplete(code)) {
+      q.put(Left(code))
+    }
+
     exitCode
   }
 

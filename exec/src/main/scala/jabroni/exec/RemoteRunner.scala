@@ -1,31 +1,33 @@
 package jabroni.exec
 
-import akka.http.scaladsl.model.HttpResponse
+import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
+import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.http.scaladsl.util.FastFuture
 import akka.stream.Materializer
+import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import jabroni.domain.IterableSubscriber
 import jabroni.exec.ProcessRunner.ProcessOutput
 import jabroni.rest.exchange.ExchangeClient
 import jabroni.rest.multipart.MultipartBuilder
 import jabroni.rest.worker.WorkerClient
 
-import scala.concurrent.duration.FiniteDuration
-import language.reflectiveCalls
-import language.implicitConversions
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.concurrent.duration.FiniteDuration
+import scala.language.{implicitConversions, reflectiveCalls}
+import scala.util.Success
 
 case class RemoteRunner(exchange: ExchangeClient,
                         maximumFrameLength: Int,
                         allowTruncation: Boolean)(implicit mat: Materializer,
                                                   uploadTimeout: FiniteDuration)
   extends ProcessRunner
-    with AutoCloseable {
+    with AutoCloseable
+    with FailFastCirceSupport {
 
   import mat._
 
   override def run(proc: RunProcess, inputFiles: List[Upload]): ProcessOutput = {
     import io.circe.generic.auto._
-
     import jabroni.api.Implicits._
 
     /**
@@ -36,29 +38,40 @@ case class RemoteRunner(exchange: ExchangeClient,
         case (builder, Upload(name, len, src)) =>
           builder.fromSource(name, len, src, fileName = name)
       }
-      val future = reqBuilder.formData.flatMap(worker.sendMultipart)
-      future
+      reqBuilder.formData.flatMap(worker.sendMultipart)
     }
 
-    def cleanup(worker : WorkerClient) = {
+    def cleanup(worker: WorkerClient) = {
       // TODO - remove resources when
-
     }
 
     val (_, workerResponses) = exchange.enqueueAndDispatch(proc.asJob) { worker =>
       val future = dispatchToWorker(worker)
 
+      // cleanup in the case of success, leave results in the case of failure
       future.onComplete {
-        case Success(httpResp) if !httpResp.status.isSuccess() => cleanup(worker)
-        case Failure(err) => cleanup(worker)
+        case Success(httpResp) if httpResp.status.isSuccess() => cleanup(worker)
         case _ =>
       }
       future
     }
 
-    workerResponses.map { completedWork =>
+    val lineIterFuture = workerResponses.map { completedWork =>
       val resp = completedWork.onlyResponse
       IterableSubscriber.iterate(resp.entity.dataBytes, maximumFrameLength, allowTruncation)
+    }
+
+    lineIterFuture.map { lineIter =>
+      lineIter.map {
+        case line if line == proc.errorMarker =>
+          val json = lineIter.next()
+          ProcessError.fromJsonString(json) match {
+            case Right(processError) => throw new ProcessException(processError)
+            case Left(parseError) =>
+              sys.error(s"Encountered the error marker '${proc.errorMarker}', but couldn't parse '$json' : $parseError")
+          }
+        case line => line
+      }
     }
   }
 

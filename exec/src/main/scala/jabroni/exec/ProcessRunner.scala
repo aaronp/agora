@@ -3,14 +3,12 @@ package jabroni.exec
 import java.nio.file.Path
 
 import akka.stream.Materializer
-import jabroni.exec.log.SplitLogger
+import jabroni.exec.log.{IterableLogger, ProcessLoggers, loggingProcessLogger}
 import jabroni.rest.exchange.ExchangeClient
 
+import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.{ExecutionContext, Future}
 import scala.language.reflectiveCalls
-import scala.sys.process._
-import scala.util._
 
 /**
   * prepresents something which can be run
@@ -30,13 +28,16 @@ object ProcessRunner {
             logDir: Option[Path] = None,
             errorLimit: Option[Int] = None,
             includeConsoleAppender: Boolean = true)(implicit mat: Materializer): LocalRunner = {
-    LocalRunner(
-      uploadDir = uploadDir,
-      description = description,
-      workDir = workDir,
-      logDir = logDir,
-      errorLimit = errorLimit,
-      includeConsoleAppender = includeConsoleAppender)
+
+    def mkLogger(proc: RunProcess): IterableLogger = {
+      val iterLogger = new ProcessLoggers(description, logDir, errorLimit, proc)
+      if (includeConsoleAppender) {
+        iterLogger.add(loggingProcessLogger)
+      }
+      iterLogger
+    }
+
+    LocalRunner(uploadDir, workDir, mkLogger _)
   }
 
   /**

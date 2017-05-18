@@ -1,10 +1,5 @@
 package jabroni.exec
 
-import java.nio.file.Path
-
-import akka.NotUsed
-import log._
-import log.ProcessLoggers._
 import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model._
@@ -18,8 +13,10 @@ import io.circe.Json
 import io.circe.generic.auto._
 import io.circe.syntax._
 import jabroni.api.JobId
+import jabroni.domain.TryIterator
 import jabroni.domain.io.Sources
 import jabroni.domain.io.implicits._
+import jabroni.exec.log.IterableLogger._
 import jabroni.rest.RunningService
 import jabroni.rest.multipart.{MultipartInfo, MultipartPieces}
 import jabroni.rest.worker.{WorkContext, WorkerConfig, WorkerRoutes}
@@ -38,7 +35,15 @@ case class ExecutionRoutes(execConfig: ExecConfig) extends StrictLogging with Fa
 
   workerRoutes.addMultipartHandler { (req: WorkContext[MultipartPieces]) =>
     val runner = newRunner(req)
-    req.completeWith(onRun(runner, req, uploadTimeout))
+    import execConfig.implicits._
+    val handlerFuture = onRun(runner, req, uploadTimeout).recover {
+      case pr: ProcessException =>
+        val errorEntity = HttpEntity(`application/json`, pr.json.noSpaces)
+        HttpResponse(status = InternalServerError, entity = errorEntity)
+      case other =>
+        throw other
+    }
+    req.completeWith(handlerFuture)
   }
 
   def routes: Route = {

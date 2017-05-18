@@ -1,15 +1,11 @@
 package jabroni.exec
 
-import java.nio.file.Path
-
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import jabroni.rest.BaseSpec
+import jabroni.rest.test.TestUtils._
 import jabroni.rest.worker.WorkerConfig.RunningWorker
 import org.scalatest.BeforeAndAfterAll
-import jabroni.rest.test.TestUtils._
-
-import scala.util.Properties
 
 class ExecutionWorkerTest extends BaseSpec with BeforeAndAfterAll {
 
@@ -34,28 +30,35 @@ class ExecutionWorkerTest extends BaseSpec with BeforeAndAfterAll {
       all.size should be > 10
     }
     "return the error output when the worker returns a specified error code" in {
-      val firstResults = remoteRunner.run("throwError.sh".executable, "123").futureValue
-      firstResults.toList shouldBe List("first info output", "second info output", "about to exit with 123", "first error output", "second error output")
+      val exp = intercept[ProcessException] {
+        val firstResults = remoteRunner.run("throwError.sh".executable, "123").futureValue
+
+        // try and consume the streamed output
+        firstResults.toList
+      }
+      exp.error.exitCode shouldBe Option(123)
+      exp.error.process.command shouldBe List("throwError.sh".executable, "123")
+      exp.error.stdErr shouldBe List("first error output", "second error output", "stderr: about to exit with 123")
     }
 
     "be able to specify acceptable return codes" in {
       // like the above test, but doesn't include the stderr as '123' is our success code
       val firstResults = remoteRunner.run(RunProcess(List("throwError.sh".executable, "123"), successExitCodes = Set(123))).futureValue
-      firstResults.toList shouldBe List("first info output", "second info output", "about to exit with 123")
+      firstResults.toList shouldBe List("first info output", "second info output", "stdout: about to exit with 123")
     }
-
-    "run multiple processes concurrently" ignore {
-      val secondWorkerConf = ExecConfig(Array("port=" + (conf.port + 1)))
-      val secondWorker = secondWorkerConf.start.futureValue
-      try {
-        val firstResults = remoteRunner.run("printRange.sh".executable, "1", "1000", "0").futureValue
-        secondWorker
-
-      } finally {
-
-      }
-
-    }
+    //
+    //    "run multiple processes concurrently" ignore {
+    //      val secondWorkerConf = ExecConfig(Array("port=" + (conf.port + 1)))
+    //      val secondWorker = secondWorkerConf.start.futureValue
+    //      try {
+    //        val firstResults = remoteRunner.run("printRange.sh".executable, "1", "1000", "0").futureValue
+    //        secondWorker
+    //
+    //      } finally {
+    //
+    //      }
+    //
+    //    }
 
     "run simple commands remotely" in {
       val res: Iterator[String] = remoteRunner.run("echo", "testing 123").futureValue

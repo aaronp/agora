@@ -13,7 +13,7 @@ class LocalRunnerTest extends BaseSpec with ScalaFutures {
 
         withTmpDir("localRunnerTest") { dir =>
 
-          val runner = LocalRunner(dir)
+          val runner = ProcessRunner(dir)
 
           val res: ProcessOutput = runner.run("bigOutput.sh".executable, srcDir.toAbsolutePath.toString, "1")
           val iter = res.futureValue.toStream

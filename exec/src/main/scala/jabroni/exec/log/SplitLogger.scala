@@ -5,6 +5,7 @@ import java.io.{Closeable, Flushable}
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.sys.process.ProcessLogger
+import scala.util.{Failure, Try}
 import scala.util.control.NonFatal
 
 
@@ -37,7 +38,7 @@ case class SplitLogger(loggerList: List[ProcessLogger]) extends ProcessLogger wi
   }
 
   private def withLogger(f: ProcessLogger => Unit): Unit = {
-    loggers.foreach { pl =>
+    loggerList.foreach { pl =>
       try {
         f(pl)
       } catch {
@@ -53,8 +54,18 @@ case class SplitLogger(loggerList: List[ProcessLogger]) extends ProcessLogger wi
     tea
   }
 
-  def complete(code: Int) = {
-    streamLoggers.foreach(_.complete(code))
+  @transient private var completeResultOpt: Option[Try[Int]] = None
+
+  def completedResult: Option[Try[Int]] = completeResultOpt
+
+  def complete(code: => Int) = doComplete(Try(code))
+
+  def complete(err: Throwable) = doComplete(Failure(err))
+
+  private def doComplete(codeTry: Try[Int]) = {
+    completeResultOpt = completeResultOpt.orElse(Option(codeTry))
+    close()
+    streamLoggers.foreach(_.complete(codeTry))
   }
 
   def streamLoggers = loggerList.collect {

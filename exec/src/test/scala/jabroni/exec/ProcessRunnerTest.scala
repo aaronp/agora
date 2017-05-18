@@ -11,23 +11,19 @@ class ProcessRunnerTest extends BaseSpec {
       "return the output of a job and write it to file" in {
 
         withTmpDir("process-runner-test") { dir =>
-          val runner = ProcessRunner(dir)
+          val runner = ProcessRunner(dir, logDir = Option(dir))
           val res = runner.run("echo", "hello world").futureValue
           res.toList shouldBe List("hello world")
-          runner.logDir.map(_.resolve("std.out")).foreach { logFile =>
-            logFile.text shouldBe "hello world\n"
-          }
+          dir.resolve("std.out").text shouldBe "hello world\n"
         }
       }
       "be able to access env variables" in {
 
         withTmpDir("process-runner-test-2") { dir =>
-          val runner = ProcessRunner(dir)
+          val runner = ProcessRunner(dir, logDir = Option(dir))
           val res = runner.run(RunProcess("/bin/bash", "-c", "echo FOO is $FOO").withEnv("FOO", "bar"), Nil).futureValue
           res.toList shouldBe List("FOO is bar")
-          runner.logDir.map(_.resolve("std.out")).foreach { logFile =>
-            logFile.text shouldBe "FOO is bar\n"
-          }
+          dir.resolve("std.out").text shouldBe "FOO is bar\n"
         }
       }
     }
