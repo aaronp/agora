@@ -45,11 +45,12 @@ trait ExecConfig extends WorkerConfig {
 
   /** @return a process runner to execute the given request
     */
-  def newRunner(req: WorkContext[MultipartPieces]): ProcessRunner = {
+  def newRunner(req: WorkContext[MultipartPieces], checkOutputForErrors: Boolean): ProcessRunner = {
     import jabroni.api.nextJobId
     val jobId: JobId = req.matchDetails.map(_.jobId).getOrElse(nextJobId)
     ProcessRunner(
       uploadDir = uploads.dir(jobId).getOrElse(sys.error("uploadDir not set")),
+      checkOutputForErrors,
       description = jobId,
       workDir = workingDirectory.dir(jobId),
       logDir = logs.dir(jobId),

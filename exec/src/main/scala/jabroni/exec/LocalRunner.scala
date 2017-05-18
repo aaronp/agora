@@ -15,9 +15,10 @@ import scala.util.{Failure, Success, Try}
 object LocalRunner {
 
   def apply(uploadDir: Path,
+            checkOutputForErrors: Boolean,
             workDir: Option[Path],
             loggerForProcess: RunProcess => IterableLogger)(implicit mat: Materializer): LocalRunner = {
-    new LocalRunner(uploadDir, workDir, loggerForProcess)
+    new LocalRunner(uploadDir, checkOutputForErrors, workDir, loggerForProcess)
   }
 
 }
@@ -26,15 +27,22 @@ object LocalRunner {
   * Something which can run commands
   */
 class LocalRunner(val uploadDir: Path,
+                  val checkOutputForErrors: Boolean,
                   val workDir: Option[Path] = None,
                   val loggerForProcess: RunProcess => IterableLogger)(implicit mat: Materializer) extends ProcessRunner with StrictLogging {
 
   import mat._
 
-  def copy(newUploadDir: Path = uploadDir,
-           newWorkDir: Option[Path] = workDir,
-           newLoggerForProcess: RunProcess => IterableLogger = loggerForProcess) = {
-    new LocalRunner(newUploadDir, newWorkDir, newLoggerForProcess)
+  def withUploadDir(up: Path): LocalRunner = {
+    new LocalRunner(up, checkOutputForErrors, workDir, loggerForProcess)
+  }
+
+  def withWorkDir(wd: Option[Path]): LocalRunner = {
+    new LocalRunner(uploadDir, checkOutputForErrors, wd, loggerForProcess)
+  }
+
+  def withWorkDir(newLoggerForProcess: RunProcess => IterableLogger): LocalRunner = {
+    new LocalRunner(uploadDir, checkOutputForErrors, workDir, newLoggerForProcess)
   }
 
   override def run(inputProc: RunProcess, inputFiles: List[Upload]) = {
@@ -100,7 +108,12 @@ class LocalRunner(val uploadDir: Path,
         logger.error(s"$proc failed with $err", err)
         iterableLogger.complete(err)
     }
-    iterableLogger.iterator
+
+    if (checkOutputForErrors) {
+      proc.filterForErrors(iterableLogger.iterator)
+    } else {
+      iterableLogger.iterator
+    }
   }
 
 }

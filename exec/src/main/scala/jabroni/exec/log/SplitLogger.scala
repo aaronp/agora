@@ -38,7 +38,7 @@ case class SplitLogger(loggerList: List[ProcessLogger]) extends ProcessLogger wi
   }
 
   private def withLogger(f: ProcessLogger => Unit): Unit = {
-    loggerList.foreach { pl =>
+    loggers.foreach { pl =>
       try {
         f(pl)
       } catch {

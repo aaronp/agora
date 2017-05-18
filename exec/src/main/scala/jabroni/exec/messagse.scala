@@ -7,10 +7,29 @@ case class RunProcess(command: List[String],
                       // if we exit w/ a non-success code, then we need to indicate the start of the error response
                       errorMarker: String = "*** _-={ E R R O R }=-_ ***") {
   def withEnv(key: String, value: String): RunProcess = copy(env = env.updated(key, value))
+
+  /**
+    * Filters the iterator produced using this RunProcess for errors
+    *
+    * @param lineIter
+    * @return
+    */
+  def filterForErrors(lineIter: Iterator[String]) = {
+    lineIter.map {
+      case line if line == errorMarker =>
+        val json = lineIter.next()
+        ProcessError.fromJsonString(json) match {
+          case Right(processError) => throw new ProcessException(processError)
+          case Left(parseError) =>
+            sys.error(s"Encountered the error marker '${errorMarker}', but couldn't parse '$json' : $parseError")
+        }
+      case ok => ok
+    }
+  }
 }
 
 object RunProcess {
-  def apply(first: String, theRest: String*): RunProcess = new RunProcess(first :: theRest.toList, Map[String, String]())
+  def apply(first: String, theRest: String*): RunProcess = new RunProcess(first :: theRest.toList)
 }
 
 case class OperationResult(messages: List[String])

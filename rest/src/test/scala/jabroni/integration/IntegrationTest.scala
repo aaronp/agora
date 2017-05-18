@@ -2,6 +2,6 @@ package jabroni.integration
 
 import jabroni.rest.exchange.RoutingClientTest
 
-class IntrgrationTest extends BaseIntegrationTest
+class IntegrationTest extends BaseIntegrationTest
   with RoutingClientTest
   with WorkerIntegrationTest

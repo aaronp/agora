@@ -16,10 +16,6 @@ object ProcessError {
   def fromJsonString(json : String): Either[circe.Error, ProcessError] = {
     decode[ProcessError](json)
   }
-
-  implicit val encoder = exportEncoder[ProcessError].instance
-  implicit val decoder = exportDecoder[ProcessError].instance
-
 }
 
 case class ProcessException(error: ProcessError)

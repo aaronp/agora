@@ -29,6 +29,7 @@ val commonSettings: Seq[Def.Setting[_]] = Seq(
   (testOptions in Test) += (Tests.Argument(TestFrameworks.ScalaTest, "-h", s"target/scalatest-reports-${name.value}"))
 )
 
+publishMavenStyle := true
 
 lazy val jabroniApi = crossProject.in(file("api")).
   settings(name := "jabroni-api").

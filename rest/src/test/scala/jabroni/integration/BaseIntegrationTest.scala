@@ -48,5 +48,5 @@ abstract class BaseIntegrationTest extends BaseSpec with BeforeAndAfterAll {
 }
 
 object BaseIntegrationTest {
-  private val portCounter = new AtomicInteger(8000)
+  private val portCounter = new AtomicInteger(7700)
 }

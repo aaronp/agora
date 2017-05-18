@@ -12,4 +12,4 @@ import org.junit.runner.RunWith
     "json:target/cucumber/test-report.json",
     "junit:target/cucumber/test-report.xml")
 )
-class IntegrationTest
+class CucumberTest

@@ -1,8 +1,6 @@
 package jabroni.exec
 
-import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
-import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.http.scaladsl.util.FastFuture
+import akka.http.scaladsl.model.HttpResponse
 import akka.stream.Materializer
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import jabroni.domain.IterableSubscriber
@@ -14,6 +12,7 @@ import jabroni.rest.worker.WorkerClient
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import scala.language.{implicitConversions, reflectiveCalls}
+import scala.sys.process.ProcessLogger
 import scala.util.Success
 
 case class RemoteRunner(exchange: ExchangeClient,
@@ -61,18 +60,7 @@ case class RemoteRunner(exchange: ExchangeClient,
       IterableSubscriber.iterate(resp.entity.dataBytes, maximumFrameLength, allowTruncation)
     }
 
-    lineIterFuture.map { lineIter =>
-      lineIter.map {
-        case line if line == proc.errorMarker =>
-          val json = lineIter.next()
-          ProcessError.fromJsonString(json) match {
-            case Right(processError) => throw new ProcessException(processError)
-            case Left(parseError) =>
-              sys.error(s"Encountered the error marker '${proc.errorMarker}', but couldn't parse '$json' : $parseError")
-          }
-        case line => line
-      }
-    }
+    lineIterFuture.map(proc.filterForErrors)
   }
 
   override def close(): Unit = exchange.close()

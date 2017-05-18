@@ -35,6 +35,7 @@ trait LowPriorityIOImplicits {
     def text_=(str: String) = {
       createIfNotExists()
       setText(str)
+      this
     }
 
     def parent = Option(path.getParent)

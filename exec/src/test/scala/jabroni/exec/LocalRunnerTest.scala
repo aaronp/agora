@@ -1,28 +1,31 @@
 package jabroni.exec
 
-import jabroni.exec.ProcessRunner.ProcessOutput
+import java.nio.file.Path
+
+import akka.actor.ActorSystem
+import akka.stream.ActorMaterializer
 import jabroni.rest.BaseSpec
-import jabroni.rest.test.TestUtils._
-import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 
-class LocalRunnerTest extends BaseSpec with ScalaFutures {
+class LocalRunnerTest extends BaseSpec with ProcessRunnerTCK with BeforeAndAfter with BeforeAndAfterAll {
 
-  withMaterializer { implicit mat =>
-    "LocalRunner" should {
-      "execute" in {
+  implicit val sys = ActorSystem()
+  implicit val mat = ActorMaterializer()
+  val dir: Path = "target/localRunnerTest".asPath
 
-        withTmpDir("localRunnerTest") { dir =>
-
-          val runner = ProcessRunner(dir)
-
-          val res: ProcessOutput = runner.run("bigOutput.sh".executable, srcDir.toAbsolutePath.toString, "1")
-          val iter = res.futureValue.toStream
-          // big output echos out all scala files, which should include this line
-          // which we're about to test for ...
-          iter.exists(_.contains("big output echos out all scala files, which should include this line")) shouldBe true
-          iter.size should be > 100
-        }
-      }
-    }
+  override def afterAll() = {
+    mat.shutdown()
+    sys.terminate()
   }
+
+  before {
+    dir.mkDirs()
+  }
+
+  after {
+    dir.delete()
+  }
+
+  override def runner = ProcessRunner(dir, true)
+
 }
