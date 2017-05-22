@@ -4,6 +4,8 @@ package `match`
 case class MatchDetails(matchId: MatchId, subscriptionKey: SubscriptionKey, jobId: JobId, remainingItems: Int, matchEpochUTC: Long)
 
 object MatchDetails {
+  val empty = MatchDetails("", "", "", 0, 0L)
+
   val MatchIdHeader = "Exchange-Match-ID"
   val SubscriptionKeyHeader = "Exchange-Subscription-ID"
   val JobIdHeader = "Exchange-Job-ID"

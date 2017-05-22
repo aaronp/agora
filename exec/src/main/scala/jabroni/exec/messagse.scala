@@ -1,8 +1,18 @@
 package jabroni.exec
 
+/**
+  *
+  * @param command
+  * @param env
+  * @param successExitCodes
+  * @param frameLength the frame length to use (if set) for delimiting output lines
+  * @param errorMarker the marker which, if it appears in the standard output stream, will be followed by ProcessError
+  *                    in json form
+  */
 case class RunProcess(command: List[String],
                       env: Map[String, String] = Map.empty,
                       successExitCodes: Set[Int] = Set(0),
+                      frameLength: Option[Int] = None,
                       // when streaming results, we will already have sent a status code header (success).
                       // if we exit w/ a non-success code, then we need to indicate the start of the error response
                       errorMarker: String = "*** _-={ E R R O R }=-_ ***") {
@@ -17,7 +27,7 @@ case class RunProcess(command: List[String],
   def filterForErrors(lineIter: Iterator[String]) = {
     lineIter.map {
       case line if line == errorMarker =>
-        val json = lineIter.next()
+        val json = lineIter.mkString("\n")
         ProcessError.fromJsonString(json) match {
           case Right(processError) => throw new ProcessException(processError)
           case Left(parseError) =>

@@ -70,12 +70,14 @@ case class SplitLogger(loggerList: List[ProcessLogger]) extends ProcessLogger wi
 
   def streamLoggers = loggerList.collect {
     case Underlying(x: StreamLogger) => x
+    case x: StreamLogger => x
   }
 
   override def close(): Unit = {
     flush()
     withLogger {
       case Underlying(c: Closeable) => c.close()
+      case c: Closeable => c.close()
       case _ =>
     }
   }
@@ -83,6 +85,7 @@ case class SplitLogger(loggerList: List[ProcessLogger]) extends ProcessLogger wi
   override def flush(): Unit = {
     withLogger {
       case Underlying(f: Flushable) => f.flush()
+      case f: Flushable => f.flush()
       case _ =>
     }
   }

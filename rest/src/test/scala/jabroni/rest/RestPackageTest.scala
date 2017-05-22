@@ -13,8 +13,9 @@ class RestPackageTest extends WordSpec with Matchers {
         """
           |foo=defaultValue
           |some.other.value=${foo}
-        """.stripMargin).withFallback(WorkerConfig.defaultConfig())
-      val conf = configForArgs(Array("foo=bar"), fallback)
+        """.stripMargin)
+      val conf = configForArgs(Array("foo=bar"), fallback).resolve
+
       conf.getString("some.other.value") shouldBe "bar"
     }
   }

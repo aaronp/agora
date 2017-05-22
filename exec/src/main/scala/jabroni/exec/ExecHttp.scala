@@ -1,13 +1,13 @@
 package jabroni.exec
 
-import akka.http.scaladsl.client.RequestBuilding
 import jabroni.api.JobId
+import jabroni.rest.CommonRequestBuilding
 
-object ExecHttp extends RequestBuilding {
+object ExecHttp extends CommonRequestBuilding {
 
-  def output(jobId: JobId, file: String) = Get(s"/rest/job?id=$jobId&file=$file")
+  def output(jobId: JobId, file: String) = Get(s"/rest/job?id=$jobId&file=$file").withCommonHeaders
 
-  def listJobs = Get("/rest/jobs")
+  def listJobs = Get("/rest/jobs").withCommonHeaders
 
   def remove(jobId: JobId)= Delete(s"/rest/job?id=$jobId")
 }

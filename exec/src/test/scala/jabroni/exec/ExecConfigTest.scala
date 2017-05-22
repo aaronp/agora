@@ -11,12 +11,14 @@ class ExecConfigTest extends BaseSpec {
     "contain uploadTimeout" in {
 
 
-      val ec = ExecConfig(ConfigFactory.parseString(
-        """exec.workingDirectory.dir=wd
-          |exec.workingDirectory.appendJobId = false
-          |exec.logs.dir=logs
-          |exec.uploads.dir=uploads
-        """.stripMargin).withFallback(ExecConfig.defaultConfig))
+      val ec = ExecConfig().add(ConfigFactory.parseString(
+        """workingDirectory.dir=wd
+          |workingDirectory.appendJobId = false
+          |logs.dir=logs
+          |uploads.dir=uploads
+        """.stripMargin))
+
+
       ec.uploadTimeout shouldBe 10.seconds
       ec.workingDirectory.appendJobId shouldBe false
       ec.workingDirectory.dir("foo").map(_.toAbsolutePath) shouldBe Some("wd".asPath.toAbsolutePath)

@@ -1,16 +1,16 @@
 package jabroni.rest.exchange
 
-import akka.http.scaladsl.client.RequestBuilding
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpRequest}
 import io.circe.Json
 import jabroni.api.exchange._
+import jabroni.rest.CommonRequestBuilding
 
 /**
   * Contains the functions for converting our messages into HttpRequests.
   *
   * This should go hand-in-glove with ExchangeRoutes
   */
-object ExchangeHttp extends RequestBuilding {
+object ExchangeHttp extends CommonRequestBuilding {
 
   import io.circe.syntax._
 
@@ -26,11 +26,11 @@ object ExchangeHttp extends RequestBuilding {
 
   private def put(path: String, json: Json): HttpRequest = {
     val e = HttpEntity(ContentTypes.`application/json`, json.noSpaces)
-    Put(s"/rest/exchange/$path").withEntity(e)
+    Put(s"/rest/exchange/$path").withEntity(e).withCommonHeaders
   }
 
   private def post(path: String, json: Json): HttpRequest = {
     val e = HttpEntity(ContentTypes.`application/json`, json.noSpaces)
-    Post(s"/rest/exchange/$path").withEntity(e)
+    Post(s"/rest/exchange/$path").withEntity(e).withCommonHeaders
   }
 }

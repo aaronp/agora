@@ -1,36 +1,21 @@
 package jabroni.rest
 
-import java.net.URI
-
-import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
-import akka.stream.ActorMaterializer
 import com.typesafe.config.Config
-import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
 import jabroni.api.worker.HostLocation
+import jabroni.domain.RichConfigOps
+import jabroni.rest.client.RestClient
 
 import scala.concurrent.Future
-import scala.io.StdIn
 
 /**
   * A parsed configuration for our jabroni app
   */
-trait ServerConfig extends LazyLogging {
+class ServerConfig(val config: Config) extends RichConfigOps {
 
-  type Me <: ServerConfig
+  def actorSystemName: String = config.getString("actorSystemName")
 
-  def config: Config
-
-  protected def self: Me
-
-  def actorSystemName: String = "jabroni"
-
-  object implicits {
-    implicit lazy val system = ActorSystem(actorSystemName)
-    implicit lazy val materializer = ActorMaterializer()
-    implicit lazy val executionContext = system.dispatcher
-  }
+  lazy val implicits = new AkkaImplicits(actorSystemName)
 
   def host = config.getString("host")
   def port = config.getInt("port")
@@ -41,27 +26,19 @@ trait ServerConfig extends LazyLogging {
 
   def location = HostLocation(host, port)
 
-  def runWithRoutes[T](name: String, routes: Route, svc: T): Future[RunningService[Me, T]] = {
+  lazy val restClient: RestClient = {
     import implicits._
-
-    logger.info(s"Starting $name at http://${host}:${port}")
-
-    val future: Future[RunningService[Me, T]] = Http().bindAndHandle(routes, host, port).map { b =>
-      RunningService(self, svc, b)
-    }
-
-    if (launchBrowser && java.awt.Desktop.isDesktopSupported()) {
-      future.onComplete { _ =>
-        java.awt.Desktop.getDesktop().browse(new URI(s"http://${host}:${port}/ui/index.html"))
-      }
-    }
-
-    if (waitOnUserInput) {
-      StdIn.readLine() // let it run until user presses return
-      future.foreach(_.stop)
-    }
-    future
+    RestClient(location)
   }
 
+  def runWithRoutes[T](routes: Route, svc: T): Future[RunningService[ServerConfig, T]] = {
+    RunningService.start(this, routes, svc)
+  }
 
+  override def toString = config.describe
+}
+
+object ServerConfig {
+  def apply(config : Config) = new ServerConfig(config)
+  def unapply(config : ServerConfig) = Option(config.config)
 }

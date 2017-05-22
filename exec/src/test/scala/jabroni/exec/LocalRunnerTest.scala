@@ -26,6 +26,6 @@ class LocalRunnerTest extends BaseSpec with ProcessRunnerTCK with BeforeAndAfter
     dir.delete()
   }
 
-  override def runner = ProcessRunner(dir, true)
+  override def runner = ProcessRunner.local(dir)
 
 }

@@ -12,46 +12,42 @@ import org.scalatest.time.{Millis, Seconds, Span}
 
 import scala.language.reflectiveCalls
 
-trait RoutingClientTest extends jabroni.api.Implicits { self : BaseIntegrationTest =>
+trait RoutingClientTest extends jabroni.api.Implicits {
+  self: BaseIntegrationTest =>
 
   "RoutingClient.handleSource" should {
     "Stream work from workers" in {
-      val exchangePort = 9000
-      val workerPort = exchangePort + 1
-      val exConf = ExchangeConfig(s"port=$exchangePort")
-      val running: RunningService[ExchangeConfig, ExchangeRoutes] = exConf.startExchange().futureValue
-      val workerConf = WorkerConfig(s"port=$workerPort", s"exchange.port=$exchangePort")
-      val worker: RunningWorker = workerConf.startWorker().futureValue
-      try {
+      //      val exchangePort = 9000
+      //      val workerPort = exchangePort + 1
+      //      val exConf = ExchangeConfig(s"port=$exchangePort")
+      //      val running: RunningService[ExchangeConfig, ExchangeRoutes] = exConf.start().futureValue
+      //      val workerConf = WorkerConfig(s"port=$workerPort", s"exchange.port=$exchangePort")
+      //      val worker: RunningWorker = workerConf.startWorker().futureValue
 
-        val subscriptionAckFuture = worker.service.addHandler[Int] { (ctxt: WorkContext[Int]) =>
-          def iter = Iterator.continually(ctxt.request).zipWithIndex.map {
-            case (offset, n) =>
-              val res = offset + n
-              ByteString.fromString(res.toString)
-          }
-
-          ctxt.completeWithSource(Source.fromIterator(() => iter))
+      val subscriptionAckFuture = worker.service.addHandler[Int] { (ctxt: WorkContext[Int]) =>
+        def iter = Iterator.continually(ctxt.request).zipWithIndex.map {
+          case (offset, n) =>
+            val res = offset + n
+            ByteString.fromString(res.toString)
         }
-        subscriptionAckFuture.futureValue
 
-        val res: CompletedWork = workerConf.exchangeClient.enqueue(12345.asJob).futureValue
-        val values = res.iterateResponse(testTimeout)
-        val strings = values.take(100).map(_.decodeString("UTF-8"))
-        val stringList = strings.toList
-        stringList.head shouldBe "12345"
-        stringList.last shouldBe "12444"
-        stringList.size shouldBe 100
-      } finally {
-        running.stop()
-        worker.stop()
+        ctxt.completeWithSource(Source.fromIterator(() => iter))
       }
+      subscriptionAckFuture.futureValue
+
+      val res: CompletedWork = exchangeClient.enqueue(12345.asJob).futureValue
+      val values = res.iterateResponse(testTimeout)
+      val strings = values.take(100).map(_.decodeString("UTF-8"))
+      val stringList = strings.toList
+      stringList.head shouldBe "12345"
+      stringList.last shouldBe "12444"
+      stringList.size shouldBe 100
     }
     "Route match responses to workers" in {
       // the path to our echoed response
       val gotPath = JsonPath.root.got.string
       // start an exchange server
-      val exchange = ExchangeConfig().startExchange().futureValue
+      val exchange = ExchangeConfig().start().futureValue
 
       try {
 
@@ -85,6 +81,6 @@ trait RoutingClientTest extends jabroni.api.Implicits { self : BaseIntegrationTe
     }
   }
 
-  implicit override val patienceConfig =
-    PatienceConfig(timeout = scaled(Span(5, Seconds)), interval = scaled(Span(50, Millis)))
+//  implicit override val patienceConfig =
+//    PatienceConfig(timeout = scaled(Span(5, Seconds)), interval = scaled(Span(50, Millis)))
 }

@@ -13,48 +13,40 @@ import scala.util.{Failure, Success, Try}
 
 
 object LocalRunner {
-
   def apply(uploadDir: Path,
-            checkOutputForErrors: Boolean,
-            workDir: Option[Path],
-            loggerForProcess: RunProcess => IterableLogger)(implicit mat: Materializer): LocalRunner = {
-    new LocalRunner(uploadDir, checkOutputForErrors, workDir, loggerForProcess)
+            workDir: Option[Path] = None,
+            loggerForProcess: RunProcess => IterableLogger = IterableLogger.forProcess)(implicit mat: Materializer): LocalRunner = {
+    new LocalRunner(uploadDir, workDir, loggerForProcess)
   }
-
 }
 
 /**
   * Something which can run commands
   */
-class LocalRunner(val uploadDir: Path,
-                  val checkOutputForErrors: Boolean,
+class LocalRunner(uploadDir: Path,
                   val workDir: Option[Path] = None,
-                  val loggerForProcess: RunProcess => IterableLogger)(implicit mat: Materializer) extends ProcessRunner with StrictLogging {
+                  val loggerForProcess: RunProcess => IterableLogger = IterableLogger.forProcess)(implicit mat: Materializer) extends ProcessRunner with StrictLogging {
 
   import mat._
 
   def withUploadDir(up: Path): LocalRunner = {
-    new LocalRunner(up, checkOutputForErrors, workDir, loggerForProcess)
+    new LocalRunner(up, workDir, loggerForProcess)
   }
 
   def withWorkDir(wd: Option[Path]): LocalRunner = {
-    new LocalRunner(uploadDir, checkOutputForErrors, wd, loggerForProcess)
+    new LocalRunner(uploadDir, wd, loggerForProcess)
   }
 
-  def withWorkDir(newLoggerForProcess: RunProcess => IterableLogger): LocalRunner = {
-    new LocalRunner(uploadDir, checkOutputForErrors, workDir, newLoggerForProcess)
+  def withLogger(newLoggerForProcess: RunProcess => IterableLogger): LocalRunner = {
+    new LocalRunner(uploadDir, workDir, newLoggerForProcess)
   }
 
   override def run(inputProc: RunProcess, inputFiles: List[Upload]) = {
 
     val processLogger = loggerForProcess(inputProc)
-    logger.debug(
-      s"""Executing w/ ${inputFiles.size} input(s) [${inputFiles.map(u => s"${u.name} ${u.size} bytes").mkString(",")}]:
-         |    uploadDir  : $uploadDir
-         |    logger     : $processLogger
-         |$inputProc
-         |
-      """.stripMargin)
+
+    logger.debug(s"Running $inputProc w/ ${inputFiles.size} uploads")
+
     /**
       * write down the multipart input(s)
       */
@@ -68,7 +60,11 @@ class LocalRunner(val uploadDir: Path,
         }
         writeFut.map(r => (dest, r))
     }
-    val inputsWritten: Future[List[(Path, IOResult)]] = Future.sequence(futures)
+    val inputsWritten: Future[List[(Path, IOResult)]] = if (futures.isEmpty) {
+      Future.successful(Nil)
+    } else {
+      Future.sequence(futures)
+    }
     inputsWritten.map { _ =>
       val preparedProcess: RunProcess = insertEnv(inputProc)
       val builder: ProcessBuilder = {
@@ -89,7 +85,7 @@ class LocalRunner(val uploadDir: Path,
     )
   }
 
-  def execute(builder: ProcessBuilder, proc: RunProcess, iterableLogger: IterableLogger) = {
+  def execute(builder: ProcessBuilder, proc: RunProcess, iterableLogger: IterableLogger): Iterator[String] = {
 
     val future = {
       val startedTry: Try[Process] = Try {
@@ -109,11 +105,7 @@ class LocalRunner(val uploadDir: Path,
         iterableLogger.complete(err)
     }
 
-    if (checkOutputForErrors) {
-      proc.filterForErrors(iterableLogger.iterator)
-    } else {
-      iterableLogger.iterator
-    }
+    iterableLogger.iterator
   }
 
 }

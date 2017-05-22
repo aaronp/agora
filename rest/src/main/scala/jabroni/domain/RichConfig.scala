@@ -6,16 +6,13 @@ import com.typesafe.config._
 
 import scala.language.implicitConversions
 
-/**
-  * Adds some scala utility around a typesafe config
-  *
-  * @param config
-  */
-class RichConfig(val config: Config) extends RichConfig.LowPriorityImplicits {
+trait RichConfigOps  extends RichConfig.LowPriorityImplicits {
 
-  import RichConfig._
+  def config : Config
 
   import ConfigFactory._
+  import RichConfig._
+
   import scala.collection.JavaConverters._
 
   /**
@@ -90,8 +87,14 @@ class RichConfig(val config: Config) extends RichConfig.LowPriorityImplicits {
   def withPaths(paths : Set[String]): Config = {
     paths.map(config.withOnlyPath).reduce(_ withFallback _)
   }
-
 }
+
+/**
+  * Adds some scala utility around a typesafe config
+  *
+  * @param config
+  */
+class RichConfig(override val config: Config) extends RichConfigOps
 
 object RichConfig {
 
@@ -112,7 +115,13 @@ object RichConfig {
 
     implicit class RichArgs(val args: Array[String]) {
       def asConfig(unrecognizedArg: String => Config = ParseArg.Throw): Config = {
-        ConfigFactory.load().withUserArgs(args, unrecognizedArg)
+        ConfigFactory.empty().withUserArgs(args, unrecognizedArg)
+      }
+    }
+    implicit class RichMap(val map: Map[String, String]) {
+      def asConfig : Config = {
+        import scala.collection.JavaConverters._
+        ConfigFactory.parseMap(map.asJava)
       }
     }
 
@@ -133,7 +142,7 @@ object RichConfig {
     ConfigFactory.parseMap(Map(key -> value).asJava)
   }
 
-  private object FilePathConfig {
+  private[domain]  object FilePathConfig {
     def unapply(path: String): Option[Config] = {
       Option(Paths.get(path)).filter(p => Files.exists(p)).
         map(_.toFile).
@@ -141,13 +150,13 @@ object RichConfig {
     }
   }
 
-  private object UrlPathConfig {
+  private[domain]  object UrlPathConfig {
     def unapply(path: String): Option[Config] = {
       val url = getClass.getClassLoader.getResource(path)
       Option(url).map(ConfigFactory.parseURL)
     }
   }
 
-  private val KeyValue = "(.*)=(.*)".r
+  private[domain] val KeyValue = "(.*)=(.*)".r
 
 }

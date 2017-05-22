@@ -15,18 +15,6 @@ object JobPredicate extends StrictLogging {
   /**
     * The json-based matching logic
     */
-  //  object JsonJobPredicate extends JobPredicate {
-  //    override def matches(job: SubmitJob, subscription: WorkSubscription): Boolean = {
-  //      val offerMatcher: JMatcher = job.submissionDetails.workMatcher
-  //      val submissionMatcher = subscription.submissionMatcher
-  //      val jobMatcher = subscription.jobMatcher
-  //
-  //      offerMatcher.matches(subscription.details.aboutMe) &&
-  //        jobMatcher.matches(job.job) &&
-  //        submissionMatcher.matches(job.submissionDetails.aboutMe)
-  //    }
-  //  }
-
   object JsonJobPredicate extends JobPredicate with StrictLogging {
     override def matches(job: SubmitJob, subscription: WorkSubscription): Boolean = {
       val offerMatcher: JMatcher = job.submissionDetails.workMatcher

@@ -69,7 +69,7 @@ case class ExchangeTestState(server: Option[RunningExchange] = None,
 
   def startExchangeServer(exchangeConfig: ExchangeConfig): ExchangeTestState = {
     closeExchange()
-    copy(server = Option(exchangeConfig.startExchange().futureValue))
+    copy(server = Option(exchangeConfig.start.futureValue))
   }
 
   def stopWorkers(workerConfig: WorkerConfig): ExchangeTestState = {

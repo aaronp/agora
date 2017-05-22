@@ -12,11 +12,10 @@ import jabroni.rest.worker.WorkerClient
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import scala.language.{implicitConversions, reflectiveCalls}
-import scala.sys.process.ProcessLogger
 import scala.util.Success
 
 case class RemoteRunner(exchange: ExchangeClient,
-                        maximumFrameLength: Int,
+                        defaultFrameLength: Int,
                         allowTruncation: Boolean)(implicit mat: Materializer,
                                                   uploadTimeout: FiniteDuration)
   extends ProcessRunner
@@ -57,7 +56,7 @@ case class RemoteRunner(exchange: ExchangeClient,
 
     val lineIterFuture = workerResponses.map { completedWork =>
       val resp = completedWork.onlyResponse
-      IterableSubscriber.iterate(resp.entity.dataBytes, maximumFrameLength, allowTruncation)
+      IterableSubscriber.iterate(resp.entity.dataBytes, proc.frameLength.getOrElse(defaultFrameLength), allowTruncation)
     }
 
     lineIterFuture.map(proc.filterForErrors)

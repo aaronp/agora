@@ -15,6 +15,7 @@ object IterableSubscriber {
   def iterate(dataBytes: Source[ByteString, Any],
               maximumFrameLength: Int,
               allowTruncation: Boolean = false)(implicit mat: Materializer): Iterator[String] = {
+
     val subscriber = new IterableSubscriber[String]()
     val linesFlow = Framing.delimiter(ByteString("\n"), maximumFrameLength, allowTruncation = allowTruncation)
     dataBytes.via(linesFlow.map(_.utf8String)).runWith(Sink.fromSubscriber(subscriber))

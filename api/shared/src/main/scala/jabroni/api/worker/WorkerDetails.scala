@@ -50,7 +50,7 @@ case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
     sys.error(s"invalid json: 'location' not set: ${aboutMe}")
   }
 
-  def url = path.map(p => s"${location.asURL}/$p")
+  def url = path.map(p => s"${location.asURL}/rest/worker/$p")
 
   def name = namePath.getOption(aboutMe)
 

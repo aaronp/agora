@@ -78,6 +78,8 @@ sealed trait ClientRequest
 case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends ClientRequest {
   def matches(work: WorkSubscription)(implicit m: JobPredicate) = m.matches(this, work)
 
+  def matching(matcher: JMatcher) = copy(submissionDetails.copy(workMatcher = matcher))
+
   def jobId: Option[JobId] = {
     submissionDetails.valueOf[JobId]("jobId").right.toOption
   }
@@ -164,15 +166,12 @@ case class WorkSubscription(details: WorkerDetails = WorkerDetails(),
     copy(details = details.append(json))
   }
 
-  def and(matcher: JMatcher) = matching(jobMatcher.and(matcher))
-
-  def or(matcher: JMatcher) = matching(jobMatcher.or(matcher))
-
   /**
     * @param matcher
     * @return a subscription with the matcher replaces
     */
-  def matching(matcher: JMatcher) = copy(jobMatcher = matcher)
+  def matchingJob(matcher: JMatcher) = copy(jobMatcher = matcher)
+  def matchingSubmission(matcher: JMatcher) = copy(submissionMatcher = matcher)
 
   def withData[T: Encoder](data: T, name: String = null) = withDetails(_.withData(data, name))
   def withPath(path : String): WorkSubscription = withDetails(_.withPath(path))

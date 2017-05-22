@@ -39,7 +39,7 @@ trait MultipartHandlerSupport extends MultipartDirectives with FailFastCirceSupp
 
   private object MultipartHandlerLock
 
-  private var multipartByPath = Map[String, OnMultipartWork]()
+  protected var multipartByPath = Map[String, OnMultipartWork]()
 
   def addMultipartHandler(onReq: WorkContext[MultipartPieces] => Unit)
                          (implicit subscription: WorkSubscription = defaultSubscription,
@@ -84,7 +84,7 @@ trait MultipartHandlerSupport extends MultipartDirectives with FailFastCirceSupp
   }
 
 
-  private class OnMultipartWork(subscription: WorkSubscription, initialRequest: Int, onReq: WorkContext[MultipartPieces] => Unit) {
+  protected class OnMultipartWork(val subscription: WorkSubscription, initialRequest: Int, onReq: WorkContext[MultipartPieces] => Unit) {
     /**
       * we have the case where a worker can actually handle a request at any time from a client ... even before we bother
       * subscribing to the exchange.

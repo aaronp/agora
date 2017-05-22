@@ -4,7 +4,9 @@ import java.io.Closeable
 import java.nio.charset.StandardCharsets
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
+import akka.http.scaladsl.{Http, HttpExt}
+import akka.http.scaladsl.coding.{Deflate, Gzip, NoCoding}
+import akka.http.scaladsl.model.headers.HttpEncodings
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
@@ -14,8 +16,12 @@ import jabroni.api.worker.HostLocation
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.ClassTag
+import scala.util.{Failure, Success}
+import scala.util.control.NonFatal
 
 trait RestClient extends Closeable {
+
+  def location: HostLocation
 
   def send(request: HttpRequest): Future[HttpResponse]
 }
@@ -26,20 +32,59 @@ object RestClient {
     new AkkaClient(location)
   }
 
-  class AkkaClient(location: HostLocation)(implicit sys: ActorSystem, mat: Materializer) extends RestClient with StrictLogging {
+  def decodeResponse(resp: HttpResponse) = {
+    val decoder = resp.encoding match {
+      case HttpEncodings.gzip =>
+        println("gzip")
+        Gzip
+      case HttpEncodings.deflate =>
+        println("deflate")
+        Deflate
+      case HttpEncodings.identity => NoCoding
+    }
+    decoder.decode(resp)
+  }
+
+  class AkkaClient(override val location: HostLocation)(implicit sys: ActorSystem, mat: Materializer) extends RestClient with StrictLogging {
 
     import mat._
 
+    private val hostPort = s"http://${location.host}:${location.port}"
+
+    private def onConnection(future: Future[Http.OutgoingConnection]): Future[Http.OutgoingConnection] = {
+      future.onComplete {
+        case Success(connection) =>
+          logger.info(s"$hostPort established a connection to ${connection.localAddress} (${connection.remoteAddress})")
+        case Failure(err) =>
+          logger.error(s"Error establishing a connection to $hostPort ")
+      }
+      future
+    }
+
+    private def onError(err: Throwable): Throwable = {
+      logger.info(s"$hostPort threw $err")
+      err
+    }
+
     private lazy val remoteServiceConnectionFlow: Flow[HttpRequest, HttpResponse, Any] = {
-      logger.info(s"Connecting to http://${location.host}:${location.port}")
-      http.outgoingConnection(location.host, location.port)
+      logger.info(s"Connecting to $hostPort")
+      val flow: Flow[HttpRequest, HttpResponse, Future[Http.OutgoingConnection]] = http.outgoingConnection(location.host, location.port) //.map(decodeResponse)
+      flow.mapMaterializedValue(onConnection).mapError {
+        case err => onError(err)
+      }
     }
 
     def send(request: HttpRequest): Future[HttpResponse] = {
-      logger.debug(s"Sending $request")
-      val future = Source.single(request).via(remoteServiceConnectionFlow).runWith(Sink.head)
+      logger.debug(s"Sending $hostPort ==> $request")
+      val future = try {
+        Source.single(request).via(remoteServiceConnectionFlow).runWith(Sink.head)
+      } catch {
+        case NonFatal(e) =>
+          Future.failed(e)
+      }
       future.onComplete {
-        case result => logger.debug(s"$request got $result")
+        case Success(resp) => logger.debug(s"$hostPort w/ $request returned w/ status ${resp.status}")
+        case Failure(err) => logger.error(s"$hostPort w/ $request threw ${err}")
       }
       future
     }
@@ -76,6 +121,7 @@ object RestClient {
         }
       }
     }
+
   }
 
 }

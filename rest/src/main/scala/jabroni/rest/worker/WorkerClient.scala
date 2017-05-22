@@ -3,10 +3,14 @@ package jabroni.rest.worker
 import akka.actor.ActorSystem
 import akka.http.scaladsl.marshalling.{Marshaller, ToEntityMarshaller}
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.Materializer
+import com.typesafe.scalalogging.LazyLogging
+import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.{Encoder, Json}
 import jabroni.api.`match`.MatchDetails
 import jabroni.api.worker.{HostLocation, WorkerDetails}
+import jabroni.health.HealthDto
 import jabroni.rest.MatchDetailsExtractor
 import jabroni.rest.client.RestClient
 
@@ -22,15 +26,18 @@ import scala.concurrent.{ExecutionContext, Future}
 case class WorkerClient(rest: RestClient,
                         path: String,
                         matchDetails: MatchDetails,
-                        workerDetails: WorkerDetails)(implicit ec: ExecutionContext) {
+                        workerDetails: WorkerDetails)(implicit mat: Materializer) {
 
   import WorkerClient._
+  import mat.executionContext
 
-  def sendRequest[T: ToEntityMarshaller](request: T)(implicit ec: ExecutionContext): Future[HttpResponse] = {
+  def sendRequest[T: ToEntityMarshaller](request: T): Future[HttpResponse] = {
     send(newRequest(request))
   }
 
-  def sendMultipart(multipart: Multipart)(implicit ec: ExecutionContext): Future[HttpResponse] = {
+  def health = WorkerClient.health(rest)
+
+  def sendMultipart(multipart: Multipart): Future[HttpResponse] = {
     send(newRequest(multipart))
   }
 
@@ -38,12 +45,23 @@ case class WorkerClient(rest: RestClient,
 
   def newRequest[T: ToEntityMarshaller](request: T): HttpRequest = dispatchRequest(path, matchDetails, request)
 
-  def newRequest(multipart: Multipart)(implicit ec: ExecutionContext): HttpRequest = {
+  def newRequest(multipart: Multipart): HttpRequest = {
     multipartRequest(path, matchDetails, multipart)
   }
 }
 
-object WorkerClient {
+object WorkerClient extends FailFastCirceSupport with LazyLogging {
+
+
+  def health(restClient: RestClient)(implicit mat: Materializer): Future[HealthDto] = {
+    import mat._
+    restClient.send(WorkerHttp.healthRequest).flatMap { resp =>
+//      import io.circe.generic.auto._
+//      val x: FromEntityUnmarshaller[HealthDto] = unmarshaller[HealthDto]
+      Unmarshal(resp).to[HealthDto]
+    }
+  }
+
 
   def multipartRequest(path: String, matchDetails: MatchDetails, multipart: Multipart)(implicit ec: ExecutionContext): HttpRequest = {
     val httpRequest: HttpRequest = WorkerHttp("multipart", path, multipart)
@@ -57,10 +75,13 @@ object WorkerClient {
     httpRequest.withHeaders(headers)
   }
 
-  def apply(location: HostLocation)(implicit sys: ActorSystem, mat: Materializer) = {
-    import mat._
-    val rest = RestClient(location)
+  def apply(rest: RestClient)(implicit sys: ActorSystem, mat: Materializer): (String, MatchDetails, WorkerDetails) => WorkerClient = {
     (path: String, matchDetails: MatchDetails, workerDetails: WorkerDetails) => new WorkerClient(rest, path, matchDetails, workerDetails)
+  }
+
+  def apply(location: HostLocation)(implicit sys: ActorSystem, mat: Materializer): (String, MatchDetails, WorkerDetails) => WorkerClient = {
+    val rest = RestClient(location)
+    apply(rest)
   }
 
   def anEncoder[T](req: T)(implicit encoder: Encoder[T]): Marshaller[T, MessageEntity] = {

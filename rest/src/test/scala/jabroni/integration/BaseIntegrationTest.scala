@@ -8,9 +8,9 @@ import jabroni.rest.exchange.{ExchangeClient, ExchangeConfig, ExchangeRoutes}
 import jabroni.rest.worker.WorkerConfig
 import jabroni.rest.worker.WorkerConfig.RunningWorker
 import jabroni.rest.{BaseSpec, RunningService}
-import org.scalatest.BeforeAndAfterAll
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 
-abstract class BaseIntegrationTest extends BaseSpec with BeforeAndAfterAll {
+abstract class BaseIntegrationTest extends BaseSpec with BeforeAndAfterAll with BeforeAndAfter {
 
   import BaseIntegrationTest._
 
@@ -27,11 +27,14 @@ abstract class BaseIntegrationTest extends BaseSpec with BeforeAndAfterAll {
 
   override def beforeAll = {
     super.beforeAll()
-    startAll
+//    startAll
   }
 
+  before(startAll)
+  after(stopAll)
+
   def startAll = {
-    exchangeService = exchangeConfig.startExchange().futureValue
+    exchangeService = exchangeConfig.start.futureValue
     exchangeClient = workerConfig.exchangeClient
     worker = workerConfig.startWorker().futureValue
   }
@@ -39,14 +42,15 @@ abstract class BaseIntegrationTest extends BaseSpec with BeforeAndAfterAll {
   def stopAll = {
     exchangeService.close()
     exchangeClient.close()
+    worker.close()
   }
 
   override def afterAll = {
     super.afterAll()
-    stopAll
+//    stopAll
   }
 }
 
 object BaseIntegrationTest {
-  private val portCounter = new AtomicInteger(7700)
+  private val portCounter = new AtomicInteger(7000)
 }

@@ -1,10 +1,12 @@
 package jabroni.exec
 
+import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives.{path, _}
 import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import com.typesafe.scalalogging.StrictLogging
@@ -13,16 +15,15 @@ import io.circe.Json
 import io.circe.generic.auto._
 import io.circe.syntax._
 import jabroni.api.JobId
-import jabroni.domain.TryIterator
 import jabroni.domain.io.Sources
 import jabroni.domain.io.implicits._
 import jabroni.exec.log.IterableLogger._
-import jabroni.rest.RunningService
 import jabroni.rest.multipart.{MultipartInfo, MultipartPieces}
-import jabroni.rest.worker.{WorkContext, WorkerConfig, WorkerRoutes}
+import jabroni.rest.worker.WorkContext
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
+import scala.util.control.NonFatal
 
 /**
   * Combines both the worker routes and some job output onesExec§§§§
@@ -53,11 +54,6 @@ case class ExecutionRoutes(execConfig: ExecConfig) extends StrictLogging with Fa
   def jobRoutes = pathPrefix("rest") {
     listJobs ~ removeJob ~ jobOutput
   }
-
-  def start(): Future[RunningService[WorkerConfig, WorkerRoutes]] = {
-    runWithRoutes("Exec", routes, workerRoutes)
-  }
-
 
   def listJobs: Route = {
     get {
@@ -138,14 +134,29 @@ case class ExecutionRoutes(execConfig: ExecConfig) extends StrictLogging with Fa
         }
     }
     val runProcFuture: Future[RunProcess] = req.multipartJson[RunProcess]
-    for {
-      runProc <- runProcFuture
-      uploads <- Future.sequence(uploadFutures.toList)
-    } yield {
-      def run = Await.result(runner.run(runProc, uploads), uploadTimeout)
+
+    def marshalResponse(runProc: RunProcess, uploads: List[Upload]) = {
+      def run = {
+        try {
+          Await.result(runner.run(runProc, uploads), uploadTimeout)
+        } catch {
+          case NonFatal(err) =>
+            logger.error(s"Error executing $runProc: $err")
+            throw err
+        }
+      }
 
       val bytes = Source.fromIterator(() => run).map(line => ByteString(s"$line\n"))
-      HttpResponse(entity = HttpEntity(outputContentType, bytes))
+      val chunked: HttpEntity.Chunked = HttpEntity(outputContentType, bytes)
+      Marshal(chunked).toResponseFor(req.requestContext.request)
+    }
+
+    for {
+      runProc <- runProcFuture
+      uploads <- FastFuture.sequence(uploadFutures.toList)
+      resp <- marshalResponse(runProc, uploads)
+    } yield {
+      resp
     }
   }
 }

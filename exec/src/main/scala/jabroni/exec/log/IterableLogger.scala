@@ -18,11 +18,12 @@ trait IterableLogger extends ProcessLogger {
 
 object IterableLogger {
 
+  def forProcess(proc: RunProcess): ProcessLoggers = apply("local", proc, None)
+
   def apply(jobName: String,
-            logDirOpt: Option[Path],
-            errorLimit: Option[Int],
-            proc: RunProcess): IterableLogger = {
-    new ProcessLoggers(jobName, logDirOpt, errorLimit, proc)
+            proc: RunProcess,
+            errorLimit: Option[Int]) = {
+    new ProcessLoggers(jobName, proc, errorLimit)
   }
 
   def pathForJob(configPath: String, baseDir: Option[Path], jobId: JobId, fileNameOpt: Option[String]): Either[String, Path] = {

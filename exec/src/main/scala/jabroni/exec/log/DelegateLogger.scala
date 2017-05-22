@@ -6,7 +6,7 @@ import scala.sys.process.ProcessLogger
 
 
 abstract class DelegateLogger(val logger: ProcessLogger) extends ProcessLogger with AutoCloseable with Flushable {
-  override def out(s: => String): Unit = {}
+  override def out(s: => String): Unit = logger.out(s)
 
   override def err(s: => String): Unit = logger.err(s)
 

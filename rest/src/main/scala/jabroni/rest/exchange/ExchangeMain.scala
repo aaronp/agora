@@ -5,6 +5,6 @@ package jabroni.rest.exchange
   */
 object ExchangeMain {
   def main(args: Array[String]): Unit = {
-    ExchangeConfig(args).startExchange
+    ExchangeConfig(args).start()
   }
 }

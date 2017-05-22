@@ -25,7 +25,7 @@ class ExchangeSteps extends ScalaDsl with EN with Matchers with TestData {
   }
   Given("""^I start a worker with config (.*)$""") { (configString: String) =>
     val config = {
-      val conf = ConfigFactory.parseString(configString).withFallback(WorkerConfig.defaultConfig)
+      val conf = ConfigFactory.parseString(configString).withFallback(WorkerConfig().config)
       WorkerConfig(conf)
     }
     state = state.startWorker(config)

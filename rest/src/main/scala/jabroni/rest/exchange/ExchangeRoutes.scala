@@ -44,8 +44,9 @@ case class ExchangeRoutes(exchangeForHandler: OnMatch => Exchange with QueueObse
   lazy val exchange: Exchange with QueueObserver = exchangeForHandler(observer)
 
   def routes: Route = {
+    //encodeResponse
     val all = pathPrefix("rest" / "exchange") {
-      worker.routes ~ publish.routes ~ query.routes ~ health
+      worker.routes ~ submission.routes ~ query.routes ~ health
     }
     logRoute(all)
   }
@@ -96,7 +97,7 @@ case class ExchangeRoutes(exchangeForHandler: OnMatch => Exchange with QueueObse
   /**
     * Routes for pushing work (requesting work from) workers
     */
-  object publish {
+  object submission {
     def routes: Route = submit
 
     def submit = put {
@@ -104,27 +105,37 @@ case class ExchangeRoutes(exchangeForHandler: OnMatch => Exchange with QueueObse
         entity(as[SubmitJob]) {
           case submitJob if submitJob.submissionDetails.awaitMatch =>
             complete {
-              val jobWithId = submitJob.jobId.fold(submitJob.withId(nextJobId()))(_ => submitJob)
-              val matchFuture: Future[BlockingSubmitJobResponse] = observer.onJob(jobWithId)
-              exchange.submit(jobWithId).flatMap { _ =>
-                matchFuture.map { r: BlockingSubmitJobResponse =>
-                  import implicits._
-                  HttpResponse(
-                    status = StatusCodes.TemporaryRedirect,
-                    headers = r.firstWorkerUrl.map("Location".asHeader).toList,
-                    entity = HttpEntity(`application/json`, r.asJson.noSpaces))
-                }
-              }
+              submitJobAndAwaitMatch(submitJob)
             }
           case submitJob =>
             complete {
-              exchange.submit(submitJob).map {
-                case r: SubmitJobResponse =>
-                  HttpResponse(entity = HttpEntity(`application/json`, r.asJson.noSpaces))
-                case _: BlockingSubmitJobResponse => sys.error(s"received a blocking submit response after submitting a 'await match' job $submitJob")
-              }
+              submitJobFireAndForget(submitJob)
             }
         }
+      }
+    }
+
+    def submitJobAndAwaitMatch(submitJob: SubmitJob): Future[HttpResponse] = {
+      val jobWithId = submitJob.jobId.fold(submitJob.withId(nextJobId()))(_ => submitJob)
+      val matchFuture: Future[BlockingSubmitJobResponse] = observer.onJob(jobWithId)
+      exchange.submit(jobWithId).flatMap { _ =>
+        matchFuture.map { r: BlockingSubmitJobResponse =>
+
+          // TODO - check if the redirection is to US
+
+          import implicits._
+          HttpResponse(
+            status = StatusCodes.TemporaryRedirect,
+            headers = r.firstWorkerUrl.map("Location".asHeader).toList,
+            entity = HttpEntity(`application/json`, r.asJson.noSpaces))
+        }
+      }
+    }
+
+    def submitJobFireAndForget(submitJob: SubmitJob): Future[HttpResponse] = {
+      exchange.submit(submitJob).map {
+        case r: SubmitJobResponse => HttpResponse(entity = HttpEntity(`application/json`, r.asJson.noSpaces))
+        case _: BlockingSubmitJobResponse => sys.error(s"received a blocking submit response after submitting a 'await match' job $submitJob")
       }
     }
   }

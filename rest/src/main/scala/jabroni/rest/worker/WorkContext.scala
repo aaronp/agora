@@ -4,23 +4,21 @@ package worker
 import java.nio.file.{Path, StandardOpenOption}
 
 import akka.http.scaladsl.marshalling.{Marshal, ToResponseMarshaller}
+import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.model.{ContentType, ContentTypes, HttpEntity, HttpResponse}
 import akka.http.scaladsl.server.RequestContext
 import akka.http.scaladsl.util.FastFuture
 import akka.stream.IOResult
 import akka.stream.scaladsl.{FileIO, Source}
 import akka.util.ByteString
-import io.circe.Decoder.Result
 import io.circe.{Decoder, Encoder, Json}
 import jabroni.api.SubscriptionKey
-import jabroni.api.`match`.MatchDetails
 import jabroni.api.exchange.{Exchange, RequestWorkAck, WorkSubscription}
 import jabroni.rest.multipart.{MultipartInfo, MultipartPieces}
 
 import scala.concurrent.{Future, Promise}
 import scala.reflect.ClassTag
 import scala.util.control.NonFatal
-import ContentTypes._
 
 /**
   * Wraps the input to a computation, allowing the computation (mostly) to call 'take(n)' so it can request more work
@@ -47,13 +45,14 @@ case class WorkContext[T](exchange: Exchange,
 
   def completeWithJson[A](value: A)(implicit enc: Encoder[A]) = {
     val response: Json = enc(value)
-    val resp = HttpResponse(entity = HttpEntity(`application/json`, response.noSpaces))
-    complete(resp)
+    val resp = Marshal(HttpEntity(`application/json`, response.noSpaces)).toResponseFor(requestContext.request)
+    completeWith(resp)
   }
 
   def completeWithSource(dataSource: Source[ByteString, Any], contentType: ContentType = `application/octet-stream`) = {
-    val resp = HttpResponse(entity = HttpEntity(contentType, dataSource))
-    complete(resp)
+    val entity = HttpEntity(contentType, dataSource)
+    val resp = Marshal(entity).toResponseFor(requestContext.request)
+    completeWith(resp)
   }
 
   def complete[T: ToResponseMarshaller](compute: => T) = {
@@ -61,8 +60,7 @@ case class WorkContext[T](exchange: Exchange,
       val result: T = compute
       Marshal(result).toResponseFor(requestContext.request)
     } catch {
-      case NonFatal(e) =>
-        Future.failed(e)
+      case NonFatal(e) => FastFuture.failed(e)
     }
     completeWith(respFuture)
   }

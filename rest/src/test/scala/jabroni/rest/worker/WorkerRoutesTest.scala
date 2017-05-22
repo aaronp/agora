@@ -9,6 +9,7 @@ import jabroni.api._
 import jabroni.api.`match`.MatchDetails
 import jabroni.domain.IterableSubscriber
 import jabroni.domain.io.Sources
+import jabroni.health.HealthDto
 import jabroni.rest.multipart.{MultipartBuilder, MultipartPieces}
 import jabroni.rest.test.TestUtils._
 
@@ -16,6 +17,17 @@ class WorkerRoutesTest extends BaseRoutesSpec {
 
   import WorkerRoutesTest._
 
+  "WorkerRoutes.health" should {
+    "reply w/ the worker health" in {
+
+      WorkerHttp.healthRequest ~> WorkerRoutes().routes ~> check {
+        status shouldEqual StatusCodes.OK
+        val dto = responseAs[HealthDto]
+        dto.objectPendingFinalizationCount should be >= 0
+        contentType shouldBe ContentTypes.`application/json`
+      }
+    }
+  }
   "WorkerRoutes" should {
 
     "be able to upload from strict multipart requests" in {

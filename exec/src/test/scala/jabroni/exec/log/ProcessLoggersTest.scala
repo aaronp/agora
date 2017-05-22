@@ -9,13 +9,15 @@ class ProcessLoggersTest extends BaseSpec {
     "propagate exceptions when given failure return codes" in {
 
       val proc = RunProcess("hi").copy(successExitCodes = Set(3), errorMarker = "Bang!")
-      val logger = new ProcessLoggers("test", None, None, proc)
+      val logger = new ProcessLoggers("test", proc, None)
       logger.err("std err 1")
       logger.out("std out")
       logger.err("std err 2")
       logger.complete(1)
 
-      val List("std out", "Bang!", json) = logger.iterator.toList
+      val json = logger.iterator.toList match {
+        case "std out" :: "Bang!" :: json => json.mkString("\n")
+      }
       val Right(error) = ProcessError.fromJsonString(json)
 
       error.exitCode shouldBe Option(1)

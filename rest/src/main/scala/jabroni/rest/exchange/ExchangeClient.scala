@@ -3,6 +3,7 @@ package jabroni.rest.exchange
 import akka.actor.ActorSystem
 import akka.http.scaladsl.marshalling.ToEntityMarshaller
 import akka.stream.Materializer
+import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.Json
 import jabroni.api.`match`.MatchDetails
@@ -32,9 +33,10 @@ class ExchangeClient(val rest: RestClient)(implicit val sys: ActorSystem, mat: M
     with QueueObserver
     with RoutingClient
     with FailFastCirceSupport
-    with AutoCloseable {
+    with AutoCloseable
+    with StrictLogging {
 
-  // exposes our implicit materialzer to mixed-in traits and stuff
+  // exposes our implicit materializer to mixed-in traits and stuff
   protected def haveAMaterializer = mat
 
   type JobResponse = Future[_ <: ClientResponse]
@@ -50,8 +52,6 @@ class ExchangeClient(val rest: RestClient)(implicit val sys: ActorSystem, mat: M
   override def take(request: RequestWork) = rest.send(ExchangeHttp(request)).flatMap(_.as[RequestWorkAck])
 
   override def submit(submit: SubmitJob): JobResponse = {
-    import io.circe.generic.auto._
-    val tem = implicitly[ToEntityMarshaller[Json]]
     enqueueAndDispatch(submit)(_.sendRequest(submit.job))._1
   }
 
@@ -59,9 +59,15 @@ class ExchangeClient(val rest: RestClient)(implicit val sys: ActorSystem, mat: M
 
   protected def clientFor(location: HostLocation): Dispatch = {
     workerClientByLocation.get(location) match {
-      case Some(client) => client
+      case Some(client) =>
+        logger.debug(s"Reusing cached client at $location")
+        client
       case None =>
-        val newClient: Dispatch = WorkerClient(location)
+        val newClient: Dispatch = if (location == rest.location) {
+          WorkerClient(rest)
+        } else {
+          WorkerClient(location)
+        }
         workerClientByLocation = workerClientByLocation.updated(location, newClient)
         newClient
     }

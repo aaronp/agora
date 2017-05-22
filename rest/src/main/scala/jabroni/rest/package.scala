@@ -4,7 +4,7 @@ import akka.http.scaladsl.model.HttpHeader
 import akka.http.scaladsl.model.HttpHeader.ParsingResult
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
-import com.typesafe.config.{Config, ConfigRenderOptions}
+import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions}
 import io.circe.parser.parse
 import jabroni.api.worker.HostLocation
 
@@ -25,10 +25,9 @@ package object rest {
 
   }
 
-
-  def configForArgs(args: Array[String], defaultConfig: Config) = {
+  def configForArgs(args: Array[String], fallback: Config = ConfigFactory.empty) = {
     import jabroni.domain.RichConfig.implicits._
-    defaultConfig.withUserArgs(args).resolve()
+    fallback.withUserArgs(args)
   }
 
 

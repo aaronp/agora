@@ -54,11 +54,13 @@ lazy val apiJS = jabroniApi.js
 lazy val rest = project.
   dependsOn(apiJVM, ui).
   settings(commonSettings).
+  settings(mainClass in assembly := Some("jabroni.rest.exchange.ExchangeMain")).
   settings(libraryDependencies ++= Dependencies.Rest)
 
 lazy val exec = project.
   dependsOn(rest, rest % "test->test;compile->compile").
   settings(commonSettings).
+  settings(mainClass in assembly := Some("jabroni.exec.ExecMain")).
   settings(libraryDependencies ++= Dependencies.Rest)
 
 lazy val ui = project.

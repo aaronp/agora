@@ -134,6 +134,13 @@ object Exchange {
 
           val chosen = job.submissionDetails.selection.select(candidates.seq)
           if (chosen.isEmpty) {
+
+            if (candidates.nonEmpty) {
+              logger.trace(s"$job selection didn't select any ${chosen.mkString("\n")}")
+            } else {
+              logger.trace(s"$job didn't match any of the ${subscriptionsById.size} subscriptions")
+            }
+
             true
           } else {
             subscriptionsById = chosen.foldLeft(subscriptionsById) {

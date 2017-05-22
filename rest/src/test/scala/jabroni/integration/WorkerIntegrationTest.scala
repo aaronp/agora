@@ -1,6 +1,6 @@
 package jabroni.integration
 
-import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse}
+import akka.http.scaladsl.model.ContentTypes
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
 import jabroni.domain.io.Sources
@@ -8,7 +8,8 @@ import jabroni.rest.multipart.MultipartBuilder
 
 import scala.language.reflectiveCalls
 
-trait WorkerIntegrationTest { self : BaseIntegrationTest =>
+trait WorkerIntegrationTest {
+  self: BaseIntegrationTest =>
 
   import jabroni.api.Implicits._
 
@@ -16,13 +17,14 @@ trait WorkerIntegrationTest { self : BaseIntegrationTest =>
     "work end-to-end" in {
 
       // add a handler which just echos the input multipart byte stream
-      worker.service.addMultipartHandler { ctxt =>
+      worker.service.usingSubscription(_.withPath("basic")).addMultipartHandler { ctxt =>
         val (_, sourceFromRequest) = ctxt.request.head
         ctxt.completeWithSource(sourceFromRequest, ContentTypes.`text/plain(UTF-8)`)
-      }(worker.service.defaultSubscription.withPath("small"))
+      }
 
       // have the client send a multipart requst of bytes
-      val (_, workerResponseFuture) = exchangeClient.enqueueAndDispatch("doesn't matter".asJob) { worker =>
+      val (_, workerResponseFuture) = exchangeClient.enqueueAndDispatch("some small job".asJob.matching("path".equalTo("basic").asMatcher)) { worker =>
+
         val src = Source.fromIterator { () =>
           Iterator.from(1).map { x =>
             ByteString(x.toString)
@@ -43,17 +45,21 @@ trait WorkerIntegrationTest { self : BaseIntegrationTest =>
     "handle large uploads and results" in {
 
       // add a handler which just echos the input multipart byte stream
-      worker.service.addMultipartHandler { ctxt =>
+      worker.service.usingSubscription(_.withPath("largeuploads").matchingSubmission("topic".equalTo("biguns").asMatcher)).addMultipartHandler { ctxt =>
         val (_, sourceFromRequest) = ctxt.request.head
         ctxt.completeWithSource(sourceFromRequest, ContentTypes.`text/plain(UTF-8)`)
-      }(worker.service.defaultSubscription.withPath("large"))
+      }
 
       def numbers = Iterator.from(1).map { x =>
         ByteString(x.toString)
       }.take(1000)
 
       // have the client send a multipart request of bytes
-      val (_, workerResponseFuture) = exchangeClient.enqueueAndDispatch("doesn't matter".asJob) { worker =>
+      val job = "doesn't matter".
+        asJob.
+        add("topic" -> "biguns").
+        matching("path".equalTo("largeuploads").asMatcher)
+      val (_, workerResponseFuture) = exchangeClient.enqueueAndDispatch(job) { worker =>
         val src = Source.fromIterator { () =>
           numbers
         }

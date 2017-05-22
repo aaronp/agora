@@ -4,9 +4,10 @@ import akka.http.scaladsl.model.ContentTypes.`application/json`
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives.{path, _}
 import akka.http.scaladsl.server.directives.BasicDirectives.extractRequestContext
-import akka.http.scaladsl.server.{RejectionHandler, RequestContext, Route}
+import akka.http.scaladsl.server.{RequestContext, Route}
 import akka.http.scaladsl.unmarshalling.Unmarshaller
 import akka.stream.Materializer
+import io.circe.Json
 import jabroni.api.exchange.{Exchange, RequestWorkAck, WorkSubscription, WorkSubscriptionAck}
 import jabroni.api.worker.SubscriptionKey
 import jabroni.health.HealthDto
@@ -28,18 +29,39 @@ case class WorkerRoutes(exchange: Exchange = Exchange(),
   private var workerByPath = Map[String, OnWork[_]]()
 
   def routes: Route = {
-    workerRoutes ~ multipartRoutes ~ health
+    //encodeResponse
+    {
+        workerRoutes ~ multipartRoutes ~ health
+    }
   }
 
-  def health = (get & path("health") & pathEnd) {
+  def health = (get & path("rest" / "health") & pathEnd) {
     import io.circe.syntax._
     complete {
       HttpResponse(entity = HttpEntity(`application/json`, HealthDto().asJson.noSpaces))
     }
   }
 
+  def listSubscriptions = get {
+    path("subscriptions") {
+      complete {
+        val paths = workerByPath.map {
+          case (path, onWork) =>
+            Json.obj(path -> onWork.subscription.details.aboutMe)
+        }
+        val multipartPaths = multipartByPath.map {
+          case (path, onWork) =>
+            Json.obj(path -> onWork.subscription.details.aboutMe)
+        }
+        val pathsList = paths.toSeq ++ multipartPaths.toSeq
+        HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, Json.arr(pathsList: _*).noSpaces))
+      }
+    }
+  }
 
-  def workerRoutes: Route = pathPrefix("rest" / "worker") {
+  def workerRoutes: Route = handleWorkRoute ~ listSubscriptions
+
+  def handleWorkRoute: Route = pathPrefix("rest" / "worker") {
     post {
       path(Remaining) { remaining =>
         find(remaining) match {
@@ -53,8 +75,11 @@ case class WorkerRoutes(exchange: Exchange = Exchange(),
             }
           case Some(worker) =>
             extractRequestContext { ctxt =>
-              complete {
-                worker.handle(ctxt)
+//              encodeResponse
+              {
+                complete {
+                  worker.handle(ctxt)
+                }
               }
             }
         }
@@ -127,7 +152,7 @@ case class WorkerRoutes(exchange: Exchange = Exchange(),
   /**
     * Captures the 'handler' logic for a subscription.
     */
-  private class OnWork[T](subscription: WorkSubscription, initialRequest: Int, unmarshaller: Unmarshaller[HttpRequest, T], onReq: WorkContext[T] => Unit) {
+  private class OnWork[T](val subscription: WorkSubscription, initialRequest: Int, unmarshaller: Unmarshaller[HttpRequest, T], onReq: WorkContext[T] => Unit) {
     /**
       * we have the case where a worker can actually handle a request at any time from a client ... even before we bother
       * subscribing to the exchange.

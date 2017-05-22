@@ -24,7 +24,8 @@ case class UIRoutes(defaultPath : String) {
 
   val uiRoute = (get & pathPrefix("ui")) {
     extractUnmatchedPath { (unmatchedPath: Uri.Path) =>
-      encodeResponse {
+      //encodeResponse
+      {
         val Unslash(r) = unmatchedPath.toString
         getFromResource(r)
       }

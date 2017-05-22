@@ -1,13 +1,12 @@
 package jabroni.exec
 
-import jabroni.rest.BaseSpec
 import jabroni.rest.test.TestUtils._
-import jabroni.rest.worker.WorkerConfig.RunningWorker
+import jabroni.rest.{BaseSpec, RunningService}
 import org.scalatest.BeforeAndAfterAll
 
 class RemoteRunnerTest extends BaseSpec with ProcessRunnerTCK with BeforeAndAfterAll {
 
-  var runningWorker: RunningWorker = null
+  var runningWorker: RunningService[ExecConfig, ExecutionRoutes] = null
   var remoteRunner: ProcessRunner with AutoCloseable = null
 
   override def runner: ProcessRunner = remoteRunner
@@ -17,7 +16,6 @@ class RemoteRunnerTest extends BaseSpec with ProcessRunnerTCK with BeforeAndAfte
     "stream a whole lot of results" in {
       val firstResults = remoteRunner.run("bigOutput.sh".executable, srcDir.toAbsolutePath.toString, "1000").futureValue
       firstResults.foreach(println)
-      println("done")
     }
   }
 
@@ -29,15 +27,13 @@ class RemoteRunnerTest extends BaseSpec with ProcessRunnerTCK with BeforeAndAfte
   val conf = ExecConfig()
 
   def startAll = {
-    runningWorker = conf.start.futureValue
+    runningWorker = conf.start().futureValue
     remoteRunner = conf.remoteRunner()
   }
 
   def stopAll = {
     runningWorker.close()
     remoteRunner.close()
-    runningWorker = null
-    remoteRunner = null
   }
 
 }

@@ -3,46 +3,28 @@ package worker
 
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions}
+import com.typesafe.config.{Config, ConfigFactory}
 import io.circe
 import jabroni.api.exchange.WorkSubscription
 import jabroni.api.json.JMatcher
 import jabroni.api.worker.WorkerDetails
-import jabroni.rest.client.RestClient
 import jabroni.rest.exchange.{ExchangeClient, ExchangeConfig}
 import jabroni.rest.ui.UIRoutes
 
 import scala.concurrent.Future
 import scala.util.Try
 
-trait WorkerConfig extends ServerConfig {
-  override type Me = WorkerConfig
-
-  override def self = this
-
-  override def toString = {
-    import jabroni.domain.RichConfig.implicits._
-
-    config.withPaths("port",
-      "host",
-      "details",
-      "submissionMatcher",
-      "jobMatcher",
-      "subscription",
-      "exchange").root.render(ConfigRenderOptions.concise().setFormatted(true))
-  }
+class WorkerConfig(c: Config) extends ServerConfig(c) {
 
   /** @return the initial amount of work to request from the exchange
     */
   def initialRequest = config.getInt("initialRequest")
 
-  import WorkerConfig._
-
-  def startWorker(): Future[RunningWorker] = {
-    runWithRoutes("Worker", routes, workerRoutes)
+  def startWorker(): Future[WorkerConfig.RunningWorker] = {
+    RunningService.start(this, routes, workerRoutes)
   }
 
-  def includeExchangeRoutes = config.getBoolean("includeExchangeRoutes")
+  def withFallback[C <: WorkerConfig](fallback: C): WorkerConfig = new WorkerConfig(config.withFallback(fallback.config))
 
   def routes: Route = {
     val withUI = if (includeUIRoutes) {
@@ -58,9 +40,16 @@ trait WorkerConfig extends ServerConfig {
     }
   }
 
+  def includeExchangeRoutes = config.getBoolean("includeExchangeRoutes")
+
   /** @return exchange pointed at by this worker
     */
-  lazy val exchangeConfig = ExchangeConfig(config.getConfig("exchange"))
+  lazy val exchangeConfig = {
+    val myImplicits = implicits
+    new ExchangeConfig(config.getConfig("exchange")) {
+      override lazy val implicits = myImplicits
+    }
+  }
 
   lazy val workerRoutes: WorkerRoutes = {
     import implicits._
@@ -76,7 +65,7 @@ trait WorkerConfig extends ServerConfig {
   lazy val exchangeClient: ExchangeClient = {
     import implicits._
     if (includeExchangeRoutes) {
-      ExchangeClient(location)
+      ExchangeClient(restClient)
     } else {
       exchangeConfig.client
     }
@@ -119,16 +108,19 @@ object WorkerConfig {
 
   type RunningWorker = RunningService[WorkerConfig, WorkerRoutes]
 
-  def baseConfig(): Config = ConfigFactory.parseResourcesAnySyntax("worker")
-
-  def defaultConfig(): Config = baseConfig.resolve
-
   def apply(firstArg: String, theRest: String*): WorkerConfig = apply(firstArg +: theRest.toArray)
 
-  def apply(args: Array[String] = Array.empty, defaultConfig: Config = baseConfig): WorkerConfig = {
-    apply(configForArgs(args, defaultConfig))
+  def apply(args: Array[String] = Array.empty, fallbackConfig: Config = ConfigFactory.empty): WorkerConfig = {
+    val wc = apply(configForArgs(args, fallbackConfig))
+    wc.withFallback(load())
   }
 
-  def apply(config: Config): WorkerConfig = new BaseConfig(config.resolve) with WorkerConfig
+  def load() = fromRoot(ConfigFactory.load())
+
+  def fromRoot(config: Config) = apply(config.getConfig("jabroni.worker").ensuring(!_.isEmpty))
+
+  def apply(config: Config): WorkerConfig = new WorkerConfig(config)
+
+  def unapply(config: WorkerConfig) = Option(config.config)
 
 }

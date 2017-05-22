@@ -1,16 +1,14 @@
 package jabroni.domain
 
-import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import jabroni.rest.BaseSpec
 import jabroni.rest.test.TestUtils
 import org.reactivestreams.Subscription
 
+import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits._
 
 class IterableSubscriberTest extends BaseSpec {
 

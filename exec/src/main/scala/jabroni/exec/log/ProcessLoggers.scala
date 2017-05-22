@@ -11,37 +11,32 @@ import scala.util.{Failure, Success, Try}
 
 
 /**
-  * Contains all the places where stuff will be logged
+  * Contains all the places where stuff will be logged.
+  *
+  * At a minimum it adds loggers
   */
 class ProcessLoggers(jobName: String,
-                     logDirOpt: Option[Path],
-                     errorLimit: Option[Int],
-                     proc: RunProcess) extends IterableLogger with LazyLogging {
+                     proc: RunProcess,
+                     errorLimit: Option[Int] = None) extends IterableLogger with LazyLogging {
 
-  override def toString = {
-    s"""ProcessLoggers for $proc {
-       |     logDir             : $logDirOpt
-       |    errorLimit         : $errorLimit
-       |}
-    """.stripMargin
-  }
+  override def toString = s"""$jobName ProcessLogger""".stripMargin
 
   private val stdErrLog = StreamLogger()
-
   private val limitedErrorLog = errorLimit.fold(stdErrLog: ProcessLogger) { limit => LimitLogger(limit, stdErrLog) }
-
-  def onIterError(failure: Try[Int]) = {
-    stdErrLog.complete(failure)
-    val stdErr = stdErrLog.iterator.toList
-    val json = ProcessException(proc, failure, stdErr).json.noSpaces
-    Stream(proc.errorMarker, json)
-  }
-
+  private object Lock
   private val stdOutLog = StreamLogger.forProcess(jobName) {
     case Success(n) if proc.successExitCodes.contains(n) => Stream.empty
     case failure => onIterError(failure)
   }
 
+  private var splitLogger: SplitLogger = SplitLogger(JustStdOut(stdOutLog), JustStdErr(limitedErrorLog))
+
+  private def onIterError(failure: Try[Int]) = {
+    stdErrLog.complete(failure)
+    val stdErr = stdErrLog.iterator.toList
+    val json = ProcessException(proc, failure, stdErr).json.spaces2.lines.toStream
+    proc.errorMarker #:: json
+  }
   def processLogger: ProcessLogger = splitLogger
 
   def complete(code: => Int) = splitLogger.complete(code)
@@ -54,20 +49,20 @@ class ProcessLoggers(jobName: String,
       throw ProcessException(proc, res, stdErrLog.iterator.toList)
   }
 
-  def add(pl: ProcessLogger) = {
+  def add(pl: ProcessLogger) = Lock.synchronized {
     splitLogger = splitLogger.add(pl)
+    this
   }
 
-  private var splitLogger: SplitLogger = {
-    val all = SplitLogger(JustStdOut(stdOutLog), JustStdErr(limitedErrorLog))
-    logDirOpt.fold(all) { logDir =>
-      val errLog = ProcessLogger(logDir.resolve("std.err").toFile)
-      val withStdErr = all.add(JustStdErr(errLog))
-
-      val outLog = ProcessLogger(logDir.resolve("std.out").toFile)
-      withStdErr.add(JustStdOut(outLog))
-    }
+  def addUnderDir(logDir: Path): ProcessLoggers = {
+    import jabroni.domain.io.implicits._
+    addStdOut(ProcessLogger(logDir.resolve("std.out").toFile)).
+    addStdErr(ProcessLogger(logDir.resolve("std.err").toFile))
   }
+
+  def addStdOut(pl: ProcessLogger): ProcessLoggers = add(JustStdOut(pl))
+
+  def addStdErr(pl: ProcessLogger): ProcessLoggers = add(JustStdErr(pl))
 
   override def out(s: => String): Unit = splitLogger.out(s)
 

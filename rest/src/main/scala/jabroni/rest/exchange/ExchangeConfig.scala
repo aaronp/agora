@@ -4,36 +4,39 @@ package exchange
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import com.typesafe.config.{Config, ConfigFactory}
-import jabroni.rest.client.RestClient
 import jabroni.rest.ui.UIRoutes
 
-object ExchangeConfig {
-  def baseConfig = ConfigFactory.load("exchange.conf")
+import scala.concurrent.Future
 
-  def defaultConfig = baseConfig.resolve
+object ExchangeConfig {
 
   def apply(firstArg: String, theRest: String*): ExchangeConfig = apply(firstArg +: theRest.toArray)
 
-  def apply(args: Array[String] = Array.empty, defaultConfig: Config = defaultConfig): ExchangeConfig = {
-    apply(configForArgs(args, defaultConfig))
+  def apply(args: Array[String] = Array.empty, fallback: Config = ConfigFactory.empty): ExchangeConfig = {
+    val ex = apply(configForArgs(args, fallback))
+    ex.withFallback(load())
   }
-  def apply(config: Config): ExchangeConfig = {
-    new BaseConfig(config.resolve) with ExchangeConfig
-  }
+
+  def apply(config: Config): ExchangeConfig = new ExchangeConfig(config)
+
+  def load() = fromRoot(ConfigFactory.load())
+
+  def fromRoot(config: Config) = apply(config.getConfig("jabroni.exchange").ensuring(!_.isEmpty))
 
   type RunningExchange = RunningService[ExchangeConfig, ExchangeRoutes]
 }
 
-trait ExchangeConfig extends ServerConfig {
-  override type Me = ExchangeConfig
+class ExchangeConfig(c: Config) extends ServerConfig(c) {
 
-  override def self: Me = this
+  def start(): Future[ExchangeConfig.RunningExchange] = {
+    RunningService.start(this, routes, exchangeRoutes)
+  }
 
-  def startExchange() = runWithRoutes("Exchange", routes, exchangeRoutes)
+  def withFallback(fallback: ExchangeConfig) = new ExchangeConfig(config.withFallback(fallback.config))
 
   lazy val client: ExchangeClient = {
     import implicits._
-    ExchangeClient(RestClient(location))
+    ExchangeClient(restClient)
   }
 
   lazy val exchangeRoutes: ExchangeRoutes = {
