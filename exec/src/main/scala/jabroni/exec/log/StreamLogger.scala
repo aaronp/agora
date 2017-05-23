@@ -11,13 +11,13 @@ import scala.util.{Failure, Try}
 
 object StreamLogger {
 
-  def apply(name: String = "process") = new StreamLogger(handle(name)(PartialFunction.empty))
+  def apply() = new StreamLogger(handle(PartialFunction.empty))
 
-  def forProcess(name: String)(pf: PartialFunction[Try[Int], Stream[String]]): StreamLogger = {
-    StreamLogger(handle(name)(pf))
+  def forProcess(pf: PartialFunction[Try[Int], Stream[String]]): StreamLogger = {
+    StreamLogger(handle(pf))
   }
 
-  def handle(name: String = "process")(pf: PartialFunction[Try[Int], Stream[String]]): Try[Int] => Stream[String] = {
+  def handle(pf: PartialFunction[Try[Int], Stream[String]]): Try[Int] => Stream[String] = {
     pf.lift.andThen(_.getOrElse(Stream.empty[String]))
   }
 
@@ -45,9 +45,7 @@ case class StreamLogger(exitCodeHandler: Try[Int] => Stream[String])
 
   private def next(): Stream[String] = {
     q.take match {
-      case Left(code) =>
-        logger.trace(s"using exitCodeHandler on $code")
-        exitCodeHandler(code)
+      case Left(code) => exitCodeHandler(code)
       case Right(s) => Stream.cons(s, next())
     }
   }

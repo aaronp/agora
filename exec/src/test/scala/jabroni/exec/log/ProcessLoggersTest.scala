@@ -2,10 +2,23 @@ package jabroni.exec.log
 
 import jabroni.exec.{ProcessError, RunProcess}
 import jabroni.rest.BaseSpec
+import scala.concurrent.ExecutionContext.Implicits._
+import scala.concurrent.Future
 
 class ProcessLoggersTest extends BaseSpec {
 
   "ProcessLoggers" should {
+    "return an empty iterator if completed before any output is sent" in {
+      val logger = new ProcessLoggers("test", RunProcess("hi"), None)
+      logger.complete(0)
+      logger.iterator.hasNext shouldBe false
+    }
+    "return an empty iterator if we try and consume the iterator before completing" in {
+      val logger = new ProcessLoggers("test", RunProcess("hi"), None)
+      val iterFut = Future(logger.iterator.hasNext)
+      logger.complete(0)
+      iterFut.futureValue shouldBe false
+    }
     "propagate exceptions when given failure return codes" in {
 
       val proc = RunProcess("hi").copy(successExitCodes = Set(3), errorMarker = "Bang!")

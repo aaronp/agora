@@ -5,6 +5,7 @@ import java.nio.file.Path
 import jabroni.api.JobId
 import jabroni.exec.RunProcess
 
+import scala.concurrent.Future
 import scala.sys.process.ProcessLogger
 
 trait IterableLogger extends ProcessLogger {
@@ -13,6 +14,8 @@ trait IterableLogger extends ProcessLogger {
   def complete(exception: Throwable): Unit
 
   def iterator: Iterator[String]
+
+  def exitCodeFuture: Future[Int]
 }
 
 

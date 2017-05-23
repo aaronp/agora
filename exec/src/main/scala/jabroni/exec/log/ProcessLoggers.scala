@@ -6,6 +6,7 @@ import com.typesafe.scalalogging.LazyLogging
 import jabroni.domain.TryIterator
 import jabroni.exec.{ProcessException, RunProcess}
 
+import scala.concurrent.Future
 import scala.sys.process.ProcessLogger
 import scala.util.{Failure, Success, Try}
 
@@ -13,7 +14,7 @@ import scala.util.{Failure, Success, Try}
 /**
   * Contains all the places where stuff will be logged.
   *
-  * At a minimum it adds loggers
+  * At a minimum it adds loggers, and can add/remote process loggers, as well as be 'completed' by the process
   */
 class ProcessLoggers(jobName: String,
                      proc: RunProcess,
@@ -23,13 +24,17 @@ class ProcessLoggers(jobName: String,
 
   private val stdErrLog = StreamLogger()
   private val limitedErrorLog = errorLimit.fold(stdErrLog: ProcessLogger) { limit => LimitLogger(limit, stdErrLog) }
+
   private object Lock
-  private val stdOutLog = StreamLogger.forProcess(jobName) {
+
+  private val stdOutLog = StreamLogger.forProcess {
     case Success(n) if proc.successExitCodes.contains(n) => Stream.empty
     case failure => onIterError(failure)
   }
 
   private var splitLogger: SplitLogger = SplitLogger(JustStdOut(stdOutLog), JustStdErr(limitedErrorLog))
+
+  override def exitCodeFuture: Future[Int] = stdOutLog.exitCode
 
   private def onIterError(failure: Try[Int]) = {
     stdErrLog.complete(failure)
@@ -37,6 +42,7 @@ class ProcessLoggers(jobName: String,
     val json = ProcessException(proc, failure, stdErr).json.spaces2.lines.toStream
     proc.errorMarker #:: json
   }
+
   def processLogger: ProcessLogger = splitLogger
 
   def complete(code: => Int) = splitLogger.complete(code)
@@ -55,9 +61,8 @@ class ProcessLoggers(jobName: String,
   }
 
   def addUnderDir(logDir: Path): ProcessLoggers = {
-    import jabroni.domain.io.implicits._
     addStdOut(ProcessLogger(logDir.resolve("std.out").toFile)).
-    addStdErr(ProcessLogger(logDir.resolve("std.err").toFile))
+      addStdErr(ProcessLogger(logDir.resolve("std.err").toFile))
   }
 
   def addStdOut(pl: ProcessLogger): ProcessLoggers = add(JustStdOut(pl))

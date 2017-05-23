@@ -18,7 +18,7 @@ class SplitLoggerTest extends BaseSpec {
     "complete its stream logger" in {
       val stdErrLog = StreamLogger()
 
-      val stdOutLog = StreamLogger.forProcess("test job") {
+      val stdOutLog = StreamLogger.forProcess {
         case n if n != 0 => stdErrLog.iterator.toStream
       }
 
@@ -34,7 +34,7 @@ class SplitLoggerTest extends BaseSpec {
     "complete its stream logger if stdErr is under a limited logger and comes first" in {
       val stdErrLog = StreamLogger()
 
-      val stdOutLog = StreamLogger.forProcess("test job") {
+      val stdOutLog = StreamLogger.forProcess {
         case n if n != 0 => stdErrLog.iterator.toStream
       }
 
