@@ -46,7 +46,7 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
     mkLogger _
   }
 
-  def newRunner(req: WorkContext[MultipartPieces], checkOutputForErrors: Boolean): ProcessRunner = {
+  def newRunner(req: WorkContext[MultipartPieces]): ProcessRunner = {
     import implicits._
     import jabroni.api.nextJobId
     val jobId: JobId = req.matchDetails.map(_.jobId).getOrElse(nextJobId)

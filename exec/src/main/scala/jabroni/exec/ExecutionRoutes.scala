@@ -35,7 +35,7 @@ case class ExecutionRoutes(execConfig: ExecConfig) extends StrictLogging with Fa
   import execConfig._
 
   workerRoutes.addMultipartHandler { (req: WorkContext[MultipartPieces]) =>
-    val runner = newRunner(req, false)
+    val runner = newRunner(req)
     import execConfig.implicits._
     val handlerFuture = onRun(runner, req, uploadTimeout).recover {
       case pr: ProcessException =>

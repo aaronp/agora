@@ -23,7 +23,7 @@ object LocalRunner {
 /**
   * Something which can run commands
   */
-class LocalRunner(uploadDir: Path,
+class LocalRunner(val uploadDir: Path,
                   val workDir: Option[Path] = None,
                   val loggerForProcess: RunProcess => IterableLogger = IterableLogger.forProcess)(implicit mat: Materializer) extends ProcessRunner with StrictLogging {
 

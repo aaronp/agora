@@ -17,6 +17,7 @@ class ProcessLoggersTest extends BaseSpec {
 
       val json = logger.iterator.toList match {
         case "std out" :: "Bang!" :: json => json.mkString("\n")
+        case _ => ???
       }
       val Right(error) = ProcessError.fromJsonString(json)
 

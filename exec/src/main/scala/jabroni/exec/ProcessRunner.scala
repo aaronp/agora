@@ -25,11 +25,19 @@ trait ProcessRunner {
 object ProcessRunner {
   type ProcessOutput = Future[Iterator[String]]
 
-  def local(uploadDir: Path)(implicit mat: Materializer) = {
-    new LocalRunner(uploadDir) {
+  def local(uploadDir: Path,
+            workDir: Option[Path] = None,
+            loggerForProcess: RunProcess => IterableLogger = IterableLogger.forProcess)(implicit mat: Materializer): LocalRunner = {
+    new LocalRunner(uploadDir, workDir, loggerForProcess) {
       override def execute(builder: process.ProcessBuilder, proc: RunProcess, iterableLogger: IterableLogger): Iterator[String] = {
         proc.filterForErrors(super.execute(builder, proc, iterableLogger))
       }
+
+      override def withUploadDir(up: Path): LocalRunner = local(up, workDir, loggerForProcess)
+
+      override def withWorkDir(wd: Option[Path]): LocalRunner = local(uploadDir, wd, loggerForProcess)
+
+      override def withLogger(newLoggerForProcess: RunProcess => IterableLogger) = local(uploadDir, workDir, newLoggerForProcess)
     }
   }
 
