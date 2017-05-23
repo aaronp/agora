@@ -2,6 +2,8 @@ package jabroni.exec.log
 
 import java.util.concurrent.LinkedBlockingQueue
 
+import com.typesafe.scalalogging.StrictLogging
+
 import scala.collection.immutable.Stream
 import scala.concurrent.{Future, Promise}
 import scala.sys.process.ProcessLogger
@@ -26,7 +28,10 @@ object StreamLogger {
   *
   * @param exitCodeHandler a function on what to return for the given exit code
   */
-case class StreamLogger(exitCodeHandler: Try[Int] => Stream[String]) extends ProcessLogger with AutoCloseable {
+case class StreamLogger(exitCodeHandler: Try[Int] => Stream[String])
+  extends ProcessLogger
+    with AutoCloseable
+    with StrictLogging {
 
   private val q = new LinkedBlockingQueue[Either[Try[Int], String]]
 
@@ -40,7 +45,9 @@ case class StreamLogger(exitCodeHandler: Try[Int] => Stream[String]) extends Pro
 
   private def next(): Stream[String] = {
     q.take match {
-      case Left(code) => exitCodeHandler(code)
+      case Left(code) =>
+        logger.trace(s"using exitCodeHandler on $code")
+        exitCodeHandler(code)
       case Right(s) => Stream.cons(s, next())
     }
   }
@@ -51,6 +58,7 @@ case class StreamLogger(exitCodeHandler: Try[Int] => Stream[String]) extends Pro
 
   def complete(code: Try[Int]): Future[Int] = {
     if (exitCodePromise.tryComplete(code)) {
+      logger.trace(s"Completing w/ $code")
       q.put(Left(code))
     }
 
@@ -59,7 +67,7 @@ case class StreamLogger(exitCodeHandler: Try[Int] => Stream[String]) extends Pro
 
   def close() = complete(-10)
 
-  def exitCode = exitCodePromise.future
+  def exitCode: Future[Int] = exitCodePromise.future
 
   private def append(s: => String) = {
     q.put(Right(s))
