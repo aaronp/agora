@@ -1,4 +1,5 @@
 target
+uploads
 *.gz
 *.log
 node_modules

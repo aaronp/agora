@@ -6,9 +6,9 @@ case class MatchDetails(matchId: MatchId, subscriptionKey: SubscriptionKey, jobI
 object MatchDetails {
   val empty = MatchDetails("", "", "", 0, 0L)
 
-  val MatchIdHeader = "Exchange-Match-ID"
-  val SubscriptionKeyHeader = "Exchange-Subscription-ID"
-  val JobIdHeader = "Exchange-Job-ID"
-  val RemainingItemsHeader = "Exchange-Subscription-Remaining-Items"
-  val MatchTimeHeader = "Exchange-Match-Timestamp"
+  val MatchIdHeader = "x-Exchange-Match-ID"
+  val SubscriptionKeyHeader = "x-Exchange-Subscription-ID"
+  val JobIdHeader = "x-Exchange-Job-ID"
+  val RemainingItemsHeader = "x-Exchange-Subscription-Remaining-Items"
+  val MatchTimeHeader = "x-Exchange-Match-Timestamp"
 }

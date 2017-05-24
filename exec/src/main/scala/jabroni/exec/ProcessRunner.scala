@@ -25,32 +25,27 @@ trait ProcessRunner {
 object ProcessRunner {
   type ProcessOutput = Future[Iterator[String]]
 
-  def local(uploadDir: Path,
-            workDir: Option[Path] = None,
+  def local(workDir: Option[Path] = None,
             loggerForProcess: RunProcess => IterableLogger = IterableLogger.forProcess)(implicit mat: Materializer): LocalRunner = {
-    new LocalRunner(uploadDir, workDir, loggerForProcess) {
+    new LocalRunner(workDir, loggerForProcess) {
       override def execute(builder: process.ProcessBuilder, proc: RunProcess, iterableLogger: IterableLogger): Iterator[String] = {
         proc.filterForErrors(super.execute(builder, proc, iterableLogger))
       }
 
-      override def withUploadDir(up: Path): LocalRunner = local(up, workDir, loggerForProcess)
+      override def withWorkDir(wd: Option[Path]): LocalRunner = local(wd, loggerForProcess)
 
-      override def withWorkDir(wd: Option[Path]): LocalRunner = local(uploadDir, wd, loggerForProcess)
-
-      override def withLogger(newLoggerForProcess: RunProcess => IterableLogger) = local(uploadDir, workDir, newLoggerForProcess)
+      override def withLogger(newLoggerForProcess: RunProcess => IterableLogger) = local(workDir, newLoggerForProcess)
     }
   }
 
   /**
     * Creates a local runner.
     *
-    * @param uploadDir is required as a place to save uploads.
-    * @param workDir   the working directory to run the process under
+    * @param workDir the working directory to run the process under
     */
-  def apply(uploadDir: Path,
-            workDir: Option[Path] = None,
+  def apply(workDir: Option[Path] = None,
             loggerForJob: RunProcess => IterableLogger = IterableLogger.forProcess)(implicit mat: Materializer): LocalRunner = {
-    LocalRunner(uploadDir, workDir, loggerForJob)
+    LocalRunner(workDir, loggerForJob)
   }
 
   /**
@@ -59,9 +54,10 @@ object ProcessRunner {
     */
   def apply(exchange: ExchangeClient,
             defaultFrameLength: Int,
-            allowTruncation: Boolean)(implicit map: Materializer,
-                                      uploadTimeout: FiniteDuration): ProcessRunner with AutoCloseable = {
-    RemoteRunner(exchange, defaultFrameLength, allowTruncation)
+            allowTruncation: Boolean,
+            replaceWorkOnFailure: Boolean)(implicit map: Materializer,
+                                           uploadTimeout: FiniteDuration): ProcessRunner with AutoCloseable = {
+    RemoteRunner(exchange, defaultFrameLength, allowTruncation, replaceWorkOnFailure)
   }
 
 

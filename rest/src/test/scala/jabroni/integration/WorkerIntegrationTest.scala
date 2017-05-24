@@ -4,7 +4,7 @@ import akka.http.scaladsl.model.ContentTypes
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
 import jabroni.domain.io.Sources
-import jabroni.rest.multipart.MultipartBuilder
+import jabroni.rest.multipart.{MultipartBuilder, MultipartInfo}
 
 import scala.language.reflectiveCalls
 
@@ -18,8 +18,10 @@ trait WorkerIntegrationTest {
 
       // add a handler which just echos the input multipart byte stream
       worker.service.usingSubscription(_.withPath("basic")).addMultipartHandler { ctxt =>
-        val (_, sourceFromRequest) = ctxt.request.head
-        ctxt.completeWithSource(sourceFromRequest, ContentTypes.`text/plain(UTF-8)`)
+        ctxt.mapMultipart {
+          case (MultipartInfo(key, _, _), sourceFromRequest) =>
+            ctxt.completeWithSource(sourceFromRequest, ContentTypes.`text/plain(UTF-8)`)
+        }
       }
 
       // have the client send a multipart requst of bytes
@@ -46,8 +48,10 @@ trait WorkerIntegrationTest {
 
       // add a handler which just echos the input multipart byte stream
       worker.service.usingSubscription(_.withPath("largeuploads").matchingSubmission("topic".equalTo("biguns").asMatcher)).addMultipartHandler { ctxt =>
-        val (_, sourceFromRequest) = ctxt.request.head
-        ctxt.completeWithSource(sourceFromRequest, ContentTypes.`text/plain(UTF-8)`)
+        ctxt.mapMultipart {
+          case (MultipartInfo(key, _, _), sourceFromRequest) =>
+            ctxt.completeWithSource(sourceFromRequest, ContentTypes.`text/plain(UTF-8)`)
+        }
       }
 
       def numbers = Iterator.from(1).map { x =>

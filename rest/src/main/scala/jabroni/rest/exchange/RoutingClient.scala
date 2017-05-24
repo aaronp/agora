@@ -24,6 +24,8 @@ trait RoutingClient {
   type WorkerResponses = Future[CompletedWork]
   type WorkerCallback = (WorkerClient, WorkerDetails)
 
+  import RestClient.implicits._
+
   /**
     * Similar to 'submit', but returns the result from the worker.
     *
@@ -50,15 +52,13 @@ trait RoutingClient {
     sendAndRouteWorkerRequest(submit)(doWork)
   }
 
-  import RestClient.implicits._
-  import RoutingClient._
 
-  private def onSubmitResponse(resp: BlockingSubmitJobResponse)(sendToWorker: WorkerClient => Future[HttpResponse]): WorkerResponses = {
+  protected def onSubmitResponse(resp: BlockingSubmitJobResponse)(sendToWorker: WorkerClient => Future[HttpResponse]): WorkerResponses = {
     val pears: List[(WorkerRedirectCoords, WorkerDetails)] = resp.workerCoords.zip(resp.workers)
     val futures = pears.map {
       case (wdc@WorkerRedirectCoords(location, key, remaining), details) =>
         val matchDetails = MatchDetails(resp.matchId, key, resp.jobId, remaining, resp.matchEpochUTC)
-        val path = details.path.getOrElse(s"Worker ${details} hasn't specified a path")
+        val path = details.path.getOrElse(sys.error(s"Worker ${details} hasn't specified a path"))
         val wc: WorkerClient = clientFor(location)(path, matchDetails, details)
         sendToWorker(wc).map { resp =>
           wdc -> resp

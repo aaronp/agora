@@ -1,34 +1,32 @@
 package jabroni.rest.worker
 
-import akka.http.scaladsl.model.HttpResponse
+import akka.http.scaladsl.model.{HttpResponse, Multipart}
 import akka.http.scaladsl.server.Directives.{complete, path, pathPrefix, _}
 import akka.http.scaladsl.server.directives.BasicDirectives.extractRequestContext
 import akka.http.scaladsl.server.{RequestContext, Route}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import jabroni.api.exchange.{RequestWorkAck, WorkSubscription, WorkSubscriptionAck}
 import jabroni.api.worker.SubscriptionKey
-import jabroni.rest.multipart.{MultipartDirectives, MultipartPieces}
 
 import scala.concurrent.Future
 import scala.language.reflectiveCalls
 
 // TODO- I'm sure we can remove this entirely, just using a multipart unmarshaller
-trait MultipartHandlerSupport extends MultipartDirectives with FailFastCirceSupport {
+trait MultipartHandlerSupport extends FailFastCirceSupport {
   self: WorkerRoutes =>
 
   def multipartRoutes: Route = post {
     pathPrefix("rest" / "multipart") {
       extractRequestContext { ctxt: RequestContext =>
-        val request = ctxt.request
-        implicit val mat = ctxt.materializer
+
 
         path(Remaining) { remaining =>
           findOnWork(remaining) match {
             case None => reject
             case Some(worker) =>
-              multipartData { (sourcesByKey: MultipartPieces) =>
+              entity(as[Multipart.FormData]) { (formData: Multipart.FormData) =>
                 complete {
-                  worker.handle(ctxt, sourcesByKey)
+                  worker.handle(ctxt, formData)
                 }
               }
           }
@@ -41,7 +39,7 @@ trait MultipartHandlerSupport extends MultipartDirectives with FailFastCirceSupp
 
   protected var multipartByPath = Map[String, OnMultipartWork]()
 
-  def addMultipartHandler(onReq: WorkContext[MultipartPieces] => Unit)
+  def addMultipartHandler(onReq: WorkContext[Multipart.FormData] => Unit)
                          (implicit subscription: WorkSubscription = defaultSubscription,
                           initialRequest: Int = defaultInitialRequest): Future[RequestWorkAck] = {
 
@@ -84,7 +82,7 @@ trait MultipartHandlerSupport extends MultipartDirectives with FailFastCirceSupp
   }
 
 
-  protected class OnMultipartWork(val subscription: WorkSubscription, initialRequest: Int, onReq: WorkContext[MultipartPieces] => Unit) {
+  protected class OnMultipartWork(val subscription: WorkSubscription, initialRequest: Int, onReq: WorkContext[Multipart.FormData] => Unit) {
     /**
       * we have the case where a worker can actually handle a request at any time from a client ... even before we bother
       * subscribing to the exchange.
@@ -96,7 +94,7 @@ trait MultipartHandlerSupport extends MultipartDirectives with FailFastCirceSupp
       */
     var key: Option[SubscriptionKey] = None
 
-    def handle(ctxt: RequestContext, req: MultipartPieces): Future[HttpResponse] = {
+    def handle(ctxt: RequestContext, req: Multipart.FormData): Future[HttpResponse] = {
       val context = WorkContext(exchange, key, subscription, ctxt, req)
       onReq(context)
       context.responseFuture

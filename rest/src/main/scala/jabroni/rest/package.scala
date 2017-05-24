@@ -36,11 +36,6 @@ package object rest {
     parse(json).right.get
   }
 
-  def srcAsText(src: Source[ByteString, Any])(implicit materializer: akka.stream.Materializer): Future[String] = {
-    import materializer._
-    src.runReduce(_ ++ _).map(bytes => bytes.decodeString("UTF-8"))
-  }
-
   def asHostLocation(conf: Config) = {
     HostLocation(host = conf.getString("host"), port = conf.getInt("port"))
   }

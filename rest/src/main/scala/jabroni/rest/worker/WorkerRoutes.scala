@@ -26,13 +26,10 @@ case class WorkerRoutes(exchange: Exchange = Exchange(),
 
   private object HandlerWriteLock
 
-  private var workerByPath = Map[String, OnWork[_]]()
+  protected var workerByPath = Map[String, OnWork[_]]()
 
   def routes: Route = {
-    //encodeResponse
-    {
-        workerRoutes ~ multipartRoutes ~ health
-    }
+    workerRoutes ~ multipartRoutes ~ health
   }
 
   def health = (get & path("rest" / "health") & pathEnd) {
@@ -43,18 +40,20 @@ case class WorkerRoutes(exchange: Exchange = Exchange(),
   }
 
   def listSubscriptions = get {
-    path("subscriptions") {
-      complete {
-        val paths = workerByPath.map {
-          case (path, onWork) =>
-            Json.obj(path -> onWork.subscription.details.aboutMe)
+    pathPrefix("rest") {
+      path("subscriptions") {
+        complete {
+          val paths = workerByPath.map {
+            case (path, onWork) =>
+              Json.obj(path -> onWork.subscription.details.aboutMe)
+          }
+          val multipartPaths = multipartByPath.map {
+            case (path, onWork) =>
+              Json.obj(path -> onWork.subscription.details.aboutMe)
+          }
+          val pathsList = paths.toSeq ++ multipartPaths.toSeq
+          HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, Json.arr(pathsList: _*).noSpaces))
         }
-        val multipartPaths = multipartByPath.map {
-          case (path, onWork) =>
-            Json.obj(path -> onWork.subscription.details.aboutMe)
-        }
-        val pathsList = paths.toSeq ++ multipartPaths.toSeq
-        HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, Json.arr(pathsList: _*).noSpaces))
       }
     }
   }
@@ -63,26 +62,30 @@ case class WorkerRoutes(exchange: Exchange = Exchange(),
 
   def handleWorkRoute: Route = pathPrefix("rest" / "worker") {
     post {
-      path(Remaining) { remaining =>
-        find(remaining) match {
-          case None =>
-            extractRequest { req =>
-              complete((StatusCodes.NotFound, HttpEntity(
-                s""" Invalid path: ${req.uri}
-                   |
+      path(Remaining) {
+        remaining =>
+          find(remaining) match {
+            case None =>
+              extractRequest {
+                req =>
+                  complete((StatusCodes.NotFound, HttpEntity(
+                    s""" Invalid path: ${
+                      req.uri
+                    }
+                       |
                    |Known handlers include:
-                   |  ${workerByPath.keySet.toList.sorted.mkString("\n")}""".stripMargin)))
-            }
-          case Some(worker) =>
-            extractRequestContext { ctxt =>
-//              encodeResponse
-              {
-                complete {
-                  worker.handle(ctxt)
-                }
+                       |  ${
+                      workerByPath.keySet.toList.sorted.mkString("\n")
+                    }""".stripMargin)))
               }
-            }
-        }
+            case Some(worker) =>
+              extractRequestContext {
+                ctxt =>
+                  complete {
+                    worker.handle(ctxt)
+                  }
+              }
+          }
       }
     }
   }
@@ -109,50 +112,55 @@ case class WorkerRoutes(exchange: Exchange = Exchange(),
                     initialRequest: Int = defaultInitialRequest,
                     fromRequest: Unmarshaller[HttpRequest, T]): Future[RequestWorkAck] = {
 
-    val path = subscription.details.path.getOrElse(sys.error(s"The subscription doesn't contain a path: ${subscription.details}"))
+    val path = subscription.details.path.getOrElse(sys.error(s"The subscription doesn't contain a path: ${
+      subscription.details
+    }"))
     val subscriptionAckFuture: Future[WorkSubscriptionAck] = exchange.subscribe(subscription)
 
     val handler = new OnWork[T](subscription, initialRequest, fromRequest, onReq)
 
     HandlerWriteLock.synchronized {
-      workerByPath.get(path).foreach { oldHandler =>
-        // we'd have to consider this use case and presumably cancel the old subscription
-        sys.error(s"Replacing handlers isn't supported: $oldHandler")
+      workerByPath.get(path).foreach {
+        oldHandler =>
+          // we'd have to consider this use case and presumably cancel the old subscription
+          sys.error(s"Replacing handlers isn't supported: $oldHandler")
       }
       workerByPath = workerByPath.updated(path, handler)
     }
 
-    subscriptionAckFuture.flatMap { ack =>
+    subscriptionAckFuture.flatMap {
+      ack =>
 
-      // update our handler with it's subscription key (see 'OnWork' comment for why it has to be created first,
-      // before we have this subscription key)
-      setSubscriptionKeyOnHandler(path, ack.id)
+        // update our handler with it's subscription key (see 'OnWork' comment for why it has to be created first,
+        // before we have this subscription key)
+        setSubscriptionKeyOnHandler(path, ack.id)
 
-      // ask for some initial work
-      if (initialRequest > 0) {
-        exchange.take(ack.id, initialRequest)
-      } else {
-        Future.successful(RequestWorkAck(ack.id, initialRequest))
-      }
+        // ask for some initial work
+        if (initialRequest > 0) {
+          exchange.take(ack.id, initialRequest)
+        } else {
+          Future.successful(RequestWorkAck(ack.id, initialRequest))
+        }
     }
   }
 
   private def setSubscriptionKeyOnHandler(path: String, key: SubscriptionKey) = {
     HandlerWriteLock.synchronized {
-      workerByPath.get(path).foreach { handler =>
-        require(handler.key.isEmpty, "Key was already chuffing set!?@?")
-        handler.key = Option(key)
+      workerByPath.get(path).foreach {
+        handler =>
+          require(handler.key.isEmpty, "Key was already chuffing set!?@?")
+          handler.key = Option(key)
       }
     }
   }
 
-  private def find(workerName: String): Option[OnWork[_]] = workerByPath.get(workerName)
+  protected def find(workerName: String): Option[OnWork[_]] = workerByPath.get(workerName)
 
 
   /**
     * Captures the 'handler' logic for a subscription.
     */
-  private class OnWork[T](val subscription: WorkSubscription, initialRequest: Int, unmarshaller: Unmarshaller[HttpRequest, T], onReq: WorkContext[T] => Unit) {
+  protected class OnWork[T](val subscription: WorkSubscription, initialRequest: Int, unmarshaller: Unmarshaller[HttpRequest, T], onReq: WorkContext[T] => Unit) {
     /**
       * we have the case where a worker can actually handle a request at any time from a client ... even before we bother
       * subscribing to the exchange.

@@ -2,10 +2,11 @@ package jabroni.exec
 
 import java.util.concurrent.TimeUnit
 
+import akka.http.scaladsl.model.Multipart
 import com.typesafe.config.{Config, ConfigFactory}
-import jabroni.api.JobId
-import jabroni.exec.log.{IterableLogger, loggingProcessLogger}
-import jabroni.rest.multipart.MultipartPieces
+import jabroni.api._
+import jabroni.api.`match`.MatchDetails
+import jabroni.exec.log._
 import jabroni.rest.worker.{WorkContext, WorkerConfig}
 import jabroni.rest.{RunningService, configForArgs}
 
@@ -27,15 +28,17 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
 
   /** @return a process runner to execute the given request
     */
-  def newLogger(req: WorkContext[MultipartPieces], jobId: JobId): (RunProcess) => IterableLogger = {
+  def newLogger(req: WorkContext[Multipart.FormData], jobId: JobId, matchDetails: Option[MatchDetails]): (RunProcess) => IterableLogger = {
 
     def mkLogger(proc: RunProcess): IterableLogger = {
-      val iterLogger = IterableLogger(jobId, proc, errorLimit)
+      val iterLogger = IterableLogger(proc, matchDetails, errorLimit)
       if (includeConsoleAppender) {
-        iterLogger.add(loggingProcessLogger)
+        iterLogger.add(loggingProcessLogger(logPrefix(proc)))
       }
 
-      logs.dir(jobId).foreach(iterLogger.addUnderDir)
+      logs.dir(jobId).foreach { dir =>
+        iterLogger.addUnderDir(dir)
+      }
 
       iterLogger
     }
@@ -43,14 +46,11 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
     mkLogger _
   }
 
-  def newRunner(req: WorkContext[MultipartPieces]): ProcessRunner = {
+  def newRunner(req: WorkContext[Multipart.FormData], jobId: JobId): ProcessRunner = {
     import implicits._
-    import jabroni.api.nextJobId
-    val jobId: JobId = req.matchDetails.map(_.jobId).getOrElse(nextJobId)
     ProcessRunner(
-      uploadDir = uploads.dir(jobId).getOrElse(sys.error("uploadDir not set")),
       workDir = workingDirectory.dir(jobId),
-      newLogger(req, jobId))
+      newLogger(req, jobId, req.matchDetails))
   }
 
   /**
@@ -89,6 +89,8 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
 
   def allowTruncation = execConfig.getBoolean("allowTruncation")
 
+  def replaceWorkOnFailure = execConfig.getBoolean("replaceWorkOnFailure")
+
   def defaultFrameLength = execConfig.getInt("defaultFrameLength")
 
   def errorLimit = Option(execConfig.getInt("errorLimit")).filter(_ > 0)
@@ -96,7 +98,7 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
   implicit def uploadTimeout: FiniteDuration = execConfig.getDuration("uploadTimeout", TimeUnit.MILLISECONDS).millis
 
   def remoteRunner(): ProcessRunner with AutoCloseable = {
-    ProcessRunner(exchangeClient, defaultFrameLength, allowTruncation)
+    ProcessRunner(exchangeClient, defaultFrameLength, allowTruncation, replaceWorkOnFailure)
   }
 }
 

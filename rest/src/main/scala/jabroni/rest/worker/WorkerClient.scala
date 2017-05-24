@@ -3,6 +3,7 @@ package jabroni.rest.worker
 import akka.actor.ActorSystem
 import akka.http.scaladsl.marshalling.{Marshaller, ToEntityMarshaller}
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.Materializer
 import com.typesafe.scalalogging.LazyLogging
@@ -13,7 +14,9 @@ import jabroni.api.worker.{HostLocation, WorkerDetails}
 import jabroni.health.HealthDto
 import jabroni.rest.MatchDetailsExtractor
 import jabroni.rest.client.RestClient
+import jabroni.rest.multipart.{MultipartBuilder, MultipartDirectives}
 
+import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
@@ -38,16 +41,20 @@ case class WorkerClient(rest: RestClient,
   def health = WorkerClient.health(rest)
 
   def sendMultipart(multipart: Multipart): Future[HttpResponse] = {
-    send(newRequest(multipart))
+    send(newMultipartRequest(multipart))
   }
 
-  def send(req: HttpRequest) = rest.send(req)
+  def send(req: HttpRequest): Future[HttpResponse] = rest.send(req)
+
+  def send(reqBuilder: MultipartBuilder)(implicit timeout: FiniteDuration): Future[HttpResponse] = {
+    reqBuilder.formData.flatMap { (strict: _root_.akka.http.scaladsl.model.Multipart.FormData.Strict) =>
+      send(newMultipartRequest(strict))
+    }
+  }
 
   def newRequest[T: ToEntityMarshaller](request: T): HttpRequest = dispatchRequest(path, matchDetails, request)
 
-  def newRequest(multipart: Multipart): HttpRequest = {
-    multipartRequest(path, matchDetails, multipart)
-  }
+  def newMultipartRequest(multipart: Multipart): HttpRequest = multipartRequest(path, matchDetails, multipart)
 }
 
 object WorkerClient extends FailFastCirceSupport with LazyLogging {
@@ -56,8 +63,6 @@ object WorkerClient extends FailFastCirceSupport with LazyLogging {
   def health(restClient: RestClient)(implicit mat: Materializer): Future[HealthDto] = {
     import mat._
     restClient.send(WorkerHttp.healthRequest).flatMap { resp =>
-//      import io.circe.generic.auto._
-//      val x: FromEntityUnmarshaller[HealthDto] = unmarshaller[HealthDto]
       Unmarshal(resp).to[HealthDto]
     }
   }

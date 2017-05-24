@@ -1,12 +1,10 @@
 package jabroni.exec
 
-import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives.{path, _}
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.util.FastFuture
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import com.typesafe.scalalogging.StrictLogging
@@ -15,16 +13,8 @@ import io.circe.Json
 import io.circe.generic.auto._
 import io.circe.syntax._
 import jabroni.api.JobId
-import jabroni.domain.io.Sources
 import jabroni.domain.io.implicits._
 import jabroni.exec.log.IterableLogger._
-import jabroni.rest.multipart.{MultipartInfo, MultipartPieces}
-import jabroni.rest.worker.WorkContext
-
-import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
-import scala.util.Failure
-import scala.util.control.NonFatal
 
 
 object ExecutionRoutes {
@@ -116,7 +106,6 @@ class ExecutionRoutes(val execConfig: ExecConfig, handler: ExecutionHandler) ext
 
 
   override def toString = {
-    import jabroni.domain.RichConfig._
     s"ExecutionRoutes {${execConfig.describe}}"
   }
 

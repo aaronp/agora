@@ -24,11 +24,13 @@ object Dependencies {
     "com.typesafe.akka" %% s"akka-http$suffix" % "10.0.5"
   } :+ ("de.heikoseeberger" %% "akka-http-circe" % "1.14.0")
 
+  val pprint = "com.lihaoyi" %% "pprint" % "0.4.3"
+
   val streamsTck = "org.reactivestreams" % "reactive-streams-tck" % "1.0.0" % "test"
 
   val Api = logging ++ testDependencies ++ circe
 
-  val Rest = Api ++ akkaHttp ++ List(streamsTck) ++ cucumber
+  val Rest = Api ++ akkaHttp ++ List(streamsTck) ++ cucumber :+ pprint
 
   val UI = Api
 

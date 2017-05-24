@@ -25,10 +25,10 @@ import scala.concurrent.Future
   * a large upload or summat) to that worker.
   *
   * @param rest
-  * @param sys
+  * @param actorSystem
   * @param mat
   */
-class ExchangeClient(val rest: RestClient)(implicit val sys: ActorSystem, mat: Materializer)
+class ExchangeClient(val rest: RestClient)(implicit val actorSystem: ActorSystem, mat: Materializer)
   extends Exchange
     with QueueObserver
     with RoutingClient
@@ -63,11 +63,7 @@ class ExchangeClient(val rest: RestClient)(implicit val sys: ActorSystem, mat: M
         logger.debug(s"Reusing cached client at $location")
         client
       case None =>
-        val newClient: Dispatch = if (location == rest.location) {
-          WorkerClient(rest)
-        } else {
-          WorkerClient(location)
-        }
+        val newClient: Dispatch = if (location == rest.location) WorkerClient(rest) else WorkerClient(location)
         workerClientByLocation = workerClientByLocation.updated(location, newClient)
         newClient
     }

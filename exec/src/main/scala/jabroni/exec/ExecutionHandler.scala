@@ -3,23 +3,20 @@ package jabroni.exec
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model.ContentTypes.{`application/json`, `text/plain(UTF-8)`}
 import akka.http.scaladsl.model.StatusCodes.InternalServerError
-import akka.http.scaladsl.model.{ContentType, HttpEntity, HttpResponse}
-import akka.http.scaladsl.util.FastFuture
+import akka.http.scaladsl.model.{ContentType, HttpEntity, HttpResponse, Multipart}
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import com.typesafe.scalalogging.StrictLogging
-import jabroni.domain.io.Sources
-import jabroni.rest.multipart.{MultipartInfo, MultipartPieces}
+import jabroni.api.{JobId, nextJobId}
 import jabroni.rest.worker.WorkContext
 
 import scala.concurrent.{Await, Future}
-import scala.concurrent.duration.FiniteDuration
 import scala.util.Failure
 import scala.util.control.NonFatal
 
 trait ExecutionHandler {
 
-  def onExecute(req: WorkContext[MultipartPieces]): Unit
+  def onExecute(req: WorkContext[Multipart.FormData]): Unit
 }
 
 object ExecutionHandler {
@@ -34,40 +31,35 @@ object ExecutionHandler {
       HttpResponse(status = InternalServerError, entity = HttpEntity(`application/json`, exp.json.noSpaces))
     }
 
-    override def onExecute(req: WorkContext[MultipartPieces]) = {
-      val runner = execConfig.newRunner(req)
-      val handlerFuture = onRun(runner, req, execConfig.uploadTimeout).recover {
+    override def onExecute(req: WorkContext[Multipart.FormData]) = {
+
+      val jobId: JobId = req.matchDetails.map(_.jobId).getOrElse(nextJobId)
+      val runner = execConfig.newRunner(req, jobId)
+      val handlerFuture = onRun(runner, req, jobId).recover {
         case pr: ProcessException =>
           asErrorResponse(pr)
         case NonFatal(other) =>
           logger.error(s"translating error $other as a process exception")
-          asErrorResponse(ProcessException(RunProcess(Nil), Failure(other), Nil))
+          asErrorResponse(ProcessException(RunProcess(Nil), Failure(other), req.matchDetails, Nil))
       }
       req.completeWith(handlerFuture)
     }
 
+
     def onRun(runner: ProcessRunner,
-              req: WorkContext[MultipartPieces],
-              uploadTimeout: FiniteDuration,
+              ctxt: WorkContext[Multipart.FormData],
+              jobId: JobId,
+              // TODO - this should be determined from the content-type of the request, which we have
               outputContentType: ContentType = `text/plain(UTF-8)`): Future[HttpResponse] = {
-      import req.requestContext._
+      import ctxt.requestContext._
+      import jabroni.rest.multipart.MultipartDirectives._
 
-      val uploadFutures = req.request.collect {
-        case (MultipartInfo(_, Some(fileName), _), src) =>
-          Sources.sizeOf(src).map { len =>
-            Upload(fileName, len, src)
-          }
-      }
+      val uploadFutures: Future[(RunProcess, List[Upload])] = MultipartExtractor(execConfig.uploads, ctxt, jobId, execConfig.chunkSize)
 
-      val runProcFuture: Future[RunProcess] = {
-        import io.circe.generic.auto._
-        req.multipartJson[RunProcess]
-      }
-
-      def marshalResponse(runProc: RunProcess, uploads: List[Upload]) = {
+      def marshalResponse(runProc: RunProcess, uploads: List[Upload]): Future[HttpResponse] = {
         def run = {
           try {
-            Await.result(runner.run(runProc, uploads), uploadTimeout)
+            Await.result(runner.run(runProc, uploads), execConfig.uploadTimeout)
           } catch {
             case NonFatal(err) =>
               logger.error(s"Error executing $runProc: $err")
@@ -77,12 +69,11 @@ object ExecutionHandler {
 
         val bytes = Source.fromIterator(() => run).map(line => ByteString(s"$line\n"))
         val chunked: HttpEntity.Chunked = HttpEntity(outputContentType, bytes)
-        Marshal(chunked).toResponseFor(req.requestContext.request)
+        Marshal(chunked).toResponseFor(ctxt.requestContext.request)
       }
 
       for {
-        runProc <- runProcFuture
-        uploads <- FastFuture.sequence(uploadFutures.toList)
+        (runProc, uploads) <- uploadFutures
         resp <- marshalResponse(runProc, uploads)
       } yield {
         resp

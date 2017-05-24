@@ -25,7 +25,7 @@ class BaseSpec
   /**
     * All the timeouts!
     */
-  implicit def testTimeout: FiniteDuration = 10000.seconds
+  implicit def testTimeout: FiniteDuration = 100.seconds
 
   implicit def default(implicit system: ActorSystem) = RouteTestTimeout(testTimeout)
 

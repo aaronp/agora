@@ -71,7 +71,7 @@ object RestClient {
     }
 
     def send(request: HttpRequest): Future[HttpResponse] = {
-      logger.debug(s"Sending $hostPort ==> $request")
+      logger.debug(s"Sending $hostPort ==> ${pprint.stringify(request)}")
       val future = try {
         Source.single(request).via(remoteServiceConnectionFlow).runWith(Sink.head)
       } catch {
@@ -117,5 +117,7 @@ object RestClient {
         }
       }
     }
+
   }
+
 }

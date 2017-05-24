@@ -3,6 +3,7 @@ package jabroni.exec.log
 import java.nio.file.Path
 
 import com.typesafe.scalalogging.LazyLogging
+import jabroni.api.`match`.MatchDetails
 import jabroni.domain.TryIterator
 import jabroni.exec.{ProcessException, RunProcess}
 
@@ -16,11 +17,11 @@ import scala.util.{Failure, Success, Try}
   *
   * At a minimum it adds loggers, and can add/remote process loggers, as well as be 'completed' by the process
   */
-class ProcessLoggers(jobName: String,
-                     proc: RunProcess,
-                     errorLimit: Option[Int] = None) extends IterableLogger with LazyLogging {
+class ProcessLoggers(val proc: RunProcess,
+                     override val matchDetails: Option[MatchDetails],
+                     val errorLimit: Option[Int] = None) extends IterableLogger with LazyLogging {
 
-  override def toString = s"""$jobName ProcessLogger""".stripMargin
+  override def toString = s"""ProcessLoggers($matchDetails,\n$proc,\n$errorLimit)""".stripMargin
 
   private val stdErrLog = StreamLogger()
   private val limitedErrorLog = errorLimit.fold(stdErrLog: ProcessLogger) { limit => LimitLogger(limit, stdErrLog) }
@@ -39,7 +40,7 @@ class ProcessLoggers(jobName: String,
   private def onIterError(failure: Try[Int]) = {
     stdErrLog.complete(failure)
     val stdErr = stdErrLog.iterator.toList
-    val json = ProcessException(proc, failure, stdErr).json.spaces2.lines.toStream
+    val json = ProcessException(proc, failure, None, stdErr).json.spaces2.lines.toStream
     proc.errorMarker #:: json
   }
 
@@ -52,22 +53,13 @@ class ProcessLoggers(jobName: String,
     case err =>
       complete(err)
       val res = splitLogger.completedResult.getOrElse(Failure(new Throwable("process hasn't completed")))
-      throw ProcessException(proc, res, stdErrLog.iterator.toList)
+      throw ProcessException(proc, res, None, stdErrLog.iterator.toList)
   }
 
-  def add(pl: ProcessLogger) = Lock.synchronized {
+  override def add(pl: ProcessLogger): ProcessLoggers = Lock.synchronized {
     splitLogger = splitLogger.add(pl)
     this
   }
-
-  def addUnderDir(logDir: Path): ProcessLoggers = {
-    addStdOut(ProcessLogger(logDir.resolve("std.out").toFile)).
-      addStdErr(ProcessLogger(logDir.resolve("std.err").toFile))
-  }
-
-  def addStdOut(pl: ProcessLogger): ProcessLoggers = add(JustStdOut(pl))
-
-  def addStdErr(pl: ProcessLogger): ProcessLoggers = add(JustStdErr(pl))
 
   override def out(s: => String): Unit = splitLogger.out(s)
 

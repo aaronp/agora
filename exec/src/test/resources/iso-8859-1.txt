@@ -1,0 +1,3 @@
+This is in ISO-8859-1
+Is has some text in it ... I'm resisting the urge to 
+write it in latin.

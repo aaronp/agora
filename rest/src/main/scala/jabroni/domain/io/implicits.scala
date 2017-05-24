@@ -2,6 +2,7 @@ package jabroni.domain.io
 
 // https://git.io/v99U9
 
+import java.io.OutputStream
 import java.nio.charset.{Charset, StandardCharsets}
 import java.nio.file._
 import java.nio.file.attribute.{BasicFileAttributes, FileAttribute, PosixFilePermission}
@@ -28,7 +29,25 @@ trait LowPriorityIOImplicits {
 
     def getText(charset: Charset = StandardCharsets.UTF_8): String = new String(bytes, charset)
 
+
     def text: String = getText()
+
+    def append(text : String): Path = withOutputStream(_.write(text.getBytes))(Set(StandardOpenOption.APPEND))
+
+    def withOutputStream(withOS: OutputStream => Unit)(implicit options: Set[OpenOption]): Path = {
+      val os = outputStream(options.toList: _*)
+      try {
+        withOS(os)
+      } finally {
+        os.flush()
+        os.close()
+      }
+      path
+    }
+
+    def outputStream(options: OpenOption*): OutputStream = Files.newOutputStream(path, options: _*)
+
+    def inputStream(options: OpenOption*) = Files.newInputStream(path, options: _*)
 
     def lines: Iterator[String] = Files.lines(path).iterator().asScala
 

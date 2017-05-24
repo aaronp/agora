@@ -73,50 +73,6 @@ class RaftSteps extends ScalaDsl with EN with Matchers with TestData {
 
     }
   }
-  When("""^Node (.*) receives its append entities message, it should reply with$""") { (nodeId: NodeId, appendEntitiesTable: DataTable) =>
-
-
-    //// Write code here that turns the phrase above into concrete actions
-    throw new PendingException()
-
-  }
-  Then("""^no messages should be pending$""") {
-    () =>
-      //// Write code here that turns the phrase above into concrete actions
-      throw new PendingException()
-  }
-  Given("""^Node A has the cluster view$""") {
-    (arg0: DataTable) =>
-      //// Write code here that turns the phrase above into concrete actions
-      throw new PendingException()
-  }
-  When("""^Node A receives a client request to add foo$""") {
-    () =>
-      //// Write code here that turns the phrase above into concrete actions
-      throw new PendingException()
-  }
-  Then("""^The log for Node A should be$""") {
-    (arg0: DataTable) =>
-      //// Write code here that turns the phrase above into concrete actions
-      throw new PendingException()
-  }
-  Then("""^Node A should send the AppendEntries message$""") {
-    (arg0: DataTable) =>
-      //// Write code here that turns the phrase above into concrete actions
-      throw new PendingException()
-  }
-  When("""^Node B receives its AppendEntries message, it should reply with$""") {
-    (arg0: DataTable) =>
-      //// Write code here that turns the phrase above into concrete actions
-      throw new PendingException()
-  }
-  Then("""^The log for Node B should be$""") {
-    (arg0: DataTable) =>
-      //// Write code here that turns the phrase above into concrete actions
-      throw new PendingException()
-  }
-
-
 }
 
 object RaftSteps {

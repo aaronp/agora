@@ -37,13 +37,6 @@ class MultipartBuilder(defaultSourceContentType: ContentType) {
   }
 
 
-  def fromStrictSource(key: String,
-                       contentLength: Long,
-                       data: Source[ByteString, Any],
-                       fileName: String = null,
-                       contentType: ContentType = defaultSourceContentType): MultipartBuilder = {
-    add(key, HttpEntity(contentType, contentLength, data), Option(fileName))
-  }
 
   def fromSource(key: String,
                  length: Long,
@@ -81,20 +74,15 @@ class MultipartBuilder(defaultSourceContentType: ContentType) {
     this
   }
 
-  def asFormData: Multipart.FormData = Multipart.FormData(parts: _*)
+  private def asFormData: Multipart.FormData = Multipart.FormData(parts: _*)
 
   def formData(implicit mat: Materializer, timeout: FiniteDuration): Future[FormData.Strict] = {
     asFormData.toStrict(timeout)
   }
 
-  def asRequest(implicit mat: Materializer, timeout: FiniteDuration): Future[RequestEntity] = {
-    import mat._
-    Marshal(formData).to[RequestEntity]
-  }
-
 }
 
 object MultipartBuilder {
-  def apply(defaultSourceContentType: ContentType = `application/octet-stream`): MultipartBuilder = new MultipartBuilder(defaultSourceContentType)
+  def apply(defaultSourceContentType: ContentType = `text/plain(UTF-8)`): MultipartBuilder = new MultipartBuilder(defaultSourceContentType)
 
 }

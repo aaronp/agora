@@ -9,7 +9,7 @@ import jabroni.api.exchange.WorkSubscription
 import jabroni.api.json.JMatcher
 import jabroni.api.worker.WorkerDetails
 import jabroni.rest.exchange.{ExchangeClient, ExchangeConfig}
-import jabroni.rest.ui.UIRoutes
+import jabroni.rest.ui.{SupportRoutes, UIRoutes}
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -27,17 +27,13 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
   def withFallback[C <: WorkerConfig](fallback: C): WorkerConfig = new WorkerConfig(config.withFallback(fallback.config))
 
   def routes: Route = {
-    val withUI = if (includeUIRoutes) {
-      val uiRoutes: Route = UIRoutes("ui/worker.html").routes
-      workerRoutes.routes ~ uiRoutes
-    } else {
-      workerRoutes.routes
-    }
-    if (includeExchangeRoutes) {
-      withUI ~ exchangeConfig.exchangeRoutes.routes
-    } else {
-      withUI
-    }
+    import implicits._
+    val support = Stream(SupportRoutes(config).routes).filter(_ => enableSupportRoutes)
+    val ui = Stream(UIRoutes("ui/worker.html").routes).filter(_ => includeUIRoutes)
+    val exchange = Stream(exchangeConfig.exchangeRoutes.routes).filter(_ => includeExchangeRoutes)
+
+    val all = Stream(workerRoutes.routes) ++ exchange ++ support ++ ui
+    all.reduce(_ ~ _)
   }
 
   def includeExchangeRoutes = config.getBoolean("includeExchangeRoutes")

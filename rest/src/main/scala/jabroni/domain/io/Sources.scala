@@ -15,4 +15,10 @@ object Sources {
     src.map { x => ByteString(s"$x$newLine") }
   }
 
+
+  def asText(src: Source[ByteString, Any])(implicit materializer: akka.stream.Materializer): Future[String] = {
+    import materializer._
+    src.runReduce(_ ++ _).map(_.utf8String)
+  }
+
 }

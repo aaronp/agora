@@ -6,6 +6,7 @@ import java.time.LocalDateTime
 import java.time.format._
 
 import akka.actor.ActorSystem
+import akka.stream.scaladsl.FileIO
 import akka.stream.{ActorMaterializer, Materializer}
 import jabroni.domain.io.LowPriorityIOImplicits
 
@@ -22,6 +23,8 @@ object TestUtils extends LowPriorityIOImplicits {
     }
 
     def absolutePath: Path = Paths.get(onClasspath.toURI).toAbsolutePath
+
+    def asSource = FileIO.fromPath(absolutePath)
 
     def executable = absolutePath.grantAllPermissions.toString
   }

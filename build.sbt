@@ -17,6 +17,7 @@ git.gitTagToVersionNumber := { tag: String =>
 scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-language:implicitConversions", "-language:reflectiveCalls")
 
 lazy val jabroni = (project in file(".")).
+  enablePlugins(BuildInfoPlugin).
   aggregate(apiJVM, apiJS, rest, ui, exec)
 
 val commonSettings: Seq[Def.Setting[_]] = Seq(
@@ -25,6 +26,8 @@ val commonSettings: Seq[Def.Setting[_]] = Seq(
   scalaVersion := "2.11.8",
   javacOptions ++= Seq("-source", "1.8", "-target", "1.8"), //, "-Xmx2G"),
   scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-language:implicitConversions", "-language:reflectiveCalls"),
+  buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+  buildInfoPackage := "jabroni.build",
   //resolvers ++= moreResolvers,
   (testOptions in Test) += (Tests.Argument(TestFrameworks.ScalaTest, "-h", s"target/scalatest-reports-${name.value}"))
 )

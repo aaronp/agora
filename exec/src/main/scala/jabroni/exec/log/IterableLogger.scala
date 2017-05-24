@@ -3,30 +3,76 @@ package jabroni.exec.log
 import java.nio.file.Path
 
 import jabroni.api.JobId
+import jabroni.api.`match`.MatchDetails
 import jabroni.exec.RunProcess
 
 import scala.concurrent.Future
 import scala.sys.process.ProcessLogger
 
+/**
+  * A pimped out process logger which can produce an iterator of output and return
+  * a future of the exit code.
+  *
+  * It can also append loggers which will be notified of the output while the process is running,
+  * but does not guarantee any output will be sent if added after the process has started.
+  */
 trait IterableLogger extends ProcessLogger {
+
+  /** This is called by a ProcessRunner to 'complete' the process and fulfill the exit code
+    *
+    * @param code the exit code
+    */
   def complete(code: => Int): Unit
 
+  /** This is called by a ProcessRunner on an error case to 'complete' the process, potentially
+    * before it is even started
+    *
+    * @param exception an error
+    */
   def complete(exception: Throwable): Unit
 
+  /** In the cas where an error occurs during output streaming,
+    * the output may contain an 'error marker', followed by the ProcessError json.
+    *
+    * See [[RunProcess#errorMarker]]
+    *
+    * @return an iterator of standard output.
+    */
   def iterator: Iterator[String]
 
+  /** @return the optional match details associated with this process
+    */
+  def matchDetails: Option[MatchDetails]
+
+  /** @return a Future completed when this process does
+    */
   def exitCodeFuture: Future[Int]
+
+  /** @param pl an additional process logger to attach
+    * @return
+    */
+  def add(pl: ProcessLogger): IterableLogger
+
+  final def addUnderDir(logDir: Path): IterableLogger = {
+    addStdOut(ProcessLogger(logDir.resolve("std.out").toFile)).
+      addStdErr(ProcessLogger(logDir.resolve("std.err").toFile))
+  }
+
+  final def addStdOut(pl: ProcessLogger): IterableLogger = add(JustStdOut(pl))
+
+  final def addStdErr(pl: ProcessLogger): IterableLogger = add(JustStdErr(pl))
+
 }
 
 
 object IterableLogger {
 
-  def forProcess(proc: RunProcess): ProcessLoggers = apply("local", proc, None)
+  def forProcess(proc: RunProcess): ProcessLoggers = apply(proc, None, None)
 
-  def apply(jobName: String,
-            proc: RunProcess,
-            errorLimit: Option[Int]) = {
-    new ProcessLoggers(jobName, proc, errorLimit)
+  def apply(proc: RunProcess,
+            matchDetails: Option[MatchDetails] = None,
+            errorLimit: Option[Int] = None) = {
+    new ProcessLoggers(proc, matchDetails, errorLimit)
   }
 
   def pathForJob(configPath: String, baseDir: Option[Path], jobId: JobId, fileNameOpt: Option[String]): Either[String, Path] = {

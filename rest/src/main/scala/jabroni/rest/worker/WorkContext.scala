@@ -1,21 +1,21 @@
 package jabroni.rest
 package worker
 
-import java.nio.file.{Path, StandardOpenOption}
-
 import akka.http.scaladsl.marshalling.{Marshal, ToResponseMarshaller}
 import akka.http.scaladsl.model.ContentTypes._
-import akka.http.scaladsl.model.{ContentType, ContentTypes, HttpEntity, HttpResponse}
+import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.RequestContext
 import akka.http.scaladsl.util.FastFuture
-import akka.stream.IOResult
-import akka.stream.scaladsl.{FileIO, Source}
+import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import io.circe.{Decoder, Encoder, Json}
 import jabroni.api.SubscriptionKey
+import jabroni.api.`match`.MatchDetails
 import jabroni.api.exchange.{Exchange, RequestWorkAck, WorkSubscription}
-import jabroni.rest.multipart.{MultipartInfo, MultipartPieces}
+import jabroni.rest.multipart.MultipartDirectives._
+import jabroni.rest.multipart.MultipartInfo
 
+import scala.collection.immutable
 import scala.concurrent.{Future, Promise}
 import scala.reflect.ClassTag
 import scala.util.control.NonFatal
@@ -36,7 +36,7 @@ case class WorkContext[T](exchange: Exchange,
 
   import requestContext._
 
-  val matchDetails = MatchDetailsExtractor.unapply(requestContext.request)
+  val matchDetails: Option[MatchDetails] = MatchDetailsExtractor.unapply(requestContext.request)
 
   val resultPromise = Promise[HttpResponse]()
 
@@ -83,68 +83,29 @@ case class WorkContext[T](exchange: Exchange,
 
   def path = details.path.get
 
-  /** @return the multipart details for the given field (key), available only on multipart request inputs
-    */
-  def multipartForKey(key: String)(implicit ev: T =:= MultipartPieces): Option[(MultipartInfo, Source[ByteString, Any])] = {
-    request.find {
-      case (MultipartInfo(field, _, _), _) => field == key
+  def foreachMultipart[A](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), A])(implicit ev: T =:= Multipart.FormData): Future[immutable.Seq[A]] = {
+    mapMultipart(f)
+  }
+
+  def mapMultipart[A](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), A])(implicit ev: T =:= Multipart.FormData): Future[immutable.Seq[A]] = {
+    val fd: Multipart.FormData = request
+    fd.mapMultipart(f)
+  }
+
+  def flatMapMultipart[A](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), Future[A]])(implicit ev: T =:= Multipart.FormData): Future[immutable.Seq[A]] = {
+    val fd: Multipart.FormData = request
+    val futures: Future[List[Future[A]]] = fd.mapMultipart(f)
+    futures.flatMap { list =>
+      Future.sequence(list)
     }
   }
 
-  /** @return the multipart details for the given file name, available only on multipart request inputs
-    */
-  def multipartForFileName(fileName: String)(implicit ev: T =:= MultipartPieces) = {
-    request.collectFirst {
-      case pear@(MultipartInfo(_, Some(`fileName`), _), _) => pear
-    }
+  def mapFirstMultipart[A](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), A])(implicit ev: T =:= Multipart.FormData): Future[A] = {
+    val fd: Multipart.FormData = request
+    fd.mapFirstMultipart(f)
   }
+}
 
-  /** @return the multipart source bytes for the given field (key), available only on multipart request inputs
-    */
-  def multipartSource(key: String)(implicit ev: T =:= MultipartPieces): Option[Source[ByteString, Any]] = {
-    multipartForKey(key).map(_._2)
-  }
-
-  /** @return the multipart source bytes for the given field (key), available only on multipart request inputs
-    */
-  def multipartUpload(fileName: String)(implicit ev: T =:= MultipartPieces): Option[Source[ByteString, Any]] = {
-    multipartForFileName(fileName).map(_._2)
-  }
-
-  def multipartSavedTo(key: String, path: Path, openOptions: java.nio.file.StandardOpenOption*)(implicit ev: T =:= MultipartPieces): Future[IOResult] = {
-    val opt = multipartForKey(key).orElse(multipartForFileName(key)).map {
-      case (_, src) =>
-        src.runWith(FileIO.toPath(path, openOptions.toSet + StandardOpenOption.WRITE))
-    }
-    opt.getOrElse(Future.failed(new Exception(s"multipart doesn't exist for $key: ${multipartKeys}")))
-  }
-
-  def multipartJson(key: String)(implicit ev: T =:= MultipartPieces): Future[Json] = {
-    multipartText(key).map { text =>
-      io.circe.parser.parse(text) match {
-        case Left(err) => throw new Exception(s"Error parsing part '$key' as json >>${text}<< : $err", err)
-        case Right(json) => json
-      }
-    }
-  }
-
+object WorkContext {
   def multipartKey[A: Decoder : ClassTag] = implicitly[ClassTag[A]].runtimeClass.getName
-
-  def multipartJson[A: Decoder : ClassTag](implicit ev: T =:= MultipartPieces): Future[A] = {
-    val key = multipartKey
-    val jsonFut = multipartJson(key)
-    jsonFut.flatMap { json =>
-      json.as[A] match {
-        case Right(a) => FastFuture.successful(a)
-        case Left(b) => FastFuture.failed(new Exception(s"Couldn't unmarshal '${key}' from '${json.noSpaces}' : $b", b))
-      }
-    }
-  }
-
-  def multipartText(key: String)(implicit ev: T =:= MultipartPieces): Future[String] = {
-    val found = multipartSource(key)
-    found.map(srcAsText).getOrElse(Future.failed(new Exception(s"Couldn't find '$key' in ${request.keySet}")))
-  }
-
-  def multipartKeys(implicit ev: T =:= MultipartPieces): Set[MultipartInfo] = request.keySet
 }

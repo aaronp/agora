@@ -2,43 +2,37 @@ package jabroni.exec
 
 import java.nio.file.{Path, StandardOpenOption}
 
+import akka.stream.Materializer
 import akka.stream.scaladsl.FileIO
-import akka.stream.{IOResult, Materializer}
 import com.typesafe.scalalogging.StrictLogging
+import jabroni.domain.io.implicits._
 import jabroni.exec.log._
 
 import scala.concurrent.Future
 import scala.sys.process.{Process, ProcessBuilder}
 import scala.util.{Failure, Success, Try}
 
-
 object LocalRunner {
-  def apply(uploadDir: Path,
-            workDir: Option[Path] = None,
+  def apply(workDir: Option[Path] = None,
             loggerForProcess: RunProcess => IterableLogger = IterableLogger.forProcess)(implicit mat: Materializer): LocalRunner = {
-    new LocalRunner(uploadDir, workDir, loggerForProcess)
+    new LocalRunner(workDir, loggerForProcess)
   }
 }
 
 /**
   * Something which can run commands
   */
-class LocalRunner(val uploadDir: Path,
-                  val workDir: Option[Path] = None,
+class LocalRunner(val workDir: Option[Path] = None,
                   val loggerForProcess: RunProcess => IterableLogger = IterableLogger.forProcess)(implicit mat: Materializer) extends ProcessRunner with StrictLogging {
 
   import mat._
 
-  def withUploadDir(up: Path): LocalRunner = {
-    new LocalRunner(up, workDir, loggerForProcess)
-  }
-
   def withWorkDir(wd: Option[Path]): LocalRunner = {
-    new LocalRunner(uploadDir, wd, loggerForProcess)
+    new LocalRunner(wd, loggerForProcess)
   }
 
   def withLogger(newLoggerForProcess: RunProcess => IterableLogger): LocalRunner = {
-    new LocalRunner(uploadDir, workDir, newLoggerForProcess)
+    new LocalRunner(workDir, newLoggerForProcess)
   }
 
   override def run(inputProc: RunProcess, inputFiles: List[Upload]) = {
@@ -51,22 +45,25 @@ class LocalRunner(val uploadDir: Path,
       * write down the multipart input(s)
       */
     val futures = inputFiles.map {
-      case Upload(name, _, src) =>
-        val dest = uploadDir.resolve(name)
-        val writeFut = src.runWith(FileIO.toPath(dest, Set(StandardOpenOption.CREATE, StandardOpenOption.WRITE)))
-
-        writeFut.onComplete {
-          case res => logger.debug(s"Writing to $dest completed w/ $res")
+      case Upload(name, _, src, _) =>
+        val dest = name.asPath
+        if (!dest.exists) {
+          val writeFut = src.runWith(FileIO.toPath(dest, Set(StandardOpenOption.CREATE, StandardOpenOption.WRITE)))
+          writeFut.onComplete {
+            case res => logger.debug(s"Writing to $dest completed w/ $res")
+          }
+          writeFut.map(_ => dest)
+        } else {
+          Future.successful(dest)
         }
-        writeFut.map(r => (dest, r))
     }
-    val inputsWritten: Future[List[(Path, IOResult)]] = if (futures.isEmpty) {
+    val inputsWritten: Future[List[Path]] = if (futures.isEmpty) {
       Future.successful(Nil)
     } else {
       Future.sequence(futures)
     }
-    inputsWritten.map { _ =>
-      val preparedProcess: RunProcess = insertEnv(inputProc)
+    inputsWritten.map { uploadResults =>
+      val preparedProcess: RunProcess = insertEnv(inputProc, uploadResults)
       val builder: ProcessBuilder = {
         Process(preparedProcess.command, workDir.map(_.toFile), preparedProcess.env.toSeq: _*)
       }
@@ -78,11 +75,16 @@ class LocalRunner(val uploadDir: Path,
   /**
     * Expose info about the configuration via environment variables
     */
-  def insertEnv(inputProc: RunProcess) = {
-    inputProc.copy(env = inputProc.env.
-      updated("EXEC_WORK_DIR", workDir.map(_.toAbsolutePath.toString).getOrElse("")).
-      updated("EXEC_UPLOAD_DIR", uploadDir.toAbsolutePath.toString)
-    )
+  def insertEnv(inputProc: RunProcess, uploads: List[Path]) = {
+    val newMap = uploads.foldLeft(inputProc.env) {
+      case (map, path) =>
+        val key = path.toFile.getName.map {
+          case n if n.isLetterOrDigit => n.toUpper
+          case _ => "_"
+        }.mkString("")
+        map.updated(key, path.toAbsolutePath.toString)
+    }
+    inputProc.copy(env = newMap)
   }
 
   def execute(builder: ProcessBuilder, proc: RunProcess, iterableLogger: IterableLogger): Iterator[String] = {

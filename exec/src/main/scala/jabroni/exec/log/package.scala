@@ -6,9 +6,23 @@ import scala.sys.process.ProcessLogger
 
 package object log extends LazyLogging {
 
-  lazy val loggingProcessLogger =
+  def logPrefix(proc: RunProcess) = {
+    val full = proc.command.mkString(" ", " ", "").lines.mkString(" ")
+    val commandLine = full.lastIndexOf("/") match {
+      case -1 => full
+      case n => full.splitAt(n)._2
+    }
+    if (commandLine.size > 30) {
+      commandLine.take(20) + "..."
+    } else {
+      commandLine
+    }
+  }
+
+  def loggingProcessLogger(prefix: String) = {
     ProcessLogger(
-      (s: String) => logger.debug(s"OUT: $s"),
-      (s: String) => logger.error(s"ERR: $s"))
+      (s: String) => logger.info(s"$prefix <OUT> $s"),
+      (s: String) => logger.error(s"$prefix <ERR> $s"))
+  }
 
 }
