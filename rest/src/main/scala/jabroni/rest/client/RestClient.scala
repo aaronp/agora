@@ -34,12 +34,8 @@ object RestClient {
 
   def decodeResponse(resp: HttpResponse) = {
     val decoder = resp.encoding match {
-      case HttpEncodings.gzip =>
-        println("gzip")
-        Gzip
-      case HttpEncodings.deflate =>
-        println("deflate")
-        Deflate
+      case HttpEncodings.gzip => Gzip
+      case HttpEncodings.deflate => Deflate
       case HttpEncodings.identity => NoCoding
     }
     decoder.decode(resp)
@@ -54,15 +50,15 @@ object RestClient {
     private def onConnection(future: Future[Http.OutgoingConnection]): Future[Http.OutgoingConnection] = {
       future.onComplete {
         case Success(connection) =>
-          logger.info(s"$hostPort established a connection to ${connection.localAddress} (${connection.remoteAddress})")
+          logger.debug(s"$hostPort established a connection to ${connection.localAddress} (${connection.remoteAddress})")
         case Failure(err) =>
-          logger.error(s"Error establishing a connection to $hostPort ")
+          logger.error(s"Error establishing a connection to $hostPort : $err")
       }
       future
     }
 
     private def onError(err: Throwable): Throwable = {
-      logger.info(s"$hostPort threw $err")
+      logger.info(s"connecting to $hostPort threw $err")
       err
     }
 
@@ -121,7 +117,5 @@ object RestClient {
         }
       }
     }
-
   }
-
 }

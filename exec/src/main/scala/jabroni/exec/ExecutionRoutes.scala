@@ -23,29 +23,22 @@ import jabroni.rest.worker.WorkContext
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
+import scala.util.Failure
 import scala.util.control.NonFatal
 
+
+object ExecutionRoutes {
+  def apply(execConfig: ExecConfig, handler: ExecutionHandler) = new ExecutionRoutes(execConfig, handler)
+}
+
 /**
-  * Combines both the worker routes and some job output onesExec§§§§
+  * Combines both the worker routes and some job output ones
   *
   * @param execConfig
   */
-case class ExecutionRoutes(execConfig: ExecConfig) extends StrictLogging with FailFastCirceSupport {
+class ExecutionRoutes(val execConfig: ExecConfig, handler: ExecutionHandler) extends StrictLogging with FailFastCirceSupport {
 
   import execConfig._
-
-  workerRoutes.addMultipartHandler { (req: WorkContext[MultipartPieces]) =>
-    val runner = newRunner(req)
-    import execConfig.implicits._
-    val handlerFuture = onRun(runner, req, uploadTimeout).recover {
-      case pr: ProcessException =>
-        val errorEntity = HttpEntity(`application/json`, pr.json.noSpaces)
-        HttpResponse(status = InternalServerError, entity = errorEntity)
-      case other =>
-        throw other
-    }
-    req.completeWith(handlerFuture)
-  }
 
   def routes: Route = {
     execConfig.routes ~ jobRoutes
@@ -121,42 +114,10 @@ case class ExecutionRoutes(execConfig: ExecConfig) extends StrictLogging with Fa
     }
   }
 
-  def onRun(runner: ProcessRunner,
-            req: WorkContext[MultipartPieces],
-            uploadTimeout: FiniteDuration,
-            outputContentType: ContentType = `text/plain(UTF-8)`): Future[HttpResponse] = {
-    import req.requestContext._
 
-    val uploadFutures = req.request.collect {
-      case (MultipartInfo(_, Some(fileName), _), src) =>
-        Sources.sizeOf(src).map { len =>
-          Upload(fileName, len, src)
-        }
-    }
-    val runProcFuture: Future[RunProcess] = req.multipartJson[RunProcess]
-
-    def marshalResponse(runProc: RunProcess, uploads: List[Upload]) = {
-      def run = {
-        try {
-          Await.result(runner.run(runProc, uploads), uploadTimeout)
-        } catch {
-          case NonFatal(err) =>
-            logger.error(s"Error executing $runProc: $err")
-            throw err
-        }
-      }
-
-      val bytes = Source.fromIterator(() => run).map(line => ByteString(s"$line\n"))
-      val chunked: HttpEntity.Chunked = HttpEntity(outputContentType, bytes)
-      Marshal(chunked).toResponseFor(req.requestContext.request)
-    }
-
-    for {
-      runProc <- runProcFuture
-      uploads <- FastFuture.sequence(uploadFutures.toList)
-      resp <- marshalResponse(runProc, uploads)
-    } yield {
-      resp
-    }
+  override def toString = {
+    import jabroni.domain.RichConfig._
+    s"ExecutionRoutes {${execConfig.describe}}"
   }
+
 }

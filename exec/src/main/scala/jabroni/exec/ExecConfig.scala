@@ -16,9 +16,6 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
 
   import implicits._
 
-  private lazy val executionRoutes = {
-    ExecutionRoutes(this)
-  }
 
   override def withFallback[C <: WorkerConfig](fallback: C): ExecConfig = new ExecConfig(config.withFallback(fallback.config))
 
@@ -56,8 +53,21 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
       newLogger(req, jobId))
   }
 
+  /**
+    * @return a handler which will operate on the work requests coming from an exchange ...
+    *         or at least from a client who was redirected to us via the exchange
+    */
+  lazy val handler: ExecutionHandler = ExecutionHandler(this)
+
+  protected def executionRoutes = {
+    ExecutionRoutes(this, handler)
+  }
 
   def start() = {
+
+    // add our 'execute' handler to the worker routes
+    workerRoutes.addMultipartHandler(handler.onExecute)(subscription, initialRequest)
+
     RunningService.start[ExecConfig, ExecutionRoutes](this, executionRoutes.routes, executionRoutes)
   }
 
