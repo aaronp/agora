@@ -77,6 +77,7 @@ trait RichConfigOps  extends RichConfig.LowPriorityImplicits {
   def without(paths: TraversableOnce[String]): Config = paths.foldLeft(config)(_ withoutPath _)
   def filterNot(path : String => Boolean) = without(paths.filter(path))
   def describe(implicit opts: ConfigRenderOptions = ConfigRenderOptions.concise().setFormatted(true)) = config.root.render(opts)
+  def json = config.root.render(ConfigRenderOptions.concise().setJson(true))
   def paths: Set[String] = config.entrySet().asScala.map(_.getKey).toSet
   def pathRoots = paths.map { p => ConfigUtil.splitPath(p).get(0) }
 

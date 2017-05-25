@@ -46,7 +46,7 @@ trait ProcessRunnerTCK {
       val content = ByteString("This is the content\nof my very special\nupload")
       val src = Source.single(content)
       val myUpload = Upload("my.upload", content.length, src)
-      val res: Iterator[String] = runner.run(RunProcess("bash", "-c", "cat my.upload"), List(myUpload)).futureValue
+      val res: Iterator[String] = runner.run(RunProcess("bash", "-c", "cat $MY_UPLOAD"), List(myUpload)).futureValue
       res.mkString("\n") shouldBe content.utf8String
     }
     "run commands which operate on environment variables" in {

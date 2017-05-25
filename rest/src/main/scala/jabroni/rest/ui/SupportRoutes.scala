@@ -1,5 +1,6 @@
 package jabroni.rest.ui
 
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import com.typesafe.config.Config
@@ -18,8 +19,7 @@ case class SupportRoutes(config: Config)(implicit ec: ExecutionContext) {
   val getConfig = (get & pathPrefix("debug" / "config")) {
     complete {
       import jabroni.domain.RichConfig.implicits._
-
-      config.describe
+      HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, config.json))
     }
   }
   val debugRoute = (get & pathPrefix("debug")) {
