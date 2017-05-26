@@ -14,9 +14,9 @@ import jabroni.rest.test.TestUtils
 
 import scala.collection.immutable
 import scala.concurrent.Future
-import MultipartDirectives._
+import MultipartFormImplicits._
 
-class MultipartDirectivesTest extends BaseRoutesSpec {
+class MultipartFormImplicitsTest extends BaseRoutesSpec {
 
 
   "MultipartDirectives" should {
@@ -26,7 +26,7 @@ class MultipartDirectivesTest extends BaseRoutesSpec {
       val bytes = ByteString(text)
       val data = Source.single(bytes)
       val form = MultipartBuilder().
-        json("foo", MultipartDirectivesTest.JsonData("BB", 8)).
+        json("foo", MultipartFormImplicitsTest.JsonData("BB", 8)).
         text("something", "text").
         fromSource("upload1", bytes.size, data, fileName = "upload1.dat").
         fromSource("upload2", bytes.size, data, fileName = "upload2.dat")
@@ -75,7 +75,7 @@ class MultipartDirectivesTest extends BaseRoutesSpec {
   }
 }
 
-object MultipartDirectivesTest {
+object MultipartFormImplicitsTest {
 
   case class JsonData(x: String, y: Int)
 

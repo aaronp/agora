@@ -14,7 +14,7 @@ import jabroni.api.worker.{HostLocation, WorkerDetails}
 import jabroni.health.HealthDto
 import jabroni.rest.MatchDetailsExtractor
 import jabroni.rest.client.RestClient
-import jabroni.rest.multipart.{MultipartBuilder, MultipartDirectives}
+import jabroni.rest.multipart.{MultipartBuilder, MultipartFormImplicits}
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}

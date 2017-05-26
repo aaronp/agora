@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Execute</title>
+</head>
+
+<link rel='stylesheet prefetch' href='https://fonts.googleapis.com/icon?family=Material+Icons'>
+<link rel='stylesheet prefetch'
+      href='https://unpkg.com/material-components-web@0.8.0/dist/material-components-web.min.css'>
+
+<link rel="stylesheet" href="theme/css/style.css">
+
+<body onload="ameliorateForm(document.getElementById('run-form'), document.getElementById('form-buttons'))">
+<script type="text/javascript" src="js/jabroni-ui-fastopt.js"></script>
+<script type="text/javascript" src="js/jabroni-ui-jsdeps.js"></script>
+<link rel="stylesheet" href="./theme/theme.css">
+<script src="./theme/theme.js"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+<script src="./theme/js/dropzone.js"></script>
+<link rel="stylesheet" href="./theme/css/dropzone.css">
+
+
+<div class="mdc-components">
+    <div class="mdc-components__section">
+        <div class="mdc-component__containers__primary">
+
+            <!-- Change /upload-target to your upload address -->
+            <form class="dropzone" id="run-form" enctype="multipart/form-data" action="post">
+                <div class="mdc-component__containers__primary mdc-textfield--theme-primary">
+                    <div class="mdc-textfield"><input type="text"
+                                                      id="command-text"
+                                                      name="command"
+                                                      class="mdc-textfield__input"
+                                                      placeholder="what d'ya wanna run?"
+                                                      value="">
+                        <label
+                                for="command-text"
+                                class="mdc-textfield__label mdc-textfield__label--float-above">Execute</label>
+                    </div>
+                </div>
+                <div class="mdc-component__containers__primary mdc-textfield--theme-primary" id="form-buttons">
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+</div>
+
+
+</body>
+</html>

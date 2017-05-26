@@ -26,10 +26,13 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
 
   def withFallback[C <: WorkerConfig](fallback: C): WorkerConfig = new WorkerConfig(config.withFallback(fallback.config))
 
+
+  def landingPage = "ui/test.html"
+
   def routes: Route = {
     import implicits._
     val support = Stream(SupportRoutes(config).routes).filter(_ => enableSupportRoutes)
-    val ui = Stream(UIRoutes("ui/worker.html").routes).filter(_ => includeUIRoutes)
+    val ui = Stream(UIRoutes(landingPage).routes).filter(_ => includeUIRoutes)
     val exchange = Stream(exchangeConfig.exchangeRoutes.routes).filter(_ => includeExchangeRoutes)
 
     val all = Stream(workerRoutes.routes) ++ exchange ++ support ++ ui

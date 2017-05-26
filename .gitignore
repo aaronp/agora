@@ -1,4 +1,5 @@
 target
+my.upload
 uploads
 *.gz
 *.log

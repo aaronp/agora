@@ -8,7 +8,7 @@ import com.typesafe.scalalogging.StrictLogging
 
 import scala.concurrent.Future
 
-object MultipartDirectives extends StrictLogging {
+object MultipartFormImplicits extends StrictLogging {
 
   implicit class RichFormData(val formData: Multipart.FormData) extends AnyVal {
     def mapMultipart[T](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), T])(implicit mat: Materializer): Future[List[T]] = {

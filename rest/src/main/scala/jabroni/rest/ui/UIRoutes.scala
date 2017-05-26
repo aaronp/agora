@@ -7,7 +7,7 @@ import io.circe.generic.auto._
 
 import scala.language.reflectiveCalls
 
-case class UIRoutes(defaultPath : String) {
+case class UIRoutes(defaultPath: String) {
 
 
   import UIRoutes._
@@ -23,12 +23,10 @@ case class UIRoutes(defaultPath : String) {
   }
 
   val uiRoute = (get & pathPrefix("ui")) {
-    extractUnmatchedPath { (unmatchedPath: Uri.Path) =>
-      //encodeResponse
-      {
-        val Unslash(r) = unmatchedPath.toString
-        getFromResource(r)
-      }
+    extractUnmatchedPath { (unmatchedPath: Uri.Path) => {
+      val Unslash(r) = unmatchedPath.toString
+      getFromResource(r)
+    }
     }
   }
   val jsRoute = (get & pathPrefix("ui")) {
@@ -63,16 +61,20 @@ case class UIRoutes(defaultPath : String) {
 }
 
 
-
 object UIRoutes {
 
   private val SlashPrefixR = "/(.*)".r
   private val JsR = "js/(.*)".r
 
   private object Unslash {
-    def unapply(str: String): Option[String] = str match {
-      case SlashPrefixR(str) => Unslash.unapply(str)
-      case other => Option(other)
+    def unapply(input: String): Option[String] = input match {
+      case SlashPrefixR(str) =>
+        val x = Unslash.unapply(str)
+        println(s"Resolved $input ($str) to $x")
+        x
+      case other =>
+        println(s"Leaving $other alone")
+        Option(other)
     }
   }
 

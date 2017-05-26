@@ -19,7 +19,6 @@ trait MultipartHandlerSupport extends FailFastCirceSupport {
     pathPrefix("rest" / "multipart") {
       extractRequestContext { ctxt: RequestContext =>
 
-
         path(Remaining) { remaining =>
           findOnWork(remaining) match {
             case None => reject

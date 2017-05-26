@@ -52,7 +52,7 @@ object ExecutionHandler {
               // TODO - this should be determined from the content-type of the request, which we have
               outputContentType: ContentType = `text/plain(UTF-8)`): Future[HttpResponse] = {
       import ctxt.requestContext._
-      import jabroni.rest.multipart.MultipartDirectives._
+      import jabroni.rest.multipart.MultipartFormImplicits._
 
       val uploadFutures: Future[(RunProcess, List[Upload])] = MultipartExtractor(execConfig.uploads, ctxt, jobId, execConfig.chunkSize)
 

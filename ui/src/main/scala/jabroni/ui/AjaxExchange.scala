@@ -1,45 +1,28 @@
 package jabroni.ui
 
-import io.circe
-import io.circe.Decoder
 import io.circe.generic.auto._
 import jabroni.api.exchange._
 import jabroni.api.json.JMatcher
-import org.scalajs.dom.{XMLHttpRequest, window}
 import org.scalajs.dom.ext.Ajax
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{ExecutionContext, Future}
-import language.reflectiveCalls
-import language.implicitConversions
+import scala.concurrent.Future
+import scala.language.{implicitConversions, reflectiveCalls}
 
 object AjaxExchange {
-
-  def baseUrlFromWindow = s"${window.location.protocol}//${window.location.host}/rest/exchange"
-
-  def apply(baseUrl: String = baseUrlFromWindow): AjaxExchange = new AjaxExchange(baseUrl)
+  def apply(): AjaxExchange = new AjaxExchange()
 }
 
-class AjaxExchange(baseUrl: String)(implicit ec: ExecutionContext) extends Exchange {
+class AjaxExchange() extends AjaxClient("/rest/exchange") with Exchange {
 
   import io.circe.syntax._
-  import io.circe.parser._
 
-  implicit def richXMLHttpRequest(resp: XMLHttpRequest) = new {
-    def jsonAs[T: Decoder]: T = {
-      val either: Either[circe.Error, T] = parse(resp.responseText).right.flatMap(_.as[T])
-      either match {
-        case Left(err) => throw err
-        case Right(ack) => ack
-      }
-    }
-  }
 
-  def jobs(subscriptionMatcher : JMatcher): Future[List[SubmitJob]] = {
+  def jobs(subscriptionMatcher: JMatcher): Future[List[SubmitJob]] = {
     Ajax.get(s"$baseUrl/jobs").map(_.jsonAs[List[SubmitJob]])
   }
 
-  def subscriptions(jobMatcher : JMatcher): Future[List[PendingSubscription]] = {
+  def subscriptions(jobMatcher: JMatcher): Future[List[PendingSubscription]] = {
     //    Ajax.post(s"$baseUrl/subscriptions", request.asJson.noSpaces).map(_.jsonAs[ListSubscriptionsResponse])
     Ajax.get(s"$baseUrl/subscriptions").map(_.jsonAs[List[PendingSubscription]])
   }

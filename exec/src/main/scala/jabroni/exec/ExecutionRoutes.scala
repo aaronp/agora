@@ -34,8 +34,32 @@ class ExecutionRoutes(val execConfig: ExecConfig, handler: ExecutionHandler) ext
     execConfig.routes ~ jobRoutes
   }
 
-  def jobRoutes = pathPrefix("rest") {
-    listJobs ~ removeJob ~ jobOutput
+  def jobRoutes = pathPrefix("rest" / "exec") {
+    listJobs ~ removeJob ~ jobOutput ~ runJobDirect
+  }
+
+  /**
+    * @TODO - remove this ... it's just for debugging the UI. This route
+    * should be the same as the worker route used by the exchange
+    */
+  def runJobDirect: Route = post {
+    path("run") {
+      entity(as[Multipart.FormData]) { (formData: Multipart.FormData) =>
+
+        import jabroni.rest.multipart.MultipartFormImplicits._
+
+        extractMaterializer { implicit mat =>
+
+          complete {
+            formData.mapMultipart {
+              case (info, _) =>
+                import io.circe.generic.auto._
+                Map("field" -> info.fieldName, "file" -> info.fileName.getOrElse("")).asJson
+            }
+          }
+        }
+      }
+    }
   }
 
   def listJobs: Route = {

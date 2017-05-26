@@ -63,6 +63,8 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
     ExecutionRoutes(this, handler)
   }
 
+  override def landingPage = "ui/run.html"
+
   def start() = {
 
     // add our 'execute' handler to the worker routes

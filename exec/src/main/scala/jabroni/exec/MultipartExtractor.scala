@@ -22,7 +22,7 @@ object MultipartExtractor {
             chunkSize: Int): Future[(RunProcess, List[Upload])] = {
 
     import ctxt.requestContext._
-    import jabroni.rest.multipart.MultipartDirectives._
+    import jabroni.rest.multipart.MultipartFormImplicits._
 
     val futureOfEithers: Future[List[Future[Either[RunProcess, Upload]]]] = ctxt.request.mapMultipart {
       case (MultipartInfo(`jsonKey`, None, _), src) =>

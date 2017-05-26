@@ -12,7 +12,7 @@ import io.circe.{Decoder, Encoder, Json}
 import jabroni.api.SubscriptionKey
 import jabroni.api.`match`.MatchDetails
 import jabroni.api.exchange.{Exchange, RequestWorkAck, WorkSubscription}
-import jabroni.rest.multipart.MultipartDirectives._
+import jabroni.rest.multipart.MultipartFormImplicits._
 import jabroni.rest.multipart.MultipartInfo
 
 import scala.collection.immutable

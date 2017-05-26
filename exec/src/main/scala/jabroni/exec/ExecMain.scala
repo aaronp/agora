@@ -4,6 +4,8 @@ import com.typesafe.scalalogging.StrictLogging
 
 object ExecMain extends StrictLogging {
   def main(args: Array[String]): Unit = {
-    ExecConfig(args).start()
+    val conf = ExecConfig(args)
+    logger.trace(conf.describe)
+    conf.start()
   }
 }

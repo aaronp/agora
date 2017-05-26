@@ -9,14 +9,7 @@ import scala.scalajs.js.annotation.JSExportTopLevel
 object ExchangeApp extends JSApp {
 
   def main(): Unit = {
-    appendPar(document.body, """Jabroni""".stripMargin)
-  }
-
-  def appendPar(targetNode: dom.Node, text: String): Unit = {
-    val parNode = document.createElement("p")
-    val textNode = document.createTextNode(text)
-    parNode.appendChild(textNode)
-    targetNode.appendChild(parNode)
+    //appendPar(document.body, """Jabroni""".stripMargin)
   }
 
   val svc: Services = Services()
@@ -37,25 +30,6 @@ object ExchangeApp extends JSApp {
   }
 
   def reloadTable(targetNode: dom.Node) = {
-    val kid = targetNode.firstChild
-//    targetNode.replaceChild(kid, renderTable().render)
+
   }
-//
-//  def renderTable(book: OrderBook): JsDom.TypedTag[Table] = {
-//    val header = tr(
-//      td("Quantity"), td("Price")
-//    )
-//    //
-//    //    val body = book.buyTotals.map {
-//    //      case BuyValue(q,v) =>
-//    //
-//    //    }
-//    //    val tbl = table(
-//    //      header, body
-//    //    )
-//    //
-//    //    tbl
-//
-//    ???
-//  }
 }

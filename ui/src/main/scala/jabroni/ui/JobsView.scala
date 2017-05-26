@@ -1,10 +1,8 @@
 package jabroni.ui
 
-import jabroni.api.exchange.{QueuedJobs, SubmitJob}
-import jabroni.api.json.JMatcher
+import jabroni.api.exchange.SubmitJob
 import org.scalajs.dom.html
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.scalajs.js.annotation.JSExport
 
 /**
@@ -25,13 +23,13 @@ object JobsView {
 
   @JSExport()
   def refresh(services: Services, jobContainer: html.Div): Unit = {
-    val res = services.observer.listJobs(QueuedJobs(JMatcher.matchAll, JMatcher.matchAll))
-    //    val res = services.exchange.listJobs(null)
-    res.onSuccess {
-      case jobs => render(jobContainer, jobs.jobs)
-    }
-    res.onFailure {
-      case err => services.onError(err)
-    }
+//    val res = services.observer.listJobs(QueuedJobs(JMatcher.matchAll, JMatcher.matchAll))
+//    //    val res = services.exchange.listJobs(null)
+//    res.onSuccess {
+//      case jobs => render(jobContainer, jobs.jobs)
+//    }
+//    res.onFailure {
+//      case err => services.onError(err)
+//    }
   }
 }

@@ -67,6 +67,12 @@ lazy val apiJVM = jabroniApi.jvm.enablePlugins(BuildInfoPlugin)
 
 lazy val apiJS = jabroniApi.js
 
+
+val apiForIDE = (project in file("api"))
+  .settings(name := "jabroni-api-forIDE").
+  settings(commonSettings: _*).
+  settings(libraryDependencies ++= Dependencies.Api)
+
 lazy val rest = project.
   dependsOn(apiJVM, ui).
   settings(commonSettings).

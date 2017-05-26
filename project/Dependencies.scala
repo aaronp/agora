@@ -3,7 +3,6 @@ import Keys._
 
 object Dependencies {
 
-
   //https://github.com/typesafehub/scala-logging
   val logging = Seq(
     "com.typesafe.scala-logging" %% "scala-logging" % "3.5.0",
