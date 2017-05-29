@@ -57,13 +57,17 @@ class ExchangeClient(val rest: RestClient)(implicit val actorSystem: ActorSystem
 
   private var workerClientByLocation = Map[HostLocation, Dispatch]()
 
+  protected def mkWorker(location: HostLocation): Dispatch = {
+    WorkerClient(location)
+  }
+
   protected def clientFor(location: HostLocation): Dispatch = {
     workerClientByLocation.get(location) match {
       case Some(client) =>
         logger.debug(s"Reusing cached client at $location")
         client
       case None =>
-        val newClient: Dispatch = if (location == rest.location) WorkerClient(rest) else WorkerClient(location)
+        val newClient: Dispatch = mkWorker(location)
         workerClientByLocation = workerClientByLocation.updated(location, newClient)
         newClient
     }

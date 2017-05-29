@@ -9,6 +9,8 @@ package jabroni.exec.model
   * @param frameLength the frame length to use (if set) for delimiting output lines
   * @param errorMarker the marker which, if it appears in the standard output stream, will be followed by ProcessError
   *                    in json form
+  * @param metadata    additional process data given as hints/advice to the process runner,
+  *                    suh as tracking or session information
   */
 case class RunProcess(command: List[String],
                       env: Map[String, String] = Map.empty,
@@ -16,7 +18,15 @@ case class RunProcess(command: List[String],
                       frameLength: Option[Int] = None,
                       // when streaming results, we will already have sent a status code header (success).
                       // if we exit w/ a non-success code, then we need to indicate the start of the error response
-                      errorMarker: String = RunProcess.DefaultErrorMarker) {
+                      errorMarker: String = RunProcess.DefaultErrorMarker,
+                      metadata: Map[String, String] = Map.empty) {
+  def addMetadata(first: (String, String), theRest: (String, String)*) = {
+    val newMetadata = (first +: theRest).foldLeft(metadata) {
+      case (map, (key, value)) => map.updated(key, value)
+    }
+    copy(metadata = newMetadata)
+  }
+
   def withEnv(key: String, value: String): RunProcess = copy(env = env.updated(key, value))
 
   /**

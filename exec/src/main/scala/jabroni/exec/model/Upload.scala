@@ -17,4 +17,9 @@ object Upload {
     import jabroni.domain.io.implicits._
     new Upload(path.toFile.getName, path.size, FileIO.fromPath(path))
   }
+
+  def forText(name: String, text: String) = {
+    val bytes = ByteString(text)
+    new Upload(name, bytes.size, Source.single(bytes))
+  }
 }

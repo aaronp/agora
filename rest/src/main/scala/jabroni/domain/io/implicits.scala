@@ -21,11 +21,28 @@ trait LowPriorityIOImplicits {
 
     import scala.collection.JavaConverters._
 
-    def setText(str: String, charset: Charset = StandardCharsets.UTF_8, options: Set[OpenOption] = Set(StandardOpenOption.CREATE, StandardOpenOption.WRITE)): Unit = {
-      Files.write(path, str.getBytes(charset), options.toArray: _*)
+    def setText(str: String,
+                charset: Charset = StandardCharsets.UTF_8,
+                options: Set[OpenOption] = Set(StandardOpenOption.CREATE, StandardOpenOption.WRITE)) = {
+      setBytes(str.getBytes(charset), options)
+    }
+
+    def setBytes(bytes : Array[Byte], options: Set[OpenOption] = Set(StandardOpenOption.CREATE, StandardOpenOption.WRITE)) = {
+      Files.write(path, bytes, options.toArray: _*)
+      path
     }
 
     def bytes = if (exists) Files.readAllBytes(path) else Array.empty[Byte]
+    def bytes_=(content : Array[Byte]) = {
+      createIfNotExists()
+      setBytes(content)
+    }
+
+
+    def text_=(str: String) = {
+      createIfNotExists()
+      setText(str)
+    }
 
     def getText(charset: Charset = StandardCharsets.UTF_8): String = new String(bytes, charset)
 
@@ -50,12 +67,6 @@ trait LowPriorityIOImplicits {
     def inputStream(options: OpenOption*) = Files.newInputStream(path, options: _*)
 
     def lines: Iterator[String] = Files.lines(path).iterator().asScala
-
-    def text_=(str: String) = {
-      createIfNotExists()
-      setText(str)
-      path
-    }
 
     def parent = Option(path.getParent)
 
@@ -93,7 +104,9 @@ trait LowPriorityIOImplicits {
 
     def isFile = exists && Files.isRegularFile(path)
 
-    def children: Iterator[Path] = if (isDir) Files.list(path).iterator().asScala else Iterator.empty
+    def children: Array[Path] = if (isDir) path.toFile.listFiles().map(_.toPath) else Array.empty
+
+    def childrenIter = if (isDir) Files.list(path).iterator().asScala else Iterator.empty
 
     def attributes: BasicFileAttributes = Files.readAttributes(path, classOf[BasicFileAttributes])
 

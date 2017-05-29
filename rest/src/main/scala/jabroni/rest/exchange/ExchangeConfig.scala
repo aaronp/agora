@@ -34,7 +34,8 @@ class ExchangeConfig(c: Config) extends ServerConfig(c) {
 
   def withFallback(fallback: ExchangeConfig) = new ExchangeConfig(config.withFallback(fallback.config))
 
-  lazy val client: ExchangeClient = {
+  def client: ExchangeClient = defaultClient
+  protected  lazy val defaultClient: ExchangeClient = {
     import implicits._
     ExchangeClient(restClient)
   }

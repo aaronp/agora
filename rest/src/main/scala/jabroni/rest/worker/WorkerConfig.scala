@@ -61,7 +61,8 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
     WorkerRoutes(exchange, subscription, initialRequest)
   }
 
-  lazy val exchangeClient: ExchangeClient = {
+  def exchangeClient: ExchangeClient = defaultExchangeClient
+  protected lazy val defaultExchangeClient: ExchangeClient = {
     import implicits._
     if (includeExchangeRoutes) {
       ExchangeClient(restClient)

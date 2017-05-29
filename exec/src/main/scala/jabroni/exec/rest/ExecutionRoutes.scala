@@ -74,11 +74,6 @@ class ExecutionRoutes(val execConfig: ExecConfig, handler: ExecutionHandler) ext
               Json.obj("jobId" -> Json.fromString(jobId))
           }
 
-          // TODO: we should do this:
-          // exchange.enqueueAndDispatch(runProcess)
-          // but here we run directly
-
-          //execConfig.remoteRunner.run()
           complete {
             savedIdFuture
           }

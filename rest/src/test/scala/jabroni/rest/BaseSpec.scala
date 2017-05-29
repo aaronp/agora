@@ -1,6 +1,7 @@
 package jabroni.rest
 
 import java.nio.file.Path
+import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.testkit.RouteTestTimeout
@@ -38,6 +39,17 @@ class BaseSpec
   }
 
   def srcDir: Path = BaseSpec.srcDir
+
+  private val dirCounter = new AtomicInteger(0)
+
+  def withDir(f: Path => Unit) = {
+    val dir: Path = s"target/test/${getClass.getSimpleName}-${dirCounter.incrementAndGet()}".asPath.mkDirs()
+    try {
+      f(dir)
+    } finally {
+      dir.delete()
+    }
+  }
 }
 
 object BaseSpec extends LowPriorityIOImplicits {

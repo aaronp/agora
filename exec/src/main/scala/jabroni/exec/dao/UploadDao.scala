@@ -46,7 +46,11 @@ object UploadDao {
         */
       val futures: List[Future[Path]] = inputFiles.map {
         case Upload(name, _, src, _) =>
-          val dest = dir.resolve(name)
+          val dest = if (name.asPath.isAbsolute) {
+            name.asPath
+          } else {
+            dir.resolve(name)
+          }
 
           if (!dest.exists) {
             val writeFut = src.runWith(FileIO.toPath(dest, Set(StandardOpenOption.CREATE, StandardOpenOption.WRITE)))

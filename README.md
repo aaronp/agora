@@ -38,8 +38,3 @@
 
 ![sbt test cucumber](https://travis-ci.org/aaronp/jabroni.svg?branch=master)
 
-
-TODO:
-*) the worker UI for handling json jobs
-*) runner caching
-*) client retry, client request writer-downer

@@ -1,15 +1,15 @@
 package jabroni.ui.worker
 
-import jabroni.api.JobId
 import jabroni.ui.Services
-import org.scalajs.dom.html.Button
+import org.scalajs.dom.html.Div
 import org.scalajs.dom.raw.{FormData, _}
 import org.scalajs.dom.{Event, console, html}
 
+import scala.concurrent.ExecutionContext.Implicits._
+import scala.scalajs.js
+import scala.scalajs.js.JSON
 import scala.scalajs.js.annotation.JSExportTopLevel
 import scalatags.JsDom.all._
-
-import scala.concurrent.ExecutionContext.Implicits._
 
 object ExecuteForm {
 
@@ -20,49 +20,96 @@ object ExecuteForm {
     new WebSocket(url)
   }
 
-  @JSExportTopLevel("ameliorateForm")
-  def ameliorateForm(form: html.Form,
-                     formDiv: html.Div) = {
-    val submitBtn: Button = button(`class` := "mdc-button mdc-button--raised", `type` := "submit")("Run").render
-    submitBtn.onclick = (evt: Event) => {
-      evt.cancelBubble
-      evt.preventDefault()
-      val formData = new FormData(form)
-      val idFuture = AjaxExecute.submitJob(formData)
-      idFuture.foreach { jobId =>
-        //        AjaxExecute.streamResults(jobId)
+  def execute(form: html.Form, evt: Event)(onOutput: Boolean => String => Unit) = {
+    evt.cancelBubble
+    evt.preventDefault()
+    val onStdOut = onOutput(true)
+    val onStdErr = (line : String) => {
+      console.log("ERR: " + line)
+      onOutput(false)(line)
+    }
+    val formData = new FormData(form)
+    val idFuture = AjaxExecute.submitJob(formData)
+    idFuture.foreach { jobId =>
+      //        AjaxExecute.streamResults(jobId)
 
-        val socket = websocket()
-        socket.onopen = { (event: Event) => {
-          console.info(s"onopen ${event}")
-          console.info(s"sending ${jobId}")
-          socket.send(jobId)
-        }
-        }
-        socket.onclose = { (event: Event) => {
-          console.info(s"onclose${event}")
-        }
-        }
-
-        socket.onerror = { (event: ErrorEvent) => {
-          console.info(s"onError:${event}")
-        }
-        }
-        socket.onmessage = { (msg: MessageEvent) => {
-          console.info(s"${msg.data}")
-          append(msg.data.toString)
-
-        }
-        }
+      val socket = websocket()
+      socket.onopen = { (event: Event) => {
+        socket.send(jobId)
+      }
       }
 
+      var nextOutIsError = false
+      socket.onerror = { (msg: ErrorEvent) => {
+
+        Services.Alert(s"onErrror(${msg.message}, lineno is ${msg.lineno} )")
+      }
+      }
+
+      socket.onmessage = { (msg: MessageEvent) => {
+        val line = msg.data.toString
+        console.info(s"DATA: ${line}")
+        if (nextOutIsError) {
+
+          val errJson = msg.data.toString
+          val json = JSON.parse(errJson)
+
+          val values: js.Array[js.Dynamic] = json.stdErr.asInstanceOf[js.Array[js.Dynamic]]
+          if (values.length == 0) {
+            onStdErr(s"Error w/ exit code '${json.exitCode}'")
+          } else {
+            values.map(_.toString).foreach(onStdErr)
+          }
+        } else {
+          nextOutIsError = line == "*** _-={ E R R O R }=-_ ***"
+          if (!nextOutIsError) {
+            console.log(s"OUT: " + line)
+            onStdOut(line)
+          }
+        }
+      }
+      }
+    }
+  }
+
+  @JSExportTopLevel("ameliorateForm")
+  def ameliorateForm(form: html.Form,
+                     formDiv: html.Div,
+                     resultsDiv: html.Div
+                    ) = {
+
+    def append(target: html.Div, c1ass : String, text: String) = {
+      //resultsDiv.innerHTML = resultsDiv.innerHTML + 'Extra stuff'
+      target.insertBefore(div(`class` := c1ass)(text).render, target.firstChild)
     }
 
-    def append(text: String) = {
-      formDiv.insertBefore(p(text).render, formDiv.firstChild)
+
+    val execText = input(`class` := "input-text", `type` := "text", name := "command", id := "command-id", placeholder := "...", value := "")().render
+
+    def execDiv(textOutput: Div) = {
+      div(
+        div(`class` := "output-section")(
+          h4(execText.value)
+        ),
+        textOutput
+      ).render
     }
 
-    formDiv.appendChild(submitBtn)
+    execText.onkeypress = (keyPress: KeyboardEvent) => {
+      if (keyPress.charCode == 13) {
+        val textOutput: Div = div(`class` := "output-text")("").render
+
+        resultsDiv.insertBefore(execDiv(textOutput), resultsDiv.firstChild)
+
+        execute(form, keyPress) {
+          case true => line => append(textOutput, "output-line", line)
+          case false => line => append(textOutput, "error-line", line)
+        }
+        execText.value = ""
+      }
+    }
+
+    formDiv.appendChild(div(`class` := "form-inputs")(execText).render)
   }
 
   @JSExportTopLevel("onRun")

@@ -20,10 +20,8 @@ import scala.util.{Failure, Success}
 import scala.util.control.NonFatal
 
 trait RestClient extends Closeable {
-
-  def location: HostLocation
-
   def send(request: HttpRequest): Future[HttpResponse]
+  override def close = {}
 }
 
 object RestClient {
@@ -31,6 +29,7 @@ object RestClient {
   def apply(location: HostLocation)(implicit sys: ActorSystem, mat: Materializer): RestClient = {
     new AkkaClient(location)
   }
+
 
   def decodeResponse(resp: HttpResponse) = {
     val decoder = resp.encoding match {
@@ -41,60 +40,8 @@ object RestClient {
     decoder.decode(resp)
   }
 
-  class AkkaClient(override val location: HostLocation)(implicit sys: ActorSystem, mat: Materializer) extends RestClient with StrictLogging {
-
-    import mat._
-
-    private val hostPort = s"http://${location.host}:${location.port}"
-
-    private def onConnection(future: Future[Http.OutgoingConnection]): Future[Http.OutgoingConnection] = {
-      future.onComplete {
-        case Success(connection) =>
-          logger.debug(s"$hostPort established a connection to ${connection.localAddress} (${connection.remoteAddress})")
-        case Failure(err) =>
-          logger.error(s"Error establishing a connection to $hostPort : $err")
-      }
-      future
-    }
-
-    private def onError(err: Throwable): Throwable = {
-      logger.info(s"connecting to $hostPort threw $err")
-      err
-    }
-
-    private lazy val remoteServiceConnectionFlow: Flow[HttpRequest, HttpResponse, Any] = {
-      logger.info(s"Connecting to $hostPort")
-      val flow: Flow[HttpRequest, HttpResponse, Future[Http.OutgoingConnection]] = http.outgoingConnection(location.host, location.port) //.map(decodeResponse)
-      flow.mapMaterializedValue(onConnection).mapError {
-        case err => onError(err)
-      }
-    }
-
-    def send(request: HttpRequest): Future[HttpResponse] = {
-      logger.debug(s"Sending $hostPort ==> ${pprint.stringify(request)}")
-      val future = try {
-        Source.single(request).via(remoteServiceConnectionFlow).runWith(Sink.head)
-      } catch {
-        case NonFatal(e) =>
-          Future.failed(e)
-      }
-      future.onComplete {
-        case Success(resp) => logger.debug(s"$hostPort w/ $request returned w/ status ${resp.status}")
-        case Failure(err) => logger.error(s"$hostPort w/ $request threw ${err}")
-      }
-      future
-    }
-
-
-    private val http = Http()
-
-    override def close(): Unit = {
-      logger.info(s"(not) Closing client to http://${location.host}:${location.port}")
-    }
-  }
 
   object implicits {
-
     implicit class RichHttpResponse(val resp: HttpResponse) extends AnyVal {
       def as[T: Decoder : ClassTag](implicit ec: ExecutionContext, mat: Materializer): Future[T] = {
         val bytes = resp.entity.dataBytes.runReduce(_ ++ _)
@@ -116,7 +63,5 @@ object RestClient {
         }
       }
     }
-
   }
-
 }
