@@ -6,8 +6,11 @@ import akka.http.scaladsl.model.Multipart
 import com.typesafe.config.{Config, ConfigFactory}
 import jabroni.api._
 import jabroni.api.`match`.MatchDetails
+import jabroni.exec.dao.UploadDao
 import jabroni.exec.log._
+import jabroni.exec.model.RunProcess
 import jabroni.exec.rest.ExecutionRoutes
+import jabroni.exec.run.ProcessRunner
 import jabroni.rest.worker.{WorkContext, WorkerConfig}
 import jabroni.rest.{RunningService, configForArgs}
 
@@ -15,8 +18,6 @@ import scala.concurrent.duration._
 
 
 class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
-
-  import implicits._
 
 
   override def withFallback[C <: WorkerConfig](fallback: C): ExecConfig = new ExecConfig(config.withFallback(fallback.config))
@@ -49,7 +50,18 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
 
   def newRunner(req: WorkContext[Multipart.FormData], jobId: JobId): ProcessRunner = {
     import implicits._
+
+    require(system.whenTerminated.isCompleted == false, "Actor system is terminated")
+
+    val uploadDao: UploadDao.FileUploadDao = {
+      val uploadDaoOpt = uploads.dir(jobId).map { dir =>
+        UploadDao(dir)
+      }
+      uploadDaoOpt.getOrElse(UploadDao())
+    }
+
     ProcessRunner(
+      uploadDao,
       workDir = workingDirectory.dir(jobId),
       newLogger(req, jobId, req.matchDetails))
   }
@@ -101,6 +113,7 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
   implicit def uploadTimeout: FiniteDuration = execConfig.getDuration("uploadTimeout", TimeUnit.MILLISECONDS).millis
 
   def remoteRunner(): ProcessRunner with AutoCloseable = {
+    import implicits._
     ProcessRunner(exchangeClient, defaultFrameLength, allowTruncation, replaceWorkOnFailure)
   }
 }

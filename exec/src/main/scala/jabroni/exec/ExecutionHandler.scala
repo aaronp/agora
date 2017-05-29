@@ -8,13 +8,19 @@ import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import com.typesafe.scalalogging.StrictLogging
 import jabroni.api.{JobId, nextJobId}
+import jabroni.exec.model.{ProcessException, RunProcess, Upload}
 import jabroni.exec.rest.MultipartExtractor
+import jabroni.exec.run.ProcessRunner
 import jabroni.rest.worker.WorkContext
 
 import scala.concurrent.{Await, Future}
 import scala.util.Failure
 import scala.util.control.NonFatal
 
+/**
+  * Represents the worker logic for an execution as triggered from a match on the exchange
+  *
+  */
 trait ExecutionHandler {
 
   def onExecute(req: WorkContext[Multipart.FormData]): Unit

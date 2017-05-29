@@ -1,6 +1,7 @@
 package jabroni.exec
 
 import com.typesafe.scalalogging.LazyLogging
+import jabroni.exec.model.RunProcess
 
 import scala.sys.process.ProcessLogger
 

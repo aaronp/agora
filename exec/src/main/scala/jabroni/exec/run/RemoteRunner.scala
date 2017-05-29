@@ -1,4 +1,5 @@
-package jabroni.exec
+package jabroni.exec.run
+
 
 import akka.http.scaladsl.model.HttpResponse
 import akka.stream.Materializer
@@ -6,7 +7,8 @@ import com.typesafe.scalalogging.LazyLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import jabroni.api.exchange.RequestWork
 import jabroni.domain.IterableSubscriber
-import jabroni.exec.ProcessRunner.ProcessOutput
+import jabroni.exec.model.{RunProcess, Upload}
+import jabroni.exec.run.ProcessRunner.ProcessOutput
 import jabroni.rest.exchange.ExchangeClient
 import jabroni.rest.multipart.MultipartBuilder
 import jabroni.rest.worker.WorkerClient

@@ -4,7 +4,7 @@ import java.nio.file.Path
 
 import jabroni.api.JobId
 import jabroni.api.`match`.MatchDetails
-import jabroni.exec.RunProcess
+import jabroni.exec.model.RunProcess
 
 import scala.concurrent.Future
 import scala.sys.process.ProcessLogger
@@ -34,7 +34,7 @@ trait IterableLogger extends ProcessLogger {
   /** In the cas where an error occurs during output streaming,
     * the output may contain an 'error marker', followed by the ProcessError json.
     *
-    * See [[RunProcess#errorMarker]]
+    * See [[jabroni.exec.model.RunProcess#errorMarker]]
     *
     * @return an iterator of standard output.
     */

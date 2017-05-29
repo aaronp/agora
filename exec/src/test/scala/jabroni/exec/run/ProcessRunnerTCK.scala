@@ -1,7 +1,8 @@
-package jabroni.exec
+package jabroni.exec.run
 
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
+import jabroni.exec.model.{ProcessException, RunProcess, Upload}
 import jabroni.rest.BaseSpec
 import jabroni.rest.test.TestUtils._
 

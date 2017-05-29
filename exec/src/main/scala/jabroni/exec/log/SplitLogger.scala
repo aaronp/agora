@@ -5,8 +5,8 @@ import java.io.{Closeable, Flushable}
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.sys.process.ProcessLogger
-import scala.util.{Failure, Try}
 import scala.util.control.NonFatal
+import scala.util.{Failure, Try}
 
 
 object SplitLogger {

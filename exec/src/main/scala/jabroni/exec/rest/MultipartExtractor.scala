@@ -8,7 +8,7 @@ import akka.stream.scaladsl.{FileIO, Sink}
 import io.circe.generic.auto._
 import io.circe.parser._
 import jabroni.api.JobId
-import jabroni.exec.RunProcess
+import jabroni.exec.model.{RunProcess, Upload}
 import jabroni.rest.multipart.MultipartInfo
 import jabroni.rest.worker.WorkContext
 

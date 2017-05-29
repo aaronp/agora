@@ -41,4 +41,5 @@
 
 TODO:
 *) the worker UI for handling json jobs
-*) make work handler return a Future[HttpResponse] and then put in convenience 'complete' method on the work context
+*) runner caching
+*) client retry, client request writer-downer

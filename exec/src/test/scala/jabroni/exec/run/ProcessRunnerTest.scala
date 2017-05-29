@@ -1,6 +1,8 @@
-package jabroni.exec
+package jabroni.exec.run
 
+import jabroni.exec.dao.UploadDao
 import jabroni.exec.log.IterableLogger
+import jabroni.exec.model.RunProcess
 import jabroni.rest.BaseSpec
 import jabroni.rest.test.TestUtils.{withMaterializer, withTmpDir}
 
@@ -13,7 +15,7 @@ class ProcessRunnerTest extends BaseSpec {
 
         withTmpDir("process-runner-test") { dir =>
           val logger = IterableLogger.forProcess(_)
-          val runner = ProcessRunner().withLogger(logger.andThen(_.addUnderDir(dir)))
+          val runner = ProcessRunner(UploadDao()).withLogger(logger.andThen(_.addUnderDir(dir)))
           val res = runner.run("echo", "hello world").futureValue
           res.toList shouldBe List("hello world")
           dir.resolve("std.out").text shouldBe "hello world\n"
@@ -23,7 +25,7 @@ class ProcessRunnerTest extends BaseSpec {
 
         withTmpDir("process-runner-test") { dir =>
           val logger = IterableLogger.forProcess(_)
-          val runner = ProcessRunner().withLogger(logger.andThen(_.addUnderDir(dir)))
+          val runner = ProcessRunner(UploadDao()).withLogger(logger.andThen(_.addUnderDir(dir)))
           val res = runner.run(RunProcess("/bin/bash", "-c", "echo FOO is $FOO").withEnv("FOO", "bar"), Nil).futureValue
           res.toList shouldBe List("FOO is bar")
           dir.resolve("std.out").text shouldBe "FOO is bar\n"

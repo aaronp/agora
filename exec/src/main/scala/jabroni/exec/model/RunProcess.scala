@@ -1,4 +1,5 @@
-package jabroni.exec
+package jabroni.exec.model
+
 
 /**
   *
@@ -42,10 +43,4 @@ object RunProcess {
   def apply(first: String, theRest: String*): RunProcess = new RunProcess(first :: theRest.toList)
 
   val DefaultErrorMarker = "*** _-={ E R R O R }=-_ ***"
-}
-
-case class OperationResult(messages: List[String])
-
-object OperationResult {
-  def apply(first: String, theRest: String*) = new OperationResult(first :: theRest.toList)
 }

@@ -1,38 +1,45 @@
-package jabroni.exec
+package jabroni.exec.run
 
-import java.nio.file.{Path, StandardOpenOption}
+
+import java.nio.file.Path
 
 import akka.stream.Materializer
-import akka.stream.scaladsl.FileIO
 import com.typesafe.scalalogging.StrictLogging
-import jabroni.domain.io.implicits._
+import jabroni.exec.dao.UploadDao
 import jabroni.exec.log._
+import jabroni.exec.model.{RunProcess, Upload}
 
 import scala.concurrent.Future
 import scala.sys.process.{Process, ProcessBuilder}
 import scala.util.{Failure, Success, Try}
 
 object LocalRunner {
-  def apply(workDir: Option[Path] = None,
+  def apply(uploadDao: UploadDao,
+            workDir: Option[Path] = None,
             loggerForProcess: RunProcess => IterableLogger = IterableLogger.forProcess)(implicit mat: Materializer): LocalRunner = {
-    new LocalRunner(workDir, loggerForProcess)
+    new LocalRunner(uploadDao, workDir, loggerForProcess)
   }
 }
 
 /**
   * Something which can run commands
   */
-class LocalRunner(val workDir: Option[Path] = None,
+class LocalRunner(val uploadDao: UploadDao,
+                  val workDir: Option[Path] = None,
                   val loggerForProcess: RunProcess => IterableLogger = IterableLogger.forProcess)(implicit mat: Materializer) extends ProcessRunner with StrictLogging {
 
   import mat._
 
   def withWorkDir(wd: Option[Path]): LocalRunner = {
-    new LocalRunner(wd, loggerForProcess)
+    new LocalRunner(uploadDao, wd, loggerForProcess)
+  }
+
+  def withUploadDao(dao: UploadDao): LocalRunner = {
+    new LocalRunner(dao, workDir, loggerForProcess)
   }
 
   def withLogger(newLoggerForProcess: RunProcess => IterableLogger): LocalRunner = {
-    new LocalRunner(workDir, newLoggerForProcess)
+    new LocalRunner(uploadDao, workDir, newLoggerForProcess)
   }
 
   override def run(inputProc: RunProcess, inputFiles: List[Upload]) = {
@@ -41,7 +48,7 @@ class LocalRunner(val workDir: Option[Path] = None,
 
     logger.debug(s"Running $inputProc w/ ${inputFiles.size} uploads")
 
-    val inputsWritten = Upload.writeDown(inputFiles)
+    val inputsWritten = uploadDao.writeDown(inputFiles)
     inputsWritten.map { uploadResults =>
       val preparedProcess: RunProcess = insertEnv(inputProc, uploadResults)
       val builder: ProcessBuilder = {

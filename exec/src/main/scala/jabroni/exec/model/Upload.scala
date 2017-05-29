@@ -1,4 +1,5 @@
-package jabroni.exec
+package jabroni.exec.model
+
 
 import akka.http.scaladsl.model.{ContentType, ContentTypes}
 import akka.stream.scaladsl.Source

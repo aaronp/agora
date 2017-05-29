@@ -2,6 +2,7 @@ package jabroni.exec.ws
 
 import akka.NotUsed
 import akka.http.scaladsl.model.ws.BinaryMessage
+import akka.stream.Materializer
 import akka.stream.scaladsl.Sink
 
 /**
@@ -12,17 +13,11 @@ import akka.stream.scaladsl.Sink
   */
 object ExecuteOverWS {
 
-  import akka.actor.ActorSystem
-  import akka.stream.ActorMaterializer
-  import akka.stream.scaladsl.{Source, Flow}
-  import akka.http.scaladsl.Http
-  import akka.http.scaladsl.model.ws.UpgradeToWebSocket
-  import akka.http.scaladsl.model.ws.{TextMessage, Message}
-  import akka.http.scaladsl.model.{HttpResponse, Uri, HttpRequest}
-  import akka.http.scaladsl.model.HttpMethods._
+  import akka.http.scaladsl.model.ws.{Message, TextMessage}
+  import akka.stream.scaladsl.{Flow, Source}
 
 
-  def apply(src: Source[String, Any]): Flow[Message, TextMessage, NotUsed] =
+  def apply(src: Source[String, Any])(implicit mat : Materializer): Flow[Message, TextMessage, NotUsed] =
     Flow[Message]
       .mapConcat {
         // we match but don't actually consume the text message here,

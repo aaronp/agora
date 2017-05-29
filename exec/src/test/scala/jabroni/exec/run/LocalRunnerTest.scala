@@ -1,7 +1,8 @@
-package jabroni.exec
+package jabroni.exec.run
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
+import jabroni.exec.dao.UploadDao
 import jabroni.rest.BaseSpec
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 
@@ -15,6 +16,9 @@ class LocalRunnerTest extends BaseSpec with ProcessRunnerTCK with BeforeAndAfter
     sys.terminate()
   }
 
-  override def runner = ProcessRunner.local(Option("target/localRunnerTest".asPath.mkDirs()))
+  override def runner = {
+    val dir = "target/localRunnerTest".asPath.mkDirs()
+    ProcessRunner.local(UploadDao(dir), Option(dir))
+  }
 
 }

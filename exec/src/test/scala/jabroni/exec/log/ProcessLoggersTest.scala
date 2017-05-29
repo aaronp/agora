@@ -1,7 +1,8 @@
 package jabroni.exec.log
 
-import jabroni.exec.{ProcessError, RunProcess}
+import jabroni.exec.model.{ProcessError, RunProcess}
 import jabroni.rest.BaseSpec
+
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.Future
 

@@ -1,9 +1,11 @@
-package jabroni.exec
+package jabroni.exec.run
 
 import java.nio.file.Path
 
 import akka.stream.Materializer
-import jabroni.exec.log.{IterableLogger, ProcessLoggers, loggingProcessLogger}
+import jabroni.exec.dao.UploadDao
+import jabroni.exec.log.IterableLogger
+import jabroni.exec.model.{RunProcess, Upload}
 import jabroni.rest.exchange.ExchangeClient
 
 import scala.concurrent.Future
@@ -25,16 +27,19 @@ trait ProcessRunner {
 object ProcessRunner {
   type ProcessOutput = Future[Iterator[String]]
 
-  def local(workDir: Option[Path] = None,
+  def local(uploadDao: UploadDao,
+            workDir: Option[Path] = None,
             loggerForProcess: RunProcess => IterableLogger = IterableLogger.forProcess)(implicit mat: Materializer): LocalRunner = {
-    new LocalRunner(workDir, loggerForProcess) {
+    new LocalRunner(uploadDao, workDir, loggerForProcess) {
       override def execute(builder: process.ProcessBuilder, proc: RunProcess, iterableLogger: IterableLogger): Iterator[String] = {
         proc.filterForErrors(super.execute(builder, proc, iterableLogger))
       }
 
-      override def withWorkDir(wd: Option[Path]): LocalRunner = local(wd, loggerForProcess)
+      override def withWorkDir(wd: Option[Path]): LocalRunner = local(uploadDao, wd, loggerForProcess)
 
-      override def withLogger(newLoggerForProcess: RunProcess => IterableLogger) = local(workDir, newLoggerForProcess)
+      override def withUploadDao(dao: UploadDao): LocalRunner = local(dao, workDir, loggerForProcess)
+
+      override def withLogger(newLoggerForProcess: RunProcess => IterableLogger) = local(uploadDao, workDir, newLoggerForProcess)
     }
   }
 
@@ -43,9 +48,10 @@ object ProcessRunner {
     *
     * @param workDir the working directory to run the process under
     */
-  def apply(workDir: Option[Path] = None,
+  def apply(uploadDao: UploadDao,
+            workDir: Option[Path] = None,
             loggerForJob: RunProcess => IterableLogger = IterableLogger.forProcess)(implicit mat: Materializer): LocalRunner = {
-    LocalRunner(workDir, loggerForJob)
+    LocalRunner(uploadDao, workDir, loggerForJob)
   }
 
   /**

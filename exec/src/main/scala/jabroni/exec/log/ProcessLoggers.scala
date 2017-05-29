@@ -1,11 +1,9 @@
 package jabroni.exec.log
 
-import java.nio.file.Path
-
 import com.typesafe.scalalogging.LazyLogging
 import jabroni.api.`match`.MatchDetails
 import jabroni.domain.TryIterator
-import jabroni.exec.{ProcessException, RunProcess}
+import jabroni.exec.model.{ProcessException, RunProcess}
 
 import scala.concurrent.Future
 import scala.sys.process.ProcessLogger

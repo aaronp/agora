@@ -1,7 +1,6 @@
 package jabroni.rest
 package exchange
 
-
 import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.model.{HttpEntity, HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives.{entity, pathPrefix, _}

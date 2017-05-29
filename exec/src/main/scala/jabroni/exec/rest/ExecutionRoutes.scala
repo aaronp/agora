@@ -16,8 +16,9 @@ import io.circe.syntax._
 import jabroni.api.JobId
 import jabroni.domain.io.implicits._
 import jabroni.exec.log.IterableLogger._
+import jabroni.exec.model.OperationResult
 import jabroni.exec.ws.ExecuteOverWS
-import jabroni.exec.{ExecConfig, ExecutionHandler, OperationResult}
+import jabroni.exec.{ExecConfig, ExecutionHandler}
 
 import scala.concurrent.Future
 
@@ -54,6 +55,7 @@ class ExecutionRoutes(val execConfig: ExecConfig, handler: ExecutionHandler) ext
         extractRequestContext { requestCtxt =>
           import jabroni.rest.multipart.MultipartFormImplicits._
           import requestCtxt.materializer
+          import requestCtxt.executionContext
 
           complete {
 
