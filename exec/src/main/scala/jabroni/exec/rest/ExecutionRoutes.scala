@@ -13,10 +13,11 @@ import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.Json
 import io.circe.generic.auto._
 import io.circe.syntax._
-import jabroni.api.JobId
+import jabroni.api._
 import jabroni.domain.io.implicits._
+import jabroni.exec.dao.ExecDao
 import jabroni.exec.log.IterableLogger._
-import jabroni.exec.model.OperationResult
+import jabroni.exec.model.{OperationResult, RunProcess, Upload}
 import jabroni.exec.ws.ExecuteOverWS
 import jabroni.exec.{ExecConfig, ExecutionHandler}
 
@@ -28,7 +29,10 @@ object ExecutionRoutes {
 }
 
 /**
-  * Combines both the worker routes and some job output ones
+  * Combines both the worker routes and some job output ones.
+  *
+  * NOTE: These routes are separate from the WorkerRoutes which handle
+  * jobs that have been redirected from the exchange
   *
   * @param execConfig
   */
@@ -41,44 +45,62 @@ class ExecutionRoutes(val execConfig: ExecConfig, handler: ExecutionHandler) ext
   }
 
   def jobRoutes = pathPrefix("rest" / "exec") {
-    listJobs ~ removeJob ~ jobOutput ~ saveJob
+    listJobs ~ removeJob ~ jobOutput ~ submitJobFromForm ~ runSavedJob
   }
 
   /**
-    * TODO - remove this ... it's just for debugging the UI. This route
-    * should be the same as the worker route used by the exchange
+    * Simply upload a job (RunProc), but don't execute it -- return an 'id' for it to be run.
+    *
+    * This is useful for the UI which makes one multipart request to upload/save a job, and
+    * another to then read the output via web sockets
     */
-  def saveJob: Route = post {
-    path("run") {
-      entity(as[Multipart.FormData]) { (formData: Multipart.FormData) =>
+  def submitJobFromForm: Route = post {
+    // will be POST rest/exec/save
+    path("submit") {
+      extractRequestContext { reqCtxt =>
+        import reqCtxt.{executionContext, materializer}
 
-        extractRequestContext { requestCtxt =>
-          import jabroni.rest.multipart.MultipartFormImplicits._
-          import requestCtxt.materializer
-          import requestCtxt.executionContext
+        entity(as[Multipart.FormData]) { (formData: Multipart.FormData) =>
+          val jobId = nextJobId()
+          val uploadDir = execConfig.uploads.dir(jobId).get
 
-          complete {
-
-            requestCtxt.request.header[UpgradeToWebSocket] match {
-              case Some(upgrade) =>
-
-                val fakeLines = Future {
-                  List("It was the best of times").iterator
-                }
-                fakeLines.map { iter =>
-                  val src = Source.fromIterator(() => iter)
-                  upgrade.handleMessages(ExecuteOverWS(src))
-                }
-
-              case None => HttpResponse(400, entity = "Not a valid websocket request!")
-            }
-
-            formData.mapMultipart {
-              case (info, _) =>
-
-                Map("field" -> info.fieldName, "file" -> info.fileName.getOrElse("")).asJson
-            }
+          val uploadFutures: Future[(RunProcess, List[Upload])] = {
+            MultipartExtractor.fromUserForm(execConfig.uploads, formData, uploadDir, execConfig.chunkSize)
           }
+          val savedIdFuture = uploadFutures.map {
+            case (runProcess, uploads) =>
+              val dao = execConfig.execDao
+              dao.save(jobId, runProcess, uploads)
+              Json.obj("jobId" -> Json.fromString(jobId))
+          }
+
+          // TODO: we should do this:
+          // exchange.enqueueAndDispatch(runProcess)
+          // but here we run directly
+
+          //execConfig.remoteRunner.run()
+          complete {
+            savedIdFuture
+          }
+        }
+      }
+    }
+  }
+
+  def runSavedJob: Route = get {
+    (path("run") & pathEnd) {
+      extractRequestContext { requestCtxt =>
+        import requestCtxt.materializer
+
+        requestCtxt.request.header[UpgradeToWebSocket] match {
+          case None => complete(HttpResponse(400, entity = "Not a valid websocket request"))
+          case Some(upgrade) =>
+
+            logger.info(s"upgrading to web socket")
+
+            complete {
+              upgrade.handleMessages(ExecuteOverWS(execConfig))
+            }
         }
       }
     }
@@ -132,10 +154,11 @@ class ExecutionRoutes(val execConfig: ExecConfig, handler: ExecutionHandler) ext
     */
   def jobOutput = {
     get {
-      (path("job") & parameters('id.as[String], 'file.?)) { (jobId, fileName) =>
-        complete {
-          onJobOutput(jobId, fileName.getOrElse("std.out"))
-        }
+      (path("job") & parameters('id.as[String], 'file.?)) {
+        (jobId, fileName) =>
+          complete {
+            onJobOutput(jobId, fileName.getOrElse("std.out"))
+          }
       }
     }
   }

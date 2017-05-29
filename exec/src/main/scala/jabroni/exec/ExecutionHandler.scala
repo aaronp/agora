@@ -23,7 +23,7 @@ import scala.util.control.NonFatal
   */
 trait ExecutionHandler {
 
-  def onExecute(req: WorkContext[Multipart.FormData]): Unit
+  def onExecute(ctxt: WorkContext[Multipart.FormData]): Unit
 }
 
 object ExecutionHandler {
@@ -38,18 +38,18 @@ object ExecutionHandler {
       HttpResponse(status = InternalServerError, entity = HttpEntity(`application/json`, exp.json.noSpaces))
     }
 
-    override def onExecute(req: WorkContext[Multipart.FormData]) = {
+    override def onExecute(ctxt: WorkContext[Multipart.FormData]) = {
 
-      val jobId: JobId = req.matchDetails.map(_.jobId).getOrElse(nextJobId)
-      val runner = execConfig.newRunner(req, jobId)
-      val handlerFuture = onRun(runner, req, jobId).recover {
+      val jobId: JobId = ctxt.matchDetails.map(_.jobId).getOrElse(nextJobId)
+      val runner = execConfig.newRunner(ctxt, jobId)
+      val handlerFuture = onRun(runner, ctxt, jobId).recover {
         case pr: ProcessException =>
           asErrorResponse(pr)
         case NonFatal(other) =>
           logger.error(s"translating error $other as a process exception")
-          asErrorResponse(ProcessException(RunProcess(Nil), Failure(other), req.matchDetails, Nil))
+          asErrorResponse(ProcessException(RunProcess(Nil), Failure(other), ctxt.matchDetails, Nil))
       }
-      req.completeWith(handlerFuture)
+      ctxt.completeWith(handlerFuture)
     }
 
 
@@ -61,7 +61,8 @@ object ExecutionHandler {
       import ctxt.requestContext._
       import jabroni.rest.multipart.MultipartFormImplicits._
 
-      val uploadFutures: Future[(RunProcess, List[Upload])] = MultipartExtractor(execConfig.uploads, ctxt, jobId, execConfig.chunkSize)
+      val uploadDir = execConfig.uploads.dir(jobId).get
+      val uploadFutures: Future[(RunProcess, List[Upload])] = MultipartExtractor(execConfig.uploads, ctxt.request, uploadDir, execConfig.chunkSize)
 
       def marshalResponse(runProc: RunProcess, uploads: List[Upload]): Future[HttpResponse] = {
         def run = {

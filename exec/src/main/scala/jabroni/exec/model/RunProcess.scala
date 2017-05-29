@@ -43,4 +43,6 @@ object RunProcess {
   def apply(first: String, theRest: String*): RunProcess = new RunProcess(first :: theRest.toList)
 
   val DefaultErrorMarker = "*** _-={ E R R O R }=-_ ***"
+
+  val FormDataKey = "jabroni.exec.model.RunProcess"
 }

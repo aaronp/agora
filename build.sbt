@@ -33,7 +33,7 @@ val commonSettings: Seq[Def.Setting[_]] = Seq(
   buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
   buildInfoPackage := "jabroni.build",
   assemblyMergeStrategy in assembly := {
-    case str if str.contains("JS_DEPENDENCIES") => MergeStrategy.concat
+    case str if str.contains("JS_DEPENDENCIES") => MergeStrategy.discard
     case str if str.contains("logback.xml") => MergeStrategy.discard
     case str if str.contains("application.conf") => MergeStrategy.discard
     case x =>
@@ -42,6 +42,12 @@ val commonSettings: Seq[Def.Setting[_]] = Seq(
   },
   (testOptions in Test) += (Tests.Argument(TestFrameworks.ScalaTest, "-h", s"target/scalatest-reports-${name.value}")))
 
+test in assembly := {}
+
+assemblyExcludedJars in assembly := {
+  val cp = (fullClasspath in assembly).value
+  cp filterNot {_.data.getName == "JS_DEPENDENCIES"}
+}
 
 publishMavenStyle := true
 
@@ -92,8 +98,7 @@ lazy val ui = project.
   enablePlugins(ScalaJSPlugin)
 
 assemblyMergeStrategy in assembly := {
-  case str if str.contains("JS_DEPENDENCIES") => MergeStrategy.concat
-    MergeStrategy.concat
+  case str if str.contains("JS_DEPENDENCIES") => MergeStrategy.discard
   case x =>
     val oldStrategy = (assemblyMergeStrategy in assembly).value
     oldStrategy(x)

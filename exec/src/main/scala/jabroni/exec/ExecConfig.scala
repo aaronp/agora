@@ -6,7 +6,7 @@ import akka.http.scaladsl.model.Multipart
 import com.typesafe.config.{Config, ConfigFactory}
 import jabroni.api._
 import jabroni.api.`match`.MatchDetails
-import jabroni.exec.dao.UploadDao
+import jabroni.exec.dao.{ExecDao, UploadDao}
 import jabroni.exec.log._
 import jabroni.exec.model.RunProcess
 import jabroni.exec.rest.ExecutionRoutes
@@ -30,7 +30,7 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
 
   /** @return a process runner to execute the given request
     */
-  def newLogger(req: WorkContext[Multipart.FormData], jobId: JobId, matchDetails: Option[MatchDetails]): (RunProcess) => IterableLogger = {
+  def newLogger(jobId: JobId, matchDetails: Option[MatchDetails]): (RunProcess) => IterableLogger = {
 
     def mkLogger(proc: RunProcess): IterableLogger = {
       val iterLogger = IterableLogger(proc, matchDetails, errorLimit)
@@ -48,7 +48,7 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
     mkLogger _
   }
 
-  def newRunner(req: WorkContext[Multipart.FormData], jobId: JobId): ProcessRunner = {
+  def newRunner(ctxt: WorkContext[Multipart.FormData], jobId: JobId): ProcessRunner = {
     import implicits._
 
     require(system.whenTerminated.isCompleted == false, "Actor system is terminated")
@@ -63,7 +63,7 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
     ProcessRunner(
       uploadDao,
       workDir = workingDirectory.dir(jobId),
-      newLogger(req, jobId, req.matchDetails))
+      newLogger(jobId, ctxt.matchDetails))
   }
 
   /**
@@ -89,6 +89,10 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
   lazy val logs = PathConfig(execConfig.getConfig("logs").ensuring(!_.isEmpty))
 
   lazy val uploads = PathConfig(execConfig.getConfig("uploads").ensuring(!_.isEmpty))
+
+  def uploadsDir = uploads.path.getOrElse(sys.error("Invalid configuration - no uploads directory set"))
+
+  def execDao = ExecDao(uploadsDir)
 
   lazy val workingDirectory = PathConfig(execConfig.getConfig("workingDirectory").ensuring(!_.isEmpty))
 

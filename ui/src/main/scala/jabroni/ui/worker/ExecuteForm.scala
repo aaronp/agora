@@ -1,65 +1,68 @@
 package jabroni.ui.worker
 
+import jabroni.api.JobId
 import jabroni.ui.Services
 import org.scalajs.dom.html.Button
 import org.scalajs.dom.raw.{FormData, _}
-import org.scalajs.dom.{Event, html}
+import org.scalajs.dom.{Event, console, html}
 
 import scala.scalajs.js.annotation.JSExportTopLevel
 import scalatags.JsDom.all._
 
-class ExecuteForm(socket: WebSocket, outputTarget: HTMLElement) {
-
-  socket.onopen = { (event: Event) ⇒
-    append("stdout: ")
-  }
-  socket.onerror = { (event: ErrorEvent) ⇒
-    append(s"Failed: code: ${event.colno}")
-    close()
-  }
-  socket.onmessage = { (event: MessageEvent) ⇒
-    val text = event.data.toString
-    append(text)
-  }
-  socket.onclose = { (event: Event) ⇒
-    close()
-  }
-
-  def close() = {
-    outputTarget.disabled = true
-  }
-
-  def append(text: String) = {
-    outputTarget.insertBefore(p(text).render, outputTarget.firstChild)
-  }
-}
+import scala.concurrent.ExecutionContext.Implicits._
 
 object ExecuteForm {
 
 
-  def websocket(): WebSocket = new WebSocket(Services.baseWebsocketUri + "/rest/exec/run")
+  def websocket(): WebSocket = {
+    val url = Services.baseWebsocketUri + s"/rest/exec/run"
 
+    new WebSocket(url)
+  }
 
   @JSExportTopLevel("ameliorateForm")
   def ameliorateForm(form: html.Form,
-                     formDiv: html.Div
-                    ) = {
-
-    //<button type="button" class="mdc-button mdc-button--raised" id="execute-button">Run</button>
-
-    //attr("suggestion") := "clickme"
+                     formDiv: html.Div) = {
     val submitBtn: Button = button(`class` := "mdc-button mdc-button--raised", `type` := "submit")("Run").render
     submitBtn.onclick = (evt: Event) => {
-      Services.Alert("submit!" + evt)
-
       evt.cancelBubble
       evt.preventDefault()
-      AjaxExecute.execute(new FormData(form))
-      //form.submit()
+      val formData = new FormData(form)
+      val idFuture = AjaxExecute.submitJob(formData)
+      idFuture.foreach { jobId =>
+        //        AjaxExecute.streamResults(jobId)
+
+        val socket = websocket()
+        socket.onopen = { (event: Event) => {
+          console.info(s"onopen ${event}")
+          console.info(s"sending ${jobId}")
+          socket.send(jobId)
+        }
+        }
+        socket.onclose = { (event: Event) => {
+          console.info(s"onclose${event}")
+        }
+        }
+
+        socket.onerror = { (event: ErrorEvent) => {
+          console.info(s"onError:${event}")
+        }
+        }
+        socket.onmessage = { (msg: MessageEvent) => {
+          console.info(s"${msg.data}")
+          append(msg.data.toString)
+
+        }
+        }
+      }
+
+    }
+
+    def append(text: String) = {
+      formDiv.insertBefore(p(text).render, formDiv.firstChild)
     }
 
     formDiv.appendChild(submitBtn)
-
   }
 
   @JSExportTopLevel("onRun")

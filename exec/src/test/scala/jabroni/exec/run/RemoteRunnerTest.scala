@@ -1,6 +1,5 @@
 package jabroni.exec.run
 
-import java.nio.charset.StandardCharsets
 import java.nio.charset.StandardCharsets._
 
 import akka.stream.scaladsl.Source

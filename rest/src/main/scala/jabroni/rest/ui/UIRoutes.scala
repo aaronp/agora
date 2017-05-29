@@ -70,10 +70,8 @@ object UIRoutes {
     def unapply(input: String): Option[String] = input match {
       case SlashPrefixR(str) =>
         val x = Unslash.unapply(str)
-        println(s"Resolved $input ($str) to $x")
         x
       case other =>
-        println(s"Leaving $other alone")
         Option(other)
     }
   }

@@ -90,7 +90,6 @@ object RestClient {
 
     override def close(): Unit = {
       logger.info(s"(not) Closing client to http://${location.host}:${location.port}")
-      //      http.system.terminate()
     }
   }
 

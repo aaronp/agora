@@ -16,9 +16,14 @@ object IterableSubscriber {
               maximumFrameLength: Int,
               allowTruncation: Boolean = false)(implicit mat: Materializer): Iterator[String] = {
 
-    val subscriber = new IterableSubscriber[String]()
     val linesFlow = Framing.delimiter(ByteString("\n"), maximumFrameLength, allowTruncation = allowTruncation)
-    dataBytes.via(linesFlow.map(_.utf8String)).runWith(Sink.fromSubscriber(subscriber))
+    val text = dataBytes.via(linesFlow.map(_.utf8String))
+    iterate(text)
+  }
+
+  def iterate(linesFlow: Source[String, Any])(implicit mat: Materializer): Iterator[String] = {
+    val subscriber = new IterableSubscriber[String]()
+    linesFlow.runWith(Sink.fromSubscriber(subscriber))
     subscriber.iterator
   }
 }

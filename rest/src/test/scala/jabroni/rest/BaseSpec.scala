@@ -1,31 +1,32 @@
 package jabroni.rest
 
-import java.nio.file.{Path, Paths}
+import java.nio.file.Path
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.testkit.RouteTestTimeout
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
+import jabroni.domain.io.LowPriorityIOImplicits
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.language.{implicitConversions, postfixOps}
 import scala.util.Properties
-import jabroni.domain.io.LowPriorityIOImplicits
 
 class BaseSpec
   extends WordSpec
     with Matchers
     with FailFastCirceSupport
     with ScalaFutures
-    with LowPriorityIOImplicits {
+    with LowPriorityIOImplicits
+    with BeforeAndAfterAll {
 
   /**
     * All the timeouts!
     */
-  implicit def testTimeout: FiniteDuration = 100.seconds
+  implicit def testTimeout: FiniteDuration = 10.seconds
 
   implicit def default(implicit system: ActorSystem) = RouteTestTimeout(testTimeout)
 
@@ -38,6 +39,7 @@ class BaseSpec
 
   def srcDir: Path = BaseSpec.srcDir
 }
+
 object BaseSpec extends LowPriorityIOImplicits {
   lazy val srcDir: Path = {
     def root(p: Path): Path = {

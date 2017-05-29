@@ -24,7 +24,7 @@ object LocalRunner {
 /**
   * Something which can run commands
   */
-class LocalRunner(val uploadDao: UploadDao,
+class LocalRunner(val uploadDao: UploadDao = UploadDao(),
                   val workDir: Option[Path] = None,
                   val loggerForProcess: RunProcess => IterableLogger = IterableLogger.forProcess)(implicit mat: Materializer) extends ProcessRunner with StrictLogging {
 
@@ -42,7 +42,7 @@ class LocalRunner(val uploadDao: UploadDao,
     new LocalRunner(uploadDao, workDir, newLoggerForProcess)
   }
 
-  override def run(inputProc: RunProcess, inputFiles: List[Upload]) = {
+  override def run(inputProc: RunProcess, inputFiles: List[Upload]): Future[Iterator[String]] = {
 
     val processLogger = loggerForProcess(inputProc)
 

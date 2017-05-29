@@ -27,7 +27,7 @@ trait ProcessRunner {
 object ProcessRunner {
   type ProcessOutput = Future[Iterator[String]]
 
-  def local(uploadDao: UploadDao,
+  def local(uploadDao: UploadDao = UploadDao(),
             workDir: Option[Path] = None,
             loggerForProcess: RunProcess => IterableLogger = IterableLogger.forProcess)(implicit mat: Materializer): LocalRunner = {
     new LocalRunner(uploadDao, workDir, loggerForProcess) {
