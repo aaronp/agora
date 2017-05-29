@@ -9,7 +9,7 @@ import scala.concurrent.ExecutionContext
 
 abstract class AjaxClient(val relativeUrl: String) {
 
-  def baseUrl: String = Services.baseUrlFromWindow + relativeUrl
+  def baseUrl: String = Services.baseUrl + relativeUrl
 
   implicit def ec: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
 

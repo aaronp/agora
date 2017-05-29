@@ -23,10 +23,10 @@ case class UIRoutes(defaultPath: String) {
   }
 
   val uiRoute = (get & pathPrefix("ui")) {
-    extractUnmatchedPath { (unmatchedPath: Uri.Path) => {
-      val Unslash(r) = unmatchedPath.toString
-      getFromResource(r)
-    }
+      extractUnmatchedPath { (unmatchedPath: Uri.Path) => {
+        val Unslash(r) = unmatchedPath.toString
+        getFromResource(r)
+      }
     }
   }
   val jsRoute = (get & pathPrefix("ui")) {

@@ -7,6 +7,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import jabroni.api._
 import jabroni.api.`match`.MatchDetails
 import jabroni.exec.log._
+import jabroni.exec.rest.ExecutionRoutes
 import jabroni.rest.worker.{WorkContext, WorkerConfig}
 import jabroni.rest.{RunningService, configForArgs}
 

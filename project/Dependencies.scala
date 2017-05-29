@@ -20,7 +20,7 @@ object Dependencies {
   val circe = Seq("core", "generic", "parser", "optics").map(name => "io.circe" %% s"circe-$name" % "0.7.0")
 
   val akkaHttp = List("", "-core", "-testkit").map { suffix =>
-    "com.typesafe.akka" %% s"akka-http$suffix" % "10.0.5"
+    "com.typesafe.akka" %% s"akka-http$suffix" % "10.0.5" //10.0.7
   } :+ ("de.heikoseeberger" %% "akka-http-circe" % "1.14.0")
 
   val pprint = "com.lihaoyi" %% "pprint" % "0.4.3"

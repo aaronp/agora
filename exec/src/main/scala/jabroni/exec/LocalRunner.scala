@@ -41,27 +41,7 @@ class LocalRunner(val workDir: Option[Path] = None,
 
     logger.debug(s"Running $inputProc w/ ${inputFiles.size} uploads")
 
-    /**
-      * write down the multipart input(s)
-      */
-    val futures = inputFiles.map {
-      case Upload(name, _, src, _) =>
-        val dest = name.asPath
-        if (!dest.exists) {
-          val writeFut = src.runWith(FileIO.toPath(dest, Set(StandardOpenOption.CREATE, StandardOpenOption.WRITE)))
-          writeFut.onComplete {
-            case res => logger.debug(s"Writing to $dest completed w/ $res")
-          }
-          writeFut.map(_ => dest)
-        } else {
-          Future.successful(dest)
-        }
-    }
-    val inputsWritten: Future[List[Path]] = if (futures.isEmpty) {
-      Future.successful(Nil)
-    } else {
-      Future.sequence(futures)
-    }
+    val inputsWritten = Upload.writeDown(inputFiles)
     inputsWritten.map { uploadResults =>
       val preparedProcess: RunProcess = insertEnv(inputProc, uploadResults)
       val builder: ProcessBuilder = {

@@ -1,9 +1,10 @@
-package jabroni.exec
+package jabroni.exec.rest
 
 import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model._
-import akka.http.scaladsl.server.Directives.{path, _}
+import akka.http.scaladsl.model.ws.UpgradeToWebSocket
+import akka.http.scaladsl.server.Directives.{entity, path, _}
 import akka.http.scaladsl.server.Route
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
@@ -15,6 +16,10 @@ import io.circe.syntax._
 import jabroni.api.JobId
 import jabroni.domain.io.implicits._
 import jabroni.exec.log.IterableLogger._
+import jabroni.exec.ws.ExecuteOverWS
+import jabroni.exec.{ExecConfig, ExecutionHandler, OperationResult}
+
+import scala.concurrent.Future
 
 
 object ExecutionRoutes {
@@ -35,25 +40,40 @@ class ExecutionRoutes(val execConfig: ExecConfig, handler: ExecutionHandler) ext
   }
 
   def jobRoutes = pathPrefix("rest" / "exec") {
-    listJobs ~ removeJob ~ jobOutput ~ runJobDirect
+    listJobs ~ removeJob ~ jobOutput ~ saveJob
   }
 
   /**
-    * @TODO - remove this ... it's just for debugging the UI. This route
+    * TODO - remove this ... it's just for debugging the UI. This route
     * should be the same as the worker route used by the exchange
     */
-  def runJobDirect: Route = post {
+  def saveJob: Route = post {
     path("run") {
       entity(as[Multipart.FormData]) { (formData: Multipart.FormData) =>
 
-        import jabroni.rest.multipart.MultipartFormImplicits._
-
-        extractMaterializer { implicit mat =>
+        extractRequestContext { requestCtxt =>
+          import jabroni.rest.multipart.MultipartFormImplicits._
+          import requestCtxt.materializer
 
           complete {
+
+            requestCtxt.request.header[UpgradeToWebSocket] match {
+              case Some(upgrade) =>
+
+                val fakeLines = Future {
+                  List("It was the best of times").iterator
+                }
+                fakeLines.map { iter =>
+                  val src = Source.fromIterator(() => iter)
+                  upgrade.handleMessages(ExecuteOverWS(src))
+                }
+
+              case None => HttpResponse(400, entity = "Not a valid websocket request!")
+            }
+
             formData.mapMultipart {
               case (info, _) =>
-                import io.circe.generic.auto._
+
                 Map("field" -> info.fieldName, "file" -> info.fileName.getOrElse("")).asJson
             }
           }

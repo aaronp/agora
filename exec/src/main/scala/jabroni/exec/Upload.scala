@@ -1,7 +1,6 @@
 package jabroni.exec
 
-import akka.http.scaladsl.model.ContentType
-import akka.http.scaladsl.model.ContentTypes
+import akka.http.scaladsl.model.{ContentType, ContentTypes}
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 

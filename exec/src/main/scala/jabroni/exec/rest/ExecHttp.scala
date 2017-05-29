@@ -1,4 +1,4 @@
-package jabroni.exec
+package jabroni.exec.rest
 
 import jabroni.api.JobId
 import jabroni.rest.CommonRequestBuilding

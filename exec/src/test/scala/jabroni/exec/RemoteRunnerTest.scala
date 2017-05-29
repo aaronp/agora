@@ -10,6 +10,7 @@ import akka.NotUsed
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import jabroni.domain.io.Sources
+import jabroni.exec.rest.ExecutionRoutes
 import jabroni.rest.test.TestUtils
 import org.scalatest.{AppendedClues, BeforeAndAfterAll}
 

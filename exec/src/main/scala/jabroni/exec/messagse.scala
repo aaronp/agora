@@ -15,7 +15,7 @@ case class RunProcess(command: List[String],
                       frameLength: Option[Int] = None,
                       // when streaming results, we will already have sent a status code header (success).
                       // if we exit w/ a non-success code, then we need to indicate the start of the error response
-                      errorMarker: String = "*** _-={ E R R O R }=-_ ***") {
+                      errorMarker: String = RunProcess.DefaultErrorMarker) {
   def withEnv(key: String, value: String): RunProcess = copy(env = env.updated(key, value))
 
   /**
@@ -40,6 +40,8 @@ case class RunProcess(command: List[String],
 
 object RunProcess {
   def apply(first: String, theRest: String*): RunProcess = new RunProcess(first :: theRest.toList)
+
+  val DefaultErrorMarker = "*** _-={ E R R O R }=-_ ***"
 }
 
 case class OperationResult(messages: List[String])

@@ -8,6 +8,7 @@ import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import com.typesafe.scalalogging.StrictLogging
 import jabroni.api.{JobId, nextJobId}
+import jabroni.exec.rest.MultipartExtractor
 import jabroni.rest.worker.WorkContext
 
 import scala.concurrent.{Await, Future}
