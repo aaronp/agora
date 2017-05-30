@@ -2,7 +2,9 @@ language: scala
 scala:
    - 2.11.8
 script:
-   - sbt test
+  - sbt clean coverage test coverageReport
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
 jdk:
     - oraclejdk8
 install:
