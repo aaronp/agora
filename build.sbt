@@ -6,6 +6,9 @@ scalaVersion := "2.11.8"
 
 enablePlugins(GitVersioning)
 
+// TODO - as the project stabilizes, improve coverage
+coverageMinimum := 50
+
 git.useGitDescribe := false
 
 git.gitTagToVersionNumber := { tag: String =>
@@ -81,8 +84,6 @@ lazy val ui = project.
   settings(commonSettings: _*).
   settings(libraryDependencies ++= Dependencies.UI).
   enablePlugins(ScalaJSPlugin)
-
-
 
 assemblyMergeStrategy in assembly := {
   case str if str.contains("JS_DEPENDENCIES") => MergeStrategy.concat
