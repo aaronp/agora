@@ -61,8 +61,7 @@ object ProcessRunner {
   def apply(exchange: ExchangeClient,
             defaultFrameLength: Int,
             allowTruncation: Boolean,
-            replaceWorkOnFailure: Boolean)(implicit map: Materializer,
-                                           uploadTimeout: FiniteDuration): ProcessRunner with AutoCloseable = {
+            replaceWorkOnFailure: Boolean)(implicit uploadTimeout: FiniteDuration): ProcessRunner with AutoCloseable = {
     RemoteRunner(exchange, defaultFrameLength, allowTruncation, replaceWorkOnFailure)
   }
 

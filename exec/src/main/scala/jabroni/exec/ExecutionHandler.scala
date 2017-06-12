@@ -32,7 +32,7 @@ object ExecutionHandler {
 
   class Instance(val execConfig: ExecConfig) extends ExecutionHandler with StrictLogging {
 
-    import execConfig.implicits._
+    import execConfig.serverImplicits._
 
     def asErrorResponse(exp: ProcessException) = {
       HttpResponse(status = InternalServerError, entity = HttpEntity(`application/json`, exp.json.noSpaces))

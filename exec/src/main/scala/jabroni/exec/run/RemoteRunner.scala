@@ -2,7 +2,6 @@ package jabroni.exec.run
 
 
 import akka.http.scaladsl.model.HttpResponse
-import akka.stream.Materializer
 import com.typesafe.scalalogging.LazyLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import jabroni.api.exchange.RequestWork
@@ -21,14 +20,11 @@ import scala.util.{Failure, Success}
 case class RemoteRunner(exchange: ExchangeClient,
                         defaultFrameLength: Int,
                         allowTruncation: Boolean,
-                        requestWorkOnFailure: Boolean)(implicit mat: Materializer,
-                                                       uploadTimeout: FiniteDuration)
+                        requestWorkOnFailure: Boolean)(implicit uploadTimeout: FiniteDuration)
   extends ProcessRunner
     with AutoCloseable
     with FailFastCirceSupport
     with LazyLogging {
-
-  import mat._
 
   /**
     * We've been notified of a job match and given an worker to execute it
@@ -61,6 +57,8 @@ case class RemoteRunner(exchange: ExchangeClient,
   override def run(proc: RunProcess, inputFiles: List[Upload]): ProcessOutput = {
     import io.circe.generic.auto._
     import jabroni.api.Implicits._
+    import exchange.execContext
+    import exchange.materializer
 
 
     val (_, workerResponses) = exchange.enqueueAndDispatch(proc.asJob) { (worker: WorkerClient) =>

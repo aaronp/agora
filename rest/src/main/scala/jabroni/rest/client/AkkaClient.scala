@@ -13,11 +13,11 @@ import scala.util.{Failure, Success}
 import scala.util.control.NonFatal
 
 
-class AkkaClient(val location: HostLocation)(implicit sys: ActorSystem, mat: Materializer) extends RestClient with StrictLogging {
-
-  import mat._
+class AkkaClient(val location: HostLocation, system: ActorSystem, override implicit val materializer: Materializer) extends RestClient with StrictLogging {
 
   private val hostPort = s"http://${location.host}:${location.port}"
+
+  override def toString = s"AkkaClient($hostPort)"
 
   private def onError(err: Throwable): Throwable = {
     logger.info(s"connecting to $hostPort threw $err")
@@ -48,9 +48,10 @@ class AkkaClient(val location: HostLocation)(implicit sys: ActorSystem, mat: Mat
   }
 
 
-  private val http = Http()
+  private val http = Http()(system)
 
   override def close(): Unit = {
-    logger.info(s"(not) Closing client to http://${location.host}:${location.port}")
+    logger.info(s"Closing client to http://${location.host}:${location.port}")
+    system.terminate()
   }
 }

@@ -52,11 +52,11 @@ object RaftEndpoint {
     import mat._
 
     override def onVote(vote: RequestVote): Future[RequestVoteResponse] = {
-      client.send(RaftHttp(vote)).flatMap(_.as[RequestVoteResponse])
+      client.send(RaftHttp(vote)).flatMap(_.as[RequestVoteResponse]())
     }
 
     override def onAppend(append: AppendEntries[T]): Future[AppendEntriesResponse] = {
-      client.send(RaftHttp(append)).flatMap(_.as[AppendEntriesResponse])
+      client.send(RaftHttp(append)).flatMap(_.as[AppendEntriesResponse]())
     }
   }
 

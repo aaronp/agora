@@ -5,10 +5,10 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import com.typesafe.config.{Config, ConfigFactory}
 import io.circe
-import jabroni.api.exchange.WorkSubscription
+import jabroni.api.exchange.{Exchange, MatchObserver, WorkSubscription}
 import jabroni.api.json.JMatcher
 import jabroni.api.worker.WorkerDetails
-import jabroni.rest.exchange.{ExchangeClient, ExchangeConfig}
+import jabroni.rest.exchange.{ExchangeClient, ExchangeConfig, ExchangeRoutes}
 import jabroni.rest.ui.{SupportRoutes, UIRoutes}
 
 import scala.concurrent.Future
@@ -21,7 +21,21 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
   def initialRequest = config.getInt("initialRequest")
 
   def startWorker(): Future[WorkerConfig.RunningWorker] = {
-    RunningService.start(this, routes, workerRoutes)
+
+    import serverImplicits._
+    val (exchange, optionalExchangeRoutes) = if (includeExchangeRoutes) {
+      val obs = MatchObserver()
+      val localExchange = exchangeConfig.newExchange(obs)
+      val exRoutes: ExchangeRoutes = exchangeConfig.newExchangeRoutes(localExchange)
+      (localExchange, Option(exRoutes.routes))
+    } else {
+      (exchangeClient, None)
+    }
+
+    val workerRoutes: WorkerRoutes = newWorkerRoutes(exchange)
+    val restRoutes: Route = routes(workerRoutes, optionalExchangeRoutes)
+
+    RunningService.start(this, restRoutes, workerRoutes)
   }
 
   def withFallback[C <: WorkerConfig](fallback: C): WorkerConfig = new WorkerConfig(config.withFallback(fallback.config))
@@ -29,13 +43,16 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
 
   def landingPage = "ui/test.html"
 
-  def routes: Route = {
-    import implicits._
-    val support = Stream(SupportRoutes(config).routes).filter(_ => enableSupportRoutes)
-    val ui = Stream(UIRoutes(landingPage).routes).filter(_ => includeUIRoutes)
-    val exchange = Stream(exchangeConfig.exchangeRoutes.routes).filter(_ => includeExchangeRoutes)
+  def routes(workerRoutes: WorkerRoutes, exchangeRoutes: Option[Route]): Route = {
+    import serverImplicits._
+    def when(include: Boolean)(r: => Route): Stream[Route] = {
+      if (include) Stream(r) else Stream.empty
+    }
 
-    val all = Stream(workerRoutes.routes) ++ exchange ++ support ++ ui
+    val support = when(enableSupportRoutes)(SupportRoutes(config).routes)
+    val ui = when(includeUIRoutes)(UIRoutes(landingPage).routes)
+
+    val all = Stream(workerRoutes.routes) ++ exchangeRoutes.toStream ++ support ++ ui
     all.reduce(_ ~ _)
   }
 
@@ -43,29 +60,23 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
 
   /** @return exchange pointed at by this worker
     */
-  lazy val exchangeConfig = {
-    val myImplicits = implicits
-    new ExchangeConfig(config.getConfig("exchange")) {
-      override lazy val implicits = myImplicits
-    }
+  lazy val exchangeConfig: ExchangeConfig = {
+    new ExchangeConfig(config.getConfig("exchange"))
   }
 
-  lazy val workerRoutes: WorkerRoutes = {
-    import implicits._
-
-    val exchange = if (includeExchangeRoutes) {
-      exchangeConfig.exchangeRoutes.exchange
-    } else {
-      exchangeClient
-    }
+  def newWorkerRoutes(exchange: Exchange): WorkerRoutes = {
+    import serverImplicits.materializer
     WorkerRoutes(exchange, subscription, initialRequest)
   }
 
   def exchangeClient: ExchangeClient = defaultExchangeClient
+
   protected lazy val defaultExchangeClient: ExchangeClient = {
-    import implicits._
     if (includeExchangeRoutes) {
-      ExchangeClient(restClient)
+      ExchangeClient(restClient) { workerLocation =>
+        val restClient = retryClient(workerLocation)
+        WorkerClient(restClient)
+      }
     } else {
       exchangeConfig.client
     }

@@ -2,67 +2,71 @@ package jabroni.api.exchange
 
 import io.circe.generic.auto._
 import io.circe.{Encoder, Json}
-import jabroni.api.`match`.MatchDetails
-import jabroni.api.json.{JMatcher, JPath}
+import jabroni.api.json.JMatcher
 import jabroni.api.worker.{SubscriptionKey, WorkerDetails, WorkerRedirectCoords}
-import jabroni.api.{JobId, MatchId, nextJobId}
+import jabroni.api.{JobId, MatchId}
 
 import scala.language.implicitConversions
 
-
-sealed trait ObserverRequest
-
-sealed trait ObserverResponse
-
-case class QueuedJobs(subscriptionMatcher: JMatcher, jobMatcher: JMatcher) extends ObserverRequest {
-  def this() = this(JMatcher.matchAll, JMatcher.matchAll)
-
-  def matches(job: SubmitJob) = {
-    jobMatcher.matches(job.job) && subscriptionMatcher.matches(job.submissionDetails.aboutMe)
-  }
-}
-
-object QueuedJobs {
-  implicit val encoder = exportEncoder[QueuedJobs].instance
-  implicit val decoder = exportDecoder[QueuedJobs].instance
-}
-
-case class QueuedJobsResponse(jobs: List[SubmitJob]) extends ObserverResponse
-
-object QueuedJobsResponse {
-  implicit val encoder = exportEncoder[QueuedJobsResponse].instance
-  implicit val decoder = exportDecoder[QueuedJobsResponse].instance
-}
-
-case class ListSubscriptions(subscriptionCriteria: JMatcher) extends ObserverRequest {
-  def this() = this(JMatcher.matchAll)
-}
-
-object ListSubscriptions {
-  implicit val encoder = exportEncoder[ListSubscriptions].instance
-  implicit val decoder = exportDecoder[ListSubscriptions].instance
-}
-
-case class PendingSubscription(key: SubscriptionKey, subscription: WorkSubscription, requested: Int)
-
-case class ListSubscriptionsResponse(subscriptions: List[PendingSubscription]) extends ObserverResponse
-
-object ListSubscriptionsResponse {
-  implicit val encoder = exportEncoder[ListSubscriptionsResponse].instance
-  implicit val decoder = exportDecoder[ListSubscriptionsResponse].instance
-}
 
 /**
   * A 'client' represents something which submits work to the exchange
   */
 sealed trait ClientRequest
 
-//
-//case class GetSubmission(id: JobId) extends ClientRequest
-//
-//case class CancelSubmission(id: JobId) extends ClientRequest
-//
-//case class GetMatchedWorkers(id: JobId, blockUntilMatched: Boolean) extends ClientRequest
+sealed trait ClientResponse
+
+
+/**
+  * Queries the exchange for a fiew of the pending jobs and subscriptions
+  *
+  * @param workerSubscriptionMatcher         the same as what a SubmitJob matcher would be, used to match work subscriptions
+  * @param submitJobMatcher                  the same as a subscription matcher would be, used to match submitted job requsts
+  * @param submitJobSubmissionDetailsMatcher also as per a subscription matcher, this time matching the submissionDetails
+  */
+case class QueuedState(workerSubscriptionMatcher: JMatcher = JMatcher.matchAll,
+                       submitJobMatcher: JMatcher = JMatcher.matchAll,
+                       submitJobSubmissionDetailsMatcher: JMatcher = JMatcher.matchAll) extends ClientRequest {
+  def matchesSubscription(aboutMe: Json) = workerSubscriptionMatcher.matches(aboutMe)
+
+  def matchesJob(job: SubmitJob) = {
+    submitJobMatcher.matches(job.job) && submitJobSubmissionDetailsMatcher.matches(job.submissionDetails.aboutMe)
+  }
+}
+
+object QueuedState {
+  implicit val encoder = exportEncoder[QueuedState].instance
+  implicit val decoder = exportDecoder[QueuedState].instance
+
+}
+
+case class QueuedStateResponse(jobs: List[SubmitJob], subscriptions: List[PendingSubscription]) extends ClientResponse {
+  def isEmpty = jobs.isEmpty && subscriptions.isEmpty
+
+  def description = {
+    def fmtJob(job: SubmitJob) = s"${job.job.noSpaces} ;; aboutMe :${job.submissionDetails.aboutMe.noSpaces}"
+
+    def fmtSubscription(subscription: PendingSubscription) = s"${subscription.key} w/ ${subscription.requested} requested: ${subscription.subscription.details.aboutMe.noSpaces}"
+
+    s"""QUEUE {
+       |  ${jobs.size} Jobs {
+       |${jobs.map(fmtJob).mkString("\t\t", "\n\t\t", "")}
+       |  }
+       |  ${subscriptions.size} Subscriptions {
+       |${subscriptions.map(fmtSubscription).mkString("\t\t", "\n\t\t", "")}
+       |  }
+       |}
+       |""".stripMargin
+  }
+}
+
+object QueuedStateResponse {
+  implicit val encoder = exportEncoder[QueuedStateResponse].instance
+  implicit val decoder = exportDecoder[QueuedStateResponse].instance
+}
+
+
+case class PendingSubscription(key: SubscriptionKey, subscription: WorkSubscription, requested: Int)
 
 /**
   * Represents anything which can be run as a job
@@ -114,8 +118,6 @@ object SubmitJob {
   }
 }
 
-sealed trait ClientResponse
-
 case class SubmitJobResponse(id: JobId) extends ClientResponse
 
 object SubmitJobResponse {
@@ -134,12 +136,19 @@ object BlockingSubmitJobResponse {
   implicit val decoder = exportDecoder[BlockingSubmitJobResponse].instance
 }
 
-//case class GetSubmissionResponse(id: JobId, job: Option[SubmitJob]) extends ClientResponse
-//
-//case class CancelSubmissionResponse(id: JobId, cancelled: Boolean) extends ClientResponse
-//
-//case class GetMatchedWorkersResponse(id: JobId, workers: List[WorkerDetails]) extends ClientResponse
 
+case class CancelJobs(ids: Set[JobId]) extends ClientRequest
+
+object CancelJobs {
+  implicit val encoder = exportEncoder[CancelJobs].instance
+  implicit val decoder = exportDecoder[CancelJobs].instance
+}
+
+case class CancelJobsResponse(canceledJobs: Map[JobId, Boolean]) extends ClientResponse
+
+case class CancelSubscriptions(ids: Set[SubscriptionKey]) extends ClientRequest
+
+case class CancelSubscriptionsResponse(canceledSubscriptions: Map[SubscriptionKey, Boolean]) extends ClientResponse
 
 sealed trait SubscriptionRequest
 
@@ -171,13 +180,16 @@ case class WorkSubscription(details: WorkerDetails = WorkerDetails(),
     * @return a subscription with the matcher replaces
     */
   def matchingJob(matcher: JMatcher) = copy(jobMatcher = matcher)
+
   def matchingSubmission(matcher: JMatcher) = copy(submissionMatcher = matcher)
 
   def withData[T: Encoder](data: T, name: String = null) = withDetails(_.withData(data, name))
-  def withPath(path : String): WorkSubscription = withDetails(_.withPath(path))
-  def withSubscriptionKey(path : String) = withDetails(_.withSubscriptionKey(path))
 
-  def withDetails(f : WorkerDetails => WorkerDetails) = {
+  def withPath(path: String): WorkSubscription = withDetails(_.withPath(path))
+
+  def withSubscriptionKey(path: String) = withDetails(_.withSubscriptionKey(path))
+
+  def withDetails(f: WorkerDetails => WorkerDetails) = {
     copy(details = f(details))
   }
 

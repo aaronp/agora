@@ -7,7 +7,7 @@ import com.typesafe.scalalogging.StrictLogging
 
 import scala.util.{Failure, Success}
 
-class AkkaImplicits(actorSystemName: String) extends StrictLogging {
+class AkkaImplicits(val actorSystemName: String) extends StrictLogging {
   logger.debug(s"Creating actor system $actorSystemName")
   implicit val system = {
     val sys = ActorSystem(actorSystemName)
@@ -20,5 +20,5 @@ class AkkaImplicits(actorSystemName: String) extends StrictLogging {
   }
   implicit val materializer = ActorMaterializer()
   implicit val executionContext = system.dispatcher
-  implicit val http = Http()
+  val http = Http()
 }

@@ -65,8 +65,7 @@ case class RaftTestState(nodes: List[TestNode],
   extends Matchers
     with AppendedClues {
   def onClientRequest(nodeId: String, input: String): RaftTestState = {
-
-    this
+    ??? // TODO
   }
 
 

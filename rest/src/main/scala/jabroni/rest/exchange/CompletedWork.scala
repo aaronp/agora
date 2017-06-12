@@ -7,9 +7,8 @@ import akka.util.ByteString
 import io.circe.{Json, ParsingFailure}
 import jabroni.api.worker.WorkerRedirectCoords
 
-import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, Future}
 
 /**
   * This represents the result of some client having submitting some work to the exchange,

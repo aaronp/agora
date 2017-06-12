@@ -6,8 +6,6 @@ import jabroni.api.`match`.MatchDetails._
 
 object MatchDetailsExtractor {
 
-  import CommonRequestBuilding._
-
   def headersFor(matchDetails: MatchDetails): List[HttpHeader] = {
     import implicits._
     List(

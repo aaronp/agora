@@ -19,22 +19,18 @@ abstract class BaseIntegrationTest extends BaseSpec with BeforeAndAfterAll with 
   implicit val ec = mat.executionContext
   private val exchangePort = portCounter.incrementAndGet()
   private val workerPort = portCounter.incrementAndGet()
-  val workerConfig = WorkerConfig(s"port=${workerPort}", s"exchange.port=${exchangePort}")
+  var workerConfig : WorkerConfig = null
   lazy val exchangeConfig = ExchangeConfig(s"port=${exchangePort}")
   var exchangeService: RunningService[ExchangeConfig, ExchangeRoutes] = null
   var exchangeClient: ExchangeClient = null
   var worker: RunningWorker = null
 
-  override def beforeAll = {
-    super.beforeAll()
-//    startAll
-  }
-
   before(startAll)
   after(stopAll)
 
   def startAll = {
-    exchangeService = exchangeConfig.start.futureValue
+    workerConfig = WorkerConfig(s"port=${workerPort}", s"exchange.port=${exchangePort}")
+    exchangeService = exchangeConfig.start().futureValue
     exchangeClient = workerConfig.exchangeClient
     worker = workerConfig.startWorker().futureValue
   }
@@ -43,11 +39,6 @@ abstract class BaseIntegrationTest extends BaseSpec with BeforeAndAfterAll with 
     exchangeService.close()
     exchangeClient.close()
     worker.close()
-  }
-
-  override def afterAll = {
-    super.afterAll()
-//    stopAll
   }
 }
 

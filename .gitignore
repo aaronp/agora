@@ -1,4 +1,5 @@
 target
+package-lock.json
 my.upload
 uploads
 *.gz

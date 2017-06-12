@@ -20,15 +20,20 @@ import scala.language.reflectiveCalls
   */
 class ExchangeRoutesTest extends BaseRoutesSpec {
 
-//  implicit val timeout: Duration = 15.seconds
 
-  def routes(): Route = {
-    ExchangeRoutes().routes
+  def routes(obs: MatchObserver = MatchObserver()): Route = {
+    exchangeRoutes(obs).routes
+  }
+
+  def exchangeRoutes(obs: MatchObserver) = {
+    val exchange = Exchange(obs)
+    ExchangeRoutes(new ServerSideExchange(exchange, obs))
   }
 
   "PUT /rest/exchange/submit" should {
     "submit jobs" in {
-      ExchangeHttp(123.asJob().withAwaitMatch(false)) ~> routes() ~> check {
+      val obs = MatchObserver()
+      ExchangeHttp(123.asJob().withAwaitMatch(false)) ~> routes(obs) ~> check {
         val resp = responseAs[SubmitJobResponse]
         resp.id should not be (null)
       }
@@ -44,14 +49,17 @@ class ExchangeRoutesTest extends BaseRoutesSpec {
   }
   "POST /rest/exchange/take" should {
     "take work for a subscription" in {
-      val route = ExchangeRoutes()
+
+      val obs = MatchObserver()
+
+      val route = exchangeRoutes(obs)
 
       var subscription: SubscriptionKey = null
 
       val job = 123.asJob(SubmissionDetails(awaitMatch = true)).withId(nextJobId())
       val expectedId = job.jobId.get
 
-      val matchFuture: Future[BlockingSubmitJobResponse] = route.observer.onJob(job)
+      val matchFuture: Future[BlockingSubmitJobResponse] = obs.onJob(job)
 
       // subscribe to work
       val ws = WorkSubscription().withSubscriptionKey("i'll tell you the key, thank you very much!")

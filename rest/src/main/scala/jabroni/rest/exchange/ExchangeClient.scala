@@ -1,19 +1,15 @@
 package jabroni.rest.exchange
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.marshalling.ToEntityMarshaller
-import akka.stream.Materializer
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
-import io.circe.Json
 import jabroni.api.`match`.MatchDetails
 import jabroni.api.exchange._
 import jabroni.api.worker.{HostLocation, WorkerDetails}
-import jabroni.rest.client.RestClient
+import jabroni.rest.client.{RestClient, RetryClient}
+import jabroni.rest.exchange.ExchangeClient._
 import jabroni.rest.worker.WorkerClient
 
 import scala.concurrent.Future
-
 
 /**
   * Represents a something that will request work and get a response.
@@ -25,69 +21,95 @@ import scala.concurrent.Future
   * a large upload or summat) to that worker.
   *
   * @param rest
-  * @param actorSystem
-  * @param mat
   */
-class ExchangeClient(val rest: RestClient)(implicit val actorSystem: ActorSystem, mat: Materializer)
+class ExchangeClient(val rest: RestClient, mkWorker: HostLocation => Dispatch)
   extends Exchange
-    with QueueObserver
     with RoutingClient
     with FailFastCirceSupport
     with AutoCloseable
     with StrictLogging {
 
-  // exposes our implicit materializer to mixed-in traits and stuff
-  protected def haveAMaterializer = mat
+  import RestClient.implicits._
+
+
+  implicit def execContext = rest.executionContext
+
+  implicit def materializer = rest.materializer
 
   type JobResponse = Future[_ <: ClientResponse]
 
-  type Dispatch = (String, MatchDetails, WorkerDetails) => WorkerClient
-
-  import RestClient.implicits._
-
-  implicit protected def execContext = mat.executionContext
-
-  override def subscribe(request: WorkSubscription) = rest.send(ExchangeHttp(request)).flatMap(_.as[WorkSubscriptionAck])
-
-  override def take(request: RequestWork) = rest.send(ExchangeHttp(request)).flatMap(_.as[RequestWorkAck])
-
-  override def submit(submit: SubmitJob): JobResponse = {
-    enqueueAndDispatch(submit)(_.sendRequest(submit.job))._1
-  }
-
-  private var workerClientByLocation = Map[HostLocation, Dispatch]()
-
-  protected def mkWorker(location: HostLocation): Dispatch = {
-    WorkerClient(location)
-  }
-
-  protected def clientFor(location: HostLocation): Dispatch = {
-    workerClientByLocation.get(location) match {
-      case Some(client) =>
-        logger.debug(s"Reusing cached client at $location")
-        client
-      case None =>
-        val newClient: Dispatch = mkWorker(location)
-        workerClientByLocation = workerClientByLocation.updated(location, newClient)
-        newClient
+  /**
+    * What an odd signature!
+    *
+    * This is to match the 'as' function used to map http responses to some type 'T'.
+    *
+    * in the event of a failure (exception or non-success server response), we can optionally
+    * retry. The 'retry' function is given first so that the second param list matches that
+    * of the 'as' result
+    *
+    * @param retry
+    * @tparam A
+    * @return
+    */
+  protected def retryOnError[A](retry: => Future[A]): HandlerError => Future[A] = {
+    rest match {
+      case client: RetryClient =>
+        handlerErr: HandlerError =>
+          val (bodyOpt, resp, err) = handlerErr
+          client.reset()
+          logger.error(s"Client retrying after getting response w/ '${resp.status}' $err ($bodyOpt). Checking the queue...", err)
+          queueState().flatMap { state =>
+            logger.error(state.description, err)
+            retry
+          }
+      case _ => handlerErr: HandlerError =>
+        val (_, resp, err) = handlerErr
+        logger.error(s"Can't retry w/ $rest client after getting response w/ '${resp.status}' : $err")
+        queueState().foreach { state =>
+          logger.error(state.description, err)
+        }
+        throw err
     }
   }
 
-  override def listJobs(request: QueuedJobs) = {
-    rest.send(ExchangeHttp(request)).flatMap(_.as[QueuedJobsResponse])
+  override def subscribe(request: WorkSubscription): Future[WorkSubscriptionAck] = {
+    rest.send(ExchangeHttp(request)).flatMap { exchangeResp =>
+      exchangeResp.as[WorkSubscriptionAck](retryOnError(subscribe(request)))
+    }
   }
 
-  override def listSubscriptions(request: ListSubscriptions) = {
-    rest.send(ExchangeHttp(request)).flatMap(_.as[ListSubscriptionsResponse])
+  override def take(request: RequestWork): Future[RequestWorkAck] = {
+    rest.send(ExchangeHttp(request)).flatMap(_.as[RequestWorkAck](retryOnError(take(request))))
+  }
+
+  override def submit(submit: SubmitJob) = {
+    enqueueAndDispatch(submit)(_.sendRequest(submit.job))._1
+  }
+
+  protected def clientFor(location: HostLocation): Dispatch = mkWorker(location)
+
+  override def queueState(request: QueuedState = QueuedState()): Future[QueuedStateResponse] = {
+    rest.send(ExchangeHttp(request)).flatMap(_.as[QueuedStateResponse](retryOnError(queueState(request))))
   }
 
   override def close(): Unit = rest.close()
+
+  override def cancelJobs(request: CancelJobs): Future[CancelJobsResponse] = {
+    import io.circe.generic.auto._
+    rest.send(ExchangeHttp(request)).flatMap(_.as[CancelJobsResponse](retryOnError(cancelJobs(request))))
+  }
+
+  override def cancelSubscriptions(request: CancelSubscriptions): Future[CancelSubscriptionsResponse] = {
+    import io.circe.generic.auto._
+    rest.send(ExchangeHttp(request)).flatMap(_.as[CancelSubscriptionsResponse](retryOnError(cancelSubscriptions(request))))
+  }
 }
 
 object ExchangeClient {
-  def apply(rest: RestClient)(implicit sys: ActorSystem, mat: Materializer): ExchangeClient = new ExchangeClient(rest)
 
-  def apply(location: HostLocation)(implicit sys: ActorSystem, mat: Materializer): ExchangeClient = apply(RestClient(location))
+  type Dispatch = (String, MatchDetails, WorkerDetails) => WorkerClient
 
-  def apply(host: String, port: Int)(implicit sys: ActorSystem, mat: Materializer): ExchangeClient = apply(HostLocation(host, port))
+
+  def apply(rest: RestClient)(mkWorker: HostLocation => Dispatch): ExchangeClient = new ExchangeClient(rest, mkWorker)
+
 }

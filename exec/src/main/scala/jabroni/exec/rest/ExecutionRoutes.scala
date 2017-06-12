@@ -15,17 +15,17 @@ import io.circe.generic.auto._
 import io.circe.syntax._
 import jabroni.api._
 import jabroni.domain.io.implicits._
-import jabroni.exec.dao.ExecDao
 import jabroni.exec.log.IterableLogger._
 import jabroni.exec.model.{OperationResult, RunProcess, Upload}
 import jabroni.exec.ws.ExecuteOverWS
 import jabroni.exec.{ExecConfig, ExecutionHandler}
+import jabroni.rest.worker.WorkerRoutes
 
 import scala.concurrent.Future
 
 
 object ExecutionRoutes {
-  def apply(execConfig: ExecConfig, handler: ExecutionHandler) = new ExecutionRoutes(execConfig, handler)
+  def apply(execConfig: ExecConfig) = new ExecutionRoutes(execConfig)
 }
 
 /**
@@ -36,12 +36,12 @@ object ExecutionRoutes {
   *
   * @param execConfig
   */
-class ExecutionRoutes(val execConfig: ExecConfig, handler: ExecutionHandler) extends StrictLogging with FailFastCirceSupport {
+class ExecutionRoutes(val execConfig: ExecConfig) extends StrictLogging with FailFastCirceSupport {
 
   import execConfig._
 
-  def routes: Route = {
-    execConfig.routes ~ jobRoutes
+  def routes(workerRoutes: WorkerRoutes, exchangeRoutes: Option[Route]): Route = {
+    execConfig.routes(workerRoutes, exchangeRoutes) ~ jobRoutes
   }
 
   def jobRoutes = pathPrefix("rest" / "exec") {

@@ -3,15 +3,18 @@ package jabroni.exec
 import java.util.concurrent.TimeUnit
 
 import akka.http.scaladsl.model.Multipart
+import akka.http.scaladsl.server.Route
 import com.typesafe.config.{Config, ConfigFactory}
 import jabroni.api._
 import jabroni.api.`match`.MatchDetails
+import jabroni.api.exchange.MatchObserver
 import jabroni.exec.dao.{ExecDao, UploadDao}
 import jabroni.exec.log._
 import jabroni.exec.model.RunProcess
 import jabroni.exec.rest.ExecutionRoutes
 import jabroni.exec.run.ProcessRunner
-import jabroni.rest.worker.{WorkContext, WorkerConfig}
+import jabroni.rest.exchange.ExchangeRoutes
+import jabroni.rest.worker.{WorkContext, WorkerConfig, WorkerRoutes}
 import jabroni.rest.{RunningService, configForArgs}
 
 import scala.concurrent.duration._
@@ -49,7 +52,7 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
   }
 
   def newRunner(ctxt: WorkContext[Multipart.FormData], jobId: JobId): ProcessRunner = {
-    import implicits._
+    import serverImplicits._
 
     require(system.whenTerminated.isCompleted == false, "Actor system is terminated")
 
@@ -72,18 +75,35 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
     */
   lazy val handler: ExecutionHandler = ExecutionHandler(this)
 
-  protected def executionRoutes = {
-    ExecutionRoutes(this, handler)
-  }
-
   override def landingPage = "ui/run.html"
 
   def start() = {
 
-    // add our 'execute' handler to the worker routes
+    // either attach to or create a new exchange
+    val (exchange, optionalExchangeRoutes) = if (includeExchangeRoutes) {
+      val obs = MatchObserver()
+      val localExchange = exchangeConfig.newExchange(obs)
+      val exRoutes: ExchangeRoutes = exchangeConfig.newExchangeRoutes(localExchange)
+      (localExchange, Option(exRoutes.routes))
+    } else {
+      (exchangeClient, None)
+    }
+
+    // create something to actually process jobs
+    val handler = ExecutionHandler(this)
+
+    // create a worker to subscribe to the exchange
+    val workerRoutes: WorkerRoutes = newWorkerRoutes(exchange)
     workerRoutes.addMultipartHandler(handler.onExecute)(subscription, initialRequest)
 
-    RunningService.start[ExecConfig, ExecutionRoutes](this, executionRoutes.routes, executionRoutes)
+    // finally create the routes for this REST service, which will include:
+    // 1) optionally exchange endpoints if we can act as an exchange
+    // 2) worker routes for handling work rerouted from exchanges to us
+    // 3) our own custom endpoints which will handle direct job submissions
+    val executionRoutes = ExecutionRoutes(this)
+    val restRoutes: Route = executionRoutes.routes(workerRoutes, optionalExchangeRoutes)
+
+    RunningService.start[ExecConfig, ExecutionRoutes](this, restRoutes, executionRoutes)
   }
 
   lazy val logs = PathConfig(execConfig.getConfig("logs").ensuring(!_.isEmpty))
@@ -117,7 +137,6 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
   implicit def uploadTimeout: FiniteDuration = execConfig.getDuration("uploadTimeout", TimeUnit.MILLISECONDS).millis
 
   def remoteRunner(): ProcessRunner with AutoCloseable = {
-    import implicits._
     ProcessRunner(exchangeClient, defaultFrameLength, allowTruncation, replaceWorkOnFailure)
   }
 }

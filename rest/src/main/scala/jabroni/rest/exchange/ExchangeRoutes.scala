@@ -5,13 +5,13 @@ import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.model.{HttpEntity, HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives.{entity, pathPrefix, _}
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.unmarshalling.FromRequestUnmarshaller
+import akka.http.scaladsl.unmarshalling.{FromEntityUnmarshaller, FromRequestUnmarshaller}
 import akka.stream.Materializer
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
+import io.circe.generic.auto.exportEncoder
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder}
 import jabroni.api._
-import jabroni.api.exchange.Exchange._
 import jabroni.api.exchange._
 import jabroni.health.HealthDto
 
@@ -32,54 +32,48 @@ import scala.language.reflectiveCalls
   *
   * @see http://doc.akka.io/docs/akka-stream-and-http-experimental/1.0/scala/http/routing-dsl/index.html
   */
-case class ExchangeRoutes(exchangeForHandler: OnMatch => Exchange with QueueObserver = Exchange.apply(_)())(implicit mat: Materializer)
+case class ExchangeRoutes(exchange: ServerSideExchange)(implicit mat: Materializer)
   extends FailFastCirceSupport
     with RouteLoggingSupport {
 
-  import mat._
+  import mat.executionContext
 
   // allow things to watch for matches
-  val observer: MatchObserver = MatchObserver()
-  lazy val exchange: Exchange with QueueObserver = exchangeForHandler(observer)
+  //  val observer: MatchObserver = MatchObserver()
+  //  lazy val exchange: Exchange = exchangeForHandler(observer)
 
   def routes: Route = {
     //encodeResponse
     val all = pathPrefix("rest" / "exchange") {
       worker.routes ~ submission.routes ~ query.routes ~ health
     }
-    logRoute(all)
+    //logRoute()
+    all
   }
 
   /**
     * Support routes to query the state of the exchange (queues)
     */
   object query {
-    def routes: Route = subscriptions ~ subscriptionsGet ~ jobs ~ jobsGet
+    def routes: Route = queueState ~ subscriptionsGet ~ jobsGet
 
-    def subscriptions = post {
-      (path("subscriptions") & pathEnd) {
-        entity(as[ListSubscriptions]) { request =>
+    def queueState = post {
+      (path("queue") & pathEnd) {
+        entity(as[QueuedState]) { request =>
           complete {
-            exchange.listSubscriptions(request)
+            exchange.queueState(request)
           }
         }
       }
     }
+
+    private implicit def listSubscriptionEncoder: Encoder[List[PendingSubscription]] = exportEncoder[List[PendingSubscription]].instance
 
     def subscriptionsGet = get {
       (path("subscriptions") & pathEnd) {
         complete {
-          exchange.listSubscriptions()
-        }
-      }
-    }
 
-    def jobs = post {
-      (path("jobs") & pathEnd) {
-        entity(as[QueuedJobs]) { request =>
-          complete {
-            exchange.listJobs(request)
-          }
+          exchange.queueState().map(_.subscriptions)
         }
       }
     }
@@ -87,7 +81,7 @@ case class ExchangeRoutes(exchangeForHandler: OnMatch => Exchange with QueueObse
     def jobsGet = get {
       (path("jobs") & pathEnd) {
         complete {
-          exchange.listJobs()
+          exchange.queueState().map(_.jobs)
         }
       }
     }
@@ -97,7 +91,7 @@ case class ExchangeRoutes(exchangeForHandler: OnMatch => Exchange with QueueObse
     * Routes for pushing work (requesting work from) workers
     */
   object submission {
-    def routes: Route = submit
+    def routes: Route = submit ~ cancel
 
     def submit = put {
       (path("submit") & pathEnd) {
@@ -114,14 +108,23 @@ case class ExchangeRoutes(exchangeForHandler: OnMatch => Exchange with QueueObse
       }
     }
 
+    def cancel = delete {
+      (path("jobs") & pathEnd) {
+        entity(as[CancelJobs]) { request =>
+          complete {
+            exchange.cancelJobs(request)
+          }
+        }
+      }
+    }
+
     def submitJobAndAwaitMatch(submitJob: SubmitJob): Future[HttpResponse] = {
       val jobWithId = submitJob.jobId.fold(submitJob.withId(nextJobId()))(_ => submitJob)
-      val matchFuture: Future[BlockingSubmitJobResponse] = observer.onJob(jobWithId)
+      val matchFuture: Future[BlockingSubmitJobResponse] = exchange.observer.onJob(jobWithId)
       exchange.submit(jobWithId).flatMap { _ =>
         matchFuture.map { r: BlockingSubmitJobResponse =>
 
-          // TODO - check if the redirection is to US
-
+          // TODO - check if the redirection is to US, as we can just process it outselves like
           import implicits._
           HttpResponse(
             status = StatusCodes.TemporaryRedirect,
@@ -134,7 +137,8 @@ case class ExchangeRoutes(exchangeForHandler: OnMatch => Exchange with QueueObse
     def submitJobFireAndForget(submitJob: SubmitJob): Future[HttpResponse] = {
       exchange.submit(submitJob).map {
         case r: SubmitJobResponse => HttpResponse(entity = HttpEntity(`application/json`, r.asJson.noSpaces))
-        case _: BlockingSubmitJobResponse => sys.error(s"received a blocking submit response after submitting a 'await match' job $submitJob")
+        case other => sys.error(s"received '${other}' response after submitting a 'await match' job $submitJob")
+
       }
     }
   }
@@ -149,14 +153,29 @@ case class ExchangeRoutes(exchangeForHandler: OnMatch => Exchange with QueueObse
     * subscription routes called from workers requesting work
     */
   object worker {
-    def routes: Route = subscribe ~ takeNext
+    def routes: Route = subscribe ~ takeNext ~ cancel
 
     def subscribe = put {
-      jsonRouteFor[WorkSubscription, WorkSubscriptionAck]("subscribe")(exchange.pull)
+      jsonRouteFor[WorkSubscription, WorkSubscriptionAck]("subscribe")(exchange.onSubscriptionRequest)
     }
 
     def takeNext = post {
-      jsonRouteFor[RequestWork, RequestWorkAck]("take")(exchange.pull)
+      jsonRouteFor[RequestWork, RequestWorkAck]("take")(exchange.onSubscriptionRequest)
+    }
+
+    def cancel = delete {
+      (path("subscriptions") & pathEnd) {
+        import io.circe.generic.auto._
+
+        val dec: Decoder[CancelSubscriptions] = implicitly[Decoder[CancelSubscriptions]]
+        val feu: FromEntityUnmarshaller[CancelSubscriptions] = implicitly[FromEntityUnmarshaller[CancelSubscriptions]]
+        val fru: FromRequestUnmarshaller[CancelSubscriptions] = implicitly[FromRequestUnmarshaller[CancelSubscriptions]]
+        entity(as[CancelSubscriptions](fru)) { request =>
+          complete {
+            exchange.cancelSubscriptions(request)
+          }
+        }
+      }
     }
   }
 

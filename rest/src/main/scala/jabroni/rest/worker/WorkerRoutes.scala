@@ -8,7 +8,7 @@ import akka.http.scaladsl.server.{RequestContext, Route}
 import akka.http.scaladsl.unmarshalling.Unmarshaller
 import akka.stream.Materializer
 import io.circe.Json
-import jabroni.api.exchange.{Exchange, RequestWorkAck, WorkSubscription, WorkSubscriptionAck}
+import jabroni.api.exchange._
 import jabroni.api.worker.SubscriptionKey
 import jabroni.health.HealthDto
 
@@ -16,10 +16,18 @@ import scala.concurrent.Future
 import scala.language.reflectiveCalls
 
 
+object WorkerRoutes {
+  def apply()(implicit mat: Materializer): WorkerRoutes = {
+    implicit val predicate = JobPredicate()
+    val exchange = Exchange(MatchObserver())
+    WorkerRoutes(exchange, WorkSubscription(), 1)
+  }
+}
+
 // see http://doc.akka.io/docs/akka-stream-and-http-experimental/1.0/scala/http/routing-dsl/index.html
-case class WorkerRoutes(exchange: Exchange = Exchange(),
-                        defaultSubscription: WorkSubscription = WorkSubscription(),
-                        defaultInitialRequest: Int = 1)(implicit mat: Materializer)
+case class WorkerRoutes(exchange: Exchange,
+                        defaultSubscription: WorkSubscription,
+                        defaultInitialRequest: Int)(implicit mat: Materializer)
   extends MultipartHandlerSupport {
 
   implicit val ec = mat.executionContext
@@ -123,7 +131,7 @@ case class WorkerRoutes(exchange: Exchange = Exchange(),
       workerByPath.get(path).foreach {
         oldHandler =>
           // we'd have to consider this use case and presumably cancel the old subscription
-          sys.error(s"Replacing handlers isn't supported: $oldHandler")
+          sys.error(s"Attempt to re-register a worker at '$path'. Replacing handlers isn't supported: $oldHandler")
       }
       workerByPath = workerByPath.updated(path, handler)
     }

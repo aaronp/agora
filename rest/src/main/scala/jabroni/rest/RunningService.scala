@@ -22,10 +22,14 @@ case class RunningService[C <: ServerConfig, Service](conf: C, service: Service,
 object RunningService extends LazyLogging {
 
   def start[C <: ServerConfig, T](serverConfig: C, inputRoutes: Route, svc: T): Future[RunningService[C, T]] = {
-    import serverConfig._
-    import serverConfig.implicits._
+    import serverConfig.host
+    import serverConfig.port
+    import serverConfig.launchBrowser
+    import serverConfig.waitOnUserInput
+//    import serverConfig.actorSystemName
+    import serverConfig.serverImplicits._
 
-    logger.debug(s"Starting ${serverConfig.actorSystemName} at http://${host}:${port}")
+    logger.debug(s"Starting ${actorSystemName} at http://${host}:${port}")
 
     val routes = Route.seal(inputRoutes)
     val future: Future[RunningService[C, T]] = http.bindAndHandle(routes, host, port).map { b =>

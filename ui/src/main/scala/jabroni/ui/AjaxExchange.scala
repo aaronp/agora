@@ -17,25 +17,13 @@ class AjaxExchange() extends AjaxClient("/rest/exchange") with Exchange {
 
   import io.circe.syntax._
 
-
   def jobs(subscriptionMatcher: JMatcher): Future[List[SubmitJob]] = {
     Ajax.get(s"$baseUrl/jobs").map(_.jsonAs[List[SubmitJob]])
   }
 
   def subscriptions(jobMatcher: JMatcher): Future[List[PendingSubscription]] = {
-    //    Ajax.post(s"$baseUrl/subscriptions", request.asJson.noSpaces).map(_.jsonAs[ListSubscriptionsResponse])
     Ajax.get(s"$baseUrl/subscriptions").map(_.jsonAs[List[PendingSubscription]])
   }
-
-  // weird .. this breaks scalajs
-  //
-  //  override def listJobs(request: QueuedJobs) : Future[QueuedJobsResponse] = ???
-  //    Ajax.post(s"$baseUrl/jobs", request.asJson.noSpaces).map(_.jsonAs[QueuedJobsResponse])
-  //  }
-  //
-  //  override def listSubscriptions(request: ListSubscriptions): Future[ListSubscriptionsResponse] = ???
-  //    Ajax.post(s"$baseUrl/subscriptions", request.asJson.noSpaces).map(_.jsonAs[ListSubscriptionsResponse])
-  //  }
 
   override def subscribe(request: WorkSubscription) = {
     val json = request.asJson.noSpaces
@@ -50,5 +38,26 @@ class AjaxExchange() extends AjaxClient("/rest/exchange") with Exchange {
   override def submit(req: SubmitJob) = {
     val json = req.asJson.noSpaces
     Ajax.put(s"$baseUrl/submit", json).map(_.jsonAs[SubmitJobResponse])
+  }
+
+  /**
+    * Queue the state of the exchange
+    *
+    * @param request
+    * @return the current queue state
+    */
+  override def queueState(request: QueuedState): Future[QueuedStateResponse] = {
+    val json = request.asJson.noSpaces
+    Ajax.post(s"$baseUrl/queue", json).map(_.jsonAs[QueuedStateResponse])
+  }
+
+  override def cancelJobs(request: CancelJobs): Future[CancelJobsResponse] = {
+    val json = request.asJson.noSpaces
+    Ajax.delete(s"$baseUrl/jobs", json).map(_.jsonAs[CancelJobsResponse])
+  }
+
+  override def cancelSubscriptions(request: CancelSubscriptions): Future[CancelSubscriptionsResponse] = {
+    val json = request.asJson.noSpaces
+    Ajax.delete(s"$baseUrl/subscriptions", json).map(_.jsonAs[CancelSubscriptionsResponse])
   }
 }
