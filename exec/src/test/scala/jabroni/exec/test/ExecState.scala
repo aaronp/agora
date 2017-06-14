@@ -1,5 +1,7 @@
 package jabroni.exec.test
 
+import java.io.Closeable
+
 import jabroni.exec.ExecConfig
 import jabroni.exec.rest.ExecutionRoutes
 import jabroni.exec.run.ProcessRunner
@@ -13,16 +15,25 @@ case class ExecState(
                       resultsByClient: Map[String, ProcessOutput] = Map.empty
                     ) extends BaseSpec {
   def stopClient(nodeId: NodeId) = {
-    val conf = clientsByName(nodeId)._1
-    conf.restClient
+    val (conf, r) = clientsByName(nodeId)
+    r match {
+      case c: Closeable =>
+        println("closing client")
+        c.close()
+      case _ =>
+    }
+    conf.restClient.close
+
     this
   }
 
   def close() = {
     server.foreach(_.close())
-    clientsByName.values.collect {
-      case c: AutoCloseable => c.close()
+    clientsByName.values.foreach {
+      case c: Closeable => c.close()
+      case c =>
     }
+    new ExecState()
   }
 
   def verifyExecResult(expectedOutput: String) = {

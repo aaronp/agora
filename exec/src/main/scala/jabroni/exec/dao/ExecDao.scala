@@ -59,7 +59,7 @@ object ExecDao {
     override def uploadDao(jobId: JobId) = UploadDao(dir.resolve(jobId).mkDir())
 
     def updateMetadata(key: String, value: String, jobId: JobId) = {
-      metadataDir.resolve(key).resolve(value).createIfNotExists().append(jobId)
+      metadataDir.resolve(key).resolve(value).createIfNotExists().append(s"$jobId\n")
     }
 
     def saveMetadata(metadata: Map[String, String], jobId: JobId) = {

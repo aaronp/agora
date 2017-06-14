@@ -14,13 +14,28 @@ import jabroni.rest.multipart.MultipartInfo
 
 import scala.concurrent.Future
 
+/**
+  * One place to stick all the ugly parsing of multipart form submssions from web forms
+  */
 object MultipartExtractor extends LazyLogging {
 
   val jsonKey = RunProcess.FormDataKey
 
+  /**
+    * parses forms put together from ExecuteForm.ameliorateForm. I really need to change that nonce name.
+    *
+    * Expects the command text to be under 'command'
+    *
+    * @param uploadsConfig
+    * @param formData
+    * @param saveUnderDir
+    * @param chunkSize
+    * @param mat
+    * @return
+    */
   def fromUserForm(uploadsConfig: PathConfig,
                    formData: Multipart.FormData,
-                   saveUnderDir: Path,
+                   saveUnderDir: => Path,
                    chunkSize: Int)(implicit mat: Materializer): Future[(RunProcess, List[Upload])] = {
     import jabroni.rest.multipart.MultipartFormImplicits._
 
@@ -77,9 +92,19 @@ object MultipartExtractor extends LazyLogging {
     }
   }
 
+  /**
+    * parse the given form data, writing uploads to the 'saveUnderDir'
+    *
+    * @param uploadsConfig
+    * @param formData
+    * @param saveUnderDir
+    * @param chunkSize
+    * @param mat
+    * @return the RunProcess command to run and any uploads
+    */
   def apply(uploadsConfig: PathConfig,
             formData: Multipart.FormData,
-            saveUnderDir: Path,
+            saveUnderDir: => Path,
             chunkSize: Int)(implicit mat: Materializer): Future[(RunProcess, List[Upload])] = {
 
     import jabroni.rest.multipart.MultipartFormImplicits._

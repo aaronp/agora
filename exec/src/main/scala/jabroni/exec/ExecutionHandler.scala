@@ -61,7 +61,9 @@ object ExecutionHandler {
       import ctxt.requestContext._
       import jabroni.rest.multipart.MultipartFormImplicits._
 
-      val uploadDir = execConfig.uploads.dir(jobId).get
+      def uploadDir = {
+        execConfig.uploads.dir(jobId).getOrElse(sys.error("Invalid configuration - upload dir not set"))
+      }
       val uploadFutures: Future[(RunProcess, List[Upload])] = MultipartExtractor(execConfig.uploads, ctxt.request, uploadDir, execConfig.chunkSize)
 
       def marshalResponse(runProc: RunProcess, uploads: List[Upload]): Future[HttpResponse] = {

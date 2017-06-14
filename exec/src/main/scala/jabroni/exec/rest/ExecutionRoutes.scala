@@ -15,10 +15,10 @@ import io.circe.generic.auto._
 import io.circe.syntax._
 import jabroni.api._
 import jabroni.domain.io.implicits._
+import jabroni.exec.ExecConfig
 import jabroni.exec.log.IterableLogger._
 import jabroni.exec.model.{OperationResult, RunProcess, Upload}
 import jabroni.exec.ws.ExecuteOverWS
-import jabroni.exec.{ExecConfig, ExecutionHandler}
 import jabroni.rest.worker.WorkerRoutes
 
 import scala.concurrent.Future
@@ -45,7 +45,7 @@ class ExecutionRoutes(val execConfig: ExecConfig) extends StrictLogging with Fai
   }
 
   def jobRoutes = pathPrefix("rest" / "exec") {
-    listJobs ~ removeJob ~ jobOutput ~ submitJobFromForm ~ runSavedJob
+    listJobs ~ removeJob ~ jobOutput ~ submitJobFromForm ~ runSavedJob ~ listMetadata
   }
 
   /**
@@ -55,14 +55,13 @@ class ExecutionRoutes(val execConfig: ExecConfig) extends StrictLogging with Fai
     * another to then read the output via web sockets
     */
   def submitJobFromForm: Route = post {
-    // will be POST rest/exec/save
     path("submit") {
       extractRequestContext { reqCtxt =>
         import reqCtxt.{executionContext, materializer}
 
         entity(as[Multipart.FormData]) { (formData: Multipart.FormData) =>
           val jobId = nextJobId()
-          val uploadDir = execConfig.uploads.dir(jobId).get
+          def uploadDir = execConfig.uploads.dir(jobId).get
 
           val uploadFutures: Future[(RunProcess, List[Upload])] = {
             MultipartExtractor.fromUserForm(execConfig.uploads, formData, uploadDir, execConfig.chunkSize)

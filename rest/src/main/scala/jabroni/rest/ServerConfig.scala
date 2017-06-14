@@ -6,7 +6,7 @@ import akka.http.scaladsl.server.Route
 import com.typesafe.config.Config
 import jabroni.api.worker.HostLocation
 import jabroni.domain.RichConfigOps
-import jabroni.rest.client.{RestClient, RetryClient}
+import jabroni.rest.client.{CachedClient, RestClient, RetryClient}
 
 import concurrent.Future
 import concurrent.duration._
@@ -52,13 +52,18 @@ class ServerConfig(val config: Config) extends RichConfigOps {
 
   lazy val serverImplicits = newSystem(s"${actorSystemName}-server")
 
-  def newSystem(name : String = nextActorSystemName) = new AkkaImplicits(name)
+  def newSystem(name: String = nextActorSystemName) = new AkkaImplicits(name)
 
-  lazy val restClient: RestClient = retryClient(location)
+  /** A means of accessing reusable clients. */
+  lazy val clientFor = CachedClient { loc: HostLocation =>
+    retryClient(loc)
+  }
 
-  def retryClient(loc: HostLocation = location): RetryClient = RetryClient(clientFailover.strategy)(() => newRestClient(loc))
+  def restClient: RestClient = clientFor(location)
 
-  def newRestClient(loc: HostLocation): RestClient = {
+  private def retryClient(loc: HostLocation = location): RetryClient = RetryClient(clientFailover.strategy)(() => newRestClient(loc))
+
+  private def newRestClient(loc: HostLocation): RestClient = {
     RestClient(loc, () => (newSystem()).materializer)
   }
 

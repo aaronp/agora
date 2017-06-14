@@ -27,9 +27,9 @@ case class ExchangeTestState(server: Option[RunningExchange] = None,
     exchangeClient match {
       case None =>
         val config: ExchangeConfig = server.get.conf
-        val rest = config.newRestClient(config.location)
+        val rest = config.clientFor(config.location)
         val client = ExchangeClient(rest) { workerLocation =>
-          val rest = config.newRestClient(workerLocation)
+          val rest = config.clientFor(workerLocation)
           WorkerClient(rest)
         }
         copy(exchangeClient = Option(client)).stateWithClient

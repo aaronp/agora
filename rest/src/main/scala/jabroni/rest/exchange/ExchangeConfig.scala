@@ -40,7 +40,7 @@ class ExchangeConfig(c: Config) extends ServerConfig(c) {
 
   def client: ExchangeClient = {
     ExchangeClient(restClient) { (workerLocation: HostLocation) =>
-      val restClient = retryClient(workerLocation)
+      val restClient = clientFor(workerLocation)
       WorkerClient(restClient)
     }
   }

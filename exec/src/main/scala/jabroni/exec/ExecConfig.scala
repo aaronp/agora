@@ -79,6 +79,12 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
 
   def start() = {
 
+    val (executionRoutes, restRoutes) = buildRoutes()
+
+    RunningService.start[ExecConfig, ExecutionRoutes](this, restRoutes, executionRoutes)
+  }
+
+  def buildRoutes(): (ExecutionRoutes, Route) = {
     // either attach to or create a new exchange
     val (exchange, optionalExchangeRoutes) = if (includeExchangeRoutes) {
       val obs = MatchObserver()
@@ -103,7 +109,7 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
     val executionRoutes = ExecutionRoutes(this)
     val restRoutes: Route = executionRoutes.routes(workerRoutes, optionalExchangeRoutes)
 
-    RunningService.start[ExecConfig, ExecutionRoutes](this, restRoutes, executionRoutes)
+    (executionRoutes -> restRoutes)
   }
 
   lazy val logs = PathConfig(execConfig.getConfig("logs").ensuring(!_.isEmpty))

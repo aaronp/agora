@@ -26,8 +26,12 @@ class ExecSteps extends ScalaDsl with EN with Matchers with TestData {
   When("""^we kill the actor system for client (.*)$""") { (nodeId: NodeId) =>
     state = state.stopClient(nodeId)
   }
-  After { scen : Scenario =>
-    state.close()
 
+  Before { scen : Scenario =>
+    state = ExecState()
+  }
+
+  After { scen : Scenario =>
+    state = state.close()
   }
 }

@@ -47,7 +47,7 @@ case class WorkerClient(rest: RestClient,
   def send(req: HttpRequest): Future[HttpResponse] = rest.send(req)
 
   def send(reqBuilder: MultipartBuilder)(implicit timeout: FiniteDuration): Future[HttpResponse] = {
-    reqBuilder.formData.flatMap { (strict: _root_.akka.http.scaladsl.model.Multipart.FormData.Strict) =>
+    reqBuilder.formData.flatMap { (strict: Multipart.FormData.Strict) =>
       send(newMultipartRequest(strict))
     }
   }

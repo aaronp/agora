@@ -21,12 +21,12 @@ import scala.util.control.NonFatal
   */
 class RetryClient(mkClient: () => RestClient, onError: RetryStrategy) extends RestClient with StrictLogging {
 
+  private var clientOpt: Option[RestClient] = None
+  private var crashHistory = new Crashes(Nil)
+
   override def toString = {
     s"RetryClient($onError, client: ${clientOpt})"
   }
-
-  private var clientOpt: Option[RestClient] = None
-  private var crashHistory = new Crashes(Nil)
 
   private object Lock
 
@@ -38,6 +38,7 @@ class RetryClient(mkClient: () => RestClient, onError: RetryStrategy) extends Re
   def client: RestClient = Lock.synchronized {
     clientOpt.getOrElse {
       val c = mkClient()
+      require(c.isInstanceOf[RetryClient] == false, "nested retrying clients found")
       logger.debug(s"Creating a new underlying client $c")
       clientOpt = Option(c)
       c

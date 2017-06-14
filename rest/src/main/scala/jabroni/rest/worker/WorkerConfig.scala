@@ -7,7 +7,8 @@ import com.typesafe.config.{Config, ConfigFactory}
 import io.circe
 import jabroni.api.exchange.{Exchange, MatchObserver, WorkSubscription}
 import jabroni.api.json.JMatcher
-import jabroni.api.worker.WorkerDetails
+import jabroni.api.worker.{HostLocation, WorkerDetails}
+import jabroni.rest.client.CachedClient
 import jabroni.rest.exchange.{ExchangeClient, ExchangeConfig, ExchangeRoutes}
 import jabroni.rest.ui.{SupportRoutes, UIRoutes}
 
@@ -72,10 +73,10 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
   def exchangeClient: ExchangeClient = defaultExchangeClient
 
   protected lazy val defaultExchangeClient: ExchangeClient = {
+
     if (includeExchangeRoutes) {
-      ExchangeClient(restClient) { workerLocation =>
-        val restClient = retryClient(workerLocation)
-        WorkerClient(restClient)
+      ExchangeClient(restClient) { (workerLocation: HostLocation) =>
+        WorkerClient(clientFor(workerLocation))
       }
     } else {
       exchangeConfig.client

@@ -29,7 +29,7 @@ case class RemoteRunner(exchange: ExchangeClient,
   /**
     * We've been notified of a job match and given an worker to execute it
     */
-  protected def dispatchToWorker(worker: WorkerClient, proc: RunProcess, inputFiles: List[Upload]): Future[HttpResponse] = {
+  def dispatchToWorker(worker: WorkerClient, proc: RunProcess, inputFiles: List[Upload]): Future[HttpResponse] = {
     import io.circe.generic.auto._
 
     logger.trace(s"preparing to send ${pprint.stringify(proc)}\nto\n${pprint.stringify(worker)}\nw/ ${inputFiles.size} uploads")
