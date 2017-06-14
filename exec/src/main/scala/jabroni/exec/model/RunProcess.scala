@@ -20,6 +20,10 @@ case class RunProcess(command: List[String],
                       // if we exit w/ a non-success code, then we need to indicate the start of the error response
                       errorMarker: String = RunProcess.DefaultErrorMarker,
                       metadata: Map[String, String] = Map.empty) {
+  def withMetadata(newMetadata: Map[String, String]) = {
+    copy(metadata = newMetadata)
+  }
+
   def addMetadata(first: (String, String), theRest: (String, String)*) = {
     val newMetadata = (first +: theRest).foldLeft(metadata) {
       case (map, (key, value)) => map.updated(key, value)

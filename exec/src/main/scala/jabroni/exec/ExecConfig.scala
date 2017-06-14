@@ -78,7 +78,6 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
   override def landingPage = "ui/run.html"
 
   def start() = {
-
     val (executionRoutes, restRoutes) = buildRoutes()
 
     RunningService.start[ExecConfig, ExecutionRoutes](this, restRoutes, executionRoutes)

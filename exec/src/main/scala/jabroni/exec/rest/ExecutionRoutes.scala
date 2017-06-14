@@ -45,7 +45,7 @@ class ExecutionRoutes(val execConfig: ExecConfig) extends StrictLogging with Fai
   }
 
   def jobRoutes = pathPrefix("rest" / "exec") {
-    listJobs ~ removeJob ~ jobOutput ~ submitJobFromForm ~ runSavedJob ~ listMetadata
+    listJobs ~ removeJob ~ jobOutput ~ submitJobFromForm ~ runSavedJob ~ search
   }
 
   /**
@@ -61,6 +61,7 @@ class ExecutionRoutes(val execConfig: ExecConfig) extends StrictLogging with Fai
 
         entity(as[Multipart.FormData]) { (formData: Multipart.FormData) =>
           val jobId = nextJobId()
+
           def uploadDir = execConfig.uploads.dir(jobId).get
 
           val uploadFutures: Future[(RunProcess, List[Upload])] = {
@@ -110,6 +111,20 @@ class ExecutionRoutes(val execConfig: ExecConfig) extends StrictLogging with Fai
             }
           }
           Json.arr(ids: _*)
+        }
+      }
+    }
+  }
+
+  def search: Route = {
+    get {
+      (path("search") & pathEnd) {
+        parameterMap { params =>
+          complete {
+            execDao.findJobsByMetadata(params).map { ids =>
+              Json.arr(ids.map(Json.fromString).toArray: _*)
+            }
+          }
         }
       }
     }

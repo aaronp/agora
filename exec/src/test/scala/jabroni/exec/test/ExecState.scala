@@ -3,22 +3,55 @@ package jabroni.exec.test
 import java.io.Closeable
 
 import jabroni.exec.ExecConfig
+import jabroni.exec.model.{RunProcess, Upload}
 import jabroni.exec.rest.ExecutionRoutes
-import jabroni.exec.run.ProcessRunner
+import jabroni.exec.run.{ExecClient, ProcessRunner}
 import jabroni.exec.run.ProcessRunner.ProcessOutput
 import jabroni.rest.{BaseSpec, RunningService}
 import miniraft.state.NodeId
 
+
+case class RunJob(client: String, id: String, job: RunProcess, uploads: List[Upload], result: ProcessOutput)
+
 case class ExecState(
                       server: Option[RunningService[ExecConfig, ExecutionRoutes]] = None,
                       clientsByName: Map[String, (ExecConfig, ProcessRunner)] = Map.empty,
-                      resultsByClient: Map[String, ProcessOutput] = Map.empty
+                      resultsByClient: Map[String, ProcessOutput] = Map.empty,
+                      jobs: List[RunJob] = Nil,
+                      latestSearch: Option[(String, String)] = None
                     ) extends BaseSpec {
+  def verifyListingMetadata(expected: Map[String, List[String]]): ExecState = {
+    execClient.listMetadata.futureValue shouldBe expected
+    this
+  }
+
+  def execClient = {
+    val (conf, _) = clientsByName.values.head
+    ExecClient(conf.restClient)
+  }
+
+  def verifySearch(expectedResults: Set[String]) = {
+    val found = execClient.findJobByMetadata(latestSearch.toMap.ensuring(_.nonEmpty)).futureValue
+    found shouldBe expectedResults
+    copy(latestSearch = None)
+  }
+
+  def searchMetadata(key: String, value: String): ExecState = {
+    latestSearch shouldBe empty
+    copy(latestSearch = Option(key -> value))
+  }
+
+  def executeRunProcess(clientId: String, jobId: String, proc: RunProcess, uploads: List[Upload]): ExecState = {
+    val (_, runner) = clientsByName(clientId)
+    val result: ProcessOutput = runner.run(proc, uploads)
+    val runJob = RunJob(clientId, jobId, proc, uploads, result)
+    copy(jobs = runJob :: jobs)
+  }
+
   def stopClient(nodeId: NodeId) = {
     val (conf, r) = clientsByName(nodeId)
     r match {
       case c: Closeable =>
-        println("closing client")
         c.close()
       case _ =>
     }
