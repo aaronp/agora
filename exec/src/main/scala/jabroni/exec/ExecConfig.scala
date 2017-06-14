@@ -75,6 +75,8 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
     */
   lazy val handler: ExecutionHandler = ExecutionHandler(this)
 
+  def writeDownRequests = config.getBoolean("writeDownRequests")
+
   override def landingPage = "ui/run.html"
 
   def start() = {
@@ -117,7 +119,7 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
 
   def uploadsDir = uploads.path.getOrElse(sys.error("Invalid configuration - no uploads directory set"))
 
-  def execDao = ExecDao(uploadsDir)
+  def execDao = ExecDao(uploadsDir)(serverImplicits.executionContext)
 
   lazy val workingDirectory = PathConfig(execConfig.getConfig("workingDirectory").ensuring(!_.isEmpty))
 

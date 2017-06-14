@@ -5,6 +5,8 @@ import akka.util.ByteString
 import jabroni.exec.model.{RunProcess, Upload}
 import jabroni.rest.{BaseSpec, HasMaterializer}
 
+import scala.concurrent.ExecutionContext
+
 class ExecDaoTest extends BaseSpec with HasMaterializer {
 
   "ExecDao.get" should {
@@ -12,7 +14,7 @@ class ExecDaoTest extends BaseSpec with HasMaterializer {
       withDir { daoDir =>
         withDir { inputDir =>
 
-          val dao = ExecDao(daoDir)
+          val dao = ExecDao(daoDir)(ExecutionContext.Implicits.global)
           val expected = RunProcess("foo")
           val meh = Upload(inputDir.resolve("meh").text = "i am an upload")
           val foo = Upload(inputDir.resolve("meh_too").text = "so am I")
@@ -28,7 +30,8 @@ class ExecDaoTest extends BaseSpec with HasMaterializer {
           rp shouldBe expected
           uploads.map(_.name) should contain only("meh", "meh_too")
 
-          def read(s : Source[ByteString, Any]) = s.runWith(Sink.head).futureValue.utf8String
+          def read(s: Source[ByteString, Any]) = s.runWith(Sink.head).futureValue.utf8String
+
           uploads.map(_.source).map(read) should contain only("i am an upload", "so am I")
         }
       }

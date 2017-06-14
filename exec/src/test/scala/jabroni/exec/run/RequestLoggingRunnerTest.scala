@@ -11,7 +11,7 @@ class RequestLoggingRunnerTest extends BaseSpec with HasMaterializer {
       withDir { dir =>
         withDir { localDir =>
 
-          val dao = ExecDao(dir)
+          val dao = ExecDao(dir)(materializer.executionContext)
           val rlr = new RequestLoggingRunner(LocalRunner(UploadDao(localDir)), dao)
 
           val input: Upload = Upload.forText("input", "some\ninput\ndata")

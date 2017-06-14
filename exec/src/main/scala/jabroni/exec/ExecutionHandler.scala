@@ -64,7 +64,15 @@ object ExecutionHandler {
       def uploadDir = {
         execConfig.uploads.dir(jobId).getOrElse(sys.error("Invalid configuration - upload dir not set"))
       }
+
       val uploadFutures: Future[(RunProcess, List[Upload])] = MultipartExtractor(execConfig.uploads, ctxt.request, uploadDir, execConfig.chunkSize)
+
+
+      if (execConfig.writeDownRequests) {
+        uploadFutures.onSuccess {
+          case (runProcess, uploads) => execConfig.execDao.save(jobId, runProcess, uploads)
+        }
+      }
 
       def marshalResponse(runProc: RunProcess, uploads: List[Upload]): Future[HttpResponse] = {
         def run = {

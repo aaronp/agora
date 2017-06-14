@@ -1,8 +1,7 @@
 package jabroni.exec.run
 
 import akka.http.scaladsl.client.RequestBuilding
-import akka.http.scaladsl.model.HttpHeader
-import akka.http.scaladsl.model.HttpHeader.ParsingResult
+import akka.http.scaladsl.model.Uri.Query
 import jabroni.api.JobId
 import jabroni.rest.client.RestClient
 
@@ -10,16 +9,8 @@ import scala.concurrent.Future
 
 object ExecClient extends RequestBuilding {
   def asRequest(metadata: Map[String, String]) = {
-
-    val headers = metadata.map {
-      case (key, value) =>
-        HttpHeader.parse(key, value) match {
-          case ParsingResult.Ok(h, _) => h
-          case result => sys.error(s"Invalid header for $key: '${value}' : ${result.errors.mkString(",")}")
-        }
-
-    }
-    Get("/rest/exec/search").withHeaders(headers.toList)
+    val get = Get(s"/rest/exec/search")
+    Get(get.uri.withQuery(Query(metadata)))
   }
 
   def listMetadataRequest = Get("/rest/exec/metadata")
@@ -28,6 +19,7 @@ object ExecClient extends RequestBuilding {
 case class ExecClient(restClient: RestClient) {
 
   import RestClient.implicits._
+  import restClient._
 
   def listMetadata(): Future[Map[String, List[String]]] = {
     restClient.send(ExecClient.listMetadataRequest).flatMap(_.as[Map[String, List[String]]]())

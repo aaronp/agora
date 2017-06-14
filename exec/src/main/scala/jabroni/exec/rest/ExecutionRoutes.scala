@@ -6,7 +6,7 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.ws.UpgradeToWebSocket
 import akka.http.scaladsl.server.Directives.{entity, path, _}
 import akka.http.scaladsl.server.Route
-import akka.stream.scaladsl.Source
+import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
@@ -45,7 +45,7 @@ class ExecutionRoutes(val execConfig: ExecConfig) extends StrictLogging with Fai
   }
 
   def jobRoutes = pathPrefix("rest" / "exec") {
-    listJobs ~ removeJob ~ jobOutput ~ submitJobFromForm ~ runSavedJob ~ search
+    listJobs ~ removeJob ~ jobOutput ~ submitJobFromForm ~ runSavedJob ~ search ~ listMetadata ~ getJob
   }
 
   /**
@@ -69,8 +69,7 @@ class ExecutionRoutes(val execConfig: ExecConfig) extends StrictLogging with Fai
           }
           val savedIdFuture = uploadFutures.map {
             case (runProcess, uploads) =>
-              val dao = execConfig.execDao
-              dao.save(jobId, runProcess, uploads)
+              execConfig.execDao.save(jobId, runProcess, uploads)
               Json.obj("jobId" -> Json.fromString(jobId))
           }
 
@@ -116,13 +115,31 @@ class ExecutionRoutes(val execConfig: ExecConfig) extends StrictLogging with Fai
     }
   }
 
+  def listMetadata: Route = {
+    get {
+      (path("metadata") & pathEnd) {
+        complete {
+          import serverImplicits._
+          execDao.listMetadata.map { map =>
+            import io.circe.syntax._
+
+            map.asJson
+          }
+        }
+      }
+    }
+  }
+
   def search: Route = {
     get {
       (path("search") & pathEnd) {
-        parameterMap { params =>
+        parameterMap { allParams =>
           complete {
-            execDao.findJobsByMetadata(params).map { ids =>
-              Json.arr(ids.map(Json.fromString).toArray: _*)
+            import serverImplicits._
+            execDao.findJobsByMetadata(allParams).map { ids =>
+              import io.circe.generic.auto._
+
+              ids.asJson
             }
           }
         }
@@ -139,6 +156,44 @@ class ExecutionRoutes(val execConfig: ExecConfig) extends StrictLogging with Fai
         complete {
           val json = onRemoveJob(jobId).asJson.noSpaces
           HttpResponse(entity = HttpEntity(`application/json`, json))
+        }
+      }
+    }
+  }
+
+  /**
+    * remove the output for a job
+    */
+  def getJob = {
+    get {
+      (path("job") & parameters('id.as[String])) { jobId =>
+        extractRequestContext { ctxt =>
+          import ctxt.materializer
+          import ctxt.executionContext
+
+          complete {
+            execDao.get(jobId).flatMap {
+              case (runProcess, uploads) =>
+                val j = runProcess.asJson
+
+                if (uploads.isEmpty) {
+                  val respJson = Json.obj("runProcess" -> j, "uploadCount" -> Json.fromInt(uploads.size))
+                  Future.successful(respJson)
+                } else {
+                  val futures: List[Future[(String, Json)]] = uploads.map { upload =>
+                    upload.source.reduce(_ ++ _).runWith(Sink.head).map { bytes =>
+                      upload.name -> Json.fromString(bytes.utf8String)
+                    }
+                  }
+                  Future.sequence(futures).map { pairs =>
+                    val jsonMap = List(
+                      "runProcess" -> j,
+                      "uploadCount" -> Json.fromInt(uploads.size)) ++ pairs
+                    Json.obj(jsonMap: _*)
+                  }
+                }
+            }
+          }
         }
       }
     }

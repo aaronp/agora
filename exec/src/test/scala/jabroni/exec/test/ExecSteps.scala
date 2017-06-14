@@ -32,7 +32,8 @@ class ExecSteps extends ScalaDsl with EN with Matchers with TestData {
     val tags = tagTable.toMap.map { row =>
       row("key") -> row("value")
     }
-    val job = RunProcess(command).withMetadata(tags.toMap)
+    val commands: List[String] = command.split(" ", -1).toList
+    val job = RunProcess(commands).withMetadata(tags.toMap)
     state = state.executeRunProcess(clientId, jobId, job, Nil)
   }
   When("""^We search jobs with metadata for '(.*)' = '(.*)'$""") { (key: String, value: String) =>

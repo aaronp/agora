@@ -44,7 +44,7 @@ Feature: Executor Client
       | key    | value     |
       | foo    | different |
       | common | 123       |
-    Then the response text should be testing tags
+    Then the response text should be another job
     When We search jobs with metadata for 'foo' = 'bizz'
     Then no job ids should be returned
     When We search jobs with metadata for 'foo' = 'bar'

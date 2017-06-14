@@ -9,17 +9,14 @@ import jabroni.exec.run.{ExecClient, ProcessRunner}
 import jabroni.exec.run.ProcessRunner.ProcessOutput
 import jabroni.rest.{BaseSpec, RunningService}
 import miniraft.state.NodeId
+import org.scalatest.concurrent.Eventually
 
 
-case class RunJob(client: String, id: String, job: RunProcess, uploads: List[Upload], result: ProcessOutput)
-
-case class ExecState(
-                      server: Option[RunningService[ExecConfig, ExecutionRoutes]] = None,
-                      clientsByName: Map[String, (ExecConfig, ProcessRunner)] = Map.empty,
-                      resultsByClient: Map[String, ProcessOutput] = Map.empty,
-                      jobs: List[RunJob] = Nil,
-                      latestSearch: Option[(String, String)] = None
-                    ) extends BaseSpec {
+case class ExecState(server: Option[RunningService[ExecConfig, ExecutionRoutes]] = None,
+                     clientsByName: Map[String, (ExecConfig, ProcessRunner)] = Map.empty,
+                     resultsByClient: Map[String, ProcessOutput] = Map.empty,
+                     latestSearch: Option[(String, String)] = None
+                    ) extends BaseSpec with Eventually {
   def verifyListingMetadata(expected: Map[String, List[String]]): ExecState = {
     execClient.listMetadata.futureValue shouldBe expected
     this
@@ -31,8 +28,10 @@ case class ExecState(
   }
 
   def verifySearch(expectedResults: Set[String]) = {
-    val found = execClient.findJobByMetadata(latestSearch.toMap.ensuring(_.nonEmpty)).futureValue
-    found shouldBe expectedResults
+    eventually {
+      val found = execClient.findJobByMetadata(latestSearch.toMap.ensuring(_.nonEmpty)).futureValue
+      found shouldBe expectedResults
+    }
     copy(latestSearch = None)
   }
 
@@ -41,11 +40,13 @@ case class ExecState(
     copy(latestSearch = Option(key -> value))
   }
 
-  def executeRunProcess(clientId: String, jobId: String, proc: RunProcess, uploads: List[Upload]): ExecState = {
-    val (_, runner) = clientsByName(clientId)
-    val result: ProcessOutput = runner.run(proc, uploads)
-    val runJob = RunJob(clientId, jobId, proc, uploads, result)
-    copy(jobs = runJob :: jobs)
+  def executeRunProcess(clientName: String, jobId: String, proc: RunProcess, uploads: List[Upload]): ExecState = {
+
+    resultsByClient.contains(clientName) shouldBe false
+
+    val client = clientsByName(clientName)._2
+    val future: ProcessOutput = client.run(proc, uploads)
+    copy(resultsByClient = resultsByClient.updated(clientName, future))
   }
 
   def stopClient(nodeId: NodeId) = {
@@ -82,15 +83,8 @@ case class ExecState(
   }
 
   def execute(clientName: String, command: String) = {
-    resultsByClient.contains(clientName) shouldBe false
-
-    val client = clientsByName(clientName)._2
     val commands: List[String] = command.split(" ", -1).toList
-    val future: ProcessOutput = commands match {
-      case Nil => client.run("")
-      case head :: tail => client.run(head, tail: _*)
-    }
-    copy(resultsByClient = resultsByClient.updated(clientName, future))
+    executeRunProcess(clientName, "unspecified job id", RunProcess(commands), Nil)
   }
 
   def connectClient(name: String, port: Int) = {
