@@ -1,13 +1,13 @@
 enablePlugins(CucumberPlugin)
 
-name := "jabroni-rest"
+name := "agora-rest"
 
-mainClass in(Compile, run) := Some("jabroni.rest.exchange.ExchangeMain")
+mainClass in(Compile, run) := Some("agora.rest.exchange.ExchangeMain")
 
-CucumberPlugin.glue := "classpath:jabroni.rest.test"
+CucumberPlugin.glue := "classpath:agora.rest.test"
 
-CucumberPlugin.features := List("classpath:jabroni.rest.test",
-  "rest/src/test/resources/jabroni/rest/test")
+CucumberPlugin.features := List("classpath:agora.rest.test",
+  "rest/src/test/resources/agora/rest/test")
 
 ///import scoverage.ScoverageKeys.{coverageFailOnMinimum, coverageMinimum}
 coverageMinimum := 80

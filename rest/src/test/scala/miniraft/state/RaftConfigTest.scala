@@ -1,12 +1,38 @@
 package miniraft.state
 
-import jabroni.rest.BaseSpec
+import agora.api.worker.HostLocation
+import agora.rest.BaseSpec
+import org.scalatest.concurrent.Eventually
 
-class RaftConfigTest extends BaseSpec {
+import concurrent.duration._
 
-  "RaftConfig" should {
-    "parse" in {
+class RaftConfigTest extends BaseSpec with Eventually {
 
+  "RaftConfig.apply" should {
+    "parse from command-line strings" in {
+      val conf = RaftConfig("election.min=123ms")
+      conf.election.min shouldBe 123.millis
+    }
+  }
+  "RaftConfig.seedNodes" should {
+    "be a list of host locations" in {
+      RaftConfig.load().seedNodeLocations shouldBe List(HostLocation("localhost", 1234))
+    }
+  }
+  "RaftConfig.election.timer" should {
+    "invoke the given function on timeout" in {
+      val c: RaftConfig = RaftConfig("election.min=10ms", "election.max=50ms")
+      c.election.min shouldBe 10.millis
+      c.election.max shouldBe 50.millis
+      var called = 0
+      val eTimer = c.election.timer
+      eTimer.initialise { t =>
+        called = called + 1
+      }
+      eTimer.reset(None)
+      eventually {
+        called shouldBe 1
+      }
     }
   }
 }

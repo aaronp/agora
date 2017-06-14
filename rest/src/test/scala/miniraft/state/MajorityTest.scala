@@ -1,6 +1,6 @@
 package miniraft.state
 
-import jabroni.rest.BaseSpec
+import agora.rest.BaseSpec
 
 class MajorityTest extends BaseSpec {
 

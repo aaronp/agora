@@ -1,6 +1,6 @@
 language: scala
 scala:
-   - 2.11.8
+   - 2.11.11
 script:
   - sbt test
 jdk:
@@ -11,3 +11,9 @@ install:
   - nvm use stable
   - npm install
   - npm install jsdom
+cache:
+  directories:
+    - node_modules
+    - $HOME/.sbt
+    - $HOME/.ivy2
+    - $HOME/.coursier

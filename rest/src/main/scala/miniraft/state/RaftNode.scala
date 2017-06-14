@@ -1,239 +1,225 @@
 package miniraft.state
 
-import java.nio.file.Path
+import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
+import com.typesafe.scalalogging.StrictLogging
+import miniraft.state.rest.NodeStateSummary
+import miniraft.{UpdateResponse, _}
 
-import miniraft.state.Log.Formatter
+import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.reflect.ClassTag
 
-import scala.concurrent.Future
+/** A RaftNode encapsulates (or should encapsulate) _any_ raft implementation.
+  *
+  * The [[RaftEndpoint]] is the API representation for things which want to send
+  * raft messages to a node, but a 'RaftNode' can also accept reply messages
+  *
+  * @tparam T
+  */
+trait RaftNode[T] extends RaftEndpoint[T] {
 
+  /**
+    * Send the given response message to the node
+    *
+    * @param from     the raft node the message is being sent from -- i.e. the receiver of the request, but originator of the response
+    * @param response the response, presumably in reaction to a request
+    */
+  def onResponse(from: NodeId, response: RaftResponse)
 
-object RaftNode {
-  def apply[T](id: NodeId, workingDir: Path)(implicit fmt: Formatter[T, Array[Byte]]) = {
-    val ps = PersistentState[T](workingDir)
-    new RaftNode[T](id, RaftState[T](ps))
-  }
-
-  def apply[T](id: NodeId, initialState: RaftState[T]) = {
-    new RaftNode[T](id, initialState)
-  }
 }
 
-class RaftNode[T](val id: NodeId, initialState: RaftState[T]) {
+object RaftNode {
 
-  private class AsEndpoint(cluster: ClusterProtocol) extends RaftEndpoint[T] {
-
-    override def onVote(vote: RequestVote) = Future.successful(onVoteRequest(vote, cluster))
-
-    override def onAppend(append: AppendEntries[T]) = Future.successful(onAppendEntries(append, cluster))
+  def apply[T: ClassTag](logic: RaftNodeLogic[T], protocol: ClusterProtocol)(implicit factory: ActorRefFactory): async.RaftNodeActorClient[T] = {
+    val nodeProps = async.nodeProps[T](logic, protocol)
+    val actor     = factory.actorOf(nodeProps)
+    async[T](actor)
   }
 
-  def endpoint(cluster: ClusterProtocol): RaftEndpoint[T] = new AsEndpoint(cluster)
-
-  private var node: RaftState[T] = initialState
-
-  def raftNode = node
-
-  def leaderId = raftNode.persistentState.votedFor
-
-  private def raftNode_=(newNode: RaftState[T]) = {
-    node = newNode
-  }
-
-  def leaderState = raftNode.role match {
-    case Leader(view) => Option(view)
-    case _ => None
-  }
-
-
-  def onElectionTimeout(cluster: ClusterProtocol): Unit = {
-    raftNode = node.becomeCandidate(cluster.clusterSize, id)
-    cluster.tellOthers(mkRequestVote)
-    cluster.electionTimer.reset()
-  }
-
-  def mkRequestVote() = {
-    RequestVote(currentTerm, id, lastCommittedIndex, lastLogTerm)
-  }
-
-  def currentTerm = raftNode.currentTerm
-
-  def lastCommittedIndex: LogIndex = raftNode.lastCommittedIndex
-
-  def lastUnappliedIndex: LogIndex = raftNode.lastUnappliedIndex
-
-  def lastLogTerm = raftNode.lastLogTerm
-
-  def onVoteRequest(vote: RequestVote, cluster: ClusterProtocol): RequestVoteResponse = {
-
-    val granted = {
-      val termOk = currentTerm <= vote.term
-
-
-      val indexOk = vote.lastLogIndex >= lastCommittedIndex && vote.lastLogTerm >= lastLogTerm
-
-      val weHaventVotedForAnyoneElseThisTerm = {
-        val voteOk = raftNode.persistentState.votedFor.fold(true) { otherId =>
-          otherId == vote.candidateId
-        }
-        voteOk || currentTerm < vote.term
-      }
-
-      termOk && indexOk && weHaventVotedForAnyoneElseThisTerm
-    }
-
-    if (granted) {
-      val newNode = raftNode.voteFor(vote.term, vote.candidateId)
-      raftNode = newNode
-      cluster.electionTimer.reset()
-    }
-
-    RequestVoteResponse(currentTerm, granted)
-  }
-
-
-  def onLeaderHeartbeatTimeout(cluster: ClusterProtocol) = {
-    leaderState.foreach {
-      _ =>
-        val heartbeat = mkAppendEntries(lastCommittedIndex, Nil)
-        cluster.tellOthers(heartbeat)
-        cluster.heartbeatTimer.reset()
-    }
-  }
-
-  def onAppendEntries(ae: AppendEntries[T], cluster: ClusterProtocol): AppendEntriesResponse = {
-    val (newState, reply) = raftNode.append(ae)
-    cluster.electionTimer.reset()
-    raftNode = newState
-    reply
-  }
-
-  final def onRequest(req: RaftRequest, cluster: ClusterProtocol): RaftResponse = req match {
-    case vote: RequestVote => onVoteRequest(vote, cluster)
-    case ae: AppendEntries[T] => onAppendEntries(ae, cluster)
-  }
-
-  private def commitLogOnMajority(ourLatestIndex: LogIndex, newView: Map[NodeId, ClusterPeer], clusterSize: Int) = {
-    val nodesWithMatchIndex = newView.values.map(_.matchIndex).count(_ == ourLatestIndex)
-    if (isMajority(nodesWithMatchIndex, clusterSize)) {
-      raftNode.log.commit(ourLatestIndex)
-    }
-  }
-
-  def onAppendEntriesResponse(from: NodeId, resp: AppendEntriesResponse, cluster: ClusterProtocol): Unit = {
-    // ooh! We must be the leader... maybe. At least we must've been at some point to
-    // have sent out an append entries request
-    for {
-      view <- leaderState
-      peerView <- view.get(from)
-      ourLatestLogIndex = lastCommittedIndex
-    } {
-      val newNode = if (resp.success) {
-
-        // cool - let's update our view!
-        // ... and do we need to send any updates?
-        val nextIndex = resp.matchIndex + 1
-
-        assert(resp.matchIndex <= ourLatestLogIndex, s"Match index '${
-          resp.matchIndex
-        }' from $from is >= our (leader's) largest index $ourLatestLogIndex")
-
-        // do we need to send another append entries?
-        if (resp.matchIndex < ourLatestLogIndex) {
-          mkLogEntry(nextIndex).foreach {
-            entry =>
-              cluster.tell(from, mkAppendEntries(nextIndex, entry :: Nil))
-          }
-        }
-
-        val newView = view.updated(from, ClusterPeer(resp.matchIndex, nextIndex))
-
-        commitLogOnMajority(ourLatestLogIndex, newView, cluster.clusterSize)
-
-        val updatedRole = Leader(newView)
-        raftNode.copy(role = updatedRole)
-      } else {
-        // the log index doesn't match .. we have to try with a lower 'next index'
-        val nextIndex = peerView.nextIndex - 1
-
-        cluster.tell(from, mkAppendEntries(nextIndex, Nil))
-
-        val updatedRole = Leader(view.updated(from, ClusterPeer(resp.matchIndex, nextIndex)))
-        raftNode.copy(role = updatedRole)
-      }
-
-      raftNode = newNode
-    }
-
-  }
-
-  private def becomeLeader(resp: RequestVoteResponse, cluster: ClusterProtocol, newRole: Leader) = {
-    val newNode = raftNode.copy(role = newRole)
-    raftNode = newNode
-    cluster.tellOthers(mkAppendEntries(lastUnappliedIndex, Nil))
-    cluster.electionTimer.cancel()
-    cluster.heartbeatTimer.reset()
-  }
-
-  def onRequestVoteResponse(from: NodeId, resp: RequestVoteResponse, cluster: ClusterProtocol): Unit = {
-    raftNode.role match {
-      case Candidate(counter) =>
-        counter.onVote(from, resp.granted) match {
-          case Some(true) => becomeLeader(resp, cluster, counter.leaderRole(id))
-          case _ =>
-        }
-      case _ =>
-    }
-  }
-
-  /** @param to the node to send the entry to
-    * @return the LogEntry to send, if
-    *         (1) we're the leader,
-    *         (2) we know about the peer 'to',
-    *         (3) an entry exists at the peer's match index
+  /** Create a [[RaftNode]] (which is also a [[LeaderApi]] for the given logic, cluster and timers.
+    *
+    * If the timers are [[InitialisableTimer]], then they will be initialised using the returned node.
+    *
+    * @tparam T the command message type represented by the raft node
+    * @return a [[miniraft.state.RaftNode.async.RaftNodeActorClient]]
     */
-  def mkLogEntry(to: NodeId): Option[LogEntry[T]] = {
-    for {
-      leader <- leaderState
-      peer <- leader.get(to)
-      entry <- mkLogEntry(peer.nextIndex)
-    } yield {
-      entry
+  def apply[T: ClassTag](logic: RaftNodeLogic[T], clusterNodesById: Map[NodeId, RaftEndpoint[T]], electionTimer: RaftTimer, heartbeatTimer: RaftTimer)(
+      implicit factory: ActorRefFactory): async.RaftNodeActorClient[T] = {
+
+    // chicken/egg ... a protocol which has to know about the node/actor, and the actor needs the protocol
+    val protocol = new async.ActorNodeProtocol[T](logic.id, clusterNodesById, electionTimer, heartbeatTimer)(factory.dispatcher)
+    // egg...
+    val actor = factory.actorOf(async.nodeProps[T](logic, protocol))
+    protocol.initialise(actor)
+    // wrap our actor in a RaftNode[T]
+    val node = async[T](actor)
+
+    InitialisableTimer.initialise(electionTimer) { _ =>
+      node.forceElectionTimeout
     }
+    InitialisableTimer.initialise(heartbeatTimer) { _ =>
+      node.forceHeartbeatTimeout
+    }
+
+    node
   }
 
-  def mkLogEntry(index: LogIndex) = raftNode.log.at(index).map {
-    entry =>
-      LogEntry[T](currentTerm, index, entry.command)
-  }
+  object async {
 
-  def mkAppendEntries(idx: LogIndex, newEntries: List[LogEntry[T]]): AppendEntries[T] = {
-    val rn = raftNode
-    AppendEntries(
-      term = currentTerm,
-      leaderId = id,
-      prevLogIndex = idx,
-      prevLogTerm = lastLogTerm,
-      entries = newEntries,
-      leaderCommit = rn.lastCommittedIndex
-    )
-  }
+    def apply[T](raftNodeActor: ActorRef): RaftNodeActorClient[T] = new RaftNodeActorClient[T](raftNodeActor)
 
-  final def onResponse(from: NodeId, resp: RaftResponse, cluster: ClusterProtocol): Unit = resp match {
-    case resp: RequestVoteResponse => onRequestVoteResponse(from, resp, cluster)
-    case resp: AppendEntriesResponse => onAppendEntriesResponse(from, resp, cluster)
-  }
+    sealed trait RaftNodeMessage
 
-  override def toString = {
-    s"------------------------ Node $id ------------------------\n${
-      pprint.stringify(raftNode)
-    }"
-  }
+    private case class LeaderAppendMessage[T](command: T, promise: Promise[UpdateResponse]) extends RaftNodeMessage
 
-  override def equals(other: Any) = other match {
-    case ss: RaftNode[T] => id == ss.id
-    case _ => false
-  }
+    private case class RemovePendingResponse(pending: UpdateResponse.Appendable) extends RaftNodeMessage
 
-  override def hashCode = 17 * id.hashCode
+    private case class OnResponse(from: NodeId, response: RaftResponse) extends RaftNodeMessage
+
+    private case object OnElectionTimeout extends RaftNodeMessage
+
+    private case class GetProtocol(promise: Promise[ClusterProtocol]) extends RaftNodeMessage
+
+    private case class GetState(promise: Promise[NodeStateSummary]) extends RaftNodeMessage
+
+    private case class OnRequest[R <: RaftResponse](req: RaftRequest, completeWith: Promise[R]) extends RaftNodeMessage
+
+    private case object OnLeaderHeartbeatTimeout extends RaftNodeMessage
+
+    class RaftNodeActorClient[T](raftNodeActor: ActorRef) extends RaftNode[T] with LeaderApi[T] {
+
+      def state(): Future[NodeStateSummary] = {
+        val promise = Promise[NodeStateSummary]()
+        raftNodeActor ! GetState(promise)
+        promise.future
+      }
+
+      def protocol(): Future[ClusterProtocol] = {
+        val promise = Promise[ClusterProtocol]()
+        raftNodeActor ! GetProtocol(promise)
+        promise.future
+      }
+
+      def forceElectionTimeout = raftNodeActor ! OnElectionTimeout
+
+      def forceHeartbeatTimeout = raftNodeActor ! OnLeaderHeartbeatTimeout
+
+      override def onResponse(from: NodeId, response: RaftResponse): Unit = {
+        raftNodeActor ! OnResponse(from, response)
+      }
+
+      override def onVote(vote: RequestVote) = send[RequestVoteResponse](vote)
+
+      override def onAppend(append: AppendEntries[T]) = send[AppendEntriesResponse](append)
+
+      private def send[R <: RaftResponse](request: RaftRequest): Future[R] = {
+        val promise = Promise[R]()
+        raftNodeActor ! OnRequest(request, promise)
+        promise.future
+      }
+
+      override def apply(command: T) = {
+        val promise = Promise[UpdateResponse]()
+        raftNodeActor ! LeaderAppendMessage(command, promise)
+        promise.future
+      }
+    }
+
+    def nodeProps[T: ClassTag](logic: RaftNodeLogic[T], protocol: ClusterProtocol): Props = {
+      Props(new RaftNodeActor[T](logic, protocol))
+    }
+
+    class RaftNodeActor[T: ClassTag](logic: RaftNodeLogic[T], protocol: ClusterProtocol) extends Actor with StrictLogging {
+      implicit def ec = context.dispatcher
+
+      def onMessage(msg: RaftNodeMessage, pendingAppendAcks: List[UpdateResponse.Appendable]): Unit = msg match {
+        case OnRequest(req, promise) => promise.trySuccess(logic.onRequest(req, protocol))
+        case LeaderAppendMessage(command: T, promise) =>
+          if (!logic.isLeader) {
+            val exp = NotTheLeaderException(logic.leaderId, logic.id, logic.raftState.role.name, protocol.clusterSize)
+            promise.trySuccess(UpdateResponse(Future.failed(exp)))
+          } else {
+            val newAck: UpdateResponse.Appendable = add(command)
+            context.become(handler(newAck :: pendingAppendAcks))
+            promise.trySuccess(newAck)
+          }
+        case OnElectionTimeout        => logic.onElectionTimeout(protocol)
+        case OnLeaderHeartbeatTimeout => logic.onLeaderHeartbeatTimeout(protocol)
+        case OnResponse(from, received) =>
+          received match {
+            case ack: AppendEntriesResponse =>
+              // flush pending client requests
+              if (pendingAppendAcks.nonEmpty) {
+                logger.info(s"Notifying ${pendingAppendAcks.size} of pending responses")
+                pendingAppendAcks.foreach(_.onResponse(from, ack))
+              }
+            case _ =>
+          }
+
+          logic.onResponse(from, received, protocol)
+        case RemovePendingResponse(msg) =>
+          val newAcks = pendingAppendAcks diff List(msg)
+          if (newAcks.size != pendingAppendAcks.size) {
+            logger.info(s"Removed ack $msg")
+          } else {
+            logger.info(s"Asked to remove a leader ack which we don't have: $msg")
+          }
+          context.become(handler(newAcks))
+        case GetProtocol(promise) => promise.trySuccess(protocol)
+        case GetState(promise)    => promise.tryCompleteWith(NodeStateSummary(logic, protocol))
+      }
+
+      def handler(pendingAppendAcks: List[UpdateResponse.Appendable]): Receive = {
+        logger.debug(s"${logic.id} w/ ${pendingAppendAcks.size} pending leader acks")
+
+        //
+        {
+          case msg: RaftNodeMessage => onMessage(msg, pendingAppendAcks)
+        }
+      }
+
+      def add(command: T): UpdateResponse.Appendable = {
+        val index = logic.lastUnappliedIndex
+
+        val appendEntries: AppendEntries[T] = {
+          val myEntry = LogEntry[T](logic.currentTerm, index, command)
+          logic.raftState.log.append(myEntry)
+          logic.mkAppendEntries(index, myEntry)
+        }
+
+        val clientAppendableResponse: UpdateResponse.Appendable = UpdateResponse(protocol.clusterNodeIds, index)
+
+        // when we reply to the client, then we can remove ourselves from the list
+        clientAppendableResponse.result.onComplete {
+          case res =>
+            logger.info(s"Removing client user ack $clientAppendableResponse on $res")
+            //            val newAcks = pendingAppendAcks diff (List(clientAppendableResponse))
+
+            self ! RemovePendingResponse(clientAppendableResponse)
+        }
+
+        protocol.tellOthers(appendEntries)
+        clientAppendableResponse
+      }
+
+      override def receive: Receive = handler(Nil)
+    }
+
+    private[state] class ActorNodeProtocol[T](ourNodeId: NodeId, clusterNodesById: Map[NodeId, RaftEndpoint[T]], raftElectionTimer: RaftTimer, raftHeartbeatTimer: RaftTimer)(
+        override implicit val executionContext: ExecutionContext)
+        extends ClusterProtocol.BaseProtocol[T](ourNodeId: NodeId, clusterNodesById: Map[NodeId, RaftEndpoint[T]], raftElectionTimer: RaftTimer, raftHeartbeatTimer)
+        with StrictLogging {
+      private var raftNodeActor: ActorRef = null
+
+      private[state] def initialise(ref: ActorRef) = {
+        require(raftNodeActor == null, "already initialised")
+        raftNodeActor = ref
+      }
+
+      override def onResponse(from: NodeId, endpoint: RaftEndpoint[T], raftRequest: RaftRequest, response: RaftResponse): Unit = {
+        raftNodeActor ! OnResponse(from, response)
+      }
+    }
+
+  }
 
 }

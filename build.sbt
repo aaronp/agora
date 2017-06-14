@@ -1,8 +1,8 @@
-name := "jabroni"
+name := "agora"
 
 organization := "com.github.aaronp"
 
-scalaVersion := "2.11.8"
+scalaVersion := "2.11.11"
 
 enablePlugins(GitVersioning)
 
@@ -19,10 +19,15 @@ git.gitTagToVersionNumber := { tag: String =>
 
 scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-language:implicitConversions", "-language:reflectiveCalls")
 
-lazy val jabroni = (project in file(".")).
+// see http://scalameta.org/scalafmt/
+scalafmtOnCompile in ThisBuild := true
+scalafmtVersion in ThisBuild  := "1.0.0-RC3"
+
+lazy val agora = (project in file(".")).
   enablePlugins(BuildInfoPlugin).
   aggregate(apiJVM, apiJS, rest, ui, exec)
 
+lazy val settings = scalafmtSettings
 
 val commonSettings: Seq[Def.Setting[_]] = Seq(
   //version := parentProject.settings.ver.value,
@@ -31,7 +36,7 @@ val commonSettings: Seq[Def.Setting[_]] = Seq(
   javacOptions ++= Seq("-source", "1.8", "-target", "1.8"), //, "-Xmx2G"),
   scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-language:implicitConversions", "-language:reflectiveCalls"),
   buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-  buildInfoPackage := "jabroni.build",
+  buildInfoPackage := "agora.build",
   assemblyMergeStrategy in assembly := {
     case str if str.contains("JS_DEPENDENCIES") => MergeStrategy.discard
     case str if str.contains("logback.xml") => MergeStrategy.discard
@@ -51,13 +56,13 @@ assemblyExcludedJars in assembly := {
 
 publishMavenStyle := true
 
-lazy val jabroniApi = crossProject.in(file("api")).
-  settings(name := "jabroni-api").
+lazy val agoraApi = crossProject.in(file("api")).
+  settings(name := "agora-api").
   settings(commonSettings: _*).
   settings(libraryDependencies ++= Dependencies.Api).
   jvmSettings(
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "jabroni.api.version",
+    buildInfoPackage := "agora.api.version",
     buildInfoOptions += BuildInfoOption.ToMap,
     buildInfoOptions += BuildInfoOption.ToJson,
     buildInfoOptions += BuildInfoOption.BuildTime
@@ -69,26 +74,26 @@ lazy val jabroniApi = crossProject.in(file("api")).
     }
   )
 
-lazy val apiJVM = jabroniApi.jvm.enablePlugins(BuildInfoPlugin)
+lazy val apiJVM = agoraApi.jvm.enablePlugins(BuildInfoPlugin)
 
-lazy val apiJS = jabroniApi.js
+lazy val apiJS = agoraApi.js
 
 //
 //val apiForIDE = (project in file("api/shared"))
-//  .settings(name := "jabroni-api-forIDE").
+//  .settings(name := "agora-api-forIDE").
 //  settings(commonSettings: _*).
 //  settings(libraryDependencies ++= Dependencies.Api)
 
 lazy val rest = project.
   dependsOn(apiJVM % "compile->compile;test->test", ui).
   settings(commonSettings).
-  settings(mainClass in assembly := Some("jabroni.rest.exchange.ExchangeMain")).
+  settings(mainClass in assembly := Some("agora.rest.exchange.ExchangeMain")).
   settings(libraryDependencies ++= Dependencies.Rest)
 
 lazy val exec = project.
   dependsOn(rest, rest % "test->test;compile->compile").
   settings(commonSettings).
-  settings(mainClass in assembly := Some("jabroni.exec.ExecMain")).
+  settings(mainClass in assembly := Some("agora.exec.ExecMain")).
   settings(libraryDependencies ++= Dependencies.Rest)
 
 lazy val ui = project.
@@ -109,7 +114,7 @@ pomIncludeRepository := (_ => false)
 
 // To sync with Maven central, you need to supply the following information:
 pomExtra in Global := {
-  <url>https://github.com/aaronp/jabroni</url>
+  <url>https://github.com/aaronp/agora</url>
     <licenses>
       <license>
         <name>Apache 2</name>
@@ -120,7 +125,7 @@ pomExtra in Global := {
       <developer>
         <id>aaronp</id>
         <name>Aaron Pritzlaff</name>
-        <url>https://github.com/aaronp/jabroni</url>
+        <url>https://github.com/aaronp/agora</url>
       </developer>
     </developers>
 }

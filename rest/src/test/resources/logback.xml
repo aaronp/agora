@@ -1,0 +1,13 @@
+<configuration debug="false">
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>REST TEST: %d{HH:mm:ss.SSS} %-5level %logger{12} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="agora.rest.client" level="info"/>
+
+    <root level="info">
+        <appender-ref ref="STDOUT"/>
+    </root>
+</configuration>

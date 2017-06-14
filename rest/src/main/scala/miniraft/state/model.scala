@@ -2,10 +2,10 @@ package miniraft.state
 
 import java.nio.file.Path
 
-import io.circe.{Decoder, Encoder, Json}
+import io.circe.Decoder.Result
+import io.circe.{Decoder, Encoder, HCursor, Json}
+import miniraft.{AppendEntries, AppendEntriesResponse}
 import miniraft.state.Log.Formatter
-
-import scala.util.Try
 
 case class Term(t: Int) extends Ordered[Term] {
   def inc = Term(t + 1)
@@ -13,222 +13,110 @@ case class Term(t: Int) extends Ordered[Term] {
   override def compare(that: Term): LogIndex = t.compare(that.t)
 }
 
-sealed trait NodeRole
+object Term {
+  implicit val termEncoder = Encoder.instance[Term](t => Json.fromInt(t.t))
+  implicit val termDecoder = {
+    Decoder.instance[Term] { h =>
+      val value: Result[LogIndex] = h.as[Int]
+      value.right.map(t => Term(t))
+    }
+  }
+}
 
-case class Leader(clusterViewByNodeId: Map[NodeId, ClusterPeer]) extends NodeRole
+sealed trait NodeRole {
+  def name: String
 
-case object Follower extends NodeRole
+  def isLeader: Boolean = false
 
-case class Candidate private(counter: ElectionCounter) extends NodeRole
+  def isFollower: Boolean = false
+
+  def isCandidate: Boolean = false
+}
+
+case class Leader(clusterViewByNodeId: Map[NodeId, ClusterPeer]) extends NodeRole {
+  override val name     = "leader"
+  override val isLeader = true
+}
+
+case object Follower extends NodeRole {
+  override val name       = "follower"
+  override val isFollower = true
+}
+
+class Candidate private (val counter: ElectionCounter) extends NodeRole {
+  override val isCandidate = true
+  override val name        = "candidate"
+
+  override def toString = s"Candidate(${counter})"
+
+  override def equals(other: Any) = other match {
+    case c: Candidate => counter == c.counter
+    case _            => false
+  }
+  override def hashCode = 31
+
+  def size = counter.clusterSize
+
+  def votedFor: Set[NodeId] = counter.votedFor
+
+  def votedAgainst: Set[NodeId] = counter.votedAgainst
+}
 
 object Candidate {
-  def apply(size: Int) = {
+
+  def unapply(c: Candidate) = Option(c.counter)
+
+  def apply(size: Int, initialFor: Set[NodeId] = Set.empty, initialAgainst: Set[NodeId] = Set.empty) = {
     require(size > 0, "can't have a totally empty cluster - surely we're a member!")
-    new Candidate(new ElectionCounter(size))
+    new Candidate(new ElectionCounter(size, initialFor, initialAgainst))
+  }
+
+  def apply(cntr: ElectionCounter) = new Candidate(cntr)
+
+  import io.circe.generic.auto._
+  import io.circe.syntax._
+
+  private case class CandidateJson(size: Int, votedFor: Set[NodeId], votedAgainst: Set[NodeId])
+
+  implicit object CandidateEncoder extends Encoder[Candidate] {
+    override def apply(a: Candidate): Json = {
+      CandidateJson(a.size, a.votedFor, a.votedAgainst).asJson
+    }
+  }
+
+  implicit val CandidateDecoder = implicitly[Decoder[CandidateJson]].map { cj =>
+    new Candidate(new ElectionCounter(cj.size, cj.votedFor, cj.votedAgainst))
   }
 }
 
 case class LogEntry[Command](term: Term, index: LogIndex, command: Command)
 
-trait Log[Command] {
-  def commit(index: LogIndex): Log[Command]
+object LogEntry {
+  implicit def decoder[T: Decoder]: Decoder[LogEntry[T]] = {
+    import io.circe.generic.auto._
 
-  def at(index: Int): Option[LogEntry[Command]]
-
-  def latestUnappliedEntry: Option[LogEntry[Command]]
-
-  def latestCommittedEntry: Option[LogEntry[Command]]
-
-  /**
-    * Note - implementations need to override one of the two appends
-    */
-  def append(newEntry: LogEntry[Command]): Log[Command] = append(newEntry :: Nil)
-
-
-  def append(newEntries: List[LogEntry[Command]]): Log[Command] = newEntries.foldLeft(this)(_ append _)
-
-  def lastUnappliedIndex: LogIndex = latestUnappliedEntry.map(_.index).getOrElse(0)
-
-  def lastCommittedIndex: LogIndex = latestCommittedEntry.map(_.index).getOrElse(0)
-
-  // we have no business computing a consistent hashcode for something like this which is by its nature ephemeral
-  override def hashCode = 19
-
-  override def equals(other: Any) = {
-    other match {
-      case ps: Log[_] =>
-        lastTerm == ps.lastTerm &&
-          lastCommittedIndex == ps.lastCommittedIndex
-      case _ => false
-    }
+    exportDecoder[LogEntry[T]].instance
   }
 
-  override def toString = s"Log(unapplied:${lastUnappliedIndex}, committed:${lastCommittedIndex})"
+  implicit def encoder[T: Encoder]: Encoder[LogEntry[T]] = {
+    import io.circe.generic.auto._
 
-  def lastTerm = latestUnappliedEntry.map(_.term).getOrElse(Term(0))
-}
-
-object Log {
-
-  import jabroni.domain.io.implicits._
-
-  trait Formatter[A, B] {
-    def to(a: A): B
-
-    def from(b: B): A
+    val encoder = exportEncoder[LogEntry[T]].instance
+    //    implicit val decoder = exportDecoder[SubmitJob].instance
+    encoder
   }
-
-  object Formatter {
-
-    implicit def fromCirce[T: Encoder : Decoder]: Formatter[T, Array[Byte]] = new Formatter[T, Array[Byte]] {
-      val enc = implicitly[Encoder[T]]
-
-      override def to(a: T): Array[Byte] = JsonFormatter.to(enc(a))
-
-      override def from(b: Array[Byte]): T = {
-        val json = JsonFormatter.from(b)
-        json.as[T].right.get
-      }
-    }
-
-    implicit object JsonFormatter extends Formatter[Json, Array[Byte]] {
-      override def to(a: Json): Array[Byte] = StringFormatter.to(a.noSpaces)
-
-      override def from(b: Array[Byte]) = io.circe.parser.parse(StringFormatter.from(b)) match {
-        case Left(err) => throw err
-        case Right(json) => json
-      }
-    }
-
-    implicit object StringFormatter extends Formatter[String, Array[Byte]] {
-      override def to(a: String): Array[Byte] = a.getBytes
-
-      override def from(b: Array[Byte]): String = new String(b)
-    }
-
-    // TODO - don't be stupid
-    implicit object IntFormatter extends Formatter[Int, Array[Byte]] {
-      override def to(a: Int): Array[Byte] = a.toString.getBytes
-
-      override def from(b: Array[Byte]) = new String(b).toInt
-    }
-
-  }
-
-  class Dao[Command](dir: Path, asBytes: Formatter[Command, Array[Byte]]) extends Log[Command] {
-    private val latestUnappliedFile = dir.resolve(".unapplied").createIfNotExists()
-    private val latestCommittedFile = dir.resolve(".committed").createIfNotExists()
-
-    override def at(index: Int): Option[LogEntry[Command]] = {
-      dir.resolve(index.toString) match {
-        case indexDir if indexDir.isDir =>
-          val command = asBytes.from(indexDir.resolve("command").bytes)
-          val term = Term(indexDir.resolve(".term").text.toInt)
-          Option(LogEntry[Command](term, index, command))
-        case _ => None
-      }
-    }
-
-    override def latestUnappliedEntry: Option[LogEntry[Command]] = at(lastUnappliedIndex)
-
-    override def latestCommittedEntry: Option[LogEntry[Command]] = at(lastCommittedIndex)
-
-    override def lastUnappliedIndex = latestUnappliedFile.text match {
-      case "" => 0
-      case indexText => indexText.toInt
-    }
-
-    override def lastCommittedIndex = latestCommittedFile.text match {
-      case "" => 0
-      case indexText => indexText.toInt
-    }
-
-
-    /**
-      * Writes the entry as:
-      * {{{
-      * <dir> / <index> / command    # contains the bytes of the command
-      * <dir> / <index> / .term      # contains the term
-      * }}}
-      *
-      * once an entry is committed, the empty file
-      * {{{
-      * <dir> / <index> / .committed
-      * }}}
-      *
-      * will be created. If a .committed file exists in this append then an exception is thrown
-      *
-      * @param newEntries
-      * @return
-      */
-    override def append(newEntries: List[LogEntry[Command]]): Log[Command] = {
-      newEntries.foreach { entry =>
-        val indexDir = dir.resolve(entry.index.toString)
-        require(!indexDir.resolve(".committed").exists, s"A committed entry already exists at ${indexDir}, can't append $entry")
-        indexDir.resolve("command").bytes = asBytes.to(entry.command)
-        indexDir.resolve(".term").text = entry.term.t.toString
-      }
-      if (newEntries.nonEmpty) {
-        val max = newEntries.map(_.index).max
-        if (max > lastUnappliedIndex) {
-          latestUnappliedFile.text = max.toString
-        }
-      }
-      this
-    }
-
-    override def commit(index: LogIndex): Log[Command] = {
-      dir.resolve(index.toString).resolve(".committed").createIfNotExists()
-      if (index > lastCommittedIndex) {
-        latestCommittedFile.text = index.toString
-      }
-      this
-    }
-  }
-
-  class InMemory[Command]() extends Log[Command] {
-    private var all = List[LogEntry[Command]]()
-    private var committed = List[LogEntry[Command]]()
-
-    def unapplied = all.diff(committed)
-
-    override def append(newEntries: List[LogEntry[Command]]): Log[Command] = {
-      all = newEntries ++ all
-      this
-    }
-
-    override def at(index: LogIndex): Option[LogEntry[Command]] = all.find(_.index == index)
-
-    override def commit(latestIndex: LogIndex): Log[Command] = {
-      at(latestIndex).foreach { entry =>
-        committed = entry :: committed
-      }
-      this
-    }
-
-    override def latestUnappliedEntry: Option[LogEntry[Command]] = unapplied.headOption.map { _ =>
-      unapplied.maxBy(_.index)
-    }
-
-    override def latestCommittedEntry: Option[LogEntry[Command]] = committed.headOption.map { _ =>
-      committed.maxBy(_.index)
-    }
-  }
-
-  def apply[T](dir: Path)(implicit asBytes: Formatter[T, Array[Byte]]) = new Dao[T](dir, asBytes)
-
-  def apply[T]() = new InMemory[T]()
 }
 
 case class ClusterPeer(matchIndex: LogIndex, nextIndex: LogIndex)
 
 object ClusterPeer {
-  val empty = ClusterPeer(0, 0)
+  def empty(nextIndex: Int) = ClusterPeer(0, nextIndex)
 }
 
 trait PersistentState[T] {
   def append(entries: List[LogEntry[T]]): PersistentState[T]
-  def commit(at :LogIndex): PersistentState[T]
+
+  def commit(at: LogIndex): PersistentState[T]
 
   def voteFor(newTerm: Term, leader: NodeId): PersistentState[T]
 
@@ -255,15 +143,17 @@ trait PersistentState[T] {
 
 object PersistentState {
 
-  def apply[T](workingDir: Path)(implicit asBytes: Formatter[T, Array[Byte]]): PersistentState[T] = {
-    import jabroni.domain.io.implicits._
-    val log = Log[T](workingDir.resolve("data").mkDir())
+  def apply[T](workingDir: Path)(applyToStateMachine: LogEntry[T] => Unit)(implicit asBytes: Formatter[T, Array[Byte]]): PersistentState[T] = {
+    import agora.domain.io.implicits._
+    val log = Log[T](workingDir.resolve("data").mkDir())(applyToStateMachine)
     apply(workingDir, log)
   }
 
   def apply[T](workingDir: Path, log: Log[T]) = new Dao[T](workingDir, log)
 
-  def apply[T](initialTerm: Term = Term(1), initialVote: Option[NodeId] = None) = new NotReally[T](initialTerm, initialVote)
+  def apply[T](initialTerm: Term = Term(1), initialVote: Option[NodeId] = None)(applyToStateMachine: LogEntry[T] => Unit) = {
+    new NotReally[T](initialTerm, initialVote, applyToStateMachine)
+  }
 
   /**
     * We're not really perisistent. Shhh ... don't tell!
@@ -272,11 +162,10 @@ object PersistentState {
     * @param initialVote
     * @tparam T
     */
-  class NotReally[T](initialTerm: Term, initialVote: Option[NodeId]) extends PersistentState[T] {
+  class NotReally[T](initialTerm: Term, initialVote: Option[NodeId], applyToStateMachine: LogEntry[T] => Unit) extends PersistentState[T] {
     var vote: Option[NodeId] = initialVote
-    var term: Term = initialTerm
-    var commands: Log[T] = Log[T]()
-    private val inMemoryLog = Log[T]()
+    var term: Term           = initialTerm
+    private val inMemoryLog  = Log[T](applyToStateMachine)
 
     override def log = inMemoryLog
 
@@ -290,10 +179,11 @@ object PersistentState {
 
     override def currentTerm: Term = term
 
-    override def commit(at :LogIndex): PersistentState[T] = {
+    override def commit(at: LogIndex): PersistentState[T] = {
       log.commit(at)
       this
     }
+
     override def append(entries: List[LogEntry[T]]) = {
       inMemoryLog.append(entries)
       this
@@ -306,7 +196,7 @@ object PersistentState {
 
     override def log: Log[T] = entriesLog
 
-    import jabroni.domain.io.implicits._
+    import agora.domain.io.implicits._
 
     // TODO - just put both in one file
     private val votedForFile = workingDir.resolve("votedFor").createIfNotExists()
@@ -314,7 +204,7 @@ object PersistentState {
       val file = workingDir.resolve("currentTerm").createIfNotExists()
       file.text.trim match {
         case "" => file.text = "1"
-        case _ => file
+        case _  => file
       }
     }
 
@@ -329,7 +219,7 @@ object PersistentState {
       this
     }
 
-    override def commit(at :LogIndex): PersistentState[T] = {
+    override def commit(at: LogIndex): PersistentState[T] = {
       log.commit(at)
       this
     }
@@ -342,21 +232,22 @@ object PersistentState {
 
 }
 
-case class RaftState[T](role: NodeRole,
-                        persistentState: PersistentState[T]) {
+case class RaftState[T](role: NodeRole, persistentState: PersistentState[T]) {
 
   def becomeCandidate(clusterSize: Int, firstVote: NodeId): RaftState[T] = {
-    val cntr = new ElectionCounter(clusterSize)
+    val cntr          = new ElectionCounter(clusterSize)
     val candidateRole = Candidate(cntr)
     val newRole: NodeRole = cntr.onVote(firstVote, true) match {
       case Some(true) =>
-        require(clusterSize == 1)
-        candidateRole.counter.leaderRole(firstVote)
+        require(
+          clusterSize == 1,
+          s"We've become the leader after initially voting for ourselves and not even sending our requests, but the cluster size is $clusterSize"
+        )
+        candidateRole.counter.leaderRole(firstVote, lastUnappliedIndex)
       case _ => candidateRole
     }
     copy(role = newRole, persistentState = persistentState.voteFor(currentTerm.inc, firstVote))
   }
-
 
   def voteFor(term: Term, id: NodeId) = {
     require(id.nonEmpty)
@@ -382,13 +273,13 @@ case class RaftState[T](role: NodeRole,
       newState -> true
     } else if (ae.term == currentTerm && ae.prevLogIndex == lastCommittedIndex) {
       // the leader and our log index match
-      val newState = copy(persistentState = persistentState.append(ae.entries))
+      val newState = copy(role = Follower, persistentState = persistentState.append(ae.asLogEntry.toList))
       newState -> true
     } else {
       this -> false
     }
 
-    appended -> AppendEntriesResponse(currentTerm, success, appended.lastCommittedIndex)
+    appended -> AppendEntriesResponse(currentTerm, success, appended.lastUnappliedIndex)
   }
 }
 

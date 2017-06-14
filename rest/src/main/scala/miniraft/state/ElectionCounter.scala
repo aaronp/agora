@@ -1,8 +1,8 @@
 package miniraft.state
 
-private[state] class ElectionCounter(val clusterSize: Int) {
+class ElectionCounter(val clusterSize: Int, initialFor: Set[NodeId] = Set.empty, initialAgainst: Set[NodeId] = Set.empty) {
 
-  override def toString = s"CandidateCtr(${votesFor.mkString("for: [", ",", "]")}, ${votesAgainst.mkString("against:[", ",", "]")} of $clusterSize"
+  override def toString = s"${votesFor.mkString("for: [", ",", "]")}, ${votesAgainst.mkString("against:[", ",", "]")} of $clusterSize"
 
   private object Lock
 
@@ -14,23 +14,24 @@ private[state] class ElectionCounter(val clusterSize: Int) {
     case _ => false
   }
 
-  private var votesFor = Set[NodeId]()
-  private var votesAgainst = Set[NodeId]()
+  private var votesFor     = initialFor
+  private var votesAgainst = initialAgainst
 
-  def votedFor = votesFor
+  def votedFor: Set[NodeId]     = votesFor
+  def votedAgainst: Set[NodeId] = votesAgainst
 
   def receivedVotesFrom = votesFor ++ votesAgainst
 
-  def leaderRole(forNode: NodeId): Leader = {
+  def leaderRole(forNode: NodeId, nextIndex: Int): Leader = {
     require(isMajority(votesFor.size, clusterSize), s"Asked to make a leader role on a cluster of size ?$clusterSize w/ $votesFor")
-    val view = receivedVotesFrom.withFilter(_ != forNode).map(_ -> ClusterPeer.empty).toMap
+    val view = receivedVotesFrom.withFilter(_ != forNode).map(_ -> ClusterPeer.empty(nextIndex)).toMap
     Leader(view)
   }
 
   def onVote(nodeId: NodeId, granted: Boolean): Option[Boolean] = Lock.synchronized {
     if (granted) {
-      require(!votesAgainst.contains(nodeId), s"We already had a vote from $nodeId")
-      require(!votesFor.contains(nodeId), s"We already had a vote from $nodeId")
+      require(!votesAgainst.contains(nodeId), s"We already had a vote against from $nodeId")
+      require(!votesFor.contains(nodeId), s"We already had a vote for from $nodeId")
       votesFor = votesFor + nodeId
       if (isMajority(votesFor.size, clusterSize)) {
         Option(true)

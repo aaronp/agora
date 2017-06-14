@@ -1,4 +1,4 @@
-name := "jabroni-ui"
+name := "agora-ui"
 
 enablePlugins(ScalaJSPlugin)
 

@@ -1,10 +1,14 @@
 package miniraft.state
 
-import jabroni.rest.BaseSpec
+import agora.rest.{BaseSpec, HasMaterializer}
+import org.scalatest.concurrent.{Eventually, ScalaFutures}
 
-class RaftTimerTest extends BaseSpec {
+import scala.util.Try
+
+class RaftTimerTest extends BaseSpec with HasMaterializer with Eventually {
 
   import concurrent.duration._
+  import materializer.executionContext
 
   "RaftTimer.timeouts" should {
     "produce timeouts in a given range" in {
@@ -24,32 +28,49 @@ class RaftTimerTest extends BaseSpec {
     "cancel a timed out timer should be false" in {
 
       var cancelOnTimeout: Option[Boolean] = None
-      val timer = RaftTimer(10.millis, 100.millis, "test") { timer =>
+      @volatile var callbackInvoked        = false
+      val timer                            = InitialisableTimer("test", 10.millis, 100.millis)
+      timer.initialise { x =>
         require(cancelOnTimeout.isEmpty)
-        cancelOnTimeout = Option(timer.cancel())
-      }
+        callbackInvoked = true
+        x.cancel().onSuccess {
+          case cancelled =>
+            cancelOnTimeout = Option(cancelled)
+        }
+      }.futureValue shouldBe true
+
       // the timer should initially not be running
-      timer.cancel() shouldBe false
+      timer.cancel().futureValue shouldBe false
 
       // reset immediately
       timer.reset(Option(0.millis))
 
       // canceling a timed-out timer should be false
-      cancelOnTimeout shouldBe Option(false)
+      eventually {
+        callbackInvoked shouldBe true
+      }
+      eventually {
+        cancelOnTimeout shouldBe Option(false)
+      }
     }
     "cancel and reschedule timers" in {
 
       var calls = 0
-      val timer = RaftTimer(10.millis, 100.millis, "test") { timer =>
+      val timer = InitialisableTimer("test", 10.millis, 100.millis)
+
+      timer.initialise { x =>
         calls = calls + 1
         if (calls < 10) {
-          timer.reset(Option(0.millis))
+          x.reset(Option(0.millis))
         }
       }
+
       // the timer should initially not be running
       timer.reset(Option(0.millis))
 
-      calls shouldBe 10
+      eventually {
+        calls shouldBe 10
+      }
     }
   }
 

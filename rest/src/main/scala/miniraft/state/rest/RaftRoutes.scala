@@ -4,14 +4,23 @@ import akka.http.scaladsl.server.Directives.{path, _}
 import akka.http.scaladsl.server.Route
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.{Decoder, Encoder}
-import miniraft.state.{AppendEntries, RaftEndpoint, RaftNode, RequestVote}
+import miniraft.{AppendEntries, RaftEndpoint, RequestVote}
 
 import scala.concurrent.ExecutionContext
 import scala.language.reflectiveCalls
 
-case class RaftRoutes[T: Encoder : Decoder](endpoint: RaftEndpoint[T])(implicit ec : ExecutionContext)
-  extends RaftJson
-    with FailFastCirceSupport {
+/**
+  * Routes required to support the raft protocol as a communication between raft nodes.
+  *
+  * For client or support routes, well, look elsewhere. Please.
+  *
+  * @param endpoint
+  * @param ev$1
+  * @param ev$2
+  * @param ec
+  * @tparam T
+  */
+case class RaftRoutes[T: Encoder: Decoder](endpoint: RaftEndpoint[T])(implicit ec: ExecutionContext) extends RaftJson with FailFastCirceSupport {
 
   def routes: Route = {
     pathPrefix("rest") {
@@ -36,4 +45,5 @@ case class RaftRoutes[T: Encoder : Decoder](endpoint: RaftEndpoint[T])(implicit 
       }
     }
   }
+
 }

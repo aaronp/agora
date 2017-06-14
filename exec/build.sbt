@@ -1,13 +1,13 @@
 enablePlugins(CucumberPlugin)
 
-name := "jabroni-exec"
+name := "agora-exec"
 
-mainClass in(Compile, run) := Some("jabroni.exec.Main")
+mainClass in(Compile, run) := Some("agora.exec.Main")
 
-CucumberPlugin.glue := "classpath:jabroni.exec.test"
+CucumberPlugin.glue := "classpath:agora.exec.test"
 
-CucumberPlugin.features := List("classpath:jabroni.exec.test",
-  "exec/src/test/resources/jabroni/exec/test")
+CucumberPlugin.features := List("classpath:agora.exec.test",
+  "exec/src/test/resources/agora/exec/test")
 
 ///import scoverage.ScoverageKeys.{coverageFailOnMinimum, coverageMinimum}
 coverageMinimum := 80

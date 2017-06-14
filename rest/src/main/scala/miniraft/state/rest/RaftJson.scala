@@ -1,13 +1,12 @@
 package miniraft.state.rest
 
 import io.circe.{Decoder, Encoder}
+import miniraft.{AppendEntries, AppendEntriesResponse, RequestVote, RequestVoteResponse}
 import miniraft.state._
-
 
 trait RaftJson {
 
   import io.circe.generic.auto._
-
 
   implicit val voteEncoder = exportEncoder[RequestVote].instance
   implicit val voteDecoder = exportDecoder[RequestVote].instance

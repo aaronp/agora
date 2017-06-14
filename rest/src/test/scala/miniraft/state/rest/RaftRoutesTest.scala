@@ -3,8 +3,9 @@ package miniraft.state.rest
 import akka.http.scaladsl.model.StatusCodes
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.generic.auto._
-import jabroni.rest.BaseRoutesSpec
-import jabroni.rest.test.TestTimer
+import agora.rest.BaseRoutesSpec
+import agora.rest.test.TestTimer
+import miniraft.{AppendEntriesResponse, RequestVoteResponse}
 import miniraft.state._
 
 class RaftRoutesTest extends BaseRoutesSpec with FailFastCirceSupport {
@@ -13,14 +14,14 @@ class RaftRoutesTest extends BaseRoutesSpec with FailFastCirceSupport {
 
   "RaftRoutes POST /rest/raft/vote" should {
     "reply w/ a vote response" in withDir { dir =>
-      val nodes = TestCluster.under(dir).of[Int]("A", "B")
+      val nodes = TestCluster.under(dir).of[Int]("A", "B")(_ => ???)
 
-      val (nodeA, aEndpoint) = nodes("A")
-      val (nodeB, _) = nodes("B")
+      val nodeA = nodes("A")
+      val nodeB = nodes("B")
 
-      val routes = RaftRoutes(aEndpoint).routes
+      val routes = RaftRoutes(nodeA.endpoint).routes
 
-      RaftHttp.apply(nodeB.mkRequestVote()) ~> routes ~> check {
+      RaftHttp.apply(nodeB.logic.mkRequestVote()) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
         val response = responseAs[RequestVoteResponse]
         response.granted shouldBe true
@@ -30,14 +31,14 @@ class RaftRoutesTest extends BaseRoutesSpec with FailFastCirceSupport {
 
   "RaftRoutes POST /rest/raft/append" should {
     "reply w/ an append response" in withDir { dir =>
-      val nodes = TestCluster.under(dir).of[Int]("A", "B")
+      val nodes = TestCluster.under(dir).of[Int]("A", "B")(_ => ???)
 
-      val (nodeA, aEndpoint) = nodes("A")
-      val (nodeB, _) = nodes("B")
+      val nodeA = nodes("A")
+      val nodeB = nodes("B")
 
-      val routes = RaftRoutes(aEndpoint).routes
+      val routes = RaftRoutes(nodeA.endpoint).routes
 
-      RaftHttp(nodeB.mkAppendEntries(0, Nil)) ~> routes ~> check {
+      RaftHttp(nodeB.logic.mkHeartbeatAppendEntries(0)) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
         val response = responseAs[AppendEntriesResponse]
         response.matchIndex shouldBe 0
@@ -50,4 +51,5 @@ class RaftRoutesTest extends BaseRoutesSpec with FailFastCirceSupport {
 object RaftRoutesTest {
 
   case class SomeCommand(foo: Int, bar: String)
+
 }
