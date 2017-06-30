@@ -1,3 +1,5 @@
+![sbt test cucumber](https://travis-ci.org/aaronp/jabroni.svg?branch=master)
+
 # A reactive exchange for producers/consumers
 
 This project provides a means to distribute work items across workers using a work-pulling mechanism.
