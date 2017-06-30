@@ -6,7 +6,7 @@ This project provides a means to distribute work items across workers using a wo
 libraryDependencies += "com.github.aaronp" %% "jabroni-rest" % "0.0.1"
 ```
 
-## Erm ... what do you mean?
+# Erm ... what do you mean?
 
 It's an implementation of [Reactive Streams](http://www.reactive-streams.org/), except the publishers also supply data in their subscriptions.
 
@@ -19,13 +19,13 @@ The beauty is that you don't have to share out-of-date info about the current lo
 
 Additionally, as you'll see below, both the clients (producers) and consumers (workers) can specify criteria to decide which messages get sent to whom. That way a single exchange can manage work of any type/shape, or multiple versions of messages, or simply as a 'topic' for a message queue.
 
-## Can I see some examples.
+# Can I see some examples?
 
 No. Ha ... ok, fine. I mean, you're reading this as it's hosted on github. Just look at the chuffing code. 
 
 J/k. Sort of.
 
-### Worker Code Example
+## Worker Code Example
 
 Let's spin up a REST service which handles 'add' requests. We can do this just as easily programmatically, and can get at
 the individual mechanisms involved in a less magical way, but for now this example shows how this would work driven by the configuration.
@@ -71,7 +71,7 @@ So, If we configure our worker to only handle one request at a time, then it wil
 It's worth noting too that the 'addHandler' calls can be done from the initial configuration or even on a running server as show above. We can even add/remove work handlers from within handlers, allowing for more complicated workflows (such as dependent jobs, sessions, state machines, etc). More on that later...
 
 
-### Client side code example
+## Client side code example
 
 For completeness, this is how you would send work to the above worker. Obviously it assumes the configurations (e.g. host/port) are pointing at the same place.
 
@@ -94,12 +94,13 @@ object ClientExample {
     // use the convenience method to get a client to the exchange
     val exchangeClient: ExchangeClient = config.client
 
-    // enqueue some work to be picked up
-    val resp: exchangeClient.WorkerResponses = exchangeClient.enqueue(Add(1, 2).asJob)
+    // enqueue some work to be picked up. the 'asJob' is brought
+    // in from the api.Implicits, as we're enqueue a 'SubmitJob'
+    val responseFuture = exchangeClient.enqueue(Add(1, 2).asJob)
 
     // unmarshal the result
     val sumFuture = for {
-      workerResponses <- exchangeClient.enqueue(Add(1, 2).asJob)
+      workerResponses <- responseFuture
       sum <- workerResponses.singleReply[Int]
     } yield {
       sum
@@ -111,9 +112,9 @@ object ClientExample {
 
 ```
 
-## How do we control which jobs go to which workers?
+# How do we control which jobs go to which workers?
 
-### Matching work with workers
+## Matching work with workers
 
 One of the elements glazed over above is the matching. Basically, asside from the work items themselves, both clients (work producers) and consumers expose some additional (generic) details to the exchange in the form of a json blob. They also both provide some matching criteria which for json blobs. 
 
@@ -123,7 +124,7 @@ This way clients (work producers) can decide what sort of workers can handle the
 In the simple case, both can 'match all' and all work could get picked up by anybody. 
 But both clients and workers can control what additional data is exposed, and what data they want to match:
 
-#### Clients Specifying Criteria for Workers
+### Clients Specifying Criteria for Workers
 
 An example of a client specifying which worker could handle its request might be:
 ```scala
@@ -132,7 +133,7 @@ An example of a client specifying which worker could handle its request might be
 ```
 
 
-#### Workers Specifying Criteria for Submitted Work
+### Workers Specifying Criteria for Submitted Work
 
 When jobs are submitted by clients (work producers), there's the work itelf and potentially some additional metadata 
 about the work. 
@@ -160,7 +161,7 @@ This means that workers have two potential options for 'matching' a work item...
 ```
         
 
-#### Clients Providing Additional Details for Workers to Match
+### Clients Providing Additional Details for Workers to Match
 
 The client can also choose to supply additional details about the request for workers to potentially match against.
 
@@ -181,7 +182,7 @@ or just key/value pairs using '+' or 'add'
 ```
 
 
-#### Workers Specifying Additional Data for Client to Match On
+### Workers Specifying Additional Data for Client to Match On
 
 This is much the same as clients, but instead of 'SubmitJob' requests, workers have work subscriptions.
 
@@ -199,10 +200,15 @@ This is much the same as clients, but instead of 'SubmitJob' requests, workers h
 
 In addition to matching criteria, work requests also provide separate selection criteria to tell it what to do with the match. This covers the scenario where multiple workers may be available to handle a job. 
 
-A client could decide to send work out to all available workers
+A client could decide to send work out to all available workers, just one, or even choose one between the eligible workers based on some arbitrary json criteria:
+
+```scala
+val job: SubmitJob = Add(1, 2).asJob.withSelection(SelectIntMax("machine.cpus"))
+```
 
 
-### An Example Workflow
+
+# An Example Workflow
 
 
       Your Client Here                             Exchange                           Your Worker(s) Here
@@ -239,5 +245,35 @@ A client could decide to send work out to all available workers
        |
        +
 
+# Some other stuff
+
+Sorry - just thought I'd dump some other areas I meant to cover. This project is still in very heavy development!
+
+I wanted to talk about:
+
+## Project structure
+The 'api' subproject is very dependency light, only holding the basic data structures.
+
+The 'rest' is very opinionated. I didn't want to write it for any arbitrary web service or json library. I chose circe and akka http. How very controversial.
+
+The 'exec' is an example project which makes use of the 'rest' on. It fixes the exhange type 'T' for a 'RunProcess' request... a request which can execute a command on a worker. This may or may not be a good idea, but seems typical for what people want to do (e.g. let's write Jenkins using agora!)
+
+## The name
+I'm still bad at names. I chose 'agora' because I was thinking 'marketplace'. All this is based around the concept of an exchange, and the things exchanged doesn't really matter (except in the 'rest' project case it just cares that we can view it as json and thus use some jpath criteria as a matcher). According to the 'api' though, it could match two things of any type.
+
+## Scaling
+Ah, so ... there's a miniraft package which will get refactored out at some point. But yeah, the protocol is agnostic, but the 'rest' does provide a raft implementation to be able to choose one 'leader' exchange amoungst a bunch of them. 
+
+Also, the exchange queue itself doesn't even have to be (and probably shouldn't be!) persistent. The data is held in the participants of the system, which I think is a neat side-effect. We don't have to write down who's asking for what. In the failure cases (clients crashing/going away, workers crashing/going away), it all just works as expected...
+
+If a client dies, well, we could detect that and offer a cleanup if necessary, but in the default case, the worst thing that happens is that some work gets done that doesn't need to.
+
+If a worker dies, the exchange noticies and cancels its subscription, so no more work gets sent to that worker. And any work in-progress (in the rest implementation) was done via a redirect, so the client notices that its worker is gone and can just resubmit.
+
+## Implementation - how we handle not resending large data
+
+Just so I don't forgert to write this down -- in the rest implementation, the client request to the exchange would get a redirect in the case where the worker is not also the exchange itself. It then makes a subsequent request to those worker(s).
+
+In the case where the work item is large (e.g. we don't want to sent multipart uploads to the exchange), the client has full control over that. The machinery is exposed to 'enque and dispatch' or even just submit async (e.g. not wait for a worker match).
 
 
