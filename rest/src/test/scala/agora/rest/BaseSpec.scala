@@ -38,6 +38,10 @@ class BaseSpec extends WordSpec with Matchers with FailFastCirceSupport with Sca
 
   def withDir(f: Path => Unit) = {
     val dir: Path = s"target/test/${getClass.getSimpleName}-${dirCounter.incrementAndGet()}".asPath.mkDirs()
+    if (dir.exists) {
+      dir.delete()
+      dir.mkDirs()
+    }
     try {
       f(dir)
     } finally {

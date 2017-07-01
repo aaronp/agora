@@ -32,7 +32,7 @@ object RaftNode {
   def apply[T: ClassTag](logic: RaftNodeLogic[T], protocol: ClusterProtocol)(implicit factory: ActorRefFactory): async.RaftNodeActorClient[T] = {
     val nodeProps = async.nodeProps[T](logic, protocol)
     val actor     = factory.actorOf(nodeProps)
-    async[T](actor)
+    async[T](logic.id, actor)
   }
 
   /** Create a [[RaftNode]] (which is also a [[LeaderApi]] for the given logic, cluster and timers.
@@ -43,7 +43,7 @@ object RaftNode {
     * @return a [[miniraft.state.RaftNode.async.RaftNodeActorClient]]
     */
   def apply[T: ClassTag](logic: RaftNodeLogic[T], clusterNodesById: Map[NodeId, RaftEndpoint[T]], electionTimer: RaftTimer, heartbeatTimer: RaftTimer)(
-      implicit factory: ActorRefFactory): async.RaftNodeActorClient[T] = {
+      implicit factory: ActorRefFactory): (async.RaftNodeActorClient[T], async.ActorNodeProtocol[T]) = {
 
     // chicken/egg ... a protocol which has to know about the node/actor, and the actor needs the protocol
     val protocol = new async.ActorNodeProtocol[T](logic.id, clusterNodesById, electionTimer, heartbeatTimer)(factory.dispatcher)
@@ -51,7 +51,7 @@ object RaftNode {
     val actor = factory.actorOf(async.nodeProps[T](logic, protocol))
     protocol.initialise(actor)
     // wrap our actor in a RaftNode[T]
-    val node = async[T](actor)
+    val node = async[T](logic.id, actor)
 
     InitialisableTimer.initialise(electionTimer) { _ =>
       node.forceElectionTimeout
@@ -60,18 +60,16 @@ object RaftNode {
       node.forceHeartbeatTimeout
     }
 
-    node
+    node -> protocol
   }
 
   object async {
 
-    def apply[T](raftNodeActor: ActorRef): RaftNodeActorClient[T] = new RaftNodeActorClient[T](raftNodeActor)
+    def apply[T](id: NodeId, raftNodeActor: ActorRef): RaftNodeActorClient[T] = new RaftNodeActorClient[T](id, raftNodeActor)
 
     sealed trait RaftNodeMessage
 
     private case class LeaderAppendMessage[T](command: T, promise: Promise[UpdateResponse]) extends RaftNodeMessage
-
-    private case class RemovePendingResponse(pending: UpdateResponse.Appendable) extends RaftNodeMessage
 
     private case class OnResponse(from: NodeId, response: RaftResponse) extends RaftNodeMessage
 
@@ -85,7 +83,7 @@ object RaftNode {
 
     private case object OnLeaderHeartbeatTimeout extends RaftNodeMessage
 
-    class RaftNodeActorClient[T](raftNodeActor: ActorRef) extends RaftNode[T] with LeaderApi[T] {
+    class RaftNodeActorClient[T](val id: NodeId, raftNodeActor: ActorRef) extends RaftNode[T] with LeaderApi[T] {
 
       def state(): Future[NodeStateSummary] = {
         val promise = Promise[NodeStateSummary]()
@@ -109,7 +107,9 @@ object RaftNode {
 
       override def onVote(vote: RequestVote) = send[RequestVoteResponse](vote)
 
-      override def onAppend(append: AppendEntries[T]) = send[AppendEntriesResponse](append)
+      override def onAppend(append: AppendEntries[T]) = {
+        send[AppendEntriesResponse](append)
+      }
 
       private def send[R <: RaftResponse](request: RaftRequest): Future[R] = {
         val promise = Promise[R]()
@@ -117,7 +117,7 @@ object RaftNode {
         promise.future
       }
 
-      override def apply(command: T) = {
+      override def append(command: T) = {
         val promise = Promise[UpdateResponse]()
         raftNodeActor ! LeaderAppendMessage(command, promise)
         promise.future
@@ -131,77 +131,37 @@ object RaftNode {
     class RaftNodeActor[T: ClassTag](logic: RaftNodeLogic[T], protocol: ClusterProtocol) extends Actor with StrictLogging {
       implicit def ec = context.dispatcher
 
-      def onMessage(msg: RaftNodeMessage, pendingAppendAcks: List[UpdateResponse.Appendable]): Unit = msg match {
+      def onMessage(msg: RaftNodeMessage): Unit = msg match {
         case OnRequest(req, promise) => promise.trySuccess(logic.onRequest(req, protocol))
         case LeaderAppendMessage(command: T, promise) =>
           if (!logic.isLeader) {
             val exp = NotTheLeaderException(logic.leaderId, logic.id, logic.raftState.role.name, protocol.clusterSize)
             promise.trySuccess(UpdateResponse(Future.failed(exp)))
           } else {
-            val newAck: UpdateResponse.Appendable = add(command)
-            context.become(handler(newAck :: pendingAppendAcks))
+            val newAck: UpdateResponse.Appendable = logic.add(command, protocol)
             promise.trySuccess(newAck)
           }
-        case OnElectionTimeout        => logic.onElectionTimeout(protocol)
-        case OnLeaderHeartbeatTimeout => logic.onLeaderHeartbeatTimeout(protocol)
-        case OnResponse(from, received) =>
-          received match {
-            case ack: AppendEntriesResponse =>
-              // flush pending client requests
-              if (pendingAppendAcks.nonEmpty) {
-                logger.info(s"Notifying ${pendingAppendAcks.size} of pending responses")
-                pendingAppendAcks.foreach(_.onResponse(from, ack))
-              }
-            case _ =>
-          }
-
-          logic.onResponse(from, received, protocol)
-        case RemovePendingResponse(msg) =>
-          val newAcks = pendingAppendAcks diff List(msg)
-          if (newAcks.size != pendingAppendAcks.size) {
-            logger.info(s"Removed ack $msg")
-          } else {
-            logger.info(s"Asked to remove a leader ack which we don't have: $msg")
-          }
-          context.become(handler(newAcks))
-        case GetProtocol(promise) => promise.trySuccess(protocol)
-        case GetState(promise)    => promise.tryCompleteWith(NodeStateSummary(logic, protocol))
+        case OnElectionTimeout          => logic.onElectionTimeout(protocol)
+        case OnLeaderHeartbeatTimeout   => logic.onLeaderHeartbeatTimeout(protocol)
+        case OnResponse(from, received) => logic.onResponse(from, received, protocol)
+        case GetProtocol(promise)       => promise.trySuccess(protocol)
+        case GetState(promise) =>
+          val summary = NodeStateSummary(logic, protocol)
+          promise.tryCompleteWith(summary)
       }
 
-      def handler(pendingAppendAcks: List[UpdateResponse.Appendable]): Receive = {
-        logger.debug(s"${logic.id} w/ ${pendingAppendAcks.size} pending leader acks")
+      def handler(): Receive = {
+        logger.debug(s"${logic.id} w/ ${logic.pendingLeaderAcks.size} pending leader acks")
 
         //
         {
-          case msg: RaftNodeMessage => onMessage(msg, pendingAppendAcks)
+          case msg: RaftNodeMessage =>
+            logger.debug(s"${logic.id} received: $msg")
+            onMessage(msg)
         }
       }
 
-      def add(command: T): UpdateResponse.Appendable = {
-        val index = logic.lastUnappliedIndex
-
-        val appendEntries: AppendEntries[T] = {
-          val myEntry = LogEntry[T](logic.currentTerm, index, command)
-          logic.raftState.log.append(myEntry)
-          logic.mkAppendEntries(index, myEntry)
-        }
-
-        val clientAppendableResponse: UpdateResponse.Appendable = UpdateResponse(protocol.clusterNodeIds, index)
-
-        // when we reply to the client, then we can remove ourselves from the list
-        clientAppendableResponse.result.onComplete {
-          case res =>
-            logger.info(s"Removing client user ack $clientAppendableResponse on $res")
-            //            val newAcks = pendingAppendAcks diff (List(clientAppendableResponse))
-
-            self ! RemovePendingResponse(clientAppendableResponse)
-        }
-
-        protocol.tellOthers(appendEntries)
-        clientAppendableResponse
-      }
-
-      override def receive: Receive = handler(Nil)
+      override def receive: Receive = handler()
     }
 
     private[state] class ActorNodeProtocol[T](ourNodeId: NodeId, clusterNodesById: Map[NodeId, RaftEndpoint[T]], raftElectionTimer: RaftTimer, raftHeartbeatTimer: RaftTimer)(
@@ -216,10 +176,9 @@ object RaftNode {
       }
 
       override def onResponse(from: NodeId, endpoint: RaftEndpoint[T], raftRequest: RaftRequest, response: RaftResponse): Unit = {
+        logger.debug(s"$from replied to $ourNodeId with $response")
         raftNodeActor ! OnResponse(from, response)
       }
     }
-
   }
-
 }

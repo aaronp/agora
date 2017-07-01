@@ -2,10 +2,14 @@ package miniraft.state
 
 import java.nio.file.Path
 
+import com.typesafe.scalalogging.StrictLogging
 import io.circe.{Decoder, Encoder, Json}
+
+import scala.util.control.NonFatal
 
 /**
   * Represents the commit log
+  *
   * @tparam Command the messages we're saving to the log
   *
   */
@@ -99,7 +103,7 @@ object Log {
 
   }
 
-  class FileBasedLog[Command](dir: Path, asBytes: Formatter[Command, Array[Byte]], applyToStateMachine: LogEntry[Command] => Unit) extends Log[Command] {
+  class FileBasedLog[Command](dir: Path, asBytes: Formatter[Command, Array[Byte]], applyToStateMachine: LogEntry[Command] => Unit) extends Log[Command] with StrictLogging {
     // both servers as a file containing the most recent committed index, a well as a marker
     // file in a log entry directory to indicate the entry is committed (e.g. applied to the state machine)
     private val CommittedFlagFileName = ".committed"
@@ -155,8 +159,10 @@ object Log {
       * @return
       */
     override def append(newEntries: List[LogEntry[Command]]): Log[Command] = {
+
       newEntries.foreach { entry =>
         val indexDir = dir.resolve(entry.index.toString)
+        logger.debug(s"Appending $entry under $indexDir")
         require(!isCommitted(entry.index), s"A committed entry already exists at ${indexDir}, can't append $entry")
         indexDir.resolve("command").bytes = asBytes.to(entry.command)
         indexDir.resolve(".term").text = entry.term.t.toString
@@ -164,6 +170,7 @@ object Log {
       if (newEntries.nonEmpty) {
         val max = newEntries.map(_.index).max
         if (max > lastUnappliedIndex) {
+          logger.debug(s"latestUnappliedFile at '$latestUnappliedFile' is now $max")
           latestUnappliedFile.text = max.toString
         }
       }
@@ -172,14 +179,26 @@ object Log {
 
     override def commit(index: LogIndex): Log[Command] = {
       val recordDir = dir.resolve(index.toString)
-      at(index).foreach { entry =>
-        recordDir.resolve(CommittedFlagFileName).createIfNotExists()
-        if (index > lastCommittedIndex || index == 0) {
-          applyToStateMachine(entry)
-          latestCommittedFile.text = index.toString
-        } else {
-          sys.error(s"Can't commit entry at index $index as last committed index is $lastCommittedIndex")
-        }
+      at(index) match {
+        case None =>
+          logger.error(s"Told to commit $index, but no log index exists at $recordDir")
+        case Some(entry) =>
+          logger.debug(s"Committing $index ")
+          recordDir.resolve(CommittedFlagFileName).createIfNotExists()
+          if (index > lastCommittedIndex) {
+            logger.debug(s"$index committed, applying to state machine...")
+            try {
+              applyToStateMachine(entry)
+            } catch {
+              case NonFatal(e) =>
+                logger.debug(s"Applying committed entry $entry threw $e", e)
+            }
+            latestCommittedFile.text = index.toString
+          } else if (index == lastCommittedIndex) {
+            logger.debug(s"Ignoring duplicate commit for $index")
+          } else {
+            sys.error(s"Can't commit entry at index $index as last committed index is $lastCommittedIndex")
+          }
       }
       this
     }
@@ -214,4 +233,5 @@ object Log {
       committed.maxBy(_.index)
     }
   }
+
 }

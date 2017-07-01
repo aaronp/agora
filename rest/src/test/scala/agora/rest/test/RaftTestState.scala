@@ -91,13 +91,11 @@ case class RaftTestState(nodes: List[TestNodeLogic], transportById: Map[NodeId, 
   def onClientRequest(nodeId: String, input: String): RaftTestState = {
 
     val raftNode: TestNodeLogic = serverForId(nodeId)
-    val protocol                = transportById(nodeId)
     raftNode.leaderId match {
-      case None           => fail(s"Node $nodeId doesn't know who the leader is: $toString")
+      case None => fail(s"Node $nodeId doesn't know who the leader is: $toString")
       case Some(`nodeId`) =>
-//        val x = implicitly[ClassTag[String]]
-        val leader: LeaderApi[String] = raftNode.leader // RaftNode[String](raftNode, protocol)
-        val resp: UpdateResponse      = leader(input).futureValue
+        import scala.concurrent.ExecutionContext.Implicits._
+        val resp = raftNode.append(input)(global)
         copy(clientResponses = resp :: clientResponses)
       case Some(other) =>
         onClientRequest(other, input)
@@ -198,6 +196,7 @@ case class RaftTestState(nodes: List[TestNodeLogic], transportById: Map[NodeId, 
   }
 
   def verifyAppendEntries(fromNode: NodeId, messagesByReceiver: Map[String, AppendEntries[String]]): RaftTestState = {
+
     messagesByReceiver.foreach {
       case (sentTo, expectedMsg) =>
         val List(only) = appendEntryMessagesSent(fromNode, sentTo)
@@ -233,20 +232,6 @@ case class RaftTestState(nodes: List[TestNodeLogic], transportById: Map[NodeId, 
   def verifyNodeState(nodeId: String, expected: RaftState[String]): Unit = {
     withClue(s"\n===== EXPECTED ======\n\n${expected}\n\n===== ACTUAL ====\n${toString}\n\n=================\n\n") {
       val actual = serverForId(nodeId).logic.raftState
-
-      println(s"""
-
-            ACTUAL:
-
-            ${actual}
-
-            EXPECTED:
-
-            ${expected}
-
-
-         """.stripMargin)
-
       actual shouldBe expected
     }
   }
@@ -277,18 +262,29 @@ case class RaftTestState(nodes: List[TestNodeLogic], transportById: Map[NodeId, 
   def withNode(nodeId: NodeId, initialState: RaftState[String]): RaftTestState = {
     require(!nodes.map(_.id).contains(nodeId), s"Node $nodeId is already in the test cluster")
 
-    val ss = TestCluster.nodeForState(nodeId, initialState)
+    val protocol: BufferedTransport                      = new BufferedTransport(nodeId, transportById.keySet + nodeId)
+    val newTestNode: TestCluster.TestClusterNode[String] = TestCluster.nodeForState(nodeId, initialState, protocol)
 
-    val clusterIds = transportById.keySet + nodeId
-    val nt         = new BufferedTransport(nodeId)
-    val newTransport: Map[NodeId, BufferedTransport] = transportById.updated(nodeId, nt).mapValues { nt =>
-      nt.updateClusterView(clusterIds)
+    val newTransportById = transportById.updated(nodeId, protocol)
+
+    val clusterIds = newTransportById.keySet
+    println(clusterIds)
+
+    val newNodes: List[TestNodeLogic] = newTestNode :: nodes
+    newNodes.size shouldBe newTransportById.size
+    //    val newCluster: Map[NodeId, RaftEndpoint[String]] = newNodes.map(n => n.id -> n.endpoint).toMap
+    newNodes.foreach(_.protocol.updateClusterView(newTransportById.keySet))
+
+    //    ss.protocol.update(newCluster)
+    //    ss.protocol.updateHandler {
+    //      case (id, _, _, resp) => ss.logic.onResponse(id, resp, ss.protocol)
+    //    }
+
+    val newSize = newNodes.size
+    newNodes.foreach { member =>
+      member.protocol.clusterSize shouldBe newSize
     }
 
-    val newNodes: List[TestNodeLogic] = ss :: nodes
-    val newCluster                    = newNodes.map(n => n.id -> n.endpoint).toMap
-    ss.protocol.update(newCluster)
-
-    copy(nodes = newNodes, transportById = newTransport)
+    copy(nodes = newNodes, transportById = newTransportById)
   }
 }

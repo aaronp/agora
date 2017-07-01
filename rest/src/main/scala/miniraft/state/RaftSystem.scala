@@ -3,14 +3,14 @@ package miniraft.state
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicInteger
 
+import agora.api.worker.HostLocation
+import agora.rest.RunningService
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import com.typesafe.scalalogging.StrictLogging
 import io.circe.{Decoder, Encoder}
-import agora.api.worker.HostLocation
-import agora.rest.RunningService
+import miniraft.LeaderApi
 import miniraft.state.RaftNode.async
-import miniraft.{LeaderApi, RaftEndpoint}
 import miniraft.state.rest.{LeaderRoutes, RaftRoutes, RaftSupportRoutes}
 
 import scala.concurrent.Future
@@ -79,13 +79,13 @@ class RaftSystem[T: Encoder: Decoder] private (config: RaftConfig,
     */
   def start(valueFromString: String => T = RaftSystem.commandFromJsonText): Future[RunningService[RaftConfig, RaftNode[T] with LeaderApi[T]]] = {
 
+    import config.serverImplicits._
+
     /** kick off our election timer on startup */
     protocol.electionTimer.reset(None)
 
     val restRoutes = routes(valueFromString)
     val service    = RunningService.start(config, restRoutes, node)
-
-    import config.serverImplicits._
     service.foreach(_.onShutdown {
       protocol.electionTimer.cancel()
       protocol.electionTimer.close()
@@ -139,7 +139,8 @@ object RaftSystem extends StrictLogging {
 
     val node: async.RaftNodeActorClient[T] = {
       import config.serverImplicits._
-      RaftNode[T](logic, config.clusterNodes, config.election.timer, config.heartbeat.timer)
+      val (client, protocol) = RaftNode[T](logic, config.clusterNodes, config.election.timer, config.heartbeat.timer)
+      client
     }
 
     /**

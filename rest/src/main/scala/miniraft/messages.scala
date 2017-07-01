@@ -45,7 +45,6 @@ case class RequestVoteResponse(term: Term, granted: Boolean) extends RaftRespons
   */
 case class AppendEntries[T](term: Term, leaderId: NodeId, commitIndex: LogIndex, prevLogIndex: LogIndex, prevLogTerm: Term, entry: Option[T]) extends RaftRequest {
   require(leaderId.nonEmpty)
-  def asLogEntry  = entry.map(e => LogEntry[T](prevLogTerm, commitIndex, e))
   def isHeartbeat = entry.isEmpty
 }
 

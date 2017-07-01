@@ -87,31 +87,6 @@ object ClusterProtocol {
 
   }
 
-  class Buffer[T](ourNodeId: NodeId, election: RaftTimer, heartbeat: RaftTimer, initialNodes: Map[NodeId, _ <: RaftEndpoint[T]] = Map.empty)(
-      implicit override val executionContext: ExecutionContext)
-      extends BaseProtocol[T](ourNodeId, initialNodes, election, heartbeat) {
-
-    type Handler = (NodeId, RaftEndpoint[T], RaftRequest, RaftResponse) => Unit
-    private var clusterNodes             = initialNodes
-    private var handler: Option[Handler] = None
-
-    def update(nodes: Map[NodeId, _ <: RaftEndpoint[T]]) = {
-      clusterNodes = nodes
-    }
-
-    override def clusterNodesById: Map[NodeId, _ <: RaftEndpoint[T]] = clusterNodes
-
-    def updateHander(onResponse: Handler) = {
-      handler = Option(onResponse)
-    }
-
-    override def onResponse(from: NodeId, endpoint: RaftEndpoint[T], raftRequest: RaftRequest, response: RaftResponse): Unit = {
-      handler.foreach { f =>
-        f(from, endpoint, raftRequest, response)
-      }
-    }
-  }
-
   /** A basic implementation of protocol based on a map of node entpoints
     */
   abstract class BaseProtocol[T](val ourNodeId: NodeId,
@@ -122,7 +97,8 @@ object ClusterProtocol {
       with StrictLogging {
     implicit protected def executionContext: ExecutionContext
 
-    protected def otherNodes: Map[NodeId, RaftEndpoint[T]] = clusterNodesById - ourNodeId
+    private[this] var endpointById: Map[NodeId, _ <: RaftEndpoint[T]] = initialNodes
+    protected def otherNodes: Map[NodeId, RaftEndpoint[T]]            = clusterNodesById - ourNodeId
 
     /** Required by subclasses to provide a means to do something w/ a reply
       *
@@ -133,7 +109,11 @@ object ClusterProtocol {
       */
     def onResponse(from: NodeId, endpoint: RaftEndpoint[T], raftRequest: RaftRequest, response: RaftResponse): Unit
 
-    def clusterNodesById = initialNodes
+    def update(newMap: Map[NodeId, _ <: RaftEndpoint[T]]) = {
+      endpointById = newMap
+    }
+
+    def clusterNodesById = endpointById
 
     override def tell(id: NodeId, raftRequest: RaftRequest): Unit = {
       clusterNodesById.get(id) match {

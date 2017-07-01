@@ -57,7 +57,7 @@ case class LeaderRoutes[T: Encoder: Decoder](node: RaftNode[T], leader: LeaderAp
 
   private def doAppend(text: String): Future[HttpResponse] = {
     val tea = teaFromString(text)
-    val response: Future[HttpResponse] = leader(tea).flatMap(_.result).map {
+    val response: Future[HttpResponse] = leader.append(tea).flatMap(_.result).map {
       case true  => HttpResponse(StatusCodes.Created)
       case false => HttpResponse(StatusCodes.InternalServerError)
     }

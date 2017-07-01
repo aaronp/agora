@@ -3,7 +3,7 @@ package agora.rest.test
 import miniraft.RaftRequest
 import miniraft.state._
 
-class BufferedTransport(from: NodeId) extends ClusterProtocol {
+class BufferedTransport(from: NodeId, clusterId: Set[NodeId]) extends ClusterProtocol {
 
   private var sentResponses: List[SentResponse] = Nil
 
@@ -23,10 +23,10 @@ class BufferedTransport(from: NodeId) extends ClusterProtocol {
   override val heartbeatTimer = new TestTimer()
 
   override def toString = {
-    s"""${sentRequests.size} pending requests to send:
+    s"""$from has ${sentRequests.size} pending requests to send:
        |${sentRequests.mkString("\n")}
        |
-       |${sentResponses.size} pending responses yet to be applied
+       |and ${sentResponses.size} pending responses yet to be applied
        |${sentResponses.mkString("\n")}
      """.stripMargin
   }

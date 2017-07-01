@@ -36,7 +36,7 @@ Feature: Raft Leader Election
     And Node A should have cluster view
       | peer | next index | match index | vote granted |
       | B    | 0          | 0           | true         |
-    And no messages should be pending
+    #And no messages should be pending
 
 
   Scenario: Cluster of a single node should become leader on election timeout

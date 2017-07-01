@@ -53,6 +53,7 @@ class Candidate private (val counter: ElectionCounter) extends NodeRole {
     case c: Candidate => counter == c.counter
     case _            => false
   }
+
   override def hashCode = 31
 
   def size = counter.clusterSize
@@ -208,7 +209,15 @@ object PersistentState {
       }
     }
 
-    override def currentTerm: Term = Term(currentTermFile.text.toInt)
+    override def currentTerm: Term = {
+      val txt = currentTermFile.text
+      try {
+        Term(txt.toInt)
+      } catch {
+        case _: NumberFormatException =>
+          sys.error(s"${currentTermFile} text was '${txt}'")
+      }
+    }
 
     // TODO - read caching
     override def votedFor: Option[NodeId] = Option(votedForFile.text).map(_.trim).filter(_.nonEmpty)
@@ -264,20 +273,65 @@ case class RaftState[T](role: NodeRole, persistentState: PersistentState[T]) {
 
   def lastLogTerm = log.lastTerm
 
-  def append(ae: AppendEntries[T]) = {
-    val (appended, success) = if (ae.term > currentTerm) {
+  def append(id: NodeId, ae: AppendEntries[T]): (RaftState[T], AppendEntriesResponse) = {
+
+    val b4currentTerm        = currentTerm
+    val b4lastCommittedIndex = lastCommittedIndex
+    val b4lastUnappliedIndex = lastUnappliedIndex
+    val b4lastLogTerm        = lastLogTerm
+
+    val appended = if (ae.term > currentTerm) {
       // NOTE: we diverge a bit here and change our 'votedFor' to be the leader.
       // This requires some thought and may come back to bite us, as we're duplicating the use of 'votedFor' to
       // track who the leader is
-      val newState = copy(role = Follower, persistentState = persistentState.voteFor(ae.term, ae.leaderId))
-      newState -> true
-    } else if (ae.term == currentTerm && ae.prevLogIndex == lastCommittedIndex) {
-      // the leader and our log index match
-      val newState = copy(role = Follower, persistentState = persistentState.append(ae.asLogEntry.toList))
-      newState -> true
+      copy(role = Follower, persistentState = persistentState.voteFor(ae.term, ae.leaderId))
+    } else if (ae.term == currentTerm) {
+
+      if (ae.prevLogIndex == lastCommittedIndex) {
+
+        /*
+         * Append a new entry, as the leader and our log index match
+         */
+        val newPersistentState = ae.entry.fold(persistentState) { command =>
+          val entry = LogEntry[T](currentTerm, lastUnappliedIndex + 1, command)
+          persistentState.append(List(entry))
+        }
+
+        copy(role = Follower, persistentState = newPersistentState)
+      } else if (ae.prevLogIndex == lastUnappliedIndex && ae.entry.isEmpty) {
+        /*
+         * commit the previous entry
+         */
+        copy(role = Follower, persistentState = persistentState.commit(ae.prevLogIndex))
+      } else {
+        this
+      }
     } else {
-      this -> false
+      this
     }
+
+    val success = (ae.term > currentTerm && ae.entry.isEmpty) || (ae.term == currentTerm && ae.prevLogIndex == lastCommittedIndex) //&& ae.prevLogTerm == lastLogTerm
+
+    println(s"""    ${id} : [ A  P  P  E  N  D ]  ==> ${success}
+         |        ae.term (${ae.term}) == currentTerm (${currentTerm}) &&
+         |        ae.prevLogIndex (${ae.prevLogIndex}) == lastCommittedIndex (${lastCommittedIndex}) &&
+         |        ae.prevLogTerm (${ae.prevLogTerm}) == lastLogTerm (${lastLogTerm})
+         |
+         |     term         : ${ae.term}
+         |     leaderId     : ${ae.leaderId}
+         |     commitIndex  : ${ae.commitIndex}
+         |     prevLogIndex : ${ae.prevLogIndex}
+         |     prevLogTerm  : ${ae.prevLogTerm}
+         |     entry        : ${ae.entry}
+         |
+         |     WHERE
+         |
+         |     currentTerm        : ${b4currentTerm} => ${appended.currentTerm}
+         |     lastCommittedIndex : ${b4lastCommittedIndex} => ${appended.lastCommittedIndex}
+         |     lastUnappliedIndex : ${b4lastUnappliedIndex} => ${appended.lastUnappliedIndex}
+         |     lastLogTerm        : ${b4lastLogTerm} => ${appended.lastLogTerm}
+         |
+      """.stripMargin)
 
     appended -> AppendEntriesResponse(currentTerm, success, appended.lastUnappliedIndex)
   }

@@ -76,7 +76,7 @@ class NodeStateSummaryTest extends BaseSpec {
     val ps = PersistentState[String]() { _ =>
       }
 
-    NodeStateSummary(RaftNodeLogic("someId", RaftState(role, ps)), new BufferedTransport("someId")).futureValue
+    NodeStateSummary(RaftNodeLogic("someId", RaftState(role, ps)), new BufferedTransport("someId", Set("someId"))).futureValue
   }
 
 }

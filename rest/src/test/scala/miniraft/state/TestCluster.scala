@@ -3,11 +3,12 @@ package miniraft.state
 import java.nio.file.Path
 
 import akka.actor.ActorSystem
-import agora.rest.test.TestTimer
+import agora.rest.test.{BufferedTransport, TestTimer}
 import miniraft.state.Log.Formatter
 import miniraft.state.RaftNode.async
-import miniraft.{LeaderApi, RaftEndpoint, state}
+import miniraft.{LeaderApi, RaftEndpoint, UpdateResponse, state}
 
+import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 
 object TestCluster {
@@ -17,7 +18,13 @@ object TestCluster {
 
   import agora.domain.io.implicits._
 
-  case class TestClusterNode[T](logic: RaftNodeLogic[T], asyncNode: async.RaftNodeActorClient[T], protocol: state.ClusterProtocol.Buffer[T]) {
+  case class TestClusterNode[T](logic: RaftNodeLogic[T], asyncNode: async.RaftNodeActorClient[T], protocol: BufferedTransport) {
+
+    def append(value: T)(implicit ec: ExecutionContext): UpdateResponse = {
+      val res: UpdateResponse.Appendable = logic.add(value, protocol)
+      res
+    }
+
     def id = logic.id
 
     def node: RaftNode[T] = asyncNode
@@ -29,48 +36,51 @@ object TestCluster {
     def lastUnappliedIndex = logic.lastUnappliedIndex
 
     def leader: LeaderApi[T] = asyncNode
+
+    override def toString = logic.toString
   }
 
   case class under(dir: Path) {
-    def of[T: ClassTag](firstNode: String, theRest: String*)(applyToStateMachine: LogEntry[T] => Unit)(implicit fmt: Formatter[T, Array[Byte]]): Map[String, TestClusterNode[T]] = {
-      apply(theRest.toSet + firstNode) { id =>
+    def of[T: ClassTag](firstNode: String, theRest: String*)(applyToStateMachine: (NodeId, LogEntry[T]) => Unit)(
+        implicit fmt: Formatter[T, Array[Byte]]): Map[NodeId, async.RaftNodeActorClient[T]] = {
+      instance(theRest.toSet + firstNode) { id =>
         val nodeDir = dir.resolve(s"node-$id").mkDirs()
 
-        PersistentState[T](nodeDir)(applyToStateMachine)
+        PersistentState[T](nodeDir)(applyToStateMachine(id, _))
       }
     }
   }
 
-  def apply[T: ClassTag](ids: Set[NodeId])(newPersistentState: NodeId => PersistentState[T])(implicit fmt: Formatter[T, Array[Byte]]): Map[String, TestClusterNode[T]] = {
+  def instance[T: ClassTag](ids: Set[NodeId])(newPersistentState: NodeId => PersistentState[T])(implicit fmt: Formatter[T, Array[Byte]]) = {
 
-    val testNodeById = ids.map { (id: String) =>
-      val tcn = newNode(id)(newPersistentState)
-      id -> tcn
+    val nodesAndProtocols = ids.map { (id: String) =>
+      val logic = RaftNodeLogic[T](id, newPersistentState(id))
+
+      RaftNode(logic, Map.empty, new TestTimer(), new TestTimer())
+    }
+
+    val testNodeById: Map[NodeId, async.RaftNodeActorClient[T]] = nodesAndProtocols.map {
+      case (n, p) => p.ourNodeId -> n
     }.toMap
 
-    val endpointsById: Map[String, RaftEndpoint[T]] = testNodeById.mapValues(_.endpoint)
-    testNodeById.values.foreach(_.protocol.update(endpointsById))
+    nodesAndProtocols.map(_._2).foreach(_.update(testNodeById))
 
     testNodeById
   }
 
-  def nodeForLogic[T: ClassTag](logic: RaftNodeLogic[T]) = {
-    val protocol                               = new state.ClusterProtocol.Buffer[T](logic.id, new TestTimer(), new TestTimer(), Map.empty)
+  def nodeForLogic[T: ClassTag](logic: RaftNodeLogic[T], protocol: BufferedTransport) = {
     val endpoint: async.RaftNodeActorClient[T] = RaftNode[T](logic, protocol)
-    protocol.updateHander {
-      case (from, _, _, resp) => endpoint.onResponse(from, resp)
-    }
     TestClusterNode(logic, endpoint, protocol)
   }
 
-  def newNode[T: ClassTag](id: NodeId)(newPersistentState: NodeId => PersistentState[T])(implicit fmt: Formatter[T, Array[Byte]]) = {
+  def newNode[T: ClassTag](id: NodeId, protocol: BufferedTransport)(newPersistentState: NodeId => PersistentState[T])(implicit fmt: Formatter[T, Array[Byte]]) = {
     val logic = RaftNodeLogic[T](id, newPersistentState(id))
-    nodeForLogic(logic)
+    nodeForLogic(logic, protocol)
   }
 
-  def nodeForState[T: ClassTag](nodeId: NodeId, initialState: RaftState[T]) = {
+  def nodeForState[T: ClassTag](nodeId: NodeId, initialState: RaftState[T], protocol: BufferedTransport) = {
     val logic = RaftNodeLogic(nodeId, initialState)
-    nodeForLogic(logic)
+    nodeForLogic(logic, protocol)
   }
 
 }

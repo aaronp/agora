@@ -1,15 +1,20 @@
 package agora.rest.test
 
 import cucumber.api.scala.{EN, ScalaDsl}
-import cucumber.api.{DataTable, PendingException, Scenario}
-import miniraft.{AppendEntries, RequestVote, RequestVoteResponse}
+import cucumber.api.{DataTable, Scenario}
 import miniraft.state._
+import miniraft.{AppendEntries, RequestVote, RequestVoteResponse}
 import org.scalatest.Matchers
+import org.scalatest.concurrent.{Eventually, ScalaFutures}
+import org.scalatest.time.{Millis, Seconds, Span}
+
+import concurrent.duration._
+import scala.language.{implicitConversions, postfixOps}
 
 /**
   * For node states, see [[RaftSteps]]#roleForString(String)
   */
-class RaftSteps extends ScalaDsl with EN with Matchers with TestData {
+class RaftSteps extends ScalaDsl with EN with Matchers with TestData with ScalaFutures with Eventually {
 
   import RaftSteps._
 
@@ -69,7 +74,6 @@ class RaftSteps extends ScalaDsl with EN with Matchers with TestData {
   }
   When("""^Node (.*) receives its AppendEntries message, it should reply with$""") { (nodeId: String, appendEntriesReplyTable: DataTable) =>
     state = state.flushAppendEntityMessageTo(nodeId)
-
   }
   Then("""^Node (.*) should send the AppendEntries messages?$""") { (nodeId: String, appendTable: DataTable) =>
     val messagesByReceiver: List[(String, AppendEntries[String])] = appendTable.toMap.map { row =>
@@ -86,13 +90,16 @@ class RaftSteps extends ScalaDsl with EN with Matchers with TestData {
       receiver -> req
     }
 
-    state.verifyAppendEntries(fromNode = nodeId, messagesByReceiver.toMap.ensuring(_.size == messagesByReceiver.size))
-    state = state.flushRequestsFrom(nodeId)
+    val byReceiver = messagesByReceiver.toMap.ensuring(_.size == messagesByReceiver.size)
+    state.verifyAppendEntries(fromNode = nodeId, byReceiver)
+
   }
 
   Before { (scen: Scenario) =>
     state = RaftTestState(Nil, Map.empty)
   }
+
+  implicit override def patienceConfig = PatienceConfig(timeout = scaled(Span(30.seconds.toSeconds, Seconds)), interval = scaled(Span(500, Millis)))
 }
 
 object RaftSteps {
@@ -202,4 +209,5 @@ object RaftSteps {
     )
     SentRequest(fromNode, to, msg)
   }
+
 }

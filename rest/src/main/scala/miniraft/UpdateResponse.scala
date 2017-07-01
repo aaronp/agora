@@ -71,13 +71,13 @@ object UpdateResponse {
       // we can then just assume ours is ok
       if (resp.matchIndex == logIndex) {
         val completedOpt = results.get(from).map { promise =>
-          logger.info(s"Trying to complete client result for $from w/ $resp, given promise.isCompleted=${promise.isCompleted}")
+          logger.info(s"Trying to complete client result for $from w/ $resp, given promise.isCompleted=${promise.isCompleted}\n\t$toString\n")
           promise.trySuccess(resp)
           true
         }
         completedOpt.getOrElse(false)
       } else {
-        logger.info(s"Ignoring append entries ack from unknown client '$from'")
+        logger.info(s"Ignoring append entries ack from '$from' where their match index '${resp.matchIndex}' didn't match our log index '$logIndex'")
         false
       }
     }
@@ -88,17 +88,22 @@ object UpdateResponse {
     private val okCounter         = new AtomicInteger(0)
     private lazy val notOkCounter = new AtomicInteger(0)
     private val total             = results.size
-    results.values.foreach { p =>
-      p.future.onComplete {
-        case Success(ack) if ack.success =>
-          if (isMajority(okCounter.incrementAndGet(), total)) {
-            completePromise.trySuccess(true)
-          }
-        case _ =>
-          if (isMajority(notOkCounter.incrementAndGet(), total)) {
-            completePromise.trySuccess(false)
-          }
-      }
+    results.foreach {
+      case (receivedNodeId, p) =>
+        p.future.onComplete {
+          case Success(ack) if ack.success =>
+            val ok = okCounter.incrementAndGet()
+            logger.debug(s"ack ok from '$receivedNodeId': ${toString}")
+            if (isMajority(ok, total)) {
+              completePromise.trySuccess(true)
+            }
+          case _ =>
+            val notOk = notOkCounter.incrementAndGet()
+            logger.info(s"received 'false' on append entry from '$receivedNodeId': ${toString}")
+            if (isMajority(notOk, total)) {
+              completePromise.trySuccess(false)
+            }
+        }
     }
 
     override def result: Future[Boolean] = completePromise.future

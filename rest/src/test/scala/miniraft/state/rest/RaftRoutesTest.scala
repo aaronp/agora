@@ -5,7 +5,9 @@ import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.generic.auto._
 import agora.rest.BaseRoutesSpec
 import agora.rest.test.TestTimer
-import miniraft.{AppendEntriesResponse, RequestVoteResponse}
+import akka.http.scaladsl.server.Route
+import miniraft.state.RaftNode.async
+import miniraft.{AppendEntries, AppendEntriesResponse, RequestVote, RequestVoteResponse}
 import miniraft.state._
 
 class RaftRoutesTest extends BaseRoutesSpec with FailFastCirceSupport {
@@ -14,14 +16,16 @@ class RaftRoutesTest extends BaseRoutesSpec with FailFastCirceSupport {
 
   "RaftRoutes POST /rest/raft/vote" should {
     "reply w/ a vote response" in withDir { dir =>
-      val nodes = TestCluster.under(dir).of[Int]("A", "B")(_ => ???)
+      val nodes = TestCluster.under(dir).of[Int]("A", "B") {
+        case _ => ???
+      }
 
-      val nodeA = nodes("A")
-      val nodeB = nodes("B")
+      val nodeA                                      = nodes("A")
+      val nodeB: async.RaftNodeActorClient[LogIndex] = nodes("B")
 
-      val routes = RaftRoutes(nodeA.endpoint).routes
+      val routes: Route = RaftRoutes(nodeA).routes
 
-      RaftHttp.apply(nodeB.logic.mkRequestVote()) ~> routes ~> check {
+      RaftHttp(RequestVote(Term(2), "A", 0, Term(0))) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
         val response = responseAs[RequestVoteResponse]
         response.granted shouldBe true
@@ -31,14 +35,17 @@ class RaftRoutesTest extends BaseRoutesSpec with FailFastCirceSupport {
 
   "RaftRoutes POST /rest/raft/append" should {
     "reply w/ an append response" in withDir { dir =>
-      val nodes = TestCluster.under(dir).of[Int]("A", "B")(_ => ???)
+      val nodes = TestCluster.under(dir).of[Int]("A", "B") {
+        case _ => ???
+      }
 
       val nodeA = nodes("A")
       val nodeB = nodes("B")
 
-      val routes = RaftRoutes(nodeA.endpoint).routes
+      val routes = RaftRoutes(nodeA).routes
 
-      RaftHttp(nodeB.logic.mkHeartbeatAppendEntries(0)) ~> routes ~> check {
+      val ae = AppendEntries[Int](Term(2), "A", 0, 0, Term(2), None)
+      RaftHttp(ae) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
         val response = responseAs[AppendEntriesResponse]
         response.matchIndex shouldBe 0

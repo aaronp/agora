@@ -16,11 +16,11 @@ Feature: Raft Append Entries
       | 2            | Leader(B:0,0) | A         | 1            | 0            |
     And The log for Node A should be
       | value | term | index | committed |
-      | foo   | 2    | 0     | false     |
+      | foo   | 2    | 1     | false     |
     # check 'prev log term' ... in https://raft.github.io/ the first one is 0
     And Node A should send the AppendEntries message
       | to node | term | leader id | commit index | prev log index | prev log term | entries |
-      | B       | 2    | A         | 0            | 0              | 2             | foo     |
+      | B       | 2    | A         | 0            | 0              | 0             | foo     |
     When Node B receives its AppendEntries message, it should reply with
       | to node | term | success | match index |
       | A       | 2    | true    | 1           |
