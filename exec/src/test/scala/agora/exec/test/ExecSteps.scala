@@ -27,7 +27,7 @@ class ExecSteps extends ScalaDsl with EN with Matchers with TestData {
   When("""^we kill the actor system for client (.*)$""") { (nodeId: NodeId) =>
     state = state.stopClient(nodeId)
   }
-When("""^client (.*) executes job (.*) with command '(.*)' and the tags$""") { (clientId: String, jobId: String, command: String, tagTable: DataTable) =>
+  When("""^client (.*) executes job (.*) with command '(.*)' and the tags$""") { (clientId: String, jobId: String, command: String, tagTable: DataTable) =>
     val tags = tagTable.toMap.map { row =>
       row("key") -> row("value")
     }
@@ -59,7 +59,10 @@ When("""^client (.*) executes job (.*) with command '(.*)' and the tags$""") { (
 
   Before { scen: Scenario =>
     state = ExecState()
-  }  After { scen : Scenario =>
-    state =state.close()
+  }
+
+  // scalafmt wanted to put this after the closing brace above
+  After { scen: Scenario =>
+    state = state.close()
   }
 }

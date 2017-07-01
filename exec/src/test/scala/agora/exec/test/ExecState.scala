@@ -11,11 +11,12 @@ import agora.rest.{BaseSpec, RunningService}
 import miniraft.state.NodeId
 import org.scalatest.concurrent.Eventually
 
-case class ExecState(
-                      server: Option[RunningService[ExecConfig, ExecutionRoutes]] = None,
-                      clientsByName: Map[String, (ExecConfig, ProcessRunner)] = Map.empty,
-                      resultsByClient: Map[String, ProcessOutput] = Map.empty,
-                    latestSearch: Option[(String, String)] = None) extends BaseSpec with Eventually {
+case class ExecState(server: Option[RunningService[ExecConfig, ExecutionRoutes]] = None,
+                     clientsByName: Map[String, (ExecConfig, ProcessRunner)] = Map.empty,
+                     resultsByClient: Map[String, ProcessOutput] = Map.empty,
+                     latestSearch: Option[(String, String)] = None)
+    extends BaseSpec
+    with Eventually {
   def verifyListingMetadata(expected: Map[String, List[String]]): ExecState = {
     execClient.listMetadata.futureValue shouldBe expected
     this
@@ -62,7 +63,8 @@ case class ExecState(
   def close() = {
     server.foreach(_.close())
     clientsByName.values.foreach {
-      case c: Closeable => c.close()case c            =>
+      case c: Closeable => c.close()
+      case c            =>
     }
     new ExecState()
   }

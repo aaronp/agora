@@ -87,7 +87,6 @@ class ServerConfig(val config: Config) extends RichConfigOps {
     HostLocation(hostName, uri.authority.port)
   }
 
-
   protected def retryClient(loc: HostLocation = location): RetryClient = {
     RetryClient(clientFailover.strategy)(() => newRestClient(loc))
   }

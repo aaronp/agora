@@ -11,6 +11,9 @@ import agora.exec.model.{RunProcess, Upload}
 
 import scala.concurrent.{ExecutionContext, Future}
 
+/**
+  * Used by the [[agora.exec.run.RequestLoggingRunner]] to write down/read back jobs
+  */
 trait ExecDao {
   type SaveResult
 
@@ -83,9 +86,7 @@ object ExecDao {
           .collect {
             case KeyValue(id, `value`) => id
           }
-          .collect {
-          case KeyValue(id, `value`) => id
-        }.toSet
+          .toSet
       } else {
         Set.empty
       }

@@ -184,9 +184,7 @@ class ExecutionRoutes(val execConfig: ExecConfig) extends StrictLogging with Fai
                     }
                   }
                   Future.sequence(futures).map { pairs =>
-                    val jsonMap = List(
-                      "runProcess" -> j,
-                      "uploadCount" -> Json.fromInt(uploads.size)) ++ pairs
+                    val jsonMap = List("runProcess" -> j, "uploadCount" -> Json.fromInt(uploads.size)) ++ pairs
                     Json.obj(jsonMap: _*)
                   }
                 }
