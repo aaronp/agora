@@ -1,6 +1,6 @@
-![sbt test cucumber](https://travis-ci.org/aaronp/jabroni.svg?branch=master)
+![sbt test cucumber](https://travis-ci.org/aaronp/agora.svg?branch=master)
 
-# A reactive exchange for producers/consumers
+# A distributed service for exposing functions as a reactive-stream
 
 This project provides a means to distribute work items across workers using a work-pulling mechanism.
 
@@ -8,10 +8,7 @@ This project provides a means to distribute work items across workers using a wo
 libraryDependencies += "com.github.aaronp" %% "jabroni-rest" % "0.0.1"
 ```
 
-# Erm ... what do you mean?
-
-It's an implementation of [Reactive Streams](http://www.reactive-streams.org/), except the publishers also supply data in their subscriptions.
-
+It's a derivation of [Reactive Streams](http://www.reactive-streams.org/), where the difference is publishers also supply data in their subscriptions.
 
 Another way to think of it is as a lightweight pub/sub work model. 
 
