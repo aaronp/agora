@@ -1,5 +1,7 @@
 package miniraft.state
 
+import java.util.UUID
+
 import agora.rest.BaseSpec
 import agora.rest.test.TestTimer
 import miniraft._
@@ -262,9 +264,15 @@ class RaftNodeLogicTest extends BaseSpec with Eventually {
   }
 
   def newNode(name: String) = {
-    val state = RaftState(PersistentState() { e: LogEntry[String] =>
+    val ps2 = PersistentState() { e: LogEntry[String] =>
       println(s"$name applying $e to SM")
-    })
+    }
+
+    val dir = s"target/test/log-for-$name/${UUID.randomUUID()}".asPath.mkDirs()
+    val ps = PersistentState(dir) { e: LogEntry[String] =>
+      println(s"$name applying $e to SM")
+    }
+    val state = RaftState(ps)
     RaftNodeLogic(name, state)
   }
 

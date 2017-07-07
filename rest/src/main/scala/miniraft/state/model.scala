@@ -302,7 +302,8 @@ case class RaftState[T](role: NodeRole, persistentState: PersistentState[T]) {
         /*
          * commit the previous entry
          */
-        copy(role = Follower, persistentState = persistentState.commit(ae.prevLogIndex))
+        val newPS = if (ae.prevLogIndex == 0) persistentState else persistentState.commit(ae.prevLogIndex)
+        copy(role = Follower, persistentState = newPS)
       } else {
         this
       }
@@ -312,7 +313,7 @@ case class RaftState[T](role: NodeRole, persistentState: PersistentState[T]) {
 
     val success = (ae.term > currentTerm && ae.entry.isEmpty) || (ae.term == currentTerm && ae.prevLogIndex == lastCommittedIndex) //&& ae.prevLogTerm == lastLogTerm
 
-    println(s"""    ${id} : [ A  P  P  E  N  D ]  ==> ${success}
+    println(s"""    ${id} : [ A  P  P  E  N  D ] from ${ae.leaderId} ==> ${success}
          |        ae.term (${ae.term}) == currentTerm (${currentTerm}) &&
          |        ae.prevLogIndex (${ae.prevLogIndex}) == lastCommittedIndex (${lastCommittedIndex}) &&
          |        ae.prevLogTerm (${ae.prevLogTerm}) == lastLogTerm (${lastLogTerm})

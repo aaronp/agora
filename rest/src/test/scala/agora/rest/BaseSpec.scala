@@ -1,7 +1,7 @@
 package agora.rest
 
 import java.nio.file.Path
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.testkit.RouteTestTimeout
@@ -34,14 +34,14 @@ class BaseSpec extends WordSpec with Matchers with FailFastCirceSupport with Sca
 
   def srcDir: Path = BaseSpec.srcDir
 
-  private val dirCounter = new AtomicInteger(0)
+  private val dirCounter = new AtomicLong(System.currentTimeMillis())
 
   def withDir(f: Path => Unit) = {
-    val dir: Path = s"target/test/${getClass.getSimpleName}-${dirCounter.incrementAndGet()}".asPath.mkDirs()
+    val dir: Path = s"target/test/${getClass.getSimpleName}-${dirCounter.incrementAndGet()}".asPath
     if (dir.exists) {
       dir.delete()
-      dir.mkDirs()
     }
+    dir.mkDirs()
     try {
       f(dir)
     } finally {

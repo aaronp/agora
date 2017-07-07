@@ -196,7 +196,7 @@ private[state] class RaftNodeLogic[T](val id: NodeId, initialState: RaftState[T]
     val peersPlusUs = nodesWithMatchIndex.size + 1
 
     if (isMajority(peersPlusUs, cluster.clusterSize)) {
-      val nodesToAck = if (raftState.log.isCommitted(ourLatestIndex)) {
+      val nodesToAck = if (ourLatestIndex == 0 || raftState.log.isCommitted(ourLatestIndex)) {
         // already committed - just ack on next heartbeat
         // (after all, this could be a response to an ack, so we'd just be ack-ing the ack!)
         Nil

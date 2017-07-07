@@ -11,44 +11,6 @@ import scala.concurrent.ExecutionContext
 
 class NodeStateSummaryTest extends BaseSpec {
 
-  "NodeStateSumary" should {
-    "unmarshal" in {
-      val json =
-        """{
-          |  "summary" : {
-          |    "id" : "localhost:9001",
-          |    "clusterSize" : 5,
-          |    "term" : 6,
-          |    "role" : "leader",
-          |    "votedFor" : "localhost:9001",
-          |    "lastCommittedIndex" : 0,
-          |    "lastUnappliedIndex" : 0,
-          |    "lastLogTerm" : 0,
-          |    "electionTimer" : "election timer",
-          |    "heartbeatTimer" : "heartbeat timer"
-          |  },
-          |  "clusterViewByNodeId" : {
-          |    "localhost:9003" : {
-          |      "matchIndex" : 0,
-          |      "nextIndex" : 1
-          |    },
-          |    "localhost:9004" : {
-          |      "matchIndex" : 0,
-          |      "nextIndex" : 1
-          |    },
-          |    "localhost:9002" : {
-          |      "matchIndex" : 0,
-          |      "nextIndex" : 1
-          |    }
-          |  }
-          |}""".stripMargin
-
-      val Right(LeaderSnapshot(_, view)) = decode[NodeStateSummary](json)
-
-      view.size shouldBe 3
-
-    }
-  }
   "NodeStateSummary json encoding" should {
     "marshal/unmarshal a follower node" in {
       val nss              = summaryForRole(Follower)

@@ -12,7 +12,7 @@ class RaftNodeTest extends BaseSpec with Eventually with HasMaterializer {
 
   import materializer.executionContext
 
-  "RaftNode election timeout" ignore {
+  "RaftNode election timeout" should {
     "appoint a single leader in a 3 node cluster" in {
       withDir { dir =>
         val clusterById = TestCluster.under(dir).of[String]("A", "B", "C") {
@@ -29,7 +29,7 @@ class RaftNodeTest extends BaseSpec with Eventually with HasMaterializer {
             state
           }
           val theOtherNodeIds                              = clusterById.keySet - expectedLeader.id
-          val expectedLeaderView: Map[String, ClusterPeer] = theOtherNodeIds.map(_ -> ClusterPeer(0, 0)).toMap
+          val expectedLeaderView: Map[String, ClusterPeer] = theOtherNodeIds.map(_ -> ClusterPeer(0, 1)).toMap
 
           leaderView shouldBe expectedLeaderView
 
@@ -80,61 +80,23 @@ class RaftNodeTest extends BaseSpec with Eventually with HasMaterializer {
 
         val LeaderSnapshot(newLeaderSnapshot, newLeaderView) = a.state.futureValue
         newLeaderSnapshot.summary.lastUnappliedIndex shouldBe 1
-        newLeaderView shouldBe Map("B" -> ClusterPeer(1, 1), "C" -> ClusterPeer(1, 1))
+        newLeaderView shouldBe Map("B" -> ClusterPeer(1, 2), "C" -> ClusterPeer(1, 2))
 
         var summaries = Future.sequence(clusterById.values.map(_.state())).futureValue.map(_.summary)
-        println(summaries.mkString("\n\n"))
         summaries.foreach { s =>
           s.lastUnappliedIndex shouldBe 1
         }
 
         eventually {
+          // we'll need to ack whichever nodes weren't in the original majority at some point
+          a.forceHeartbeatTimeout
+
           summaries = Future.sequence(clusterById.values.map(_.state())).futureValue.map(_.summary)
-          println(summaries.mkString("\n\n"))
           summaries.foreach { s =>
             s.lastCommittedIndex shouldBe 1
           }
         }
       }
-    }
-    "append multiple entries" ignore {
-
-      withDir { dir =>
-        var appliedMap = Map[NodeId, List[LogEntry[String]]]()
-        object AppliedMapLock
-        val clusterById = TestCluster.under(dir).of[String]("A", "B", "C") {
-          case (node, entry) =>
-            AppliedMapLock.synchronized {
-              val newList = entry :: appliedMap.getOrElse(node, Nil)
-              appliedMap = appliedMap.updated(node, newList)
-            }
-        }
-
-        val c = clusterById("C")
-        c.forceElectionTimeout
-
-        eventually {
-          c.state.futureValue.summary.role shouldBe "leader"
-        }
-
-        List("uno", "dos", "tres", "quatro").zipWithIndex.foreach {
-          case (data, expectedIndex) =>
-            c.append(data).futureValue.result.futureValue shouldBe true
-            val summaries = Future.sequence(clusterById.values.map(_.state())).futureValue.map(_.summary)
-            summaries.map(_.lastCommittedIndex).toSet should contain only (expectedIndex)
-            summaries.map(_.lastUnappliedIndex).toSet should contain only (expectedIndex)
-          //            appliedMap.values.foreach { entries =>
-          //              entries.size shouldBe (expectedIndex)
-          //              entries.head.index shouldBe expectedIndex
-          //              entries.head.term.t shouldBe summaries.head.term
-          //            }
-
-        }
-      }
-    }
-    "append multiple entries after a leader switch" ignore {
-
-      ???
     }
   }
 
