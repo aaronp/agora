@@ -15,6 +15,7 @@ import agora.api.exchange.{Exchange, RequestWorkAck, WorkSubscription}
 import agora.api.worker.WorkerDetails
 import agora.rest.multipart.MultipartFormImplicits._
 import agora.rest.multipart.MultipartInfo
+import akka.http.scaladsl.unmarshalling.FromRequestUnmarshaller
 
 import scala.collection.immutable
 import scala.concurrent.{Future, Promise}
@@ -28,12 +29,19 @@ import scala.util.control.NonFatal
   * [[http://www.reactive-streams.org/reactive-streams-1.0.0-javadoc/org/reactivestreams/Subscription.html Subscription]]
   * in [[http://www.reactive-streams.org Reactive Streams]]
   *
-  * @param exchange     the interface to an exchange so it can request more work or even cancel the subscription or return the job
-  * @param subscription the details of the subscription
-  * @param request      the job input
+  * @param exchange       the interface to an exchange so it can request more work or even cancel the subscription or return the job
+  * @param routes         the worker routes containing this handler
+  * @param subscription   the details of the subscription
+  * @param requestContext the http request context which contains the original HttpRequest, etc
+  * @param request        the unmarshalled handler input
   * @tparam T the request type
   */
-case class WorkContext[T](exchange: Exchange, subscriptionKey: Option[SubscriptionKey], subscription: WorkSubscription, requestContext: RequestContext, request: T) {
+case class WorkContext[T: FromRequestUnmarshaller](exchange: Exchange,
+                                                   routes: WorkerRoutes,
+                                                   subscriptionKey: Option[SubscriptionKey],
+                                                   subscription: WorkSubscription,
+                                                   requestContext: RequestContext,
+                                                   request: T) {
 
   import requestContext._
 
@@ -43,15 +51,24 @@ case class WorkContext[T](exchange: Exchange, subscriptionKey: Option[Subscripti
 
   def responseFuture = resultPromise.future
 
+  /** Replace the current handler logic with the new handler
+    *
+    * @param newHandler
+    * @return
+    */
+  def become(newHandler: WorkContext[T] => Unit) = {
+    routes.updateHandler(path)(newHandler)(implicitly[FromRequestUnmarshaller[T]])
+  }
+
   def completeWithJson[A](value: A)(implicit enc: Encoder[A]) = {
     val response: Json = enc(value)
-    val resp           = Marshal(HttpEntity(`application/json`, response.noSpaces)).toResponseFor(requestContext.request)
+    val resp = Marshal(HttpEntity(`application/json`, response.noSpaces)).toResponseFor(requestContext.request)
     completeWith(resp)
   }
 
   def completeWithSource(dataSource: Source[ByteString, Any], contentType: ContentType = `application/octet-stream`) = {
     val entity = HttpEntity(contentType, dataSource)
-    val resp   = Marshal(entity).toResponseFor(requestContext.request)
+    val resp = Marshal(entity).toResponseFor(requestContext.request)
     completeWith(resp)
   }
 
@@ -97,7 +114,7 @@ case class WorkContext[T](exchange: Exchange, subscriptionKey: Option[Subscripti
   }
 
   def flatMapMultipart[A](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), Future[A]])(implicit ev: T =:= Multipart.FormData): Future[immutable.Seq[A]] = {
-    val fd: Multipart.FormData           = request
+    val fd: Multipart.FormData = request
     val futures: Future[List[Future[A]]] = fd.mapMultipart(f)
     futures.flatMap { list =>
       Future.sequence(list)
@@ -111,5 +128,5 @@ case class WorkContext[T](exchange: Exchange, subscriptionKey: Option[Subscripti
 }
 
 object WorkContext {
-  def multipartKey[A: Decoder: ClassTag] = implicitly[ClassTag[A]].runtimeClass.getName
+  def multipartKey[A: Decoder : ClassTag] = implicitly[ClassTag[A]].runtimeClass.getName
 }

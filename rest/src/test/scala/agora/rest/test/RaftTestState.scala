@@ -267,18 +267,9 @@ case class RaftTestState(nodes: List[TestNodeLogic], transportById: Map[NodeId, 
 
     val newTransportById = transportById.updated(nodeId, protocol)
 
-    val clusterIds = newTransportById.keySet
-    println(clusterIds)
-
     val newNodes: List[TestNodeLogic] = newTestNode :: nodes
     newNodes.size shouldBe newTransportById.size
-    //    val newCluster: Map[NodeId, RaftEndpoint[String]] = newNodes.map(n => n.id -> n.endpoint).toMap
     newNodes.foreach(_.protocol.updateClusterView(newTransportById.keySet))
-
-    //    ss.protocol.update(newCluster)
-    //    ss.protocol.updateHandler {
-    //      case (id, _, _, resp) => ss.logic.onResponse(id, resp, ss.protocol)
-    //    }
 
     val newSize = newNodes.size
     newNodes.foreach { member =>

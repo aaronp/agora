@@ -30,6 +30,43 @@ class WorkerRoutesTest extends BaseRoutesSpec {
       }
     }
   }
+  "WorkerRoutes.become" should {
+    "replace existing routes" in {
+      val wr = WorkerRoutes()
+
+      var oldCount = 0
+      var newCount = 0
+
+      def newHandler(ctxt : WorkContext[String]) = {
+        newCount = newCount + 1
+        ctxt.complete("second handler response")
+      }
+
+      wr.usingSubscription(_.withPath("somePath")).addHandler[String] { ctxt =>
+        oldCount = oldCount + 1
+        ctxt.become(newHandler)
+        ctxt.complete("first handler response")
+      }
+
+      val httpRequest = WorkerClient.dispatchRequest("somePath", matchDetails, "foo")
+
+      // make the first request
+      httpRequest ~> wr.routes ~> check {
+        status shouldEqual StatusCodes.OK
+        responseAs[String] shouldBe "first handler response"
+        oldCount shouldBe 1
+        newCount shouldBe 0
+      }
+
+      // make a second request, which should go to the new handler
+      httpRequest ~> wr.routes ~> check {
+        status shouldEqual StatusCodes.OK
+        responseAs[String] shouldBe "second handler response"
+        oldCount shouldBe 1
+        newCount shouldBe 1
+      }
+    }
+  }
   "WorkerRoutes" should {
 
     "be able to upload from strict multipart requests" in {

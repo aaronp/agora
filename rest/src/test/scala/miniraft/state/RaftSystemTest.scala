@@ -87,7 +87,7 @@ class RaftSystemTest extends BaseSpec with Eventually {
       config.seedNodeLocations.toSet shouldBe otherNodes
 
       val rs = RaftSystem[String](config) { entry =>
-        println(s"$location adding $entry")
+        // println(s"$location adding $entry")
       }
 
       import config.serverImplicits.executionContext

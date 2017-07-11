@@ -60,7 +60,6 @@ class MultipartFormImplicitsTest extends BaseRoutesSpec {
         Post("/test", fd) ~> Route.seal(testUploadRoute) ~> check {
           response.status.intValue() shouldBe 200
           val sizeByName = responseAs[Map[String, Long]]
-          println(sizeByName)
           sizeByName shouldBe Map("upload2" -> 22000000, "upload1" -> 22000000, "something" -> 4, "foo" -> 16)
         }
       }

@@ -18,13 +18,14 @@ import scala.language.reflectiveCalls
 object WorkerRoutes {
   def apply()(implicit mat: Materializer): WorkerRoutes = {
     implicit val predicate = JobPredicate()
-    val exchange           = Exchange(MatchObserver())
+    val exchange = Exchange(MatchObserver())
     WorkerRoutes(exchange, WorkSubscription(), 1)
   }
 }
 
 // see http://doc.akka.io/docs/akka-stream-and-http-experimental/1.0/scala/http/routing-dsl/index.html
 case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscription, defaultInitialRequest: Int)(implicit mat: Materializer) {
+  self =>
 
   implicit val ec = mat.executionContext
 
@@ -67,7 +68,8 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
             extractRequest { req =>
               complete(
                 (StatusCodes.NotFound,
-                 HttpEntity(s""" Invalid path: ${req.uri}
+                  HttpEntity(
+                    s""" Invalid path: ${req.uri}
                        |
                    |Known handlers include:
                        |  ${workerByPath.keySet.toList.sorted.mkString("\n")}""".stripMargin)))
@@ -103,7 +105,6 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
     *       }(workRoute.defaultSubscription.withPath("myNewHandler"))
     * }}}
     *
-    *
     * @param f a function which modifies the default subscription (or completely ignores it)
     * @return A DSL-specific class which expects 'addHandler' to be called on it
     */
@@ -128,10 +129,10 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
                                                    initialRequest: Int = defaultInitialRequest,
                                                    fromRequest: FromRequestUnmarshaller[T]): Future[RequestWorkAck] = {
 
-    val path                                               = subscription.details.path.getOrElse(sys.error(s"The subscription doesn't contain a path: ${subscription.details}"))
+    val path = subscription.details.path.getOrElse(sys.error(s"The subscription doesn't contain a path: ${subscription.details}"))
     val subscriptionAckFuture: Future[WorkSubscriptionAck] = exchange.subscribe(subscription)
 
-    val handler = new OnWork[T](subscription, initialRequest, fromRequest, onReq)
+    val handler = new OnWork[T](subscription, fromRequest, onReq)
 
     HandlerWriteLock.synchronized {
       workerByPath.get(path).foreach { oldHandler =>
@@ -155,6 +156,26 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
     }
   }
 
+  /**
+    * Replace the handler logic for the handler at the given path
+    * @param path the relative path snippet for the handler to replace
+    * @param onReq the new handler logic
+    * @param fromRequest the unmarshaller to use
+    * @tparam T the handler body type
+    * @return true if a handler was previously registered at the given path (and thus replaced)
+    */
+  def updateHandler[T](path: String)(onReq: WorkContext[T] => Unit)(fromRequest: FromRequestUnmarshaller[T]) = {
+    HandlerWriteLock.synchronized {
+      val replaced = workerByPath.get(path).map { oldHandler =>
+        val newOnWork = new OnWork[T](oldHandler.subscription, fromRequest, onReq)
+        workerByPath = workerByPath.updated(path, newOnWork)
+        true
+      }
+      replaced.getOrElse(false)
+    }
+  }
+
+
   private def setSubscriptionKeyOnHandler(path: String, key: SubscriptionKey) = {
     HandlerWriteLock.synchronized {
       workerByPath.get(path).foreach { handler =>
@@ -169,7 +190,7 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
   /**
     * Captures the 'handler' logic for a subscription.
     */
-  protected class OnWork[T](val subscription: WorkSubscription, initialRequest: Int, unmarshaller: Unmarshaller[HttpRequest, T], onReq: WorkContext[T] => Unit) {
+  protected class OnWork[T](val subscription: WorkSubscription, unmarshaller: FromRequestUnmarshaller[T], onReq: WorkContext[T] => Unit) {
 
     /**
       * we have the case where a worker can actually handle a request at any time from a client ... even before we bother
@@ -184,7 +205,8 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
 
     def handle(ctxt: RequestContext): Future[HttpResponse] = {
       unmarshaller(ctxt.request).flatMap { tea =>
-        val context = WorkContext(exchange, key, subscription, ctxt, tea)
+        implicit val fre = unmarshaller
+        val context = WorkContext[T](exchange, self, key, subscription, ctxt, tea)
         onReq(context)
         context.responseFuture
       }
