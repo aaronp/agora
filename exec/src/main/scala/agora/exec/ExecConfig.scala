@@ -16,6 +16,7 @@ import agora.exec.run.ProcessRunner
 import agora.rest.exchange.ExchangeRoutes
 import agora.rest.worker.{WorkContext, WorkerConfig, WorkerRoutes}
 import agora.rest.{RunningService, ServerConfig, configForArgs}
+import akka.http.scaladsl.unmarshalling.FromRequestUnmarshaller
 
 import scala.concurrent.duration._
 
@@ -92,7 +93,7 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
 
     // create a worker to subscribe to the exchange
     val workerRoutes: WorkerRoutes = newWorkerRoutes(exchange)
-    workerRoutes.addMultipartHandler(handler.onExecute)(subscription, initialRequest)
+    workerRoutes.addHandler(handler.onExecute)(subscription, initialRequest, implicitly[FromRequestUnmarshaller[Multipart.FormData]])
 
     // finally create the routes for this REST service, which will include:
     // 1) optionally exchange endpoints if we can act as an exchange

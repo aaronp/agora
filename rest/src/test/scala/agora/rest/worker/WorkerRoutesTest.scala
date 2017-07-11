@@ -35,7 +35,7 @@ class WorkerRoutesTest extends BaseRoutesSpec {
     "be able to upload from strict multipart requests" in {
       val wr = WorkerRoutes()
 
-      wr.addMultipartHandler { (workContext: WorkContext[Multipart.FormData]) =>
+      wr.usingSubscription(_.withPath("uploadTest")).addHandler[Multipart.FormData] { workContext =>
         val respFuture: Future[HttpResponse] = workContext.mapFirstMultipart {
           case (MultipartInfo(_, Some("some.file"), _), upload) =>
             val subscriber = new IterableSubscriber[ByteString]()
@@ -46,7 +46,7 @@ class WorkerRoutesTest extends BaseRoutesSpec {
         }
 
         workContext.completeWith(respFuture)
-      }(wr.defaultSubscription.withPath("uploadTest"))
+      }
 
       val expectedContent = "It was the best of times\nIt was the worst of times\nAs I write this, Trump just fired James Comey\n"
       val upload = {
@@ -66,7 +66,7 @@ class WorkerRoutesTest extends BaseRoutesSpec {
     "be able to upload from indefinite multipart requests" in {
       val wr = WorkerRoutes()
 
-      wr.addMultipartHandler { (ctxt: WorkContext[Multipart.FormData]) =>
+      wr.usingSubscription(_.withPath("uploadTest")).addHandler { (ctxt: WorkContext[Multipart.FormData]) =>
         ctxt.foreachMultipart {
           case (MultipartInfo("some.file", file, _), upload) =>
             val lines             = IterableSubscriber.iterate(upload, 100, true)
@@ -75,7 +75,7 @@ class WorkerRoutesTest extends BaseRoutesSpec {
               HttpResponse(entity = e.withContentType(ContentTypes.`text/plain(UTF-8)`))
             }
         }
-      }(wr.defaultSubscription.withPath("uploadTest"))
+      }
 
       val expectedContent =
         """here
@@ -116,7 +116,7 @@ class WorkerRoutesTest extends BaseRoutesSpec {
       val wr = WorkerRoutes()
 
       // add a handler for 'doit'
-      wr.addMultipartHandler { ctxt =>
+      wr.usingSubscription(_.withPath("doit")).addHandler[Multipart.FormData] { ctxt =>
         val textByKeyFuture = ctxt.flatMapMultipart {
           case (MultipartInfo(key, _, _), src) => Sources.asText(src).map(text => (key, text))
         }
@@ -126,7 +126,7 @@ class WorkerRoutesTest extends BaseRoutesSpec {
             pears.toMap.asJson
           }
         }
-      }(wr.defaultSubscription.withPath("doit"))
+      }
 
       httpReq ~> wr.routes ~> check {
         status shouldEqual StatusCodes.OK

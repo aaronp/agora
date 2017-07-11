@@ -274,65 +274,42 @@ case class RaftState[T](role: NodeRole, persistentState: PersistentState[T]) {
   def lastLogTerm = log.lastTerm
 
   def append(id: NodeId, ae: AppendEntries[T]): (RaftState[T], AppendEntriesResponse) = {
-
-    val b4currentTerm        = currentTerm
-    val b4lastCommittedIndex = lastCommittedIndex
-    val b4lastUnappliedIndex = lastUnappliedIndex
-    val b4lastLogTerm        = lastLogTerm
-
-    val appended = if (ae.term > currentTerm) {
-      // NOTE: we diverge a bit here and change our 'votedFor' to be the leader.
-      // This requires some thought and may come back to bite us, as we're duplicating the use of 'votedFor' to
-      // track who the leader is
-      copy(role = Follower, persistentState = persistentState.voteFor(ae.term, ae.leaderId))
-    } else if (ae.term == currentTerm) {
-
+    def onMatchedTerm = {
       if (ae.prevLogIndex == lastCommittedIndex) {
 
-        /*
-         * Append a new entry, as the leader and our log index match
+        /* Append a new entry, as the leader and our log index match
          */
         val newPersistentState = ae.entry.fold(persistentState) { command =>
           val entry = LogEntry[T](currentTerm, lastUnappliedIndex + 1, command)
           persistentState.append(List(entry))
         }
 
-        copy(role = Follower, persistentState = newPersistentState)
+        true -> copy(role = Follower, persistentState = newPersistentState)
       } else if (ae.prevLogIndex == lastUnappliedIndex && ae.entry.isEmpty) {
         /*
          * commit the previous entry
          */
         val newPS = if (ae.prevLogIndex == 0) persistentState else persistentState.commit(ae.prevLogIndex)
-        copy(role = Follower, persistentState = newPS)
+        true -> copy(role = Follower, persistentState = newPS)
       } else {
-        this
+        false -> this
       }
-    } else {
-      this
     }
 
-    val success = (ae.term > currentTerm && ae.entry.isEmpty) || (ae.term == currentTerm && ae.prevLogIndex == lastCommittedIndex) //&& ae.prevLogTerm == lastLogTerm
+    val (success, appended) = if (ae.term > currentTerm) {
+      // NOTE: we diverge a bit here and change our 'votedFor' to be the leader.
+      // This requires some thought and may come back to bite us, as we're duplicating the use of 'votedFor' to
+      // track who the leader is
 
-    println(s"""    ${id} : [ A  P  P  E  N  D ] from ${ae.leaderId} ==> ${success}
-         |        ae.term (${ae.term}) == currentTerm (${currentTerm}) &&
-         |        ae.prevLogIndex (${ae.prevLogIndex}) == lastCommittedIndex (${lastCommittedIndex}) &&
-         |        ae.prevLogTerm (${ae.prevLogTerm}) == lastLogTerm (${lastLogTerm})
-         |
-         |     term         : ${ae.term}
-         |     leaderId     : ${ae.leaderId}
-         |     commitIndex  : ${ae.commitIndex}
-         |     prevLogIndex : ${ae.prevLogIndex}
-         |     prevLogTerm  : ${ae.prevLogTerm}
-         |     entry        : ${ae.entry}
-         |
-         |     WHERE
-         |
-         |     currentTerm        : ${b4currentTerm} => ${appended.currentTerm}
-         |     lastCommittedIndex : ${b4lastCommittedIndex} => ${appended.lastCommittedIndex}
-         |     lastUnappliedIndex : ${b4lastUnappliedIndex} => ${appended.lastUnappliedIndex}
-         |     lastLogTerm        : ${b4lastLogTerm} => ${appended.lastLogTerm}
-         |
-      """.stripMargin)
+      val ok = ae.entry.isEmpty
+      ok -> copy(role = Follower, persistentState = persistentState.voteFor(ae.term, ae.leaderId))
+    } else if (ae.term == currentTerm) {
+      onMatchedTerm
+    } else {
+      false -> this
+    }
+
+    //    val success = (ae.term > currentTerm && ae.entry.isEmpty) || (ae.term == currentTerm && ae.prevLogIndex == lastCommittedIndex)
 
     appended -> AppendEntriesResponse(currentTerm, success, appended.lastUnappliedIndex)
   }

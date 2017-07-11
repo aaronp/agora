@@ -31,27 +31,21 @@ case class WorkerClient(rest: RestClient, path: String, matchDetails: MatchDetai
 
   protected implicit def ec = rest.executionContext
 
-  def sendRequest[T: ToEntityMarshaller](request: T): Future[HttpResponse] = {
-    send(newRequest(request))
-  }
-
   def health = WorkerClient.health(rest)
 
-  def sendMultipart(multipart: Multipart): Future[HttpResponse] = {
-    send(newMultipartRequest(multipart))
+  def sendRequest[T: ToEntityMarshaller](request: T): Future[HttpResponse] = {
+    send(newRequest(request))
   }
 
   def send(req: HttpRequest): Future[HttpResponse] = rest.send(req)
 
   def send(reqBuilder: MultipartBuilder)(implicit timeout: FiniteDuration): Future[HttpResponse] = {
     reqBuilder.formData.flatMap { (strict: Multipart.FormData.Strict) =>
-      send(newMultipartRequest(strict))
+      send(newRequest(strict))
     }
   }
 
   def newRequest[T: ToEntityMarshaller](request: T): HttpRequest = dispatchRequest(path, matchDetails, request)
-
-  def newMultipartRequest(multipart: Multipart): HttpRequest = multipartRequest(path, matchDetails, multipart)
 }
 
 object WorkerClient extends FailFastCirceSupport with LazyLogging {
@@ -64,7 +58,7 @@ object WorkerClient extends FailFastCirceSupport with LazyLogging {
   }
 
   def multipartRequest(path: String, matchDetails: MatchDetails, multipart: Multipart)(implicit ec: ExecutionContext): HttpRequest = {
-    val httpRequest: HttpRequest = WorkerHttp("multipart", path, multipart)
+    val httpRequest: HttpRequest = WorkerHttp("worker", path, multipart)
     val headers                  = MatchDetailsExtractor.headersFor(matchDetails)
     httpRequest.withHeaders(headers ++ httpRequest.headers)
   }

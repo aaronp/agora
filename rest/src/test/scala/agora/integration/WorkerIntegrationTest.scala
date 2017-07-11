@@ -1,6 +1,6 @@
 package agora.integration
 
-import akka.http.scaladsl.model.ContentTypes
+import akka.http.scaladsl.model.{ContentTypes, Multipart}
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
 import agora.domain.io.Sources
@@ -16,7 +16,7 @@ trait WorkerIntegrationTest { self: BaseIntegrationTest =>
     "work end-to-end" in {
 
       // add a handler which just echos the input multipart byte stream
-      worker.service.usingSubscription(_.withPath("basic")).addMultipartHandler { ctxt =>
+      worker.service.usingSubscription(_.withPath("basic")).addHandler[Multipart.FormData] { ctxt =>
         ctxt.mapMultipart {
           case (MultipartInfo(key, _, _), sourceFromRequest) =>
             ctxt.completeWithSource(sourceFromRequest, ContentTypes.`text/plain(UTF-8)`)
@@ -36,7 +36,7 @@ trait WorkerIntegrationTest { self: BaseIntegrationTest =>
 
         val len = Sources.sizeOf(src).futureValue
         val fd  = MultipartBuilder().fromSource("ints", len, src).formData.futureValue
-        worker.sendMultipart(fd)
+        worker.sendRequest(fd)
       }
 
       // validate the response is just what we sent
@@ -48,7 +48,7 @@ trait WorkerIntegrationTest { self: BaseIntegrationTest =>
     "handle large uploads and results" in {
 
       // add a handler which just echos the input multipart byte stream
-      worker.service.usingSubscription(_.withPath("largeuploads").matchingSubmission("topic".equalTo("biguns").asMatcher)).addMultipartHandler { ctxt =>
+      worker.service.usingSubscription(_.withPath("largeuploads").matchingSubmission("topic".equalTo("biguns").asMatcher)).addHandler[Multipart.FormData] { ctxt =>
         ctxt.mapMultipart {
           case (MultipartInfo(key, _, _), sourceFromRequest) =>
             ctxt.completeWithSource(sourceFromRequest, ContentTypes.`text/plain(UTF-8)`)
@@ -71,7 +71,7 @@ trait WorkerIntegrationTest { self: BaseIntegrationTest =>
         }
         val len = Sources.sizeOf(src).futureValue
         val fd  = MultipartBuilder().fromSource("ints", len, src).formData.futureValue
-        worker.sendMultipart(fd)
+        worker.sendRequest(fd)
       }
 
       // validate the response is just what we sent

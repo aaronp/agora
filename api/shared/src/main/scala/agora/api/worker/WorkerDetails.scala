@@ -11,7 +11,7 @@ import scala.util.Properties
 /**
   * The 'aboutMe' should also contain the location/user
   *
-  * @param aboutMe
+  * @param aboutMe an opaque block of Json exposed by a worker. It must however include a 'path' element to describe the relative URL to send work requests to
   */
 case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
 
@@ -50,10 +50,15 @@ case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
     sys.error(s"invalid json: 'location' not set: ${aboutMe}")
   }
 
-  def url = path.map(p => s"${location.asURL}/rest/worker/$p")
-
   def name = namePath.getOption(aboutMe)
 
+  /** @return the fully qualified worker URL
+    */
+  def url = path.map(p => s"${location.asURL}/rest/worker/$p")
+
+
+  /** @return the relative path for the endpoint under which this worker will receive work
+    */
   def path: Option[String] = pathPath.getOption(aboutMe).map(_.trim).filterNot(_.isEmpty)
 
   def runUser: User = runUserPath.getOption(aboutMe).getOrElse {

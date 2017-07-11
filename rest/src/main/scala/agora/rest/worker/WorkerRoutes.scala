@@ -5,7 +5,7 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives.{path, _}
 import akka.http.scaladsl.server.directives.BasicDirectives.extractRequestContext
 import akka.http.scaladsl.server.{RequestContext, Route}
-import akka.http.scaladsl.unmarshalling.Unmarshaller
+import akka.http.scaladsl.unmarshalling.{FromRequestUnmarshaller, Unmarshaller}
 import akka.stream.Materializer
 import io.circe.Json
 import agora.api.exchange._
@@ -24,7 +24,7 @@ object WorkerRoutes {
 }
 
 // see http://doc.akka.io/docs/akka-stream-and-http-experimental/1.0/scala/http/routing-dsl/index.html
-case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscription, defaultInitialRequest: Int)(implicit mat: Materializer) extends MultipartHandlerSupport {
+case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscription, defaultInitialRequest: Int)(implicit mat: Materializer) {
 
   implicit val ec = mat.executionContext
 
@@ -33,7 +33,7 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
   protected var workerByPath = Map[String, OnWork[_]]()
 
   def routes: Route = {
-    workerRoutes ~ multipartRoutes ~ health
+    workerRoutes ~ health
   }
 
   def health = (get & path("rest" / "health") & pathEnd) {
@@ -51,12 +51,7 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
             case (path, onWork) =>
               Json.obj(path -> onWork.subscription.details.aboutMe)
           }
-          val multipartPaths = multipartByPath.map {
-            case (path, onWork) =>
-              Json.obj(path -> onWork.subscription.details.aboutMe)
-          }
-          val pathsList = paths.toSeq ++ multipartPaths.toSeq
-          HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, Json.arr(pathsList: _*).noSpaces))
+          HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, Json.arr(paths.toList: _*).noSpaces))
         }
       }
     }
@@ -88,6 +83,30 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
     }
   }
 
+  /**
+    * Syntactic sugar to allow users to:
+    * {{{
+    *   val routes : WorkerRoutes = ...
+    *   routes.usingSubscription(XYZ).addHandler( ctxt => ... )
+    * }}}
+    *
+    * This is really only needed when a single worker has multiple handlers (i.e. work routes).
+    *
+    * The implicit parameter list to [[addHandler()]] takes a [[WorkSubscription]], which defaults to one provided
+    * from the configuration.
+    *
+    * So, without the syntactic sugar, subsequent handlers would either need to set up another subscription in implicit
+    * scope or explicitly provide the curried implicit paramter, something akin to:
+    * {{{
+    *       workRoute.addHandler[SomeCaseClass] { ctxt =>
+    *         ...
+    *       }(workRoute.defaultSubscription.withPath("myNewHandler"))
+    * }}}
+    *
+    *
+    * @param f a function which modifies the default subscription (or completely ignores it)
+    * @return A DSL-specific class which expects 'addHandler' to be called on it
+    */
   def usingSubscription(f: WorkSubscription => WorkSubscription) = new WithSubscriptionWord(this, f)
 
   /**
@@ -107,7 +126,7 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
     */
   def addHandler[T](onReq: WorkContext[T] => Unit)(implicit subscription: WorkSubscription = defaultSubscription,
                                                    initialRequest: Int = defaultInitialRequest,
-                                                   fromRequest: Unmarshaller[HttpRequest, T]): Future[RequestWorkAck] = {
+                                                   fromRequest: FromRequestUnmarshaller[T]): Future[RequestWorkAck] = {
 
     val path                                               = subscription.details.path.getOrElse(sys.error(s"The subscription doesn't contain a path: ${subscription.details}"))
     val subscriptionAckFuture: Future[WorkSubscriptionAck] = exchange.subscribe(subscription)

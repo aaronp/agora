@@ -12,6 +12,7 @@ import io.circe.{Decoder, Encoder, Json}
 import agora.api.SubscriptionKey
 import agora.api.`match`.MatchDetails
 import agora.api.exchange.{Exchange, RequestWorkAck, WorkSubscription}
+import agora.api.worker.WorkerDetails
 import agora.rest.multipart.MultipartFormImplicits._
 import agora.rest.multipart.MultipartInfo
 
@@ -21,7 +22,11 @@ import scala.reflect.ClassTag
 import scala.util.control.NonFatal
 
 /**
-  * Wraps the input to a computation, allowing the computation (mostly) to call 'take(n)' so it can request more work
+  * Wraps the input to a computation, allowing the computation (mostly) to call 'request(n)' so it can request more work.
+  *
+  * This class is analogous to a
+  * [[http://www.reactive-streams.org/reactive-streams-1.0.0-javadoc/org/reactivestreams/Subscription.html Subscription]]
+  * in [[http://www.reactive-streams.org Reactive Streams]]
   *
   * @param exchange     the interface to an exchange so it can request more work or even cancel the subscription or return the job
   * @param subscription the details of the subscription
@@ -74,9 +79,13 @@ case class WorkContext[T](exchange: Exchange, subscriptionKey: Option[Subscripti
     */
   def request(n: Int): Option[Future[RequestWorkAck]] = subscriptionKey.map(s => exchange.take(s, n))
 
-  def details = subscription.details
+  /** @return the subscription details
+    */
+  def details: WorkerDetails = subscription.details
 
-  def path = details.path.get
+  /** @return the
+    */
+  def path: String = details.path.get
 
   def foreachMultipart[A](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), A])(implicit ev: T =:= Multipart.FormData): Future[immutable.Seq[A]] = {
     mapMultipart(f)
