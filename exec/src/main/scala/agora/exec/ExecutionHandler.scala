@@ -1,5 +1,13 @@
 package agora.exec
 
+import agora.api.{JobId, nextJobId}
+import agora.exec.model.{ProcessException, RunProcess, Upload}
+import agora.exec.rest.MultipartExtractor
+import agora.exec.rest.MultipartExtractor.jsonKey
+import agora.exec.run.ProcessRunner
+import agora.rest.multipart.MultipartFormImplicits.logger
+import agora.rest.worker.WorkContext
+import akka.NotUsed
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model.ContentTypes.{`application/json`, `text/plain(UTF-8)`}
 import akka.http.scaladsl.model.StatusCodes.InternalServerError
@@ -7,12 +15,8 @@ import akka.http.scaladsl.model.{ContentType, HttpEntity, HttpResponse, Multipar
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import com.typesafe.scalalogging.StrictLogging
-import agora.api.{JobId, nextJobId}
-import agora.exec.model.{ProcessException, RunProcess, Upload}
-import agora.exec.rest.MultipartExtractor
-import agora.exec.run.ProcessRunner
-import agora.rest.worker.WorkContext
 
+import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Await, Future}
 import scala.util.Failure
 import scala.util.control.NonFatal
@@ -26,11 +30,11 @@ trait ExecutionHandler {
   def onExecute(ctxt: WorkContext[Multipart.FormData]): Unit
 }
 
-object ExecutionHandler {
+object ExecutionHandler extends StrictLogging {
 
   def apply(execConfig: ExecConfig) = new Instance(execConfig)
 
-  class Instance(val execConfig: ExecConfig) extends ExecutionHandler with StrictLogging {
+  class Instance(val execConfig: ExecConfig) extends ExecutionHandler {
 
     import execConfig.serverImplicits._
 
@@ -41,7 +45,7 @@ object ExecutionHandler {
     override def onExecute(ctxt: WorkContext[Multipart.FormData]) = {
 
       val jobId: JobId = ctxt.matchDetails.map(_.jobId).getOrElse(nextJobId)
-      val runner       = execConfig.newRunner(ctxt, jobId)
+      val runner       = execConfig.newRunner(ctxt.matchDetails, jobId)
       val handlerFuture = onRun(runner, ctxt, jobId).recover {
         case pr: ProcessException =>
           asErrorResponse(pr)
@@ -57,14 +61,21 @@ object ExecutionHandler {
               jobId: JobId,
               // TODO - this should be determined from the content-type of the request, which we have
               outputContentType: ContentType = `text/plain(UTF-8)`): Future[HttpResponse] = {
-      import ctxt.requestContext._
       import agora.rest.multipart.MultipartFormImplicits._
+      import ctxt.requestContext._
 
       def uploadDir = {
         execConfig.uploads.dir(jobId).getOrElse(sys.error("Invalid configuration - upload dir not set"))
       }
 
-      val uploadFutures: Future[(RunProcess, List[Upload])] = MultipartExtractor(execConfig.uploads, ctxt.request, uploadDir, execConfig.chunkSize)
+      val uploadFutures: Future[(RunProcess, List[Upload])] = {
+        val future: Future[(Option[RunProcess], List[Upload])] = MultipartExtractor(ctxt.request, uploadDir, execConfig.chunkSize)
+        future.map {
+          case (Some(runProcess), uploads) => runProcess -> uploads
+          case (None, _) =>
+            sys.error(s"expected a single run process json w/ key '$jsonKey' but none was specified")
+        }
+      }
 
       if (execConfig.writeDownRequests) {
         uploadFutures.onSuccess {
@@ -73,17 +84,7 @@ object ExecutionHandler {
       }
 
       def marshalResponse(runProc: RunProcess, uploads: List[Upload]): Future[HttpResponse] = {
-        def run = {
-          try {
-            Await.result(runner.run(runProc, uploads), execConfig.uploadTimeout)
-          } catch {
-            case NonFatal(err) =>
-              logger.error(s"Error executing $runProc: $err")
-              throw err
-          }
-        }
-
-        val bytes                       = Source.fromIterator(() => run).map(line => ByteString(s"$line\n"))
+        val bytes                       = asByteIterator(runner, execConfig.uploadTimeout, runProc, uploads)
         val chunked: HttpEntity.Chunked = HttpEntity(outputContentType, bytes)
         Marshal(chunked).toResponseFor(ctxt.requestContext.request)
       }
@@ -95,6 +96,20 @@ object ExecutionHandler {
         resp
       }
     }
+  }
+
+  def asByteIterator(runner: ProcessRunner, timeout: FiniteDuration, runProc: RunProcess, uploads: List[Upload]): Source[ByteString, NotUsed] = {
+    def run = {
+      try {
+        Await.result(runner.run(runProc, uploads), timeout)
+      } catch {
+        case NonFatal(err) =>
+          logger.error(s"Error executing $runProc: $err")
+          throw err
+      }
+    }
+
+    Source.fromIterator(() => run).map(line => ByteString(s"$line\n"))
   }
 
 }

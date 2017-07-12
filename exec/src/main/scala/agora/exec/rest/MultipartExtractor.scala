@@ -33,8 +33,7 @@ object MultipartExtractor extends LazyLogging {
     * @param mat
     * @return
     */
-  def fromUserForm(uploadsConfig: PathConfig, formData: Multipart.FormData, saveUnderDir: => Path, chunkSize: Int)(
-      implicit mat: Materializer): Future[(RunProcess, List[Upload])] = {
+  def fromUserForm(uploadsConfig: PathConfig, formData: Multipart.FormData, saveUnderDir: => Path, chunkSize: Int)(implicit mat: Materializer): Future[(RunProcess, List[Upload])] = {
     import agora.rest.multipart.MultipartFormImplicits._
 
     import mat._
@@ -92,14 +91,13 @@ object MultipartExtractor extends LazyLogging {
   /**
     * parse the given form data, writing uploads to the 'saveUnderDir'
     *
-    * @param uploadsConfig
     * @param formData
     * @param saveUnderDir
     * @param chunkSize
     * @param mat
     * @return the RunProcess command to run and any uploads
     */
-  def apply(uploadsConfig: PathConfig, formData: Multipart.FormData, saveUnderDir: => Path, chunkSize: Int)(implicit mat: Materializer): Future[(RunProcess, List[Upload])] = {
+  def apply(formData: Multipart.FormData, saveUnderDir: => Path, chunkSize: Int)(implicit mat: Materializer): Future[(Option[RunProcess], List[Upload])] = {
 
     import agora.rest.multipart.MultipartFormImplicits._
     import mat._
@@ -128,14 +126,17 @@ object MultipartExtractor extends LazyLogging {
       Future.sequence(list).map { eithers =>
         val parts = eithers.partition(_.isLeft)
         parts match {
-          case (List(Left(runProcess)), uploadRights) =>
+          case (runProcessLefts, uploadRights) =>
+            val rpOpt = runProcessLefts match {
+              case Nil                    => None
+              case List(Left(runProcess)) => Option(runProcess)
+              case invalid                => sys.error(s"expected a single run process json w/ key '$jsonKey' and some file uploads, but got: $invalid")
+            }
             val uploads = uploadRights.map {
               case Right(u) => u
               case left     => sys.error(s"partition is broken: $left")
             }
-            runProcess -> uploads
-          case invalid =>
-            sys.error(s"expected a single run process json w/ key '$jsonKey' and some file uploads, but got: $invalid")
+            rpOpt -> uploads
         }
       }
     }

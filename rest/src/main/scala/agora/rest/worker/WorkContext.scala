@@ -45,6 +45,8 @@ case class WorkContext[T: FromRequestUnmarshaller](exchange: Exchange,
 
   import requestContext._
 
+  def map[A: FromRequestUnmarshaller](f: T => A): WorkContext[A] = copy[A](request = f(request))
+
   /**
     * The match details associated with this request invocation. As the endpoint is just a normal endpoint which could
     * be invoked directly w/o having been redirected from an [[Exchange]], it could be empty.
@@ -110,7 +112,7 @@ case class WorkContext[T: FromRequestUnmarshaller](exchange: Exchange,
     */
   def completeWithJson[A](value: => A)(implicit enc: Encoder[A]): WorkContext[T] = completeWith {
     val response: Json = enc(value)
-    val resp = Marshal(HttpEntity(`application/json`, response.noSpaces)).toResponseFor(requestContext.request)
+    val resp           = Marshal(HttpEntity(`application/json`, response.noSpaces)).toResponseFor(requestContext.request)
     resp
   }
 
@@ -123,7 +125,7 @@ case class WorkContext[T: FromRequestUnmarshaller](exchange: Exchange,
     */
   def completeWithSource(dataSource: Source[ByteString, Any], contentType: ContentType = `application/octet-stream`, numberToRequest: Int = 1) = {
     val entity = HttpEntity(contentType, dataSource)
-    val resp = Marshal(entity).toResponseFor(requestContext.request)
+    val resp   = Marshal(entity).toResponseFor(requestContext.request)
     completeWith(resp, numberToRequest)
   }
 
@@ -139,6 +141,16 @@ case class WorkContext[T: FromRequestUnmarshaller](exchange: Exchange,
     */
   def complete[A: ToResponseMarshaller](compute: => A): WorkContext[T] = {
     completeWith(asResponse(compute))
+  }
+
+  /**
+    * completes this request, but doesn't request any more work from the exchange
+    * @param compute the result
+    * @tparam A
+    * @return this work context
+    */
+  def completeReplyOnly[A: ToResponseMarshaller](compute: => A): WorkContext[T] = {
+    completeWith(asResponse(compute), 0)
   }
 
   def asResponse[A: ToResponseMarshaller](compute: => A): Future[HttpResponse] = {
@@ -185,7 +197,6 @@ case class WorkContext[T: FromRequestUnmarshaller](exchange: Exchange,
     */
   def path: String = details.path.get
 
-
   /*
 ___  ___      _ _   _                  _    ___  ___     _   _               _
 |  \/  |     | | | (_)                | |   |  \/  |    | | | |             | |
@@ -209,7 +220,7 @@ ___  ___      _ _   _                  _    ___  ___     _   _               _
   }
 
   def flatMapMultipart[A](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), Future[A]])(implicit ev: T =:= Multipart.FormData): Future[immutable.Seq[A]] = {
-    val fd: Multipart.FormData = request
+    val fd: Multipart.FormData           = request
     val futures: Future[List[Future[A]]] = fd.mapMultipart(f)
     futures.flatMap { list =>
       Future.sequence(list)
@@ -223,5 +234,5 @@ ___  ___      _ _   _                  _    ___  ___     _   _               _
 }
 
 object WorkContext {
-  def multipartKey[A: Decoder : ClassTag] = implicitly[ClassTag[A]].runtimeClass.getName
+  def multipartKey[A: Decoder: ClassTag] = implicitly[ClassTag[A]].runtimeClass.getName
 }

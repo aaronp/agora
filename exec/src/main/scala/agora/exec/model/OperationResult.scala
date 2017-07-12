@@ -1,5 +1,9 @@
 package agora.exec.model
 
+/**
+  * Represents a container for messages produced while executing some operation
+  * @param messages
+  */
 case class OperationResult(messages: List[String])
 
 object OperationResult {

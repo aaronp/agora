@@ -19,14 +19,13 @@ import scala.reflect.ClassTag
 object WorkerRoutes {
   def apply()(implicit mat: Materializer): WorkerRoutes = {
     implicit val predicate = JobPredicate()
-    val exchange = Exchange(MatchObserver())
+    val exchange           = Exchange(MatchObserver())
     WorkerRoutes(exchange, WorkSubscription(), 1)
   }
 }
 
 // see http://doc.akka.io/docs/akka-stream-and-http-experimental/1.0/scala/http/routing-dsl/index.html
-case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscription, defaultInitialRequest: Int)(implicit mat: Materializer) {
-  self =>
+case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscription, defaultInitialRequest: Int)(implicit mat: Materializer) { self =>
   implicit val ec = mat.executionContext
 
   private object HandlerWriteLock
@@ -48,7 +47,6 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
     }
 
   }
-
 
   def routes: Route = {
     workerRoutes ~ health
@@ -85,8 +83,7 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
             extractRequest { req =>
               complete(
                 (StatusCodes.NotFound,
-                  HttpEntity(
-                    s""" Invalid path: ${req.uri}
+                 HttpEntity(s""" Invalid path: ${req.uri}
                        |
                    |Known handlers include:
                        |  ${workerByPath.keySet.toList.sorted.mkString("\n")}""".stripMargin)))
@@ -125,7 +122,9 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
     * @param f a function which modifies the default subscription (or completely ignores it)
     * @return A DSL-specific class which expects 'addHandler' to be called on it
     */
-  def usingSubscription(f: WorkSubscription => WorkSubscription) = new WithSubscriptionWord(this, f)
+  def usingSubscription(f: WorkSubscription => WorkSubscription) = new WithSubscriptionWord(this, f, None)
+
+  def withSubscription(s: WorkSubscription) = usingSubscription(_ => s)
 
   /**
     * The main body for a handler ... registers a function ('onReq') which does some work.
@@ -146,7 +145,7 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
                                                    initialRequest: Int = defaultInitialRequest,
                                                    fromRequest: FromRequestUnmarshaller[T]): Future[RequestWorkAck] = {
 
-    val path = subscription.details.path.getOrElse(sys.error(s"The subscription doesn't contain a path: ${subscription.details}"))
+    val path                                               = subscription.details.path.getOrElse(sys.error(s"The subscription doesn't contain a path: ${subscription.details}"))
     val subscriptionAckFuture: Future[WorkSubscriptionAck] = exchange.subscribe(subscription)
 
     val handler = new OnWork[T](subscription, fromRequest, onReq)
@@ -193,7 +192,6 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
     }
   }
 
-
   private def setSubscriptionKeyOnHandler(path: String, key: SubscriptionKey) = {
     HandlerWriteLock.synchronized {
       workerByPath.get(path).foreach { handler =>
@@ -227,7 +225,7 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
     def handle(ctxt: RequestContext): Future[HttpResponse] = {
       unmarshaller(ctxt.request).flatMap { tea =>
         implicit val fre = unmarshaller
-        val context = WorkContext[T](exchange, self, key, subscription, ctxt, tea)
+        val context      = WorkContext[T](exchange, self, key, subscription, ctxt, tea)
         onReq(context)
         context.responseFuture
       }

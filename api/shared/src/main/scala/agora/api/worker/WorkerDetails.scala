@@ -1,12 +1,12 @@
 package agora.api.worker
 
-import io.circe.optics.JsonPath
-import io.circe.{Encoder, Json}
 import agora.api.User
 import agora.api.json.JsonAppendable
+import io.circe.Decoder.Result
+import io.circe._
+import io.circe.optics.JsonPath
 
 import scala.util.Properties
-
 
 /**
   * The 'aboutMe' should also contain the location/user
@@ -31,6 +31,16 @@ case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
   import WorkerDetails._
 
   def withData[T: Encoder](data: T, name: String = null) = copy(aboutMe = mergeJson(data, name))
+
+  def get[T: Decoder](name: String): Result[T] = {
+    val cursor: ACursor = aboutMe.hcursor.downField(name)
+    cursor match {
+      case h: HCursor =>
+        val decoder: Decoder[T] = implicitly[Decoder[T]]
+        decoder(h)
+      case other => Left(DecodingFailure(s"Couldn't unmarshal '$name' from $aboutMe: $other", cursor.history))
+    }
+  }
 
   def withPath(path: String) = {
     append(Json.obj("path" -> Json.fromString(path)))
@@ -57,7 +67,6 @@ case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
     */
   def url = path.map(p => s"${location.asURL}/rest/worker/$p")
 
-
   /** @return the relative path for the endpoint under which this worker will receive work
     */
   def path: Option[String] = pathPath.getOption(aboutMe).map(_.trim).filterNot(_.isEmpty)
@@ -73,14 +82,14 @@ object WorkerDetails {
   import io.circe.generic.auto._
   import io.circe.syntax._
 
-  val locationPath = root.location
-  val hostPath = locationPath.host.string
-  val portPath = locationPath.port.int
+  val locationPath   = root.location
+  val hostPath       = locationPath.host.string
+  val portPath       = locationPath.port.int
   val portStringPath = locationPath.port.string
-  val pathPath = root.path.string
-  val namePath = root.name.string
-  val keyPath = root.id.string
-  val runUserPath = root.runUser.string
+  val pathPath       = root.path.string
+  val namePath       = root.name.string
+  val keyPath        = root.id.string
+  val runUserPath    = root.runUser.string
 
   /**
     * TODO - move the typesafe config as part of the jvn dependency so that we can pull the worker config

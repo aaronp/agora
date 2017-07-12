@@ -41,29 +41,27 @@ class WorkerRoutesTest extends BaseRoutesSpec {
 
       // start off with an initial subscription containing some details...
       wr.usingSubscription(_.withPath("original").withSubscriptionKey("firstKey").append("someValue", "hello")).addHandler[Int] { ctxt =>
-
         // now within the handler, update the details ... inc a counter and set a new path
         val b4 = invocations(ctxt)
 
-        val calls = b4 + 1
+        val calls   = b4 + 1
         val ctxtFut = ctxt.updateSubscription(_.withPath("updated").append("invoked", calls))
 
         ctxtFut.foreach { newCtxt =>
           newCtxt.request(1)
         }
 
-
         val nrToRequest = 1 // b4.min(1)
         ctxt.completeWith(ctxt.asResponse(calls), nrToRequest)
       }
 
       // verify our initial subscription
-      val initialState = wr.exchange.queueState().futureValue
+      val initialState               = wr.exchange.queueState().futureValue
       val List(originalSubscription) = initialState.subscriptions
       originalSubscription.requested shouldBe 1
 
       val originalData = originalSubscription.subscription.details.aboutMe
-      val someValue = JsonPath.root.someValue.string.getOption(originalData)
+      val someValue    = JsonPath.root.someValue.string.getOption(originalData)
       someValue shouldBe Option("hello")
       JsonPath.root.invoked.int.getOption(originalData) shouldBe None
 
@@ -80,7 +78,7 @@ class WorkerRoutesTest extends BaseRoutesSpec {
         */
       def verifyUpdatedSubscription(expectedCalls: Int): WorkSubscription = {
         // we should still only have one subscription
-        val newState = wr.exchange.queueState().futureValue
+        val newState              = wr.exchange.queueState().futureValue
         val List(newSubscription) = newState.subscriptions
 
         // verify new subscription
@@ -162,7 +160,7 @@ class WorkerRoutesTest extends BaseRoutesSpec {
           case (MultipartInfo(_, Some("some.file"), _), upload) =>
             val subscriber = new IterableSubscriber[ByteString]()
             upload.runWith(Sink.fromSubscriber(subscriber))
-            val lines = subscriber.iterator.map(_.utf8String).toList
+            val lines             = subscriber.iterator.map(_.utf8String).toList
             val e: ResponseEntity = lines.mkString("\n")
             HttpResponse(entity = e.withContentType(ContentTypes.`text/plain(UTF-8)`))
         }
@@ -191,7 +189,7 @@ class WorkerRoutesTest extends BaseRoutesSpec {
       wr.usingSubscription(_.withPath("uploadTest")).addHandler { (ctxt: WorkContext[Multipart.FormData]) =>
         ctxt.foreachMultipart {
           case (MultipartInfo("some.file", file, _), upload) =>
-            val lines = IterableSubscriber.iterate(upload, 100, true)
+            val lines             = IterableSubscriber.iterate(upload, 100, true)
             val e: ResponseEntity = lines.mkString("\n")
             ctxt.complete {
               HttpResponse(entity = e.withContentType(ContentTypes.`text/plain(UTF-8)`))
@@ -209,7 +207,7 @@ class WorkerRoutesTest extends BaseRoutesSpec {
 
       def upload = {
         val bytes = Sources.asBytes(Source.single(expectedContent), "")
-        val len = Sources.sizeOf(bytes).futureValue
+        val len   = Sources.sizeOf(bytes).futureValue
 
         MultipartBuilder().fromSource("some.file", len, bytes, fileName = "some.file").formData.futureValue
       }
@@ -254,10 +252,10 @@ class WorkerRoutesTest extends BaseRoutesSpec {
         status shouldEqual StatusCodes.OK
         val textByKey = responseAs[Map[String, String]]
         textByKey shouldBe Map(
-          "first" -> "{\"foo\":\"hello\",\"bar\":654}",
+          "first"  -> "{\"foo\":\"hello\",\"bar\":654}",
           "second" -> "{\"foo\":\"more\",\"bar\":111}",
-          "third" -> "{\"foo\":\"again\",\"bar\":8}",
-          "key1" -> "2,3,5\n4,5,6"
+          "third"  -> "{\"foo\":\"again\",\"bar\":8}",
+          "key1"   -> "2,3,5\n4,5,6"
         )
       }
     }

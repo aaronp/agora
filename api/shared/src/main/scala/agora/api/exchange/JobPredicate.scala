@@ -4,7 +4,11 @@ import com.typesafe.scalalogging.StrictLogging
 import agora.api.json.JMatcher
 
 /**
-  * Exposes the course-grained signature of pairing up jobs with worker subscriptions
+  * Exposes the course-grained signature of pairing up jobs with worker subscriptions.
+  *
+  * In practice there is just one implementation which evaluates the json matchers of
+  * the [[SubmitJob]] and [[WorkSubscription]], but in theory you could implement any test
+  * to pair up jobs with work subscriptions
   */
 trait JobPredicate {
   def matches(offer: SubmitJob, work: WorkSubscription): Boolean
@@ -49,8 +53,6 @@ object JobPredicate extends StrictLogging {
   trait LowPriorityImplicits {
     implicit def matcher: JobPredicate = apply()
   }
-
-  object Implicits extends LowPriorityImplicits
 
   def apply(): JobPredicate = JsonJobPredicate
 

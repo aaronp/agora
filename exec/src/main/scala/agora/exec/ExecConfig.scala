@@ -12,7 +12,7 @@ import agora.exec.dao.{ExecDao, UploadDao}
 import agora.exec.log._
 import agora.exec.model.RunProcess
 import agora.exec.rest.ExecutionRoutes
-import agora.exec.run.ProcessRunner
+import agora.exec.run.{LocalRunner, ProcessRunner}
 import agora.rest.exchange.ExchangeRoutes
 import agora.rest.worker.{WorkContext, WorkerConfig, WorkerRoutes}
 import agora.rest.{RunningService, ServerConfig, configForArgs}
@@ -46,7 +46,7 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
     mkLogger _
   }
 
-  def newRunner(ctxt: WorkContext[Multipart.FormData], jobId: JobId): ProcessRunner = {
+  def newRunner(matchDetails: Option[MatchDetails], jobId: JobId): LocalRunner = {
     import serverImplicits._
 
     require(system.whenTerminated.isCompleted == false, "Actor system is terminated")
@@ -58,7 +58,8 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
       uploadDaoOpt.getOrElse(UploadDao())
     }
 
-    ProcessRunner(uploadDao, workDir = workingDirectory.dir(jobId), newLogger(jobId, ctxt.matchDetails))
+    val runner: LocalRunner = ProcessRunner(uploadDao, workDir = workingDirectory.dir(jobId), newLogger(jobId, matchDetails))
+    runner
   }
 
   /**
@@ -72,37 +73,9 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
   override def landingPage = "ui/run.html"
 
   def start() = {
-    val (executionRoutes, restRoutes) = buildRoutes()
-
-    RunningService.start[ExecConfig, ExecutionRoutes](this, restRoutes, executionRoutes)
-  }
-
-  def buildRoutes(): (ExecutionRoutes, Route) = {
-    // either attach to or create a new exchange
-    val (exchange, optionalExchangeRoutes) = if (includeExchangeRoutes) {
-      val obs                      = MatchObserver()
-      val localExchange            = exchangeConfig.newExchange(obs)
-      val exRoutes: ExchangeRoutes = exchangeConfig.newExchangeRoutes(localExchange)
-      (localExchange, Option(exRoutes.routes))
-    } else {
-      (exchangeClient, None)
-    }
-
-    // create something to actually process jobs
-    val handler = ExecutionHandler(this)
-
-    // create a worker to subscribe to the exchange
-    val workerRoutes: WorkerRoutes = newWorkerRoutes(exchange)
-    workerRoutes.addHandler(handler.onExecute)(subscription, initialRequest, implicitly[FromRequestUnmarshaller[Multipart.FormData]])
-
-    // finally create the routes for this REST service, which will include:
-    // 1) optionally exchange endpoints if we can act as an exchange
-    // 2) worker routes for handling work rerouted from exchanges to us
-    // 3) our own custom endpoints which will handle direct job submissions
-    val executionRoutes   = ExecutionRoutes(this)
-    val restRoutes: Route = executionRoutes.routes(workerRoutes, optionalExchangeRoutes)
-
-    (executionRoutes -> restRoutes)
+    val execSys    = ExecSystem(this)
+    val restRoutes = execSys.routes
+    RunningService.start[ExecConfig, ExecutionRoutes](this, restRoutes, execSys.executionRoutes)
   }
 
   lazy val logs = PathConfig(execConfig.getConfig("logs").ensuring(!_.isEmpty))
