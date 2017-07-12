@@ -21,9 +21,10 @@ case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
 
   def +[T: Encoder](name: String, data: T): WorkerDetails = append(name, implicitly[Encoder[T]].apply(data))
 
-  def append[T: Encoder](name: String, data: T): WorkerDetails = append(name, implicitly[Encoder[T]].apply(data))
-
-  def append(name: String, data: Json): WorkerDetails = append(Json.obj(name -> data))
+  def append[T: Encoder](name: String, data: T): WorkerDetails = {
+    val json = implicitly[Encoder[T]].apply(data)
+    append(Json.obj(name -> json))
+  }
 
   def append(data: Json): WorkerDetails = copy(aboutMe.deepMerge(data))
 
@@ -81,8 +82,6 @@ object WorkerDetails {
   val keyPath = root.id.string
   val runUserPath = root.runUser.string
 
-  val defaultPort = 1234
-
   /**
     * TODO - move the typesafe config as part of the jvn dependency so that we can pull the worker config
     * in here. As it currently stands, we have to duplicate these fields in this weird way instead of
@@ -94,7 +93,7 @@ object WorkerDetails {
             id: SubscriptionKey = "",
             runUser: String = Properties.userName,
             path: String = "handler",
-            location: HostLocation = HostLocation(defaultPort)): WorkerDetails = {
+            location: HostLocation = HostLocation(1234)): WorkerDetails = {
     val json = DefaultDetails(runUser, location, name, id, path).asJson
     WorkerDetails(json)
   }

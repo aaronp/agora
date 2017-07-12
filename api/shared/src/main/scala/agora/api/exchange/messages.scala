@@ -173,10 +173,6 @@ case class WorkSubscription(details: WorkerDetails = WorkerDetails(),
 
   def key = details.subscriptionKey
 
-  def append(json: Json) = {
-    copy(details = details.append(json))
-  }
-
   /**
     * @param matcher
     * @return a subscription with the matcher replaces
@@ -188,6 +184,10 @@ case class WorkSubscription(details: WorkerDetails = WorkerDetails(),
   def withData[T: Encoder](data: T, name: String = null) = withDetails(_.withData(data, name))
 
   def withPath(path: String): WorkSubscription = withDetails(_.withPath(path))
+
+  def append[T: Encoder](name: String, data: T) = withDetails(_.append(name, data))
+
+  def append(data: Json) = withDetails(_.append(data))
 
   def withSubscriptionKey(path: String) = withDetails(_.withSubscriptionKey(path))
 

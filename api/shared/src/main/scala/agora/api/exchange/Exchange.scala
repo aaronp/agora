@@ -20,6 +20,14 @@ trait Exchange {
     case req : CancelSubscriptions => cancelSubscriptions(req)
   }
 
+  /**
+    * Submit a job to the exchange. If 'awaitMatch' is specified on the SubmitJob then the response
+    * will be a [[BlockingSubmitJobResponse]]. Otherwise it will just be sent to the exchange an immediately
+    * return a [[SubmitJobResponse]].
+    *
+    * @param req
+    * @return either [[BlockingSubmitJobResponse]] or a [[SubmitJobResponse]]
+    */
   def submit(req: SubmitJob) : Future[ClientResponse] = onClientRequest(req)
 
   /**

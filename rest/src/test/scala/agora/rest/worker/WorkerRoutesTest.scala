@@ -8,10 +8,12 @@ import io.circe.generic.auto._
 import io.circe.syntax._
 import agora.api._
 import agora.api.`match`.MatchDetails
+import agora.api.exchange.{WorkSubscription, WorkSubscriptionAck}
 import agora.domain.IterableSubscriber
 import agora.domain.io.Sources
 import agora.health.HealthDto
 import agora.rest.multipart.{MultipartBuilder, MultipartInfo}
+import io.circe.optics.JsonPath
 
 import scala.concurrent.Future
 
@@ -30,6 +32,89 @@ class WorkerRoutesTest extends BaseRoutesSpec {
       }
     }
   }
+  "WorkerRoutes.updateSubscription" should {
+    "replace the subscription details" in {
+      // start out with a single route, but whos handler replaces (updates) the subscription
+      val wr = WorkerRoutes()
+
+      def invocations(ctxt: WorkContext[_]) = JsonPath.root.invoked.int.getOption(ctxt.details.aboutMe).getOrElse(0)
+
+      // start off with an initial subscription containing some details...
+      wr.usingSubscription(_.withPath("original").withSubscriptionKey("firstKey").append("someValue", "hello")).addHandler[Int] { ctxt =>
+
+        // now within the handler, update the details ... inc a counter and set a new path
+        val b4 = invocations(ctxt)
+
+        val calls = b4 + 1
+        val ctxtFut = ctxt.updateSubscription(_.withPath("updated").append("invoked", calls))
+
+        ctxtFut.foreach { newCtxt =>
+          newCtxt.request(1)
+        }
+
+
+        val nrToRequest = 1 // b4.min(1)
+        ctxt.completeWith(ctxt.asResponse(calls), nrToRequest)
+      }
+
+      // verify our initial subscription
+      val initialState = wr.exchange.queueState().futureValue
+      val List(originalSubscription) = initialState.subscriptions
+      originalSubscription.requested shouldBe 1
+
+      val originalData = originalSubscription.subscription.details.aboutMe
+      val someValue = JsonPath.root.someValue.string.getOption(originalData)
+      someValue shouldBe Option("hello")
+      JsonPath.root.invoked.int.getOption(originalData) shouldBe None
+
+      originalSubscription.subscription.details.path shouldBe Option("original")
+      originalSubscription.subscription.key shouldBe Option("firstKey")
+
+      // call the method under test -- invoke our handler and observer that the exchange sees an updated subscription
+      def httpRequest(path: String) = WorkerClient.dispatchRequest(path, matchDetails, 123)
+
+      /**
+        * assert the
+        * @param expectedCalls
+        * @return
+        */
+      def verifyUpdatedSubscription(expectedCalls: Int): WorkSubscription = {
+        // we should still only have one subscription
+        val newState = wr.exchange.queueState().futureValue
+        val List(newSubscription) = newState.subscriptions
+
+        // verify new subscription
+        val newData = newSubscription.subscription.details.aboutMe
+        JsonPath.root.someValue.string.getOption(newData) shouldBe Option("hello")
+        JsonPath.root.invoked.int.getOption(newData) shouldBe Option(expectedCalls)
+
+        newSubscription.subscription.details.path shouldBe Option("updated")
+        newSubscription.subscription.key shouldBe Option("firstKey")
+        newSubscription.subscription
+      }
+
+      httpRequest("original") ~> wr.routes ~> check {
+        status shouldEqual StatusCodes.OK
+        responseAs[Int] shouldBe 1
+        verifyUpdatedSubscription(1)
+      }
+
+      // the 'original' handler should now be a 404, as our updated subscription changed the path from 'original'
+      // to 'updated'
+      httpRequest("original") ~> wr.routes ~> check {
+        status shouldEqual StatusCodes.NotFound
+      }
+
+      // invoke our handler, which should then update the subscription held on the exchange
+      (2 to 5).foreach { expectedInvocation =>
+        httpRequest("updated") ~> wr.routes ~> check {
+          status shouldEqual StatusCodes.OK
+          responseAs[Int] shouldBe expectedInvocation
+          verifyUpdatedSubscription(expectedInvocation)
+        }
+      }
+    }
+  }
   "WorkerRoutes.become" should {
     "replace existing routes" in {
       val wr = WorkerRoutes()
@@ -37,7 +122,7 @@ class WorkerRoutesTest extends BaseRoutesSpec {
       var oldCount = 0
       var newCount = 0
 
-      def newHandler(ctxt : WorkContext[String]) = {
+      def newHandler(ctxt: WorkContext[String]) = {
         newCount = newCount + 1
         ctxt.complete("second handler response")
       }
@@ -77,7 +162,7 @@ class WorkerRoutesTest extends BaseRoutesSpec {
           case (MultipartInfo(_, Some("some.file"), _), upload) =>
             val subscriber = new IterableSubscriber[ByteString]()
             upload.runWith(Sink.fromSubscriber(subscriber))
-            val lines             = subscriber.iterator.map(_.utf8String).toList
+            val lines = subscriber.iterator.map(_.utf8String).toList
             val e: ResponseEntity = lines.mkString("\n")
             HttpResponse(entity = e.withContentType(ContentTypes.`text/plain(UTF-8)`))
         }
@@ -106,7 +191,7 @@ class WorkerRoutesTest extends BaseRoutesSpec {
       wr.usingSubscription(_.withPath("uploadTest")).addHandler { (ctxt: WorkContext[Multipart.FormData]) =>
         ctxt.foreachMultipart {
           case (MultipartInfo("some.file", file, _), upload) =>
-            val lines             = IterableSubscriber.iterate(upload, 100, true)
+            val lines = IterableSubscriber.iterate(upload, 100, true)
             val e: ResponseEntity = lines.mkString("\n")
             ctxt.complete {
               HttpResponse(entity = e.withContentType(ContentTypes.`text/plain(UTF-8)`))
@@ -124,7 +209,7 @@ class WorkerRoutesTest extends BaseRoutesSpec {
 
       def upload = {
         val bytes = Sources.asBytes(Source.single(expectedContent), "")
-        val len   = Sources.sizeOf(bytes).futureValue
+        val len = Sources.sizeOf(bytes).futureValue
 
         MultipartBuilder().fromSource("some.file", len, bytes, fileName = "some.file").formData.futureValue
       }
@@ -169,10 +254,10 @@ class WorkerRoutesTest extends BaseRoutesSpec {
         status shouldEqual StatusCodes.OK
         val textByKey = responseAs[Map[String, String]]
         textByKey shouldBe Map(
-          "first"  -> "{\"foo\":\"hello\",\"bar\":654}",
+          "first" -> "{\"foo\":\"hello\",\"bar\":654}",
           "second" -> "{\"foo\":\"more\",\"bar\":111}",
-          "third"  -> "{\"foo\":\"again\",\"bar\":8}",
-          "key1"   -> "2,3,5\n4,5,6"
+          "third" -> "{\"foo\":\"again\",\"bar\":8}",
+          "key1" -> "2,3,5\n4,5,6"
         )
       }
     }

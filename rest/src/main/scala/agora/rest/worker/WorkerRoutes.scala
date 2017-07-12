@@ -14,6 +14,7 @@ import agora.health.HealthDto
 
 import scala.concurrent.Future
 import scala.language.reflectiveCalls
+import scala.reflect.ClassTag
 
 object WorkerRoutes {
   def apply()(implicit mat: Materializer): WorkerRoutes = {
@@ -26,12 +27,28 @@ object WorkerRoutes {
 // see http://doc.akka.io/docs/akka-stream-and-http-experimental/1.0/scala/http/routing-dsl/index.html
 case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscription, defaultInitialRequest: Int)(implicit mat: Materializer) {
   self =>
-
   implicit val ec = mat.executionContext
 
   private object HandlerWriteLock
 
   protected var workerByPath = Map[String, OnWork[_]]()
+
+  def updateHandler(oldPath: String, newWorkSubscription: WorkSubscription) = {
+    HandlerWriteLock.synchronized {
+      val handlerOpt = workerByPath.get(oldPath)
+
+      if (handlerOpt == None) {
+        println(s"couldn't find $oldPath, new one is ${newWorkSubscription.details.path}")
+      }
+
+      handlerOpt.map { (handler: OnWork[_]) =>
+        val onWork = handler.withSubscription(newWorkSubscription)
+        workerByPath = (workerByPath - oldPath).updated(newWorkSubscription.details.path.get, onWork)
+      }
+    }
+
+  }
+
 
   def routes: Route = {
     workerRoutes ~ health
@@ -158,8 +175,9 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
 
   /**
     * Replace the handler logic for the handler at the given path
-    * @param path the relative path snippet for the handler to replace
-    * @param onReq the new handler logic
+    *
+    * @param path        the relative path snippet for the handler to replace
+    * @param onReq       the new handler logic
     * @param fromRequest the unmarshaller to use
     * @tparam T the handler body type
     * @return true if a handler was previously registered at the given path (and thus replaced)
@@ -191,6 +209,9 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
     * Captures the 'handler' logic for a subscription.
     */
   protected class OnWork[T](val subscription: WorkSubscription, unmarshaller: FromRequestUnmarshaller[T], onReq: WorkContext[T] => Unit) {
+    def withSubscription(newSubscription: WorkSubscription) = {
+      new OnWork[T](newSubscription, unmarshaller, onReq)
+    }
 
     /**
       * we have the case where a worker can actually handle a request at any time from a client ... even before we bother
