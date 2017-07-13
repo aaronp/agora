@@ -8,14 +8,12 @@ import agora.api.{JobId, MatchId}
 
 import scala.language.implicitConversions
 
-
 /**
   * A 'client' represents something which submits work to the exchange
   */
 sealed trait ClientRequest
 
 sealed trait ClientResponse
-
 
 /**
   * Queries the exchange for a fiew of the pending jobs and subscriptions
@@ -24,9 +22,10 @@ sealed trait ClientResponse
   * @param submitJobMatcher                  the same as a subscription matcher would be, used to match submitted job requsts
   * @param submitJobSubmissionDetailsMatcher also as per a subscription matcher, this time matching the submissionDetails
   */
-case class QueuedState(workerSubscriptionMatcher: JMatcher = JMatcher.matchAll,
-                       submitJobMatcher: JMatcher = JMatcher.matchAll,
-                       submitJobSubmissionDetailsMatcher: JMatcher = JMatcher.matchAll) extends ClientRequest {
+case class QueueState(workerSubscriptionMatcher: JMatcher = JMatcher.matchAll,
+                      submitJobMatcher: JMatcher = JMatcher.matchAll,
+                      submitJobSubmissionDetailsMatcher: JMatcher = JMatcher.matchAll)
+    extends ClientRequest {
   def matchesSubscription(aboutMe: Json) = workerSubscriptionMatcher.matches(aboutMe)
 
   def matchesJob(job: SubmitJob) = {
@@ -34,13 +33,13 @@ case class QueuedState(workerSubscriptionMatcher: JMatcher = JMatcher.matchAll,
   }
 }
 
-object QueuedState {
-  implicit val encoder = exportEncoder[QueuedState].instance
-  implicit val decoder = exportDecoder[QueuedState].instance
+object QueueState {
+  implicit val encoder = exportEncoder[QueueState].instance
+  implicit val decoder = exportDecoder[QueueState].instance
 
 }
 
-case class QueuedStateResponse(jobs: List[SubmitJob], subscriptions: List[PendingSubscription]) extends ClientResponse {
+case class QueueStateResponse(jobs: List[SubmitJob], subscriptions: List[PendingSubscription]) extends ClientResponse {
   def isEmpty = jobs.isEmpty && subscriptions.isEmpty
 
   def description = {
@@ -60,11 +59,10 @@ case class QueuedStateResponse(jobs: List[SubmitJob], subscriptions: List[Pendin
   }
 }
 
-object QueuedStateResponse {
-  implicit val encoder = exportEncoder[QueuedStateResponse].instance
-  implicit val decoder = exportDecoder[QueuedStateResponse].instance
+object QueueStateResponse {
+  implicit val encoder = exportEncoder[QueueStateResponse].instance
+  implicit val decoder = exportDecoder[QueueStateResponse].instance
 }
-
 
 case class PendingSubscription(key: SubscriptionKey, subscription: WorkSubscription, requested: Int)
 
@@ -127,7 +125,8 @@ object SubmitJobResponse {
   implicit val decoder = exportDecoder[SubmitJobResponse].instance
 }
 
-case class BlockingSubmitJobResponse(matchId: MatchId, jobId: JobId, matchEpochUTC: Long, workerCoords: List[WorkerRedirectCoords], workers: List[WorkerDetails]) extends ClientResponse {
+case class BlockingSubmitJobResponse(matchId: MatchId, jobId: JobId, matchEpochUTC: Long, workerCoords: List[WorkerRedirectCoords], workers: List[WorkerDetails])
+    extends ClientResponse {
   def firstWorkerUrl: Option[String] = workers.collectFirst {
     case w if w.url.isDefined => w.url.get
   }
@@ -137,7 +136,6 @@ object BlockingSubmitJobResponse {
   implicit val encoder = exportEncoder[BlockingSubmitJobResponse].instance
   implicit val decoder = exportDecoder[BlockingSubmitJobResponse].instance
 }
-
 
 case class CancelJobs(ids: Set[JobId]) extends ClientRequest
 
@@ -166,9 +164,8 @@ sealed trait SubscriptionResponse
   * @param jobMatcher        the json matcher used against the 'job' portion of SubmitJob
   * @param submissionMatcher the json matcher used against the additional 'details' part of SubmitJob
   */
-case class WorkSubscription(details: WorkerDetails = WorkerDetails(),
-                            jobMatcher: JMatcher = JMatcher.matchAll,
-                            submissionMatcher: JMatcher = JMatcher.matchAll) extends SubscriptionRequest {
+case class WorkSubscription(details: WorkerDetails = WorkerDetails(), jobMatcher: JMatcher = JMatcher.matchAll, submissionMatcher: JMatcher = JMatcher.matchAll)
+    extends SubscriptionRequest {
   def matches(job: SubmitJob)(implicit m: JobPredicate): Boolean = m.matches(job, this)
 
   def key = details.subscriptionKey
@@ -209,8 +206,7 @@ object WorkSubscriptionAck {
   implicit val decoder = exportDecoder[WorkSubscriptionAck].instance
 }
 
-case class RequestWork(id: SubscriptionKey,
-                       itemsRequested: Int) extends SubscriptionRequest {
+case class RequestWork(id: SubscriptionKey, itemsRequested: Int) extends SubscriptionRequest {
   require(itemsRequested > 0)
 
   def dec = copy(itemsRequested = itemsRequested - 1)

@@ -80,6 +80,9 @@ class ExecutionRoutes(val execConfig: ExecConfig) extends StrictLogging with Fai
     }
   }
 
+  /**
+    * Used by ExecuteForm in the 'ui' project (see ExecuteForm.websocket)
+    */
   def runSavedJob: Route = get {
     (path("run") & pathEnd) {
       extractRequestContext { requestCtxt =>

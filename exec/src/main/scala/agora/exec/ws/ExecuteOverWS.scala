@@ -1,17 +1,15 @@
 package agora.exec.ws
 
+import agora.exec.ExecConfig
+import agora.exec.log.StreamLogger
+import agora.exec.model.RunProcess
+import agora.exec.run.ProcessRunner
 import akka.NotUsed
 import akka.http.scaladsl.model.ws.BinaryMessage
 import akka.stream.Materializer
 import akka.stream.scaladsl.Sink
 import com.typesafe.scalalogging.LazyLogging
-import agora.domain.{IterableSubscriber, IteratorPublisher}
-import agora.exec.ExecConfig
-import agora.exec.log.StreamLogger
-import agora.exec.model.{ProcessError, RunProcess}
-import agora.exec.run.ProcessRunner
 
-import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -23,22 +21,7 @@ import scala.util.{Failure, Success, Try}
 object ExecuteOverWS extends LazyLogging {
 
   import akka.http.scaladsl.model.ws.{Message, TextMessage}
-  import akka.stream.scaladsl.{Flow, Source}
-
-  def apply(src: Source[String, Any])(implicit mat: Materializer): Flow[Message, TextMessage, NotUsed] = {
-
-    Flow[Message]
-      .mapConcat {
-        case tm: TextMessage =>
-          tm.textStream.runWith(Sink.ignore)
-          TextMessage(src) :: Nil
-        case bm: BinaryMessage =>
-          logger.info("Ignoring binary message")
-          // ignore binary messages but drain content to avoid the stream being clogged
-          bm.dataStream.runWith(Sink.ignore)
-          Nil
-      }
-  }
+  import akka.stream.scaladsl.Flow
 
   def apply(execConfig: ExecConfig)(implicit mat: Materializer): Flow[Message, TextMessage, NotUsed] = {
 
@@ -49,9 +32,26 @@ object ExecuteOverWS extends LazyLogging {
         case inputMessage: TextMessage =>
           logger.info(s"On text message $inputMessage")
 
+          // create a process logger which will stream the output
           val output = StreamLogger()
+
           val fut = for {
+
+            /**
+              * The first message on open is just the raw job id:
+              *
+              * See ExecuteForm:
+              * {{{
+              * val socket = websocket()
+              * socket.onopen = { (event: Event) =>
+              *   socket.send(jobId)
+              * }
+              */
             jobId <- inputMessage.textStream.runWith(Sink.head)
+
+            /**
+              * load up our saved job/uploads based on the job ID
+              */
             dao = execConfig.execDao
             (runProcess, uploads) <- dao.get(jobId)
             logger = execConfig.newLogger(jobId, None).andThen { log =>

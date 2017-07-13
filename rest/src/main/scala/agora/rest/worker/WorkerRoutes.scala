@@ -30,26 +30,32 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
 
   private object HandlerWriteLock
 
+  // keeps track of all of the workers by a unique sub-path
   protected var workerByPath = Map[String, OnWork[_]]()
 
-  def updateHandler(oldPath: String, newWorkSubscription: WorkSubscription) = {
+  /**
+    * @return the REST route
+    */
+  def routes: Route = {
+    workerRoutes ~ health
+  }
+
+  /**
+    * Replace the handler subscription
+    * @param oldPath the path key
+    * @param newWorkSubscription the new subscription to use
+    * @return true if the oldPath was a valid handler path
+    */
+  private[worker] def updateHandler(oldPath: String, newWorkSubscription: WorkSubscription): Boolean = {
     HandlerWriteLock.synchronized {
       val handlerOpt = workerByPath.get(oldPath)
-
-      if (handlerOpt == None) {
-        println(s"couldn't find $oldPath, new one is ${newWorkSubscription.details.path}")
-      }
-
-      handlerOpt.map { (handler: OnWork[_]) =>
+      val opt = handlerOpt.map { (handler: OnWork[_]) =>
         val onWork = handler.withSubscription(newWorkSubscription)
         workerByPath = (workerByPath - oldPath).updated(newWorkSubscription.details.path.get, onWork)
       }
+      opt.map(_ => true).getOrElse(false)
     }
 
-  }
-
-  def routes: Route = {
-    workerRoutes ~ health
   }
 
   def health = (get & path("rest" / "health") & pathEnd) {
@@ -124,6 +130,11 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
     */
   def usingSubscription(f: WorkSubscription => WorkSubscription) = new WithSubscriptionWord(this, f, None)
 
+  /**
+    * Like 'usingSubscription', this function provides a DSL for adding a handler.
+    * @param s the work subscription used for the handler
+    * @return A DSL-specific class which expects 'addHandler' to be called on it
+    */
   def withSubscription(s: WorkSubscription) = usingSubscription(_ => s)
 
   /**

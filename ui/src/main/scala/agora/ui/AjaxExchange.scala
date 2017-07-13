@@ -46,9 +46,9 @@ class AjaxExchange() extends AjaxClient("/rest/exchange") with Exchange {
     * @param request
     * @return the current queue state
     */
-  override def queueState(request: QueuedState): Future[QueuedStateResponse] = {
+  override def queueState(request: QueueState): Future[QueueStateResponse] = {
     val json = request.asJson.noSpaces
-    Ajax.post(s"$baseUrl/queue", json).map(_.jsonAs[QueuedStateResponse])
+    Ajax.post(s"$baseUrl/queue", json).map(_.jsonAs[QueueStateResponse])
   }
 
   override def cancelJobs(request: CancelJobs): Future[CancelJobsResponse] = {

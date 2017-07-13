@@ -4,7 +4,7 @@ import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import io.circe.Json
 import io.circe.optics.JsonPath
-import agora.api.exchange.QueuedStateResponse
+import agora.api.exchange.QueueStateResponse
 import agora.integration.BaseIntegrationTest
 import agora.rest.worker.WorkContext
 
@@ -42,7 +42,7 @@ trait RoutingClientTest extends agora.api.Implicits { self: BaseIntegrationTest 
 
       // verify preconditions
 
-      val initialQueue: QueuedStateResponse = exchangeClient.queueState().futureValue
+      val initialQueue: QueueStateResponse = exchangeClient.queueState().futureValue
       initialQueue.isEmpty shouldBe true
 
       /**

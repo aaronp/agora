@@ -57,7 +57,7 @@ case class ExchangeRoutes(exchange: ServerSideExchange)(implicit mat: Materializ
 
     def queueState = post {
       (path("queue") & pathEnd) {
-        entity(as[QueuedState]) { request =>
+        entity(as[QueueState]) { request =>
           complete {
             exchange.queueState(request)
           }

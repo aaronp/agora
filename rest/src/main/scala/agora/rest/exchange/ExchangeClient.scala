@@ -22,12 +22,7 @@ import scala.concurrent.Future
   *
   * @param rest
   */
-class ExchangeClient(val rest: RestClient, mkWorker: HostLocation => Dispatch)
-    extends Exchange
-    with RoutingClient
-    with FailFastCirceSupport
-    with AutoCloseable
-    with StrictLogging {
+class ExchangeClient(val rest: RestClient, mkWorker: HostLocation => Dispatch) extends Exchange with RoutingClient with FailFastCirceSupport with AutoCloseable with StrictLogging {
 
   import RestClient.implicits._
 
@@ -88,8 +83,8 @@ class ExchangeClient(val rest: RestClient, mkWorker: HostLocation => Dispatch)
 
   protected def clientFor(location: HostLocation): Dispatch = mkWorker(location)
 
-  override def queueState(request: QueuedState = QueuedState()): Future[QueuedStateResponse] = {
-    rest.send(ExchangeHttp(request)).flatMap(_.as[QueuedStateResponse](retryOnError(queueState(request))))
+  override def queueState(request: QueueState = QueueState()): Future[QueueStateResponse] = {
+    rest.send(ExchangeHttp(request)).flatMap(_.as[QueueStateResponse](retryOnError(queueState(request))))
   }
 
   override def close(): Unit = rest.close()

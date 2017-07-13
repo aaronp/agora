@@ -24,7 +24,7 @@ object StreamLogger {
 }
 
 /**
-  * Made available from BasicIO
+  * Made available from [[scala.sys.process.BasicIO]] ... a logger which exposes a blocking iterator which waits on output to become available
   *
   * @param exitCodeHandler a function on what to return for the given exit code
   */

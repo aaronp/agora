@@ -14,10 +14,10 @@ import scala.concurrent.Future
 trait Exchange {
 
   def onClientRequest(request: ClientRequest): Future[ClientResponse] = request match {
-    case req : SubmitJob => submit(req)
-    case req : QueuedState => queueState(req)
-    case req : CancelJobs => cancelJobs(req)
-    case req : CancelSubscriptions => cancelSubscriptions(req)
+    case req: SubmitJob           => submit(req)
+    case req: QueueState          => queueState(req)
+    case req: CancelJobs          => cancelJobs(req)
+    case req: CancelSubscriptions => cancelSubscriptions(req)
   }
 
   /**
@@ -28,7 +28,7 @@ trait Exchange {
     * @param req
     * @return either [[BlockingSubmitJobResponse]] or a [[SubmitJobResponse]]
     */
-  def submit(req: SubmitJob) : Future[ClientResponse] = onClientRequest(req)
+  def submit(req: SubmitJob): Future[ClientResponse] = onClientRequest(req)
 
   /**
     * Queue the state of the exchange
@@ -36,8 +36,8 @@ trait Exchange {
     * @param request
     * @return the current queue state
     */
-  def queueState(request: QueuedState = QueuedState()): Future[QueuedStateResponse] = {
-    onClientRequest(request).mapTo[QueuedStateResponse]
+  def queueState(request: QueueState = QueueState()): Future[QueueStateResponse] = {
+    onClientRequest(request).mapTo[QueueStateResponse]
   }
 
   def cancelJobs(request: CancelJobs): Future[CancelJobsResponse] = {
@@ -56,11 +56,10 @@ trait Exchange {
     cancelSubscriptions(CancelSubscriptions(theRest.toSet + id))
   }
 
-
   def onSubscriptionRequest(req: SubscriptionRequest): Future[SubscriptionResponse] = {
     req match {
       case ws: WorkSubscription => subscribe(ws)
-      case next: RequestWork => take(next)
+      case next: RequestWork    => take(next)
     }
   }
 
@@ -73,11 +72,10 @@ trait Exchange {
 
 object Exchange {
 
-
   def apply(onMatch: OnMatch)(implicit matcher: JobPredicate): Exchange = new InMemory(onMatch)
 
   type Remaining = Int
-  type Match = (SubmitJob, Seq[(SubscriptionKey, WorkSubscription, Remaining)])
+  type Match     = (SubmitJob, Seq[(SubscriptionKey, WorkSubscription, Remaining)])
 
   type OnMatch = Match => Unit
 
@@ -95,10 +93,9 @@ object Exchange {
       subscriptionsById.get(key).map(_._2).getOrElse(0)
     }
 
-
     private var jobsById = Map[JobId, SubmitJob]()
 
-    override def queueState(request: QueuedState): Future[QueuedStateResponse] = {
+    override def queueState(request: QueueState): Future[QueueStateResponse] = {
       val foundJobs = jobsById.collect {
         case (_, job) if request.matchesJob(job) => job
       }
@@ -107,7 +104,7 @@ object Exchange {
           PendingSubscription(key, sub, pending)
       }
 
-      Future.successful(QueuedStateResponse(foundJobs.toList, foundWorkers.toList))
+      Future.successful(QueueStateResponse(foundJobs.toList, foundWorkers.toList))
     }
 
     override def subscribe(inputSubscription: WorkSubscription) = {
@@ -196,15 +193,12 @@ object Exchange {
     }
   }
 
-
   private case class MatchNotification(id: JobId, job: SubmitJob, chosen: Seq[(SubscriptionKey, WorkSubscription, Remaining)])
 
-  private def triggerMatch(jobQueue: Map[JobId, SubmitJob],
-                           initialSubscriptionQueue: Map[SubscriptionKey, (WorkSubscription, Int)])
-                          (implicit matcher: JobPredicate): (Map[SubscriptionKey, (WorkSubscription, Remaining)], List[MatchNotification]) = {
+  private def triggerMatch(jobQueue: Map[JobId, SubmitJob], initialSubscriptionQueue: Map[SubscriptionKey, (WorkSubscription, Int)])(
+      implicit matcher: JobPredicate): (Map[SubscriptionKey, (WorkSubscription, Remaining)], List[MatchNotification]) = {
     jobQueue.foldLeft(initialSubscriptionQueue -> List[MatchNotification]()) {
       case ((subscriptionQueue, matches), (jobId, job)) =>
-
         val candidates: ParSeq[(SubscriptionKey, WorkSubscription, Int)] = subscriptionQueue.toSeq.par.collect {
           case (id, (subscription, requested)) if requested > 0 && job.matches(subscription) =>
             (id, subscription, (requested - 1).ensuring(_ >= 0))

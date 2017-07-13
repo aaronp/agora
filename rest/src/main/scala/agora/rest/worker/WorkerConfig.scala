@@ -1,6 +1,8 @@
 package agora.rest
 package worker
 
+import java.util.concurrent.TimeUnit
+
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import com.typesafe.config.{Config, ConfigFactory}
@@ -14,6 +16,7 @@ import agora.rest.support.SupportRoutes
 import agora.rest.ui.UIRoutes
 
 import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.util.Try
 
 class WorkerConfig(c: Config) extends ServerConfig(c) {
@@ -115,6 +118,8 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
       WorkSubscription(workerDetails, jm, sm)
     }
   }
+
+  def unmarshalTimeout = config.getDuration("unmarshalTimeout", TimeUnit.MILLISECONDS).millis
 }
 
 object WorkerConfig {

@@ -24,7 +24,7 @@ object ExchangeHttp extends CommonRequestBuilding {
     delete("subscriptions", request.asJson)
   }
 
-  def apply(request: QueuedState): HttpRequest = post("queue", request.asJson)
+  def apply(request: QueueState): HttpRequest = post("queue", request.asJson)
 
   def apply(request: SubmitJob): HttpRequest = put("submit", request.asJson)
 
