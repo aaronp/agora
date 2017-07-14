@@ -77,7 +77,7 @@ case class WorkContext[T: FromRequestUnmarshaller](exchange: Exchange,
     * @return the updated work context w/ the new work subscription
     */
   def replaceSubscription(newSubscription: WorkSubscription): Future[WorkContext[T]] = {
-    routes.updateHandler(subscription.details.path.get, newSubscription)
+    routes.updateHandler(subscription.details.path, newSubscription)
 
     val newAck: Future[WorkSubscriptionAck] = subscriptionKey match {
       case Some(id) =>
@@ -193,9 +193,9 @@ case class WorkContext[T: FromRequestUnmarshaller](exchange: Exchange,
     */
   def details: WorkerDetails = subscription.details
 
-  /** @return the
+  /** @return the path specified for the handler
     */
-  def path: String = details.path.get
+  def path: String = details.path
 
   /*
 ___  ___      _ _   _                  _    ___  ___     _   _               _

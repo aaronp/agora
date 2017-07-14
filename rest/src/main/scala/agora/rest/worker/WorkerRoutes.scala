@@ -51,7 +51,7 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
       val handlerOpt = workerByPath.get(oldPath)
       val opt = handlerOpt.map { (handler: OnWork[_]) =>
         val onWork = handler.withSubscription(newWorkSubscription)
-        workerByPath = (workerByPath - oldPath).updated(newWorkSubscription.details.path.get, onWork)
+        workerByPath = (workerByPath - oldPath).updated(newWorkSubscription.details.path, onWork)
       }
       opt.map(_ => true).getOrElse(false)
     }
@@ -92,7 +92,7 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
                  HttpEntity(s""" Invalid path: ${req.uri}
                        |
                    |Known handlers include:
-                       |  ${workerByPath.keySet.toList.sorted.mkString("\n")}""".stripMargin)))
+                       |  ${workerPaths.toList.sorted.mkString("\n")}""".stripMargin)))
             }
           case Some(worker) =>
             extractRequestContext { ctxt =>
@@ -156,7 +156,7 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
                                                    initialRequest: Int = defaultInitialRequest,
                                                    fromRequest: FromRequestUnmarshaller[T]): Future[RequestWorkAck] = {
 
-    val path                                               = subscription.details.path.getOrElse(sys.error(s"The subscription doesn't contain a path: ${subscription.details}"))
+    val path                                               = subscription.details.path
     val subscriptionAckFuture: Future[WorkSubscriptionAck] = exchange.subscribe(subscription)
 
     val handler = new OnWork[T](subscription, fromRequest, onReq)
@@ -206,13 +206,23 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
   private def setSubscriptionKeyOnHandler(path: String, key: SubscriptionKey) = {
     HandlerWriteLock.synchronized {
       workerByPath.get(path).foreach { handler =>
-        require(handler.key.isEmpty, "Key was already chuffing set!?@?")
+        require(handler.key.isEmpty, s"Key '$key' was already chuffing set for '${path}'!?@?")
         handler.key = Option(key)
       }
     }
   }
 
-  protected def find(workerName: String): Option[OnWork[_]] = workerByPath.get(workerName)
+  protected def find(workerName: String): Option[OnWork[_]] = HandlerWriteLock.synchronized {
+    workerByPath.get(workerName)
+  }
+
+  /** @return the registered worker paths
+    */
+  def workerPaths: Set[String] = {
+    HandlerWriteLock.synchronized {
+      workerByPath.keySet
+    }
+  }
 
   /**
     * Captures the 'handler' logic for a subscription.

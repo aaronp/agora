@@ -77,7 +77,7 @@ class ExchangeClient(val rest: RestClient, mkWorker: HostLocation => Dispatch) e
     rest.send(ExchangeHttp(request)).flatMap(_.as[RequestWorkAck](retryOnError(take(request))))
   }
 
-  override def submit(submit: SubmitJob) = {
+  override def submit(submit: SubmitJob): JobResponse = {
     enqueueAndDispatch(submit)(_.sendRequest(submit.job))._1
   }
 

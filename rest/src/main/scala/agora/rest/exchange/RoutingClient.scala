@@ -57,7 +57,7 @@ trait RoutingClient { self: ExchangeClient =>
     val futures = pears.map {
       case (wdc @ WorkerRedirectCoords(location, key, remaining), details) =>
         val matchDetails     = MatchDetails(resp.matchId, key, resp.jobId, remaining, resp.matchEpochUTC)
-        val path             = details.path.getOrElse(sys.error(s"Worker ${details} hasn't specified a path"))
+        val path             = details.path
         val wc: WorkerClient = clientFor(location)(path, matchDetails, details)
         sendToWorker(wc).map { resp =>
           wdc -> resp

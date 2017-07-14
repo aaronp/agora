@@ -65,11 +65,12 @@ case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
 
   /** @return the fully qualified worker URL
     */
-  def url = path.map(p => s"${location.asURL}/rest/worker/$p")
+  def url: Option[String] = pathOpt.map(p => s"${location.asURL}/rest/worker/$p")
 
   /** @return the relative path for the endpoint under which this worker will receive work
     */
-  def path: Option[String] = pathPath.getOption(aboutMe).map(_.trim).filterNot(_.isEmpty)
+  def pathOpt: Option[String] = pathPath.getOption(aboutMe).map(_.trim).filterNot(_.isEmpty)
+  def path: String            = pathOpt.getOrElse(sys.error(s"No 'path' set on $this"))
 
   def runUser: User = runUserPath.getOption(aboutMe).getOrElse {
     sys.error(s"invalid json: 'runUser' not set: ${aboutMe}")

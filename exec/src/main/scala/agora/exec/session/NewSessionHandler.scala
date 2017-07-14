@@ -7,6 +7,8 @@ import agora.rest.worker.WorkContext
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.generic.auto._
 
+import scala.concurrent.Future
+
 /**
   * A worker which, upon receiving an upload, will open a new subscription containing the uploaded files.
   *
@@ -98,20 +100,6 @@ class NewSessionHandler(conf: ExecConfig) extends FailFastCirceSupport {
 
   def chunkSize: Int = conf.chunkSize
 
-  /**
-    * Handle a request to create a new 'session', which is a place to group together
-    * user upload data
-    *
-    * @param ctxt
-    * @return
-    */
-  def onSessionMessage(ctxt: WorkContext[SessionMessage]) = {
-    ctxt.request match {
-      case OpenEncoding(sessionId)  => startSession(ctxt, sessionId)
-      case CloseEncoding(sessionId) => closeSession(ctxt, sessionId)
-    }
-  }
-
   def workDirForSession(id: SessionId): Path = {
     val workDirOpt = conf.workingDirectory.dir(id)
     workDirOpt.getOrElse(sys.error("Invalid config -- 'workingDirectory.dir' not set"))
@@ -122,9 +110,9 @@ class NewSessionHandler(conf: ExecConfig) extends FailFastCirceSupport {
     * We can also remove the session dir
     *
     * @param ctxt
-    * @param sessionId
     */
-  def closeSession(ctxt: WorkContext[SessionMessage], sessionId: SessionId) = {
+  def onCloseSession(ctxt: WorkContext[CloseSession]) = {
+    val sessionId: SessionId = ctxt.request.close
     import agora.domain.io.implicits._
     val dir: Path = workDirForSession(sessionId)
     if (dir.exists) {
@@ -142,11 +130,14 @@ class NewSessionHandler(conf: ExecConfig) extends FailFastCirceSupport {
   /**
     * Create endpoints for our session ... one for 'uploads' and one for 'exec' requests.
     *
+    * This function will add two paths. They paths need to be unique, so they'll incorporate the session Id.
+    * Afterwards there will be a 'name-*' and 'upload-*' path, both with 'session.id=<id>' in their data.
+    *
     * @param ctxt
-    * @param sessionId
     * @return
     */
-  def startSession(ctxt: WorkContext[SessionMessage], sessionId: SessionId) = {
+  def onOpenSession(ctxt: WorkContext[OpenSession]) = {
+    val sessionId: SessionId = ctxt.request.open
 
     // create a 'session handler' to both accept uploads and execute commands
     val handler: SessionHandler = {
@@ -154,24 +145,26 @@ class NewSessionHandler(conf: ExecConfig) extends FailFastCirceSupport {
       val runner  = conf.newRunner(ctxt.matchDetails, sessionId).withWorkDir(Option(workDir))
       new SessionHandler(runner, workDir.resolve(sessionId), chunkSize, conf.uploadTimeout)
     }
+    val paths              = ctxt.routes.workerPaths
+    val uploadSubscription = UseSession.prepareUploadSubscription(ctxt.subscription, sessionId)
+    val execSubscription   = UseSession.prepareExecSubscription(ctxt.subscription, sessionId)
 
-    val safeId           = sessionId.filter(_.isLetterOrDigit)
-    val baseSubscription = ctxt.subscription.append("session", SessionState(sessionId, Nil, 0))
-
-    // add an upload route
-    {
-      val uploadSubscription = baseSubscription.append("name", "uploads").withPath(s"upload-${safeId}")
+    /** @todo - FIXME ...  this check isn't thread-safe! We need a clean way to atomically add unique handler paths
+      */
+    if (paths.contains(uploadSubscription.details.path) || paths.contains(execSubscription.details.path)) {
+      ctxt.completeWith[String](Future.failed(new Exception(s"Session '$sessionId' resolves to an already-open session for ${uploadSubscription.details.path}")))
+    } else {
+      // add the upload route
       ctxt.routes.withSubscription(uploadSubscription).withInitialRequest(1).addHandler(handler.onUpload)
-    }
 
-    // add an exec route
-    {
-      val execSubscription = baseSubscription.append("name", "exec").withPath(s"exec-${safeId}")
+      // ... and the exec route
       ctxt.routes.withSubscription(execSubscription).withInitialRequest(1).addHandler(handler.onWork)
-    }
 
-    // just reply -- don't request any more work
-    ctxt.completeReplyOnly(sessionId)
+      ctxt.routes.usingSubscription(CloseSession.prepareSubscription(sessionId, _)).addHandler(onCloseSession)
+
+      // just reply -- don't request any more work
+      ctxt.completeReplyOnly(sessionId)
+    }
   }
 
 }

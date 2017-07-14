@@ -17,12 +17,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import io.circe.generic.auto._
 
-class SessionHandler(runner: ProcessRunner,
-                     sessionDir: Path,
-                     chunkSize: Int,
-                     timeout: FiniteDuration,
-                     //sessionContext: WorkContext[String],
-                     outputContentType: ContentType = `text/plain(UTF-8)`)
+private[session] class SessionHandler(runner: ProcessRunner, sessionDir: Path, chunkSize: Int, timeout: FiniteDuration, outputContentType: ContentType = `text/plain(UTF-8)`)
     extends FailFastCirceSupport {
 
   import agora.domain.io.implicits._
