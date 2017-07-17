@@ -1,9 +1,8 @@
 package agora.exec
 
 import agora.api.exchange.MatchObserver
-import agora.api.json.JPath
 import agora.exec.rest.ExecutionRoutes
-import agora.exec.session.{CloseSession, NewSessionHandler, OpenSession}
+import agora.exec.session.{NewSessionHandler, OpenSession}
 import agora.rest.exchange.ExchangeRoutes
 import agora.rest.worker.WorkerRoutes
 import akka.http.scaladsl.model.Multipart
@@ -37,7 +36,8 @@ case class ExecSystem(conf: ExecConfig) extends FailFastCirceSupport {
     val wr = newWorkerRoutes(exchange)
 
     // add the normal handler
-    wr.addHandler(handler.onExecute)(subscription, initialRequest, implicitly[FromRequestUnmarshaller[Multipart.FormData]])
+    val execSubscription = ExecutionHandler.prepareSubscription(subscription)
+    wr.addHandler(handler.onExecute)(execSubscription, initialRequest, implicitly[FromRequestUnmarshaller[Multipart.FormData]])
 
     import io.circe.generic.auto._
 

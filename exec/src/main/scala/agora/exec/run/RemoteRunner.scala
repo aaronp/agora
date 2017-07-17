@@ -55,7 +55,12 @@ case class RemoteRunner(exchange: ExchangeClient, defaultFrameLength: Int, allow
     import exchange.execContext
     import exchange.materializer
 
-    val (_, workerResponses) = exchange.enqueueAndDispatch(proc.asJob) { (worker: WorkerClient) =>
+    /**
+      * @see [[agora.exec.ExecutionHandler.prepareSubscription]] which adds criteria to match jobs w/ this key/value pair
+      */
+    val job = proc.asJob.add("topic", "exec")
+
+    val (_, workerResponses) = exchange.enqueueAndDispatch(job) { (worker: WorkerClient) =>
       val future = dispatchToWorker(worker, proc, inputFiles)
 
       // cleanup in the case of success, leave results in the case of failure

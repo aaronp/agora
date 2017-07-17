@@ -1,11 +1,11 @@
 package agora.exec
 
+import agora.api.exchange.WorkSubscription
 import agora.api.{JobId, nextJobId}
 import agora.exec.model.{ProcessException, RunProcess, Upload}
 import agora.exec.rest.MultipartExtractor
 import agora.exec.rest.MultipartExtractor.jsonKey
 import agora.exec.run.ProcessRunner
-import agora.rest.multipart.MultipartFormImplicits.logger
 import agora.rest.worker.WorkContext
 import akka.NotUsed
 import akka.http.scaladsl.marshalling.Marshal
@@ -31,6 +31,17 @@ trait ExecutionHandler {
 }
 
 object ExecutionHandler extends StrictLogging {
+
+  /**
+    * Sets up a subscription for execution jobs
+    *
+    * @param subscription
+    * @return
+    */
+  def prepareSubscription(subscription: WorkSubscription) = {
+    import agora.api.Implicits._
+    subscription.matchingSubmission(("topic" === "exec").asMatcher)
+  }
 
   def apply(execConfig: ExecConfig) = new Instance(execConfig)
 
@@ -61,7 +72,6 @@ object ExecutionHandler extends StrictLogging {
               jobId: JobId,
               // TODO - this should be determined from the content-type of the request, which we have
               outputContentType: ContentType = `text/plain(UTF-8)`): Future[HttpResponse] = {
-      import agora.rest.multipart.MultipartFormImplicits._
       import ctxt.requestContext._
 
       def uploadDir = {

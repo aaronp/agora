@@ -54,7 +54,7 @@ class RemoteSessionRunner(exchange: ExchangeClient, frameLength: Int, allowTrunc
     }
   }
 
-  override def run(id: SessionId, proc: RunProcess): ProcessOutput = {
+  override def run(id: SessionId, proc: RunProcess, uploadDependencies: Set[String]): ProcessOutput = {
     val job                                       = UseSession.asExecJob(id, proc)
     val workerResponses: exchange.WorkerResponses = exchange.enqueue(job)
 

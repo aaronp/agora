@@ -64,7 +64,7 @@ case class ExecState(server: Option[RunningService[ExecConfig, ExecutionRoutes]]
     server.foreach(_.close())
     clientsByName.values.foreach {
       case c: Closeable => c.close()
-      case c            =>
+      case _            =>
     }
     new ExecState()
   }

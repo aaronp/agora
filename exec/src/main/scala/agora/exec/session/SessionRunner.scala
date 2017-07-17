@@ -19,7 +19,14 @@ trait SessionRunner {
 
   def startSession(id: SessionId): Future[JobId]
 
-  def run(id: SessionId, cmd: RunProcess): ProcessRunner.ProcessOutput
+  /**
+    *
+    * @param id the session id with which to run the job
+    * @param cmd the thing to run
+    * @param uploadDependencies a set of uploads which are expected to exist before this job runs
+    * @return
+    */
+  def run(id: SessionId, cmd: RunProcess, uploadDependencies: Set[String]): ProcessRunner.ProcessOutput
 
   def upload(id: SessionId, uploads: List[Upload]): Future[Boolean]
 

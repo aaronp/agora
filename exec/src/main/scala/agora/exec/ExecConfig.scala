@@ -13,6 +13,7 @@ import agora.exec.log._
 import agora.exec.model.RunProcess
 import agora.exec.rest.ExecutionRoutes
 import agora.exec.run.{LocalRunner, ProcessRunner}
+import agora.exec.session.SessionRunner
 import agora.rest.exchange.ExchangeRoutes
 import agora.rest.worker.{WorkContext, WorkerConfig, WorkerRoutes}
 import agora.rest.{RunningService, ServerConfig, configForArgs}
@@ -46,6 +47,12 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
     mkLogger _
   }
 
+  /**
+    * Creates a new LocalRunner based on the given match details and job id
+    * @param matchDetails
+    * @param jobId
+    * @return
+    */
   def newRunner(matchDetails: Option[MatchDetails], jobId: JobId): LocalRunner = {
     import serverImplicits._
 
@@ -108,9 +115,11 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
 
   implicit def uploadTimeout: FiniteDuration = execConfig.getDuration("uploadTimeout", TimeUnit.MILLISECONDS).millis
 
-  def remoteRunner(): ProcessRunner with AutoCloseable = {
+  def remoteRunner() = {
     ProcessRunner(exchangeClient, defaultFrameLength, allowTruncation, replaceWorkOnFailure)
   }
+
+  def sessionRunner() = SessionRunner(exchangeClient, defaultFrameLength, allowTruncation)
 }
 
 object ExecConfig {
