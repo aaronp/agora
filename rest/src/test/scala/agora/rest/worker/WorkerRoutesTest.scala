@@ -86,7 +86,7 @@ class WorkerRoutesTest extends BaseRoutesSpec {
         JsonPath.root.someValue.string.getOption(newData) shouldBe Option("hello")
         JsonPath.root.invoked.int.getOption(newData) shouldBe Option(expectedCalls)
 
-        newSubscription.subscription.details.path shouldBe Option("updated")
+        newSubscription.subscription.details.path shouldBe "updated"
         newSubscription.subscription.key shouldBe Option("firstKey")
         newSubscription.subscription
       }
