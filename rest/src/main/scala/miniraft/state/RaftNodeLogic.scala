@@ -363,7 +363,7 @@ private[state] class RaftNodeLogic[T](val id: NodeId, initialState: RaftState[T]
   override def toString = {
     val acks = pendingAppendAcks.mkString(s"${pendingAppendAcks.size} acks", "\n", "\n")
     s"""vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv Node $id vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-       |${pprint.stringify(raftState)}
+       |${pprint.apply(raftState)}
        |$acks
        |${recentLogReport()}
        |^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Node $id ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

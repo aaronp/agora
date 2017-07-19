@@ -15,6 +15,7 @@ object JobsView {
   def render(jobContainer: html.Div, jobs: List[SubmitJob]): Unit = {
     jobContainer.innerHTML = ""
     jobContainer.appendChild(tableForJobs(jobs).render)
+    ()
   }
 
   def tableForJobs(jobs: List[SubmitJob]) = {

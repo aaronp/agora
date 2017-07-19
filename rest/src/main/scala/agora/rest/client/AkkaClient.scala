@@ -32,7 +32,7 @@ class AkkaClient(val location: HostLocation, system: ActorSystem, override impli
   }
 
   def send(request: HttpRequest): Future[HttpResponse] = {
-    logger.debug(s"Sending $hostPort ==> ${pprint.stringify(request)}")
+    logger.debug(s"Sending $hostPort ==> ${pprint.apply(request)}")
     val future = try {
       Source.single(request).via(remoteServiceConnectionFlow).runWith(Sink.head)
     } catch {

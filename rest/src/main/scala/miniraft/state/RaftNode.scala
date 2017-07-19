@@ -23,7 +23,7 @@ trait RaftNode[T] extends RaftEndpoint[T] {
     * @param from     the raft node the message is being sent from -- i.e. the receiver of the request, but originator of the response
     * @param response the response, presumably in reaction to a request
     */
-  def onResponse(from: NodeId, response: RaftResponse)
+  def onResponse(from: NodeId, response: RaftResponse): Unit
 
 }
 
@@ -97,9 +97,9 @@ object RaftNode {
         promise.future
       }
 
-      def forceElectionTimeout = raftNodeActor ! OnElectionTimeout
+      def forceElectionTimeout() = raftNodeActor ! OnElectionTimeout
 
-      def forceHeartbeatTimeout = raftNodeActor ! OnLeaderHeartbeatTimeout
+      def forceHeartbeatTimeout() = raftNodeActor ! OnLeaderHeartbeatTimeout
 
       override def onResponse(from: NodeId, response: RaftResponse): Unit = {
         raftNodeActor ! OnResponse(from, response)

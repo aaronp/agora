@@ -50,7 +50,7 @@ case class SentRequest(from: NodeId, to: NodeId, req: RaftRequest) {
 
 case class SentResponse(sent: SentRequest, resp: RaftResponse) {
   override def toString = {
-    s"Reply to { \n${sent}\n${pprint.stringify(resp)}\n}\n"
+    s"Reply to { \n${sent}\n${pprint.apply(resp)}\n}\n"
   }
 }
 

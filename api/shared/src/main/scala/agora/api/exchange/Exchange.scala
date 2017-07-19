@@ -72,7 +72,15 @@ trait Exchange {
 
 object Exchange {
 
+  /**
+    * Creates a new, in-memory exchange with the given job/worker match notifier
+    * @param onMatch the observer notified when a job is paired with a worker subscription
+    * @param matcher the match logic used to pair work with subscriptions
+    * @return a new Exchange instance
+    */
   def apply(onMatch: OnMatch)(implicit matcher: JobPredicate): Exchange = new InMemory(onMatch)
+
+  def instance(): Exchange = apply(MatchObserver())(JobPredicate())
 
   type Remaining = Int
   type Match     = (SubmitJob, Seq[(SubscriptionKey, WorkSubscription, Remaining)])
@@ -172,7 +180,7 @@ object Exchange {
       notifications.foreach {
         case MatchNotification(id, job, chosen) =>
           logger.debug(s"Triggering match between $job and $chosen")
-          onMatch(job, chosen)
+          onMatch((job, chosen))
       }
     }
 

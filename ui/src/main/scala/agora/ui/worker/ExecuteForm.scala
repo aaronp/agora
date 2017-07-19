@@ -103,9 +103,11 @@ object ExecuteForm {
           case true =>
             line =>
               append(textOutput, "output-line", line)
+              ()
           case false =>
             line =>
               append(textOutput, "error-line", line)
+              ()
         }
         execText.value = ""
       }

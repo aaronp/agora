@@ -15,9 +15,9 @@ sealed trait JPredicate {
   /** @return the json representing this predicate
     */
   def json: Json
-  def and(other: JPredicate, theRest: JPredicate*): JPredicate = And(this :: other :: theRest.toList)
+  def and(other: JPredicate, theRest: JPredicate*): JPredicate = new And(this :: other :: theRest.toList)
 
-  def or(other: JPredicate, theRest: JPredicate*): JPredicate = Or(this :: other :: theRest.toList)
+  def or(other: JPredicate, theRest: JPredicate*): JPredicate = new Or(this :: other :: theRest.toList)
 }
 
 object JPredicate {
@@ -35,20 +35,20 @@ object JPredicate {
 
       def !(other: JPredicate): JFilter = Not(other)
 
-      def =!=[J <% Json](value: J): JFilter = Not(Eq(value))
+      def =!=[J](value: J)(implicit ev: J => Json): JFilter = Not(Eq(value))
 
-      def !==[J <% Json](value: J): JFilter = Not(Eq(value))
+      def !==[J](value: J)(implicit ev: J => Json): JFilter = Not(Eq(value))
 
-      def ===[J <% Json](value: J): JFilter = Eq(value)
-      def equalTo[J <% Json](value: J): JFilter = Eq(value)
+      def ===[J](value: J)(implicit ev: J => Json): JFilter     = Eq(value)
+      def equalTo[J](value: J)(implicit ev: J => Json): JFilter = Eq(value)
 
-      def gt[J <% Json](value: J): JFilter = Gt(value)
+      def gt[J](value: J)(implicit ev: J => Json): JFilter = Gt(value)
 
-      def lt[J <% Json](value: J): JFilter = Lt(value)
+      def lt[J](value: J)(implicit ev: J => Json): JFilter = Lt(value)
 
-      def gte[J <% Json](value: J): JFilter = Gte(value)
+      def gte[J](value: J)(implicit ev: J => Json): JFilter = Gte(value)
 
-      def lte[J <% Json](value: J): JFilter = Lte(value)
+      def lte[J](value: J)(implicit ev: J => Json): JFilter = Lte(value)
 
       def ~=(regex: String): JFilter = JRegex(regex)
     }
@@ -61,28 +61,19 @@ object JPredicate {
     override def apply(c: HCursor): Result[JPredicate] = {
       import cats.syntax.either._
 
-
-      c.as[And].
-        orElse(c.as[Or]).
-        orElse(c.as[Not]).
-        orElse(c.as[Eq]).
-        orElse(c.as[JRegex]).
-        orElse(c.as[Gt]).
-        orElse(c.as[Gte]).
-        orElse(c.as[Lt]).
-        orElse(c.as[Lte])
+      c.as[And].orElse(c.as[Or]).orElse(c.as[Not]).orElse(c.as[Eq]).orElse(c.as[JRegex]).orElse(c.as[Gt]).orElse(c.as[Gte]).orElse(c.as[Lt]).orElse(c.as[Lte])
     }
 
     override def apply(a: JPredicate): Json = a match {
-      case p: And => p.asJson
-      case p: Or => p.asJson
-      case p: Not => p.asJson
-      case p: Eq => p.asJson
+      case p: And    => p.asJson
+      case p: Or     => p.asJson
+      case p: Not    => p.asJson
+      case p: Eq     => p.asJson
       case p: JRegex => p.asJson
 
-      case p: Gt => p.asJson
+      case p: Gt  => p.asJson
       case p: Gte => p.asJson
-      case p: Lt => p.asJson
+      case p: Lt  => p.asJson
       case p: Lte => p.asJson
     }
   }
@@ -91,7 +82,7 @@ object JPredicate {
 
 case class Or(or: List[JPredicate]) extends JPredicate {
   override def matches(json: Json) = or.exists(_.matches(json))
-  override def json = Json.obj("or" -> Json.fromValues(or.map(_.json)))
+  override def json                = Json.obj("or" -> Json.fromValues(or.map(_.json)))
 }
 
 object Or {
@@ -100,7 +91,7 @@ object Or {
 
 case class And(and: List[JPredicate]) extends JPredicate {
   override def matches(json: Json) = and.forall(_.matches(json))
-  override def json = Json.obj("and" -> Json.fromValues(and.map(_.json)))
+  override def json                = Json.obj("and" -> Json.fromValues(and.map(_.json)))
 }
 
 object And {
@@ -132,7 +123,7 @@ sealed abstract class ComparablePredicate(value: Json, op: (Long, Long) => Boole
   import Ordering.Implicits._
   val refNum = asLong(value)
 
-  private def asLong(json : Json) = {
+  private def asLong(json: Json) = {
     json.asNumber.flatMap(_.toLong).orElse {
       json.asString.flatMap(s => Try(s.toLong).toOption)
     }
@@ -141,7 +132,7 @@ sealed abstract class ComparablePredicate(value: Json, op: (Long, Long) => Boole
     val res = json.as[Json].right.map { (tea: Json) =>
       (asLong(tea), refNum) match {
         case (Some(x), Some(y)) => op(x, y)
-        case _ => false
+        case _                  => false
       }
     }
     res.right.getOrElse(false)

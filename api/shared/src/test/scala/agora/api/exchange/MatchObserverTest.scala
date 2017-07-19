@@ -14,8 +14,7 @@ class MatchObserverTest extends WordSpec with Matchers {
 
       val strEnc: Encoder[String] = implicitly[Encoder[String]]
 
-
-      var notifiedJobs = List[SubmitJob]()
+      var notifiedJobs      = List[SubmitJob]()
       val jobOne: SubmitJob = 123.asJob() + ("id" -> "one")
 
       // call the method under test 'when'
@@ -24,13 +23,12 @@ class MatchObserverTest extends WordSpec with Matchers {
       }
 
       // this shouldn't be called, so we shouldn't be notified
-      obs("meh".asJob, Nil)
+      obs("meh".asJob -> Nil)
       notifiedJobs shouldBe (empty)
 
       // we should be called on this one and then removed
       obs.apply(jobOne -> Nil)
       notifiedJobs should contain only (jobOne)
-
 
       // prove that calling again doesn't notify us
       obs.apply(jobOne -> Nil)
@@ -42,7 +40,7 @@ class MatchObserverTest extends WordSpec with Matchers {
     "remove the observer only after remove is called" in {
       object obs extends MatchObserver
 
-      var notifiedJobs = List[SubmitJob]()
+      var notifiedJobs      = List[SubmitJob]()
       val jobOne: SubmitJob = 123.asJob() + ("id" -> "one")
       val jobTwo: SubmitJob = 456.asJob() + ("id" -> "two")
 
@@ -51,7 +49,6 @@ class MatchObserverTest extends WordSpec with Matchers {
         case (`jobOne`, _) => notifiedJobs = jobOne :: notifiedJobs
         case (`jobTwo`, _) => notifiedJobs = jobTwo :: notifiedJobs
       }
-
 
       // we should be called on this one and then removed
       obs.apply(jobOne -> Nil)

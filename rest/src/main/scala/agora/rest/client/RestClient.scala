@@ -67,13 +67,14 @@ object RestClient {
         def decode(jsonString: String) = {
           import io.circe.parser._
           parse(jsonString) match {
-            case Left(err) => onErr(Option(jsonString), resp, err)
+            case Left(err) => onErr((Option(jsonString), resp, err))
 
             case Right(json) =>
               json.as[T] match {
                 case Left(extractErr) =>
                   val className = implicitly[ClassTag[T]].runtimeClass
-                  onErr(Option(jsonString), resp, new Exception(s"Couldn't extract response (${resp.status}) $json as $className : $extractErr", extractErr))
+                  val exp       = new Exception(s"Couldn't extract response (${resp.status}) $json as $className : $extractErr", extractErr)
+                  onErr((Option(jsonString), resp, exp))
                 case Right(tea) => Future.successful(tea)
               }
           }

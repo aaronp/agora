@@ -2,10 +2,9 @@ package agora.api.exchange
 
 import scala.collection.mutable.ListBuffer
 
-
 trait InputDao[T] {
-  def save(input: T)
-  def remove(input : T)
+  def save(input: T): Unit
+  def remove(input: T): Unit
   def matching(n: Int, filter: T => Boolean): Iterator[T]
 }
 object InputDao {
@@ -13,10 +12,14 @@ object InputDao {
 
   class Buffer[T]() extends InputDao[T] {
     private val saved = ListBuffer[T]()
-    override def save(input: T): Unit = saved += input
+    override def save(input: T): Unit = {
+      saved += input
+      ()
+    }
     override def remove(input: T): Unit = {
       val idx = saved.indexOf(input)
       saved.remove(idx)
+      ()
     }
 
     override def matching(n: Int, predicate: T => Boolean): Iterator[T] = {

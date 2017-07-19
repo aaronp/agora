@@ -32,8 +32,8 @@ object MultipartFormImplicits extends StrictLogging {
       formData.parts.map { part =>
         val info = MultipartInfo(part.name, part.filename, part.entity.contentType)
         val src  = part.entity.dataBytes
-        if (f.isDefinedAt(info, src)) {
-          Option(f(info, src))
+        if (f.isDefinedAt(info -> src)) {
+          Option(f(info -> src))
         } else {
           src.runWith(Sink.ignore)
           None

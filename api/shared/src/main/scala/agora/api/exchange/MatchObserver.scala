@@ -45,7 +45,7 @@ trait MatchObserver extends Exchange.OnMatch with StrictLogging {
       case (`job`, workers) =>
         val idTry = job.jobId match {
           case Some(id) => Success(id)
-          case None => Failure(new Exception(s"no job id was set on $job"))
+          case None     => Failure(new Exception(s"no job id was set on $job"))
         }
         val coordsAndDetails = workers.map {
           case (key, workSubscription, remaining) =>
@@ -59,6 +59,7 @@ trait MatchObserver extends Exchange.OnMatch with StrictLogging {
           BlockingSubmitJobResponse(nextMatchId(), id, epochUTC, coords.toList, details.toList)
         }
         promise.complete(respFuture)
+        ()
     }
     promise.future
   }
@@ -98,7 +99,7 @@ object MatchObserver {
 
     override def equals(obj: Any) = obj match {
       case once: BaseHandler => once.id == id
-      case _ => false
+      case _                 => false
     }
   }
 
@@ -108,6 +109,7 @@ object MatchObserver {
         pf(jobMatch)
         if (removeAfterInvocation) {
           remove()
+          ()
         }
       }
     }
