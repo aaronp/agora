@@ -28,14 +28,14 @@ abstract class BaseIntegrationTest extends BaseSpec with BeforeAndAfterAll with 
   before(startAll)
   after(stopAll)
 
-  def startAll = {
+  def startAll() = {
     workerConfig = WorkerConfig(s"port=${workerPort}", s"exchange.port=${exchangePort}")
     exchangeService = exchangeConfig.start().futureValue
     exchangeClient = workerConfig.exchangeClient
     worker = workerConfig.startWorker().futureValue
   }
 
-  def stopAll = {
+  def stopAll() = {
     exchangeService.close()
     exchangeClient.close()
     worker.close()

@@ -39,10 +39,10 @@ case class SentRequest(from: NodeId, to: NodeId, req: RaftRequest) {
     req match {
       case RequestVote(Term(term), candidateId, lastLogIndex, Term(lastLogTerm)) =>
         require(candidateId == from)
-        val data = List("RequestVote", to, term, lastLogIndex, lastLogTerm)
+        val data = List[Any]("RequestVote", to, term, lastLogIndex, lastLogTerm)
         fmt(VoteRequestHeader, data :: Nil)
       case AppendEntries(Term(term), leaderId, commitIndex, prevLogIndex, Term(prevLogTerm), entries) =>
-        val data: List[Any] = List("AppendEntries", to, term, leaderId, commitIndex, prevLogIndex, prevLogTerm, entries.getOrElse(""))
+        val data = List[Any]("AppendEntries", to, term, leaderId, commitIndex, prevLogIndex, prevLogTerm, entries.getOrElse(""))
         fmt(AppendHeader, data :: Nil)
     }
   }

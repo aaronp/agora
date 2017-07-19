@@ -10,15 +10,14 @@ class WorkerDetailsTest extends WordSpec with Matchers {
 
   "WorkerDetails()" should {
     "include a path" in {
-      WorkerDetails().path shouldBe Some("handler")
+      WorkerDetails().path shouldBe "handler"
     }
   }
   "WorkerDetails +" should {
     "accumulate json data" in {
       val details = WorkerDetails(runUser = "Eleanor", id = "optional id here", name = "bob", location = HostLocation("nearby", 5)) + SomeData(123, "some text") + MoreData("meh")
 
-      val Right(expected) = parser.parse(
-        """{
+      val Right(expected) = parser.parse("""{
           |  "name" : "bob",
           |  "id" : "optional id here",
           |  "path" : "handler",

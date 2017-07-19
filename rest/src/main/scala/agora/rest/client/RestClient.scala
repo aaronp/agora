@@ -52,7 +52,7 @@ object RestClient {
       case HttpEncodings.deflate  => Deflate
       case HttpEncodings.identity => NoCoding
     }
-    decoder.decode(resp)
+    decoder.decodeMessage(resp)
   }
 
   object implicits {

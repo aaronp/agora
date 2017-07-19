@@ -67,7 +67,7 @@ class RemoteSessionRunner(exchange: ExchangeClient, frameLength: Int, allowTrunc
   }
 
   private def dispatchToWorker(worker: WorkerClient, inputFiles: List[Upload]): Future[HttpResponse] = {
-    logger.trace(s"preparing to send ${pprint.stringify(worker)} ${inputFiles.size} uploads")
+    logger.trace(s"preparing to send ${pprint.apply(worker)} ${inputFiles.size} uploads")
     val reqBuilder: MultipartBuilder = inputFiles.foldLeft(MultipartBuilder()) {
       case (builder, Upload(name, len, src, contentType)) =>
         builder.fromSource(name, len, src, contentType, name)

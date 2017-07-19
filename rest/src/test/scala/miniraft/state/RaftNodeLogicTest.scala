@@ -79,7 +79,7 @@ class RaftNodeLogicTest extends BaseSpec with Eventually {
       * 5) A sends out an empty AppendEntries request
       * 6) B receives the AppendEntries request and then commits its
       */
-    def appendFirstEntry = {
+    def appendFirstEntry() = {
       val data = "first entry"
 
       // A sends B the first entry to append, having already applied it to its own log (uncommitted)
@@ -100,7 +100,7 @@ class RaftNodeLogicTest extends BaseSpec with Eventually {
       verifyConfirmResponse(confirmResp)
     }
 
-    def appendTwoUnconfirmedEntries = {
+    def appendTwoUnconfirmedEntries() = {
       val firstData = "one"
 
       // A sends B the first entry to append, having already applied it to its own log (uncommitted)
@@ -209,7 +209,7 @@ class RaftNodeLogicTest extends BaseSpec with Eventually {
       }
     }
 
-    def makeNodeATheLeader = {
+    def makeNodeATheLeader() = {
       val voteForA = withCluster("A") { c =>
         a.onElectionTimeout(c)
         a.raftState.role.name shouldBe "candidate"

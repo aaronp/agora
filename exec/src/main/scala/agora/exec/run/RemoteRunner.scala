@@ -28,7 +28,7 @@ case class RemoteRunner(exchange: ExchangeClient, defaultFrameLength: Int, allow
   def dispatchToWorker(worker: WorkerClient, proc: RunProcess, inputFiles: List[Upload]): Future[HttpResponse] = {
     import io.circe.generic.auto._
 
-    logger.trace(s"preparing to send ${pprint.stringify(proc)}\nto\n${pprint.stringify(worker)}\nw/ ${inputFiles.size} uploads")
+    logger.trace(s"preparing to send ${pprint.apply(proc)}\nto\n${pprint.apply(worker)}\nw/ ${inputFiles.size} uploads")
     val reqBuilder: MultipartBuilder = inputFiles.foldLeft(MultipartBuilder().json(proc)) {
       case (builder, Upload(name, len, src, contentType)) =>
         builder.fromSource(name, len, src, contentType, name)
@@ -58,7 +58,7 @@ case class RemoteRunner(exchange: ExchangeClient, defaultFrameLength: Int, allow
     /**
       * @see [[agora.exec.ExecutionHandler.prepareSubscription]] which adds criteria to match jobs w/ this key/value pair
       */
-    val job = proc.asJob.add("topic", "exec")
+    val job = proc.asJob.add("topic" -> "exec")
 
     val (_, workerResponses) = exchange.enqueueAndDispatch(job) { (worker: WorkerClient) =>
       val future = dispatchToWorker(worker, proc, inputFiles)

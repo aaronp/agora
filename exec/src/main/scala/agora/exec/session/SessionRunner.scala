@@ -32,7 +32,7 @@ trait SessionRunner {
 
   final def upload(id: SessionId, firstFile: Upload, theRest: Upload*): Future[Boolean] = upload(id, firstFile :: theRest.toList)
 
-  def closeSession(id: SessionId)
+  def closeSession(id: SessionId): Unit
 }
 
 object SessionRunner {

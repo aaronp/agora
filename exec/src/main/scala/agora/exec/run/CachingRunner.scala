@@ -48,7 +48,7 @@ object CachingRunner {
         case Some(dir) =>
           val started    = System.currentTimeMillis()
           val outputFile = dir.resolve("output").createIfNotExists()
-          dir.resolve("input").text = pprint.stringify(proc)
+          dir.resolve("input").text = pprint.apply(proc).toString()
           output.map { iter =>
             val os = outputFile.outputStream(StandardOpenOption.APPEND)
             val writingIter = iter.map { line =>

@@ -8,17 +8,17 @@ class WorkSubscriptionTest extends WordSpec with Matchers {
 
   "WorkSubscription.withPath" should {
     "use the given path" in {
-      val original = WorkSubscription()
+      val original       = WorkSubscription()
       val beforeLocation = original.details.location
 
       val ws = original.withPath("foo")
-      ws.details.path shouldBe Some("foo")
+      ws.details.path shouldBe "foo"
       ws.details.location shouldBe beforeLocation
     }
   }
   "WorkSubscription.path" should {
     "have a default path" in {
-      WorkSubscription().details.path shouldBe Some("handler")
+      WorkSubscription().details.path shouldBe "handler"
     }
   }
   "WorkSubscription.matches" should {
@@ -26,10 +26,7 @@ class WorkSubscriptionTest extends WordSpec with Matchers {
     import agora.api.Implicits._
 
     val jobPath = (("value" gt 7) and ("value" lt 17)) or ("value" === 123)
-    val sub = WorkSubscription(
-      jobMatcher = jobPath,
-      submissionMatcher = ("topic" === "foo").asMatcher)
-
+    val sub     = WorkSubscription(jobMatcher = jobPath, submissionMatcher = ("topic" === "foo").asMatcher)
 
     "match jobs with work subscriptions" in {
       val details = SubmissionDetails().add("topic" -> "foo")

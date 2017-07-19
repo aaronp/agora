@@ -16,7 +16,7 @@ case class ProcessException(error: ProcessError) extends Exception(s"${error.pro
 
 object ProcessException extends StrictLogging {
   def apply(process: RunProcess, exitCode: Try[Int], matchDetails: Option[MatchDetails], stdErr: List[String]) = {
-    logger.error(stdErr.mkString(pprint.stringify(process) + s" \nfailed with\n${exitCode}\n", "\n", ""))
+    logger.error(stdErr.mkString(pprint.apply(process) + s" \nfailed with\n${exitCode}\n", "\n", ""))
     new ProcessException(ProcessError(process, exitCode.toOption, matchDetails, stdErr))
   }
 }

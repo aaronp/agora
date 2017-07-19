@@ -16,7 +16,7 @@ class WorkerConfigTest extends WordSpec with Matchers {
       wc.subscription.details shouldBe wc.workerDetails
 
       wc.subscription.details.location.port shouldBe 1122
-      wc.subscription.details.path shouldBe Option("foo")
+      wc.subscription.details.path shouldBe "foo"
     }
   }
   "WorkerConfig.subscription" should {

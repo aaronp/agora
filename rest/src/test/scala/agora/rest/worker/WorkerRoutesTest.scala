@@ -65,7 +65,7 @@ class WorkerRoutesTest extends BaseRoutesSpec {
       someValue shouldBe Option("hello")
       JsonPath.root.invoked.int.getOption(originalData) shouldBe None
 
-      originalSubscription.subscription.details.path shouldBe Option("original")
+      originalSubscription.subscription.details.path shouldBe "original"
       originalSubscription.subscription.key shouldBe Option("firstKey")
 
       // call the method under test -- invoke our handler and observer that the exchange sees an updated subscription
