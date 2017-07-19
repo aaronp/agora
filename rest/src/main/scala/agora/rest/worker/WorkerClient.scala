@@ -1,20 +1,20 @@
 package agora.rest.worker
 
-import akka.http.scaladsl.marshalling.{Marshaller, ToEntityMarshaller}
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.unmarshalling.Unmarshal
-import com.typesafe.scalalogging.LazyLogging
-import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
-import io.circe.{Encoder, Json}
 import agora.api.`match`.MatchDetails
 import agora.api.worker.WorkerDetails
 import agora.health.HealthDto
 import agora.rest.MatchDetailsExtractor
 import agora.rest.client.RestClient
 import agora.rest.multipart.MultipartBuilder
+import akka.http.scaladsl.marshalling.{Marshaller, ToEntityMarshaller}
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.unmarshalling.Unmarshal
+import com.typesafe.scalalogging.LazyLogging
+import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
+import io.circe.{Encoder, Json}
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.{ExecutionContext, Future}
 
 /**
   * A short-lived handle to something which can send requests to a worker
@@ -34,14 +34,16 @@ case class WorkerClient(rest: RestClient, path: String, matchDetails: MatchDetai
   def health = WorkerClient.health(rest)
 
   def sendRequest[T: ToEntityMarshaller](request: T): Future[HttpResponse] = {
-    send(newRequest(request))
+    sendDirect(newRequest(request))
   }
 
-  def send(req: HttpRequest): Future[HttpResponse] = rest.send(req)
+  def send(req: HttpRequest): Future[HttpResponse] = sendDirect(req.withHeaders(MatchDetailsExtractor.headersFor(matchDetails)))
+
+  private def sendDirect(req: HttpRequest): Future[HttpResponse] = rest.send(req)
 
   def send(reqBuilder: MultipartBuilder)(implicit timeout: FiniteDuration): Future[HttpResponse] = {
     reqBuilder.formData.flatMap { (strict: Multipart.FormData.Strict) =>
-      send(newRequest(strict))
+      sendDirect(newRequest(strict))
     }
   }
 

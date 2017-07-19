@@ -1,11 +1,10 @@
 package agora.exec
 
 import agora.api.exchange.MatchObserver
+import agora.exec.model.RunProcess
 import agora.exec.rest.ExecutionRoutes
-import agora.exec.session.{NewSessionHandler, OpenSession}
 import agora.rest.exchange.ExchangeRoutes
 import agora.rest.worker.WorkerRoutes
-import akka.http.scaladsl.model.Multipart
 import akka.http.scaladsl.unmarshalling.FromRequestUnmarshaller
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 
@@ -29,20 +28,15 @@ case class ExecSystem(conf: ExecConfig) extends FailFastCirceSupport {
   // create something to actually process jobs
   val handler = ExecutionHandler(conf)
 
-  val sessionHandler = new NewSessionHandler(conf)
-
   // create a worker to subscribe to the exchange
   lazy val workerRoutes: WorkerRoutes = {
     val wr = newWorkerRoutes(exchange)
 
     // add the normal handler
     val execSubscription = ExecutionHandler.prepareSubscription(subscription)
-    wr.addHandler(handler.onExecute)(execSubscription, initialRequest, implicitly[FromRequestUnmarshaller[Multipart.FormData]])
-
     import io.circe.generic.auto._
+    wr.addHandler(handler.onExecute)(execSubscription, initialRequest, implicitly[FromRequestUnmarshaller[RunProcess]])
 
-    // add the session lifecycle handlers. The 'onOpenSession' handler will in turn also create new endpoints
-    wr.usingSubscription(OpenSession.prepareSubscription).addHandler(sessionHandler.onOpenSession)
     wr
   }
 

@@ -1,13 +1,12 @@
 package agora.exec.log
 
 import java.nio.file.Path
-
+import agora.io.implicits._
 import agora.api.JobId
 import agora.api.`match`.MatchDetails
 import agora.exec.model.RunProcess
-
 import scala.concurrent.Future
-import scala.sys.process.ProcessLogger
+import scala.sys.process.{FileProcessLogger, ProcessLogger}
 
 /**
   * A pimped out process logger which can produce an iterator of output and return
@@ -54,7 +53,11 @@ trait IterableLogger extends ProcessLogger {
   def add(pl: ProcessLogger): IterableLogger
 
   final def addUnderDir(logDir: Path): IterableLogger = {
-    addStdOut(ProcessLogger(logDir.resolve("std.out").toFile)).addStdErr(ProcessLogger(logDir.resolve("std.err").toFile))
+    val stdOut                          = logDir.resolve("std.out").toFile
+    val stdOutLogger: FileProcessLogger = ProcessLogger(stdOut)
+    val stdErr                          = logDir.resolve("std.err").toFile
+    val stdErrLogger                    = ProcessLogger(stdErr)
+    addStdOut(stdOutLogger).addStdErr(stdErrLogger)
   }
 
   final def addStdOut(pl: ProcessLogger): IterableLogger = add(JustStdOut(pl))
@@ -72,7 +75,6 @@ object IterableLogger {
   }
 
   def pathForJob(configPath: String, baseDir: Option[Path], jobId: JobId, fileNameOpt: Option[String]): Either[String, Path] = {
-    import agora.domain.io.implicits._
 
     baseDir match {
       case Some(dir) =>

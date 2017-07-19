@@ -8,13 +8,13 @@ import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import io.circe.Json
 import io.circe.generic.auto._
-import agora.domain.io.Sources
 import agora.rest.BaseRoutesSpec
 import agora.rest.test.TestUtils
 
 import scala.collection.immutable
 import scala.concurrent.Future
 import MultipartFormImplicits._
+import agora.io.Sources
 
 class MultipartFormImplicitsTest extends BaseRoutesSpec {
 

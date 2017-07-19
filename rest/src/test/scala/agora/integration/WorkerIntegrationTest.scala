@@ -1,9 +1,9 @@
 package agora.integration
 
+import agora.io.Sources
 import akka.http.scaladsl.model.{ContentTypes, Multipart}
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
-import agora.domain.io.Sources
 import agora.rest.multipart.{MultipartBuilder, MultipartInfo}
 
 import scala.language.reflectiveCalls

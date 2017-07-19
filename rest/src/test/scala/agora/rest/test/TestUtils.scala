@@ -5,10 +5,10 @@ import java.nio.file.{Path, Paths}
 import java.time.LocalDateTime
 import java.time.format._
 
+import agora.io.LowPriorityIOImplicits
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.FileIO
 import akka.stream.{ActorMaterializer, Materializer}
-import agora.domain.io.LowPriorityIOImplicits
 
 import scala.util.Try
 

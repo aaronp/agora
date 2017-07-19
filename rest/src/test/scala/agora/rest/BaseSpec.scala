@@ -3,10 +3,10 @@ package agora.rest
 import java.nio.file.Path
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 
+import agora.io.LowPriorityIOImplicits
 import akka.actor.ActorSystem
 import akka.http.scaladsl.testkit.RouteTestTimeout
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
-import agora.domain.io.LowPriorityIOImplicits
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}

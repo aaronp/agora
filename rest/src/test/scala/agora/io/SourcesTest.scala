@@ -1,4 +1,4 @@
-package agora.domain.io
+package agora.io
 
 import java.util.concurrent.atomic.AtomicInteger
 

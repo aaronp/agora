@@ -42,15 +42,8 @@ trait ProcessRunnerTCK { self: BaseSpec =>
       val res: Iterator[String] = runner.run("echo", "testing 123").futureValue
       res.mkString(" ") shouldBe "testing 123"
     }
-    "run commands which operate on uploads" in {
-      val content               = ByteString("This is the content\nof my very special\nupload")
-      val src                   = Source.single(content)
-      val myUpload              = Upload("my.upload", content.length, src)
-      val res: Iterator[String] = runner.run(RunProcess("bash", "-c", "cat $MY_UPLOAD"), List(myUpload)).futureValue
-      res.mkString("\n") shouldBe content.utf8String
-    }
     "run commands which operate on environment variables" in {
-      val res: Iterator[String] = runner.run(RunProcess("bash", "-c", "echo FOO is $FOO").withEnv("FOO", "bar"), Nil).futureValue
+      val res: Iterator[String] = runner.run(RunProcess("bash", "-c", "echo FOO is $FOO").withEnv("FOO", "bar")).futureValue
       res.mkString("\n") shouldBe "FOO is bar"
     }
   }

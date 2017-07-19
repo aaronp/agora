@@ -1,4 +1,4 @@
-package agora.domain.io
+package agora.io
 
 import akka.stream.scaladsl.Source
 import akka.util.ByteString

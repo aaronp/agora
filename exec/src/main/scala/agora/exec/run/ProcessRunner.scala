@@ -2,16 +2,13 @@ package agora.exec.run
 
 import java.nio.file.Path
 
-import akka.stream.Materializer
-import agora.exec.dao.UploadDao
 import agora.exec.log.IterableLogger
-import agora.exec.model.{RunProcess, Upload}
+import agora.exec.model.RunProcess
 import agora.rest.exchange.ExchangeClient
 
-import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.reflectiveCalls
-import scala.sys.process
 
 /**
   * represents something which can be run, either locally or remotely.
@@ -19,36 +16,21 @@ import scala.sys.process
   */
 trait ProcessRunner {
 
-  def run(proc: RunProcess, inputFiles: List[Upload] = Nil): ProcessRunner.ProcessOutput
+  def run(proc: RunProcess): ProcessRunner.ProcessOutput
 
-  def run(cmd: String, theRest: String*): ProcessRunner.ProcessOutput = run(RunProcess(cmd :: theRest.toList, Map[String, String]()), Nil)
+  def run(cmd: String, theRest: String*): ProcessRunner.ProcessOutput = run(RunProcess(cmd :: theRest.toList, Map[String, String]()))
 }
 
 object ProcessRunner {
   type ProcessOutput = Future[Iterator[String]]
-
-  def local(uploadDao: UploadDao = UploadDao(), workDir: Option[Path] = None, loggerForProcess: RunProcess => IterableLogger = IterableLogger.forProcess)(
-      implicit mat: Materializer): LocalRunner = {
-    new LocalRunner(uploadDao, workDir, loggerForProcess) {
-      override def execute(builder: process.ProcessBuilder, proc: RunProcess, iterableLogger: IterableLogger): Iterator[String] = {
-        proc.filterForErrors(super.execute(builder, proc, iterableLogger))
-      }
-
-      override def withWorkDir(wd: Option[Path]): LocalRunner = local(uploadDao, wd, loggerForProcess)
-
-      override def withUploadDao(dao: UploadDao): LocalRunner = local(dao, workDir, loggerForProcess)
-
-      override def withLogger(newLoggerForProcess: RunProcess => IterableLogger) = local(uploadDao, workDir, newLoggerForProcess)
-    }
-  }
 
   /**
     * Creates a local runner.
     *
     * @param workDir the working directory to run the process under
     */
-  def apply(uploadDao: UploadDao, workDir: Option[Path] = None, loggerForJob: RunProcess => IterableLogger = IterableLogger.forProcess)(implicit mat: Materializer): LocalRunner = {
-    LocalRunner(uploadDao, workDir, loggerForJob)
+  def apply(workDir: Option[Path] = None, mkLogger: RunProcess => IterableLogger = IterableLogger.forProcess)(implicit ec: ExecutionContext): LocalRunner = {
+    LocalRunner(workDir, mkLogger)
   }
 
   /**

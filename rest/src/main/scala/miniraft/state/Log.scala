@@ -7,6 +7,8 @@ import io.circe.{Decoder, Encoder, Json}
 
 import scala.util.control.NonFatal
 
+import agora.io.implicits._
+
 /**
   * Represents the commit log
   *
@@ -53,8 +55,6 @@ trait Log[Command] {
 }
 
 object Log {
-
-  import agora.domain.io.implicits._
 
   def apply[T](dir: Path)(applyToStateMachine: LogEntry[T] => Unit)(implicit asBytes: Formatter[T, Array[Byte]]) = new FileBasedLog[T](dir, asBytes, applyToStateMachine)
 

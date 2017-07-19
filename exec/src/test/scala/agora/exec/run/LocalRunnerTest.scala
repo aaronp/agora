@@ -2,7 +2,7 @@ package agora.exec.run
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import agora.exec.dao.UploadDao
+import scala.concurrent.ExecutionContext.Implicits.global
 import agora.rest.BaseSpec
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 
@@ -18,7 +18,7 @@ class LocalRunnerTest extends BaseSpec with ProcessRunnerTCK with BeforeAndAfter
 
   override def runner = {
     val dir = "target/localRunnerTest".asPath.mkDirs()
-    ProcessRunner.local(UploadDao(dir), Option(dir))
+    ProcessRunner(Option(dir))
   }
 
 }

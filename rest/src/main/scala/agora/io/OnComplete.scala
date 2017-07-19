@@ -1,4 +1,4 @@
-package agora.domain.io
+package agora.io
 
 import akka.stream._
 import akka.stream.scaladsl.Flow

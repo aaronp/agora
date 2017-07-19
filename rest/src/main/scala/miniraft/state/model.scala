@@ -2,6 +2,7 @@ package miniraft.state
 
 import java.nio.file.Path
 
+import agora.io.implicits._
 import io.circe.Decoder.Result
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import miniraft.{AppendEntries, AppendEntriesResponse}
@@ -145,7 +146,6 @@ trait PersistentState[T] {
 object PersistentState {
 
   def apply[T](workingDir: Path)(applyToStateMachine: LogEntry[T] => Unit)(implicit asBytes: Formatter[T, Array[Byte]]): PersistentState[T] = {
-    import agora.domain.io.implicits._
     val log = Log[T](workingDir.resolve("data").mkDir())(applyToStateMachine)
     apply(workingDir, log)
   }
@@ -196,8 +196,6 @@ object PersistentState {
     private var entriesLog = initialLog
 
     override def log: Log[T] = entriesLog
-
-    import agora.domain.io.implicits._
 
     // TODO - just put both in one file
     private val votedForFile = workingDir.resolve("votedFor").createIfNotExists()

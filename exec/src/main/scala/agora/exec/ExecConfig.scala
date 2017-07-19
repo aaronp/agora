@@ -2,22 +2,15 @@ package agora.exec
 
 import java.util.concurrent.TimeUnit
 
-import akka.http.scaladsl.model.Multipart
-import akka.http.scaladsl.server.Route
-import com.typesafe.config.{Config, ConfigFactory}
 import agora.api._
 import agora.api.`match`.MatchDetails
-import agora.api.exchange.MatchObserver
-import agora.exec.dao.{ExecDao, UploadDao}
 import agora.exec.log._
 import agora.exec.model.RunProcess
 import agora.exec.rest.ExecutionRoutes
 import agora.exec.run.{LocalRunner, ProcessRunner}
-import agora.exec.session.SessionRunner
-import agora.rest.exchange.ExchangeRoutes
-import agora.rest.worker.{WorkContext, WorkerConfig, WorkerRoutes}
-import agora.rest.{RunningService, ServerConfig, configForArgs}
-import akka.http.scaladsl.unmarshalling.FromRequestUnmarshaller
+import agora.rest.worker.WorkerConfig
+import agora.rest.{RunningService, configForArgs}
+import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.concurrent.duration._
 
@@ -29,44 +22,31 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
 
   /** @return a process runner to execute the given request
     */
-  def newLogger(jobId: JobId, matchDetails: Option[MatchDetails]): (RunProcess) => IterableLogger = {
+  def newLogger(proc: RunProcess, jobId: JobId, matchDetails: Option[MatchDetails]): IterableLogger = {
 
-    def mkLogger(proc: RunProcess): IterableLogger = {
-      val iterLogger = IterableLogger(proc, matchDetails, errorLimit)
-      if (includeConsoleAppender) {
-        iterLogger.add(loggingProcessLogger(logPrefix(proc)))
-      }
-
-      logs.dir(jobId).foreach { dir =>
-        iterLogger.addUnderDir(dir)
-      }
-
-      iterLogger
+    val iterLogger = IterableLogger(proc, matchDetails, errorLimit)
+    if (includeConsoleAppender) {
+      iterLogger.add(loggingProcessLogger(logPrefix(proc)))
     }
 
-    mkLogger _
+    logs.dir(jobId).foreach { dir =>
+      iterLogger.addUnderDir(dir)
+    }
+
+    iterLogger
   }
 
   /**
     * Creates a new LocalRunner based on the given match details and job id
+    *
     * @param matchDetails
     * @param jobId
     * @return
     */
-  def newRunner(matchDetails: Option[MatchDetails], jobId: JobId): LocalRunner = {
+  def newRunner(proc: RunProcess, matchDetails: Option[MatchDetails], jobId: JobId): LocalRunner = {
     import serverImplicits._
-
     require(system.whenTerminated.isCompleted == false, "Actor system is terminated")
-
-    val uploadDao: UploadDao.FileUploadDao = {
-      val uploadDaoOpt = uploads.dir(jobId).map { dir =>
-        UploadDao(dir)
-      }
-      uploadDaoOpt.getOrElse(UploadDao())
-    }
-
-    val runner: LocalRunner = ProcessRunner(uploadDao, workDir = workingDirectory.dir(jobId), newLogger(jobId, matchDetails))
-    runner
+    ProcessRunner(workDir = workingDirectory.dir(jobId), newLogger(_, jobId, matchDetails))
   }
 
   /**
@@ -74,8 +54,6 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
     *         or at least from a client who was redirected to us via the exchange
     */
   lazy val handler: ExecutionHandler = ExecutionHandler(this)
-
-  def writeDownRequests = config.getBoolean("writeDownRequests")
 
   override def landingPage = "ui/run.html"
 
@@ -91,19 +69,17 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
 
   def uploadsDir = uploads.path.getOrElse(sys.error("Invalid configuration - no uploads directory set"))
 
-  def execDao = ExecDao(uploadsDir)(serverImplicits.executionContext)
-
   lazy val workingDirectory = PathConfig(execConfig.getConfig("workingDirectory").ensuring(!_.isEmpty))
 
   override def toString = execConfig.root.render()
 
   def includeConsoleAppender = execConfig.getBoolean("includeConsoleAppender")
-
-  def appendJobIdToLogDir: Boolean = execConfig.getBoolean("appendJobIdToLogDir")
-
-  def appendJobIdToWorkDir: Boolean = execConfig.getBoolean("appendJobIdToLogDir")
-
-  def appendJobIdToUploadDir: Boolean = execConfig.getBoolean("appendJobIdToUploadDir")
+//
+//  def appendJobIdToLogDir: Boolean = execConfig.getBoolean("appendJobIdToLogDir")
+//
+//  def appendJobIdToWorkDir: Boolean = execConfig.getBoolean("appendJobIdToLogDir")
+//
+//  def appendJobIdToUploadDir: Boolean = execConfig.getBoolean("appendJobIdToUploadDir")
 
   def allowTruncation = execConfig.getBoolean("allowTruncation")
 
@@ -119,7 +95,7 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
     ProcessRunner(exchangeClient, defaultFrameLength, allowTruncation, replaceWorkOnFailure)
   }
 
-  def sessionRunner() = SessionRunner(exchangeClient, defaultFrameLength, allowTruncation)
+  //  def sessionRunner() = SessionRunner(exchangeClient, defaultFrameLength, allowTruncation)
 }
 
 object ExecConfig {

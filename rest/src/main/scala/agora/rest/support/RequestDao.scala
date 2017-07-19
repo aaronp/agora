@@ -12,6 +12,7 @@ import io.circe.parser._
 import io.circe.syntax._
 import java.io
 
+import agora.io.implicits._
 import akka.stream.Materializer
 
 import scala.concurrent.Future
@@ -70,29 +71,29 @@ object RequestDao {
   case class FileRequestDao(baseDir: Path)(implicit mat: Materializer) extends RequestDao {
     type ID = Int
 
-    import agora.domain.io.implicits._
+    import better.files._
 
-    private val counter = new AtomicInteger(baseDir.children.size)
+    private val counter = new AtomicInteger(baseDir.toFile.toScala.children.size)
 
     override def writeDown(req: HttpRequest) = {
       save(counter.incrementAndGet(), req)
     }
 
-    def fileName(id: Int, requestMade: ZonedDateTime = ZonedDateTime.now) = {
+    def fileName(id: Int, requestMade: ZonedDateTime = ZonedDateTime.now): String = {
       val epoch = requestMade.toEpochSecond
       s"${id}_${epoch}"
     }
 
     def save(id: Int, req: HttpRequest): Future[Int] = {
       import mat.executionContext
-      val under: Path = baseDir.resolve(fileName(id)).mkDirs()
+      val under: Path = baseDir.resolve(fileName(id)).toFile.toScala.createDirectories().path
 
       val headerPairs = req.headers.map { (header: HttpHeader) =>
         header.name -> header.value
       }
       val json = SavedRequest(req.protocol.value, req.method.value, req.uri.toString(), headerPairs.toMap, req.entity.contentType.value).asJson.noSpaces
 
-      under.resolve("request").text = json
+      under.resolve("request").toFile.toScala.write(json)
       req.entity.dataBytes.runWith(FileIO.toPath(under.resolve("body"))).map { _ =>
         id
       }
@@ -100,6 +101,9 @@ object RequestDao {
 
     def savedAt(id: Int): Option[Path] = {
       val prefix = id + "_"
+
+      baseDir.toFile.toScala.children
+
       baseDir.findFirst(1)(_.fileName.startsWith(prefix))
     }
 

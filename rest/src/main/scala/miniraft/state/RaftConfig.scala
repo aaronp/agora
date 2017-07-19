@@ -5,7 +5,6 @@ import java.nio.file.Path
 import com.typesafe.config.{Config, ConfigFactory}
 import io.circe.{Decoder, Encoder}
 import agora.api.worker.HostLocation
-import agora.domain.io.implicits._
 import agora.rest.{ServerConfig, configForArgs}
 import ConfigFactory.parseString
 import akka.http.scaladsl.model.Uri
@@ -38,6 +37,9 @@ class RaftConfig(c: Config) extends ServerConfig(c) {
   def id: String = raftId(location)
 
   def persistentDir: Path = {
+
+    import agora.io.implicits._
+
     val createPersistentDirWhenAbsent = config.getBoolean("createPersistentDirWhenAbsent")
     val dir                           = config.getString("persistentDir").asPath
     if (createPersistentDirWhenAbsent) {
@@ -60,6 +62,8 @@ class RaftConfig(c: Config) extends ServerConfig(c) {
   def numberOfMessageToKeep = config.getInt("numberOfMessageToKeep")
 
   def messageRequestsDir: Option[Path] = {
+
+    import agora.io.implicits._
     Option(config.getString("messageRequestsDir")).filterNot(d => d.isEmpty || d == "off" || numberOfMessageToKeep <= 0).map(_.asPath)
   }
 

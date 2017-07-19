@@ -4,10 +4,10 @@ import java.nio.charset.StandardCharsets._
 
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
-import agora.domain.io.Sources
 import agora.exec.ExecConfig
 import agora.exec.model.{RunProcess, Upload}
 import agora.exec.rest.ExecutionRoutes
+import agora.io.Sources
 import agora.rest.test.TestUtils
 import agora.rest.test.TestUtils._
 import agora.rest.{BaseSpec, RunningService}
@@ -32,11 +32,13 @@ class RemoteRunnerTest extends BaseSpec with BeforeAndAfterAll with AppendedClue
 
     "be able to access the uploads and working directory via environment variables" in {
       val uploads = List("UTF-16-BE", "iso-8859-1.txt").map { fileName =>
-        Upload(fileName, fileName.absolutePath.size, fileName.asSource)
+        Upload(fileName, fileName.asSource, Option(fileName.absolutePath.size))
       }
 
+      //uploads
+
       val KeyValue = "(.+)=(.*)".r
-      val output   = remoteRunner.run(RunProcess(List("sh", "-c", "env")), uploads).futureValue.toList.sorted
+      val output   = remoteRunner.run(RunProcess(List("sh", "-c", "env"))).futureValue.toList.sorted
       val envOutput = output.collect {
         case KeyValue(k, v) => (k, v)
       }.toMap
@@ -49,30 +51,6 @@ class RemoteRunnerTest extends BaseSpec with BeforeAndAfterAll with AppendedClue
         val actualutf16 = envOutput("UTF_16_BE").asPath.getText(UTF_16BE)
         envOutput("ISO_8859_1_TXT").asPath.getText(ISO_8859_1) should include("This is in ISO-8859-1")
       }
-    }
-    "be able to operate on large uploads" in {
-
-      TestUtils.withMaterializer { implicit mat =>
-        val text                         = "This is a lot of text\n" * 10000
-        val src: Source[ByteString, Any] = Source.single(ByteString(text))
-        val len                          = Sources.sizeOf(src).futureValue
-
-        val bigUploads            = (0 to 1).map(i => Upload(s"MYUPLOAD$i", len, src)).toList
-        val command: List[String] = List("concat.sh".executable, " MYUPLOAD0")
-        val output                = remoteRunner.run(RunProcess(command), bigUploads).futureValue
-        output.mkString("", "\n", "\n") shouldBe text
-      }
-    }
-
-    "be able execute things which operate on several uploads" in {
-      val uploads = List("UTF-16-BE", "iso-8859-1.txt").map { fileName =>
-        Upload(fileName, fileName.absolutePath.size, fileName.asSource)
-      }
-
-      val resultFuture =
-        remoteRunner.run(RunProcess(List("bash", "-c", "concat.sh".executable + " $UTF_16_BE $ISO_8859_1_TXT", "UTF-16-BE", "iso-8859-1.txt", "bigOutput.sh")), uploads)
-      val lines = resultFuture.futureValue.mkString("\n")
-      lines should include("This is in ISO-8859-1")
     }
   }
 

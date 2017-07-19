@@ -1,4 +1,4 @@
-package agora.domain.io
+package agora.io
 
 // https://git.io/v99U9
 
@@ -8,7 +8,6 @@ import java.nio.file._
 import java.nio.file.attribute.{BasicFileAttributes, FileAttribute, PosixFilePermission}
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util
 import java.util.function.BiPredicate
 import java.util.stream
 
@@ -109,7 +108,6 @@ trait LowPriorityIOImplicits {
 
       val stream = Files.find(path, depth, check)
       val jOpt   = stream.findFirst()
-      import scala.collection.JavaConverters._
       if (jOpt.isPresent) {
         Option(jOpt.get)
       } else {

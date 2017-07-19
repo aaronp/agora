@@ -45,7 +45,7 @@ class InMemoryLogTest extends WordSpec with Matchers with ScalaFutures with Appe
         run.isCached(key) shouldBe true
 
         // trying to run again should now return the cached result
-        val cachedResult = run.run(RunProcess(Nil), Nil).futureValue
+        val cachedResult = run.run(RunProcess(Nil)).futureValue
         cachedResult.toList shouldBe expectedValues
         withClue("we expected the second run to be a cache hit and therefore not invoke the underlying runner") {
           underlying.processes.size shouldBe 0

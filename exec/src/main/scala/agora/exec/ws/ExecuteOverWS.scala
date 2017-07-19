@@ -10,6 +10,7 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.Sink
 import com.typesafe.scalalogging.LazyLogging
 
+import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -52,13 +53,10 @@ object ExecuteOverWS extends LazyLogging {
             /**
               * load up our saved job/uploads based on the job ID
               */
-            dao = execConfig.execDao
-            (runProcess, uploads) <- dao.get(jobId)
-            logger = execConfig.newLogger(jobId, None).andThen { log =>
-              log.add(output)
-            }
-            runner = ProcessRunner(dao.uploadDao(jobId), workDir = execConfig.workingDirectory.dir(jobId), logger)
-            output <- runner.run(runProcess, uploads)
+            runProcess: RunProcess <- Future.successful[RunProcess](???)
+            mkLogger = execConfig.newLogger(_: RunProcess, jobId, None).add(output)
+            runner   = ProcessRunner(workDir = execConfig.workingDirectory.dir(jobId), mkLogger)
+            output <- runner.run(runProcess)
           } yield {
             output.size
           }

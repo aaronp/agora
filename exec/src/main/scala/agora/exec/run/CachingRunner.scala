@@ -1,12 +1,12 @@
 package agora.exec.run
-
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Path, StandardOpenOption}
 
-import com.typesafe.scalalogging.StrictLogging
 import agora.domain.{CloseableIterator, MD5}
-import agora.exec.model.{RunProcess, Upload}
+import agora.exec.model.RunProcess
 import agora.exec.run.ProcessRunner.ProcessOutput
+import agora.io.implicits._
+import com.typesafe.scalalogging.StrictLogging
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -23,9 +23,7 @@ object CachingRunner {
 
   class ToDisk(dir: Path, underlying: ProcessRunner)(implicit ec: ExecutionContext) extends CachingRunner(underlying) {
 
-    import agora.domain.io.implicits._
-
-    override def getFromCache(key: String, proc: RunProcess, inputFiles: List[Upload]): Option[ProcessOutput] = {
+    override def getFromCache(key: String, proc: RunProcess): Option[ProcessOutput] = {
       Option(dir.resolve(key).resolve("output")).filter(_.exists).map { path =>
         Future(path.lines)
       }
@@ -33,7 +31,7 @@ object CachingRunner {
 
     private object Lock
 
-    override def writeToCache(key: String, proc: RunProcess, inputFiles: List[Upload], output: ProcessOutput): ProcessOutput = {
+    override def writeToCache(key: String, proc: RunProcess, output: ProcessOutput): ProcessOutput = {
       val saveMe = Lock.synchronized {
         val file = dir.resolve(key)
         if (file.exists) {
@@ -77,7 +75,7 @@ object CachingRunner {
 
     private val outputByKey = mutable.HashMap[String, List[String]]()
 
-    override def getFromCache(key: String, proc: RunProcess, inputFiles: List[Upload]): Option[ProcessOutput] = {
+    override def getFromCache(key: String, proc: RunProcess): Option[ProcessOutput] = {
       Lock.synchronized {
         outputByKey.get(key).map(list => Future.successful(list.iterator))
       }
@@ -112,7 +110,7 @@ object CachingRunner {
       }
     }
 
-    override def writeToCache(key: String, proc: RunProcess, inputFiles: List[Upload], output: ProcessOutput): ProcessOutput = {
+    override def writeToCache(key: String, proc: RunProcess, output: ProcessOutput): ProcessOutput = {
       if (!isCached(key)) {
         val started = System.currentTimeMillis()
         cache(key, proc, started, output)
@@ -128,28 +126,21 @@ object CachingRunner {
 }
 
 abstract class CachingRunner(val underlying: ProcessRunner) extends ProcessRunner with StrictLogging {
-  override def run(proc: RunProcess, inputFiles: List[Upload]): ProcessOutput = {
+  override def run(proc: RunProcess): ProcessOutput = {
     val key = keyForProc(proc)
-    getFromCache(key, proc, inputFiles) match {
+    getFromCache(key, proc) match {
       case Some(res) =>
         logger.debug(s"using cached result $key")
         res
       case None =>
-        if (canCache(key, proc, inputFiles)) {
-          logger.debug(s"will cache result as $key")
-          writeToCache(key, proc, inputFiles, underlying.run(proc, inputFiles))
-        } else {
-          logger.trace(s"won't cache result for $key")
-          underlying.run(proc, inputFiles)
-        }
+        logger.debug(s"caching result as $key")
+        writeToCache(key, proc, underlying.run(proc))
     }
   }
 
-  def getFromCache(key: String, proc: RunProcess, inputFiles: List[Upload]): Option[ProcessOutput]
+  def getFromCache(key: String, proc: RunProcess): Option[ProcessOutput]
 
-  def writeToCache(key: String, proc: RunProcess, inputFiles: List[Upload], output: ProcessOutput): ProcessOutput
-
-  def canCache(key: String, proc: RunProcess, inputFiles: List[Upload]) = inputFiles.isEmpty
+  def writeToCache(key: String, proc: RunProcess, output: ProcessOutput): ProcessOutput
 
   protected def keyForProc(proc: RunProcess) = CachingRunner.keyForProc(proc)
 

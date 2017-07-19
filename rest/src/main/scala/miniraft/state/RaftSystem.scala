@@ -3,6 +3,7 @@ package miniraft.state
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicInteger
 
+import agora.io.implicits._
 import agora.api.worker.HostLocation
 import agora.rest.RunningService
 import akka.http.scaladsl.server.Directives._
@@ -126,7 +127,6 @@ object RaftSystem extends StrictLogging {
       }
     }
 
-    import agora.domain.io.implicits._
     val logDir = config.persistentDir.resolve(nodeDirName).mkDirs()
 
     def clusterNodeIds: Set[NodeId] = config.clusterNodes.keySet
@@ -151,8 +151,7 @@ object RaftSystem extends StrictLogging {
         case c if c.isLetterOrDigit => c
         case _                      => '_'
       }
-      val nodeLogDir = saveDir.resolve(nodeDirName)
-      import agora.domain.io.implicits._
+      val nodeLogDir             = saveDir.resolve(nodeDirName)
       val counter: AtomicInteger = new AtomicInteger(nodeLogDir.children.size)
       (nodeLogDir, counter)
     }

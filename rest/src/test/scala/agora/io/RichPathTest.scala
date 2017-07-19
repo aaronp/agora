@@ -1,4 +1,4 @@
-package agora.domain.io
+package agora.io
 
 import java.nio.file.Path
 

@@ -2,81 +2,32 @@ package agora.exec.run
 
 import java.nio.file.Path
 
-import akka.stream.Materializer
-import com.typesafe.scalalogging.StrictLogging
-import agora.exec.dao.UploadDao
 import agora.exec.log._
-import agora.exec.model.{RunProcess, Upload}
+import agora.exec.model.RunProcess
+import com.typesafe.scalalogging.StrictLogging
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.sys.process.{Process, ProcessBuilder}
 import scala.util.{Failure, Success, Try}
-
-object LocalRunner {
-  def apply(uploadDao: UploadDao, workDir: Option[Path] = None, loggerForProcess: RunProcess => IterableLogger = IterableLogger.forProcess)(
-      implicit mat: Materializer): LocalRunner = {
-    new LocalRunner(uploadDao, workDir, loggerForProcess)
-  }
-}
 
 /**
   * Something which can run commands
   */
-class LocalRunner(val uploadDao: UploadDao = UploadDao(), val workDir: Option[Path] = None, val loggerForProcess: RunProcess => IterableLogger = IterableLogger.forProcess)(
-    implicit mat: Materializer)
+case class LocalRunner(workDir: Option[Path] = None, mkLogger: RunProcess => IterableLogger = IterableLogger.forProcess)(implicit ec: ExecutionContext)
     extends ProcessRunner
     with StrictLogging {
 
-  import mat._
-
-  def withWorkDir(wd: Option[Path]): LocalRunner = {
-    new LocalRunner(uploadDao, wd, loggerForProcess)
+  def withLogger(newLogger: RunProcess => IterableLogger) = copy(mkLogger = newLogger)
+  override def run(preparedProcess: RunProcess): Future[Iterator[String]] = {
+    val builder: ProcessBuilder = Process(preparedProcess.command, workDir.map(_.toFile), preparedProcess.env.toSeq: _*)
+    val logger                  = execute(builder, preparedProcess)
+    Future.successful(logger.iterator)
   }
 
-  def withUploadDao(dao: UploadDao): LocalRunner = {
-    new LocalRunner(dao, workDir, loggerForProcess)
-  }
+  def execute(builder: ProcessBuilder, proc: RunProcess) = {
 
-  def withLogger(newLoggerForProcess: RunProcess => IterableLogger): LocalRunner = {
-    new LocalRunner(uploadDao, workDir, newLoggerForProcess)
-  }
-
-  override def run(inputProc: RunProcess, inputFiles: List[Upload]): Future[Iterator[String]] = {
-
-    val processLogger = loggerForProcess(inputProc)
-
-    logger.debug(s"Running $inputProc w/ ${inputFiles.size} uploads")
-
-    val inputsWritten = uploadDao.writeDown(inputFiles)
-    inputsWritten.map { uploadResults =>
-      val preparedProcess: RunProcess = insertEnv(inputProc, uploadResults)
-      val builder: ProcessBuilder = {
-        Process(preparedProcess.command, workDir.map(_.toFile), preparedProcess.env.toSeq: _*)
-      }
-      execute(builder, preparedProcess, processLogger)
-    }
-  }
-
-  /**
-    * Expose info about the configuration via environment variables
-    */
-  def insertEnv(inputProc: RunProcess, uploads: List[Path]) = {
-    val newMap = uploads.foldLeft(inputProc.env) {
-      case (map, path) =>
-        val key = path.toFile.getName
-          .map {
-            case n if n.isLetterOrDigit => n.toUpper
-            case _                      => "_"
-          }
-          .mkString("")
-        map.updated(key, path.toAbsolutePath.toString)
-    }
-    inputProc.copy(env = newMap)
-  }
-
-  def execute(builder: ProcessBuilder, proc: RunProcess, iterableLogger: IterableLogger): Iterator[String] = {
-
-    val future = {
+    val iterableLogger: IterableLogger = mkLogger(proc)
+    val future: Future[Int] = {
       val startedTry: Try[Process] = Try {
         builder.run(iterableLogger)
       }
@@ -94,7 +45,7 @@ class LocalRunner(val uploadDao: UploadDao = UploadDao(), val workDir: Option[Pa
         iterableLogger.complete(err)
     }
 
-    iterableLogger.iterator
+    iterableLogger
   }
 
 }

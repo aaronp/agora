@@ -1,5 +1,12 @@
 package agora.exec.rest
 
+import agora.api._
+import agora.exec.ExecConfig
+import agora.exec.log.IterableLogger._
+import agora.exec.model.{OperationResult, RunProcess, Upload}
+import agora.exec.ws.ExecuteOverWS
+import agora.io.implicits._
+import agora.rest.worker.WorkerRoutes
 import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model._
@@ -13,13 +20,6 @@ import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.Json
 import io.circe.generic.auto._
 import io.circe.syntax._
-import agora.api._
-import agora.domain.io.implicits._
-import agora.exec.ExecConfig
-import agora.exec.log.IterableLogger._
-import agora.exec.model.{OperationResult, RunProcess, Upload}
-import agora.exec.ws.ExecuteOverWS
-import agora.rest.worker.WorkerRoutes
 
 import scala.concurrent.Future
 
@@ -44,40 +44,7 @@ class ExecutionRoutes(val execConfig: ExecConfig) extends StrictLogging with Fai
   }
 
   def jobRoutes = pathPrefix("rest" / "exec") {
-    listJobs ~ removeJob ~ jobOutput ~ submitJobFromForm ~ runSavedJob ~ search ~ listMetadata ~ getJob
-  }
-
-  /**
-    * Simply upload a job (RunProc), but don't execute it -- return an 'id' for it to be run.
-    *
-    * This is useful for the UI which makes one multipart request to upload/save a job, and
-    * another to then read the output via web sockets
-    */
-  def submitJobFromForm: Route = post {
-    path("submit") {
-      extractRequestContext { reqCtxt =>
-        import reqCtxt.{executionContext, materializer}
-
-        entity(as[Multipart.FormData]) { (formData: Multipart.FormData) =>
-          val jobId = nextJobId()
-
-          def uploadDir = execConfig.uploads.dir(jobId).get
-
-          val uploadFutures: Future[(RunProcess, List[Upload])] = {
-            MultipartExtractor.fromUserForm(execConfig.uploads, formData, uploadDir, execConfig.chunkSize)
-          }
-          val savedIdFuture = uploadFutures.map {
-            case (runProcess, uploads) =>
-              execConfig.execDao.save(jobId, runProcess, uploads)
-              Json.obj("jobId" -> Json.fromString(jobId))
-          }
-
-          complete {
-            savedIdFuture
-          }
-        }
-      }
-    }
+    listJobs ~ removeJob ~ jobOutput ~ runSavedJob
   }
 
   /**
@@ -116,38 +83,6 @@ class ExecutionRoutes(val execConfig: ExecConfig) extends StrictLogging with Fai
     }
   }
 
-  def listMetadata: Route = {
-    get {
-      (path("metadata") & pathEnd) {
-        complete {
-          import serverImplicits._
-          execDao.listMetadata.map { map =>
-            import io.circe.syntax._
-
-            map.asJson
-          }
-        }
-      }
-    }
-  }
-
-  def search: Route = {
-    get {
-      (path("search") & pathEnd) {
-        parameterMap { allParams =>
-          complete {
-            import serverImplicits._
-            execDao.findJobsByMetadata(allParams).map { ids =>
-              import io.circe.generic.auto._
-
-              ids.asJson
-            }
-          }
-        }
-      }
-    }
-  }
-
   /**
     * remove the output for a job
     */
@@ -157,42 +92,6 @@ class ExecutionRoutes(val execConfig: ExecConfig) extends StrictLogging with Fai
         complete {
           val json = onRemoveJob(jobId).asJson.noSpaces
           HttpResponse(entity = HttpEntity(`application/json`, json))
-        }
-      }
-    }
-  }
-
-  /**
-    * remove the output for a job
-    */
-  def getJob = {
-    get {
-      (path("job") & parameters('id.as[String])) { jobId =>
-        extractRequestContext { ctxt =>
-          import ctxt.materializer
-          import ctxt.executionContext
-
-          complete {
-            execDao.get(jobId).flatMap {
-              case (runProcess, uploads) =>
-                val j = runProcess.asJson
-
-                if (uploads.isEmpty) {
-                  val respJson = Json.obj("runProcess" -> j, "uploadCount" -> Json.fromInt(uploads.size))
-                  Future.successful(respJson)
-                } else {
-                  val futures: List[Future[(String, Json)]] = uploads.map { upload =>
-                    upload.source.reduce(_ ++ _).runWith(Sink.head).map { bytes =>
-                      upload.name -> Json.fromString(bytes.utf8String)
-                    }
-                  }
-                  Future.sequence(futures).map { pairs =>
-                    val jsonMap = List("runProcess" -> j, "uploadCount" -> Json.fromInt(uploads.size)) ++ pairs
-                    Json.obj(jsonMap: _*)
-                  }
-                }
-            }
-          }
         }
       }
     }

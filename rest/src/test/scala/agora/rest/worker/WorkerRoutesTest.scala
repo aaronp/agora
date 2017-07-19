@@ -10,8 +10,8 @@ import agora.api._
 import agora.api.`match`.MatchDetails
 import agora.api.exchange.{WorkSubscription, WorkSubscriptionAck}
 import agora.domain.IterableSubscriber
-import agora.domain.io.Sources
 import agora.health.HealthDto
+import agora.io.Sources
 import agora.rest.multipart.{MultipartBuilder, MultipartInfo}
 import io.circe.optics.JsonPath
 

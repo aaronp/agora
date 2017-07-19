@@ -10,6 +10,7 @@ import io.circe.{Decoder, Encoder, Json, ParsingFailure}
 import miniraft.state.RaftNode.async.RaftNodeActorClient
 import miniraft.state._
 
+import agora.io.implicits._
 import scala.concurrent.ExecutionContext
 import scala.language.reflectiveCalls
 
@@ -71,7 +72,6 @@ case class RaftSupportRoutes[T: Encoder: Decoder](logic: RaftNodeLogic[T], clust
       parameter('limit.?) { (limitOpt) =>
         complete {
 
-          import agora.domain.io.implicits._
           val limit = limitOpt.map(_.toInt).getOrElse(100)
 
           val latestMessages: Array[(NodeId, Either[ParsingFailure, Json])] = msgDir.children.reverse.take(limit).map(file => file.fileName -> io.circe.parser.parse(file.text))

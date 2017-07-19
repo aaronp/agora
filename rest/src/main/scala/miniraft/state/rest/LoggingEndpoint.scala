@@ -12,6 +12,7 @@ import io.circe.{Decoder, Encoder}
 import miniraft._
 import miniraft.state._
 
+import agora.io.implicits._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
@@ -19,8 +20,6 @@ case class LoggingEndpoint[T: Encoder: Decoder](ourNodeId: NodeId, underlying: R
     implicit ec: ExecutionContext)
     extends RaftEndpoint[T]
     with StrictLogging {
-
-  import agora.domain.io.implicits._
 
   override def onVote(vote: RequestVote): Future[RequestVoteResponse] = {
 
@@ -73,7 +72,6 @@ object LoggingEndpoint {
   private val IndexedFile = "(\\d+)-.*".r
 
   def removeFilesWithAnIntegerPrefixPriorToN(saveUnder: Path, n: Int) = {
-    import agora.domain.io.implicits._
     val predicate = new BiPredicate[Path, BasicFileAttributes] {
       override def test(path: Path, u: BasicFileAttributes): Boolean = {
         def isBefore = path.fileName match {

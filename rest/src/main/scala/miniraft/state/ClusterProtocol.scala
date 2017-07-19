@@ -7,6 +7,7 @@ import com.typesafe.scalalogging.StrictLogging
 import io.circe.{Decoder, Encoder}
 import miniraft._
 
+import agora.io.implicits._
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
@@ -59,7 +60,6 @@ object ClusterProtocol {
 
     import io.circe.generic.auto._
     import io.circe.syntax._
-    import agora.domain.io.implicits._
 
     private def save(suffix: String, req: RaftRequest) = {
       val msgIdx = counter.incrementAndGet()

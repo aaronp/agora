@@ -16,8 +16,6 @@ object TestCluster {
   implicit val system = ActorSystem("test-cluster")
   implicit val ec     = system.dispatcher
 
-  import agora.domain.io.implicits._
-
   case class TestClusterNode[T](logic: RaftNodeLogic[T], asyncNode: async.RaftNodeActorClient[T], protocol: BufferedTransport) {
 
     def append(value: T)(implicit ec: ExecutionContext): UpdateResponse = {
@@ -41,6 +39,8 @@ object TestCluster {
   }
 
   case class under(dir: Path) {
+
+    import agora.io.implicits._
     def of[T: ClassTag](firstNode: String, theRest: String*)(applyToStateMachine: (NodeId, LogEntry[T]) => Unit)(
         implicit fmt: Formatter[T, Array[Byte]]): Map[NodeId, async.RaftNodeActorClient[T]] = {
       instance(theRest.toSet + firstNode) { id =>
