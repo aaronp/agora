@@ -8,11 +8,11 @@ import better.files._
 import scala.util.Try
 
 /**
-  * The entry point to the dependency system -- creates and destroys [[SessionActor]]s to handle requests
+  * The entry point to the dependency system -- creates and destroys [[WorkspaceActor]]s to handle requests
   *
   * @param uploadDir
   */
-private[session] class SessionEndpointActor(uploadDir: Path) extends BaseActor {
+private[session] class WorkspaceEndpointActor(uploadDir: Path) extends BaseActor {
 
   override def receive: Receive = handle(Map.empty)
 
@@ -26,7 +26,7 @@ private[session] class SessionEndpointActor(uploadDir: Path) extends BaseActor {
           import agora.io.implicits._
           val sessionDir = uploadDir.resolve(id).mkDirs()
           logger.debug(s"Creating new session '$id' under '$sessionDir'")
-          val newHandler = context.actorOf(Props(new SessionActor(id, sessionDir)), s"${id.filter(_.isLetterOrDigit)}")
+          val newHandler = context.actorOf(Props(new WorkspaceActor(id, sessionDir)), s"${id.filter(_.isLetterOrDigit)}")
           context.become(handle(sessionById.updated(id, newHandler)))
           newHandler
       }

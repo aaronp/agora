@@ -23,7 +23,7 @@ trait UploadClient {
 
 object UploadClient {
   def apply(uploadDir: Path, sys: ActorRefFactory): UploadClient = {
-    val actor = sys.actorOf(Props(new SessionEndpointActor(uploadDir)))
+    val actor = sys.actorOf(Props(new WorkspaceEndpointActor(uploadDir)))
     import sys.dispatcher
     new ActorClient(actor)
   }

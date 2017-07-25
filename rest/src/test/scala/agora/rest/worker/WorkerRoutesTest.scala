@@ -1,19 +1,19 @@
 package agora.rest
 package worker
 
-import akka.http.scaladsl.model._
-import akka.stream.scaladsl.{Sink, Source}
-import akka.util.ByteString
-import io.circe.generic.auto._
-import io.circe.syntax._
 import agora.api._
 import agora.api.`match`.MatchDetails
-import agora.api.exchange.{WorkSubscription, WorkSubscriptionAck}
+import agora.api.exchange.WorkSubscription
 import agora.domain.IterableSubscriber
 import agora.health.HealthDto
 import agora.io.Sources
 import agora.rest.multipart.{MultipartBuilder, MultipartInfo}
+import akka.http.scaladsl.model._
+import akka.stream.scaladsl.{Sink, Source}
+import akka.util.ByteString
+import io.circe.generic.auto._
 import io.circe.optics.JsonPath
+import io.circe.syntax._
 
 import scala.concurrent.Future
 
@@ -73,6 +73,7 @@ class WorkerRoutesTest extends BaseRoutesSpec {
 
       /**
         * assert the
+        *
         * @param expectedCalls
         * @return
         */
@@ -91,7 +92,9 @@ class WorkerRoutesTest extends BaseRoutesSpec {
         newSubscription.subscription
       }
 
-      httpRequest("original") ~> wr.routes ~> check {
+      val a = httpRequest("original")
+      println(a)
+      a ~> wr.routes ~> check {
         status shouldEqual StatusCodes.OK
         responseAs[Int] shouldBe 1
         verifyUpdatedSubscription(1)
@@ -188,7 +191,7 @@ class WorkerRoutesTest extends BaseRoutesSpec {
 
       wr.usingSubscription(_.withPath("uploadTest")).addHandler { (ctxt: WorkContext[Multipart.FormData]) =>
         ctxt.foreachMultipart {
-          case (MultipartInfo("some.file", file, _), upload) =>
+          case (MultipartInfo("some.file", _, _), upload) =>
             val lines             = IterableSubscriber.iterate(upload, 100, true)
             val e: ResponseEntity = lines.mkString("\n")
             ctxt.complete {
@@ -257,6 +260,23 @@ class WorkerRoutesTest extends BaseRoutesSpec {
           "third"  -> "{\"foo\":\"again\",\"bar\":8}",
           "key1"   -> "2,3,5\n4,5,6"
         )
+      }
+    }
+
+    "handle routes with paths of varying length" in {
+      val wr = WorkerRoutes()
+
+      // add an echo handler for 'a/b/c'
+      wr.usingSubscription(_.withPath("some/nested/route/echo")).addHandler[String] { ctxt =>
+        ctxt.complete {
+          s"got ${ctxt.request}"
+        }
+      }
+
+      Post("/some/nested/route/echo", "hello world") ~> wr.routes ~> check {
+        status shouldEqual StatusCodes.OK
+        val echo = responseAs[String]
+        echo shouldBe "got hello world"
       }
     }
   }

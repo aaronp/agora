@@ -1,14 +1,9 @@
 package agora
 
+import agora.api.worker.HostLocation
 import akka.http.scaladsl.model.HttpHeader
 import akka.http.scaladsl.model.HttpHeader.ParsingResult
-import akka.stream.scaladsl.Source
-import akka.util.ByteString
 import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions}
-import io.circe.parser.parse
-import agora.api.worker.HostLocation
-
-import scala.concurrent.Future
 
 package object rest {
 
@@ -32,7 +27,7 @@ package object rest {
 
   def asJson(c: Config) = {
     val json = c.root.render(ConfigRenderOptions.concise().setJson(true))
-    parse(json).right.get
+    _root_.io.circe.parser.parse(json).right.get
   }
 
   def asHostLocation(conf: Config) = {

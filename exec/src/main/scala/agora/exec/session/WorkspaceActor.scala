@@ -10,12 +10,12 @@ import akka.stream.ActorMaterializer
 import scala.util.Try
 
 /**
-  * Handles messages sent from the [[SessionEndpointActor]]
+  * Handles messages sent from the [[WorkspaceEndpointActor]]
   *
   * @param id
   * @param sessionDir
   */
-private[session] class SessionActor(val id: SessionId, sessionDir: Path) extends BaseActor {
+private[session] class WorkspaceActor(val id: SessionId, sessionDir: Path) extends BaseActor {
 
   override def receive: Receive = handle(Nil)
 

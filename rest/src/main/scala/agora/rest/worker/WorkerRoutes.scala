@@ -1,20 +1,19 @@
 package agora.rest.worker
 
+import agora.api.exchange._
+import agora.api.worker.SubscriptionKey
+import agora.health.HealthDto
 import akka.http.scaladsl.model.ContentTypes.`application/json`
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives.{path, _}
 import akka.http.scaladsl.server.directives.BasicDirectives.extractRequestContext
 import akka.http.scaladsl.server.{RequestContext, Route}
-import akka.http.scaladsl.unmarshalling.{FromRequestUnmarshaller, Unmarshaller}
+import akka.http.scaladsl.unmarshalling.FromRequestUnmarshaller
 import akka.stream.Materializer
 import io.circe.Json
-import agora.api.exchange._
-import agora.api.worker.SubscriptionKey
-import agora.health.HealthDto
 
 import scala.concurrent.Future
 import scala.language.reflectiveCalls
-import scala.reflect.ClassTag
 
 object WorkerRoutes {
   def apply()(implicit mat: Materializer): WorkerRoutes = {
@@ -25,13 +24,17 @@ object WorkerRoutes {
 }
 
 // see http://doc.akka.io/docs/akka-stream-and-http-experimental/1.0/scala/http/routing-dsl/index.html
-case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscription, defaultInitialRequest: Int)(implicit mat: Materializer) { self =>
+case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscription, defaultInitialRequest: Int)(implicit mat: Materializer) {
+  self =>
   implicit val ec = mat.executionContext
 
   private object HandlerWriteLock
 
   // keeps track of all of the workers by a unique sub-path
   protected var workerByPath = Map[String, OnWork[_]]()
+
+  // paths which can't be used
+  private val ReservedPaths = Set("rest/health", "rest/subscriptions")
 
   /**
     * @return the REST route
@@ -42,7 +45,8 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
 
   /**
     * Replace the handler subscription
-    * @param oldPath the path key
+    *
+    * @param oldPath             the path key
     * @param newWorkSubscription the new subscription to use
     * @return true if the oldPath was a valid handler path
     */
@@ -65,23 +69,20 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
     }
   }
 
-  def listSubscriptions = get {
-    pathPrefix("rest") {
-      path("subscriptions") {
-        complete {
-          val paths = workerByPath.map {
-            case (path, onWork) =>
-              Json.obj(path -> onWork.subscription.details.aboutMe)
-          }
-          HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, Json.arr(paths.toList: _*).noSpaces))
-        }
+  def listSubscriptions = (get & path("rest" / "subscriptions") & pathEnd) {
+    complete {
+      val paths = workerByPath.map {
+        case (path, onWork) =>
+          Json.obj(path -> onWork.subscription.details.aboutMe)
       }
+      HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, Json.arr(paths.toList: _*).noSpaces))
     }
   }
 
   def workerRoutes: Route = handleWorkRoute ~ listSubscriptions
 
-  def handleWorkRoute: Route = pathPrefix("rest" / "worker") {
+  //  def handleWorkRoute: Route = pathPrefix("rest" / "worker") {
+  def handleWorkRoute: Route = {
     post {
       path(Remaining) { remaining =>
         find(remaining) match {
@@ -132,6 +133,7 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
 
   /**
     * Like 'usingSubscription', this function provides a DSL for adding a handler.
+    *
     * @param s the work subscription used for the handler
     * @return A DSL-specific class which expects 'addHandler' to be called on it
     */
@@ -158,6 +160,8 @@ case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscriptio
 
     val path                                               = subscription.details.path
     val subscriptionAckFuture: Future[WorkSubscriptionAck] = exchange.subscribe(subscription)
+
+    require(!ReservedPaths.contains(path), s"Path '$path' is reserved and so can't be used")
 
     val handler = new OnWork[T](subscription, fromRequest, onReq)
 

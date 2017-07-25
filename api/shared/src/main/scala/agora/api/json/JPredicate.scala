@@ -9,12 +9,22 @@ import io.circe.Json
 import scala.language.implicitConversions
 import scala.util.Try
 
+/**
+  * A JPredicate is a predicate specifically for matching Json values.
+  *
+  * The predicate itself can also be represented as json
+  */
 sealed trait JPredicate {
+
+  /** @param json the json to match
+    * @return true if this predicate matches
+    */
   def matches(json: Json): Boolean
 
   /** @return the json representing this predicate
     */
   def json: Json
+
   def and(other: JPredicate, theRest: JPredicate*): JPredicate = new And(this :: other :: theRest.toList)
 
   def or(other: JPredicate, theRest: JPredicate*): JPredicate = new Or(this :: other :: theRest.toList)

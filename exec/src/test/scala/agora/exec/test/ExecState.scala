@@ -18,12 +18,6 @@ case class ExecState(server: Option[RunningService[ExecConfig, ExecutionRoutes]]
     extends BaseSpec
     with Eventually {
 
-  def execClient = {
-    val (conf, _) = clientsByName.values.head
-//    ExecClient(conf.restClient)
-    ???
-  }
-
   def searchMetadata(key: String, value: String): ExecState = {
     latestSearch shouldBe empty
     copy(latestSearch = Option(key -> value))
@@ -52,8 +46,8 @@ case class ExecState(server: Option[RunningService[ExecConfig, ExecutionRoutes]]
   def close() = {
     server.foreach(_.close())
     clientsByName.values.foreach {
-      case c: Closeable => c.close()
-      case _            =>
+      case (_, c: Closeable) => c.close()
+      case _                 =>
     }
     new ExecState()
   }
@@ -72,7 +66,7 @@ case class ExecState(server: Option[RunningService[ExecConfig, ExecutionRoutes]]
 
   def execute(clientName: String, command: String) = {
     val commands: List[String] = command.split(" ", -1).toList
-    executeRunProcess(clientName, "unspecified job id", RunProcess(commands), Nil)
+    executeRunProcess(clientName, "unspecified job id", RunProcess(commands))
   }
 
   def connectClient(name: String, port: Int) = {

@@ -8,8 +8,9 @@ import scala.concurrent.ExecutionContext
 
 object WorkerHttp extends CommonRequestBuilding {
 
-  def apply[T: ToEntityMarshaller](prefix: String, path: String, request: T)(implicit ec: ExecutionContext): HttpRequest = {
-    Post(s"/rest/$prefix/$path", request).withCommonHeaders
+  def apply[T: ToEntityMarshaller](path: String, request: T)(implicit ec: ExecutionContext): HttpRequest = {
+    val fixedPath = if (path.startsWith("/")) path else s"/$path"
+    Post(fixedPath, request).withCommonHeaders
   }
 
   val healthRequest: HttpRequest = Get("/rest/health")

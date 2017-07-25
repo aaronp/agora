@@ -37,6 +37,11 @@ class MultipartBuilder(defaultSourceContentType: ContentType) {
     val entity: BodyPartEntity = HttpEntity.Default(contentType, length, data)
     add(key, entity, Option(fileName))
   }
+//
+//  def fromSrc(key: String, data: Source[ByteString, Any], contentType: ContentType = defaultSourceContentType, fileName: String = null): MultipartBuilder = {
+//    val entity: HttpEntity.Chunked = HttpEntity(contentType, data)
+//    add(key, entity, Option(fileName))
+//  }
 
   def json[T: Encoder: ClassTag](value: T): MultipartBuilder = {
     val key = implicitly[ClassTag[T]].runtimeClass.getName

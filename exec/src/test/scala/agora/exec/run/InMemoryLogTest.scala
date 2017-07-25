@@ -66,7 +66,7 @@ object InMemoryLogTest {
       fixedResult.tryComplete(Try(lines))
     }
 
-    override def run(proc: RunProcess, inputFiles: List[Upload]): ProcessOutput = {
+    override def run(proc: RunProcess): ProcessOutput = {
       processes += proc
       fixedResult.future
     }
