@@ -1,4 +1,4 @@
-package agora.exec.session
+package agora.exec.workspace
 
 import java.nio.file.Path
 
@@ -12,22 +12,22 @@ import scala.util.Try
   *
   * @param uploadDir
   */
-private[session] class WorkspaceEndpointActor(uploadDir: Path) extends BaseActor {
+private[workspace] class WorkspaceEndpointActor(uploadDir: Path) extends BaseActor {
 
   override def receive: Receive = handle(Map.empty)
 
-  def handle(sessionById: Map[SessionId, ActorRef]): Receive = {
-    logger.debug(s"Handling ${sessionById.size} sessions")
+  def handle(workspaceById: Map[WorkspaceId, ActorRef]): Receive = {
+    logger.debug(s"Handling ${workspaceById.size} workspaces")
 
-    def handlerForId(id: SessionId): ActorRef = {
-      sessionById.get(id) match {
+    def handlerForId(id: WorkspaceId): ActorRef = {
+      workspaceById.get(id) match {
         case Some(actor) => actor
         case None =>
           import agora.io.implicits._
-          val sessionDir = uploadDir.resolve(id).mkDirs()
-          logger.debug(s"Creating new session '$id' under '$sessionDir'")
-          val newHandler = context.actorOf(Props(new WorkspaceActor(id, sessionDir)), s"${id.filter(_.isLetterOrDigit)}")
-          context.become(handle(sessionById.updated(id, newHandler)))
+          val workspaceDir = uploadDir.resolve(id).mkDirs()
+          logger.debug(s"Creating new workspace '$id' under '$workspaceDir'")
+          val newHandler = context.actorOf(Props(new WorkspaceActor(id, workspaceDir)), s"${id.filter(_.isLetterOrDigit)}")
+          context.become(handle(workspaceById.updated(id, newHandler)))
           newHandler
       }
     }
@@ -36,15 +36,15 @@ private[session] class WorkspaceEndpointActor(uploadDir: Path) extends BaseActor
     {
       case msg @ AwaitUploads(id, _, _)  => handlerForId(id) ! msg
       case msg @ UploadFile(id, _, _, _) => handlerForId(id) ! msg
-      case ListSessions(promise) =>
+      case ListWorkspaces(promise) =>
         promise.tryComplete(Try {
           val children = uploadDir.toFile.toScala.children.map(_.name)
           children.toList
         })
       case msg @ Close(id, _) =>
-        sessionById.get(id).foreach { handler =>
+        workspaceById.get(id).foreach { handler =>
           handler ! msg
-          context.become(handle(sessionById - id))
+          context.become(handle(workspaceById - id))
         }
     }
   }

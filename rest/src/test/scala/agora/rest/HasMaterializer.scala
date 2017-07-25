@@ -7,7 +7,7 @@ import org.scalatest.BeforeAndAfterAll
 trait HasMaterializer extends BeforeAndAfterAll { this: org.scalatest.BeforeAndAfterAll with org.scalatest.Suite =>
 
   private[this] var materialiazerCreated = false
-  implicit val as                        = ActorSystem(getClass.getSimpleName.filter(_.isLetter))
+  implicit val system                    = ActorSystem(getClass.getSimpleName.filter(_.isLetter))
 
   implicit lazy val materializer = {
     materialiazerCreated = true

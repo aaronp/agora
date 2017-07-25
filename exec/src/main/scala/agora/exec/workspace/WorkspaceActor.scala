@@ -1,4 +1,4 @@
-package agora.exec.session
+package agora.exec.workspace
 
 import java.nio.file.Path
 
@@ -13,9 +13,9 @@ import scala.util.Try
   * Handles messages sent from the [[WorkspaceEndpointActor]]
   *
   * @param id
-  * @param sessionDir
+  * @param workspaceDir
   */
-private[session] class WorkspaceActor(val id: SessionId, sessionDir: Path) extends BaseActor {
+private[workspace] class WorkspaceActor(val id: WorkspaceId, workspaceDir: Path) extends BaseActor {
 
   override def receive: Receive = handle(Nil)
 
@@ -27,7 +27,7 @@ private[session] class WorkspaceActor(val id: SessionId, sessionDir: Path) exten
 
   def handle(pendingRequests: List[AwaitUploads]): Receive = {
 
-    logger.info(s"Session $id w/ ${pendingRequests.size} pending requests")
+    logger.info(s"Workspace $id w/ ${pendingRequests.size} pending requests")
 
     // handler
     {
@@ -36,20 +36,20 @@ private[session] class WorkspaceActor(val id: SessionId, sessionDir: Path) exten
         logger.debug(s"waiting on $id")
         context.become(handle(msg :: pendingRequests))
       case UploadFile(`id`, file, src, promise) =>
-        val res = UploadDao(sessionDir).writeDown(Upload(file, src) :: Nil)
+        val res = UploadDao(workspaceDir).writeDown(Upload(file, src) :: Nil)
         res.onComplete {
           case uploadResult =>
             val kids = files
             val ok   = kids.contains(file)
             if (!ok) {
-              logger.error(s"Upload to ${sessionDir}/$file completed w/ ${uploadResult}, but ${kids.mkString(",")} doesn't contain $file!")
+              logger.error(s"Upload to ${workspaceDir}/$file completed w/ ${uploadResult}, but ${kids.mkString(",")} doesn't contain $file!")
             } else {
-              logger.debug(s"Upload to ${sessionDir}/$file completed w/ ${uploadResult}, session now contains ${kids.mkString(",")}")
+              logger.debug(s"Upload to ${workspaceDir}/$file completed w/ ${uploadResult}, workspace now contains ${kids.mkString(",")}")
             }
 
             if (pendingRequests.nonEmpty) {
               val kids = files
-              logger.debug(s"Trying to run ${pendingRequests.size} pending files after $file uploaded to session $id")
+              logger.debug(s"Trying to run ${pendingRequests.size} pending files after $file uploaded to workspace $id")
               pendingRequests.withFilter(canRun(_, kids)).foreach(self ! _)
             }
         }
@@ -57,16 +57,16 @@ private[session] class WorkspaceActor(val id: SessionId, sessionDir: Path) exten
         promise.tryCompleteWith(uploadFuture)
 
       case Close(`id`, promise) =>
-        promise.tryComplete(Try(sessionDir.delete()).map(_ => true))
+        promise.tryComplete(Try(workspaceDir.delete()).map(_ => true))
         context.stop(self)
     }
   }
 
-  def files: Array[String] = sessionDir.children.map(_.fileName)
+  def files: Array[String] = workspaceDir.children.map(_.fileName)
 
   def run(schedule: AwaitUploads) = {
-    logger.debug(s"Notifying that ${id} can run under $sessionDir")
-    schedule.workDirResult.tryComplete(Try(sessionDir))
+    logger.debug(s"Notifying that ${id} can run under $workspaceDir")
+    schedule.workDirResult.tryComplete(Try(workspaceDir))
   }
 
   def canRun(schedule: AwaitUploads, uploads: => Array[String]) = {
@@ -83,7 +83,7 @@ private[session] class WorkspaceActor(val id: SessionId, sessionDir: Path) exten
         true
       } else {
         logger
-          .debug(s"Can't run ${schedule.fileDependencies} under $sessionDir as it's missing ${missing.size} dependencies : ${missing.mkString(",")}")
+          .debug(s"Can't run ${schedule.fileDependencies} under $workspaceDir as it's missing ${missing.size} dependencies : ${missing.mkString(",")}")
         false
       }
     }

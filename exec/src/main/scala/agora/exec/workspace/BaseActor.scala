@@ -1,4 +1,4 @@
-package agora.exec.session
+package agora.exec.workspace
 
 import akka.actor.Actor
 import com.typesafe.scalalogging.StrictLogging
