@@ -13,9 +13,9 @@ import scala.util.Try
   * Handles messages sent from the [[WorkspaceEndpointActor]]
   *
   * @param id
-  * @param workspaceDir
+  * @param initialDir the directory to use for this session, which initially may not exist
   */
-private[workspace] class WorkspaceActor(val id: WorkspaceId, workspaceDir: Path) extends BaseActor {
+private[workspace] class WorkspaceActor(val id: WorkspaceId, initialDir: Path) extends BaseActor {
 
   override def receive: Receive = handle(Nil)
 
@@ -25,13 +25,15 @@ private[workspace] class WorkspaceActor(val id: WorkspaceId, workspaceDir: Path)
 
   implicit def ctxt = context.dispatcher
 
+  lazy val workspaceDir: Path = initialDir.mkDirs()
+
   def handle(pendingRequests: List[AwaitUploads]): Receive = {
 
-    logger.info(s"Workspace $id w/ ${pendingRequests.size} pending requests")
+    logger.debug(s"Handling workspace '$id' w/ ${pendingRequests.size} pending requests")
 
     // handler
     {
-      case msg @ AwaitUploads(`id`, _, _) if canRun(msg, files) => run(msg)
+      case msg @ AwaitUploads(`id`, _, _) if canRun(msg, files) => notifyWorkspaceReady(msg)
       case msg @ AwaitUploads(`id`, _, _) =>
         logger.debug(s"waiting on $id")
         context.become(handle(msg :: pendingRequests))
@@ -57,14 +59,21 @@ private[workspace] class WorkspaceActor(val id: WorkspaceId, workspaceDir: Path)
         promise.tryCompleteWith(uploadFuture)
 
       case Close(`id`, promise) =>
-        promise.tryComplete(Try(workspaceDir.delete()).map(_ => true))
+        if (pendingRequests.nonEmpty) {
+          logger.warn(s"Closing workspace $id with ${pendingRequests.size} pending files")
+          val workspaceClosed = new IllegalStateException(s"Workspace '$id' has been closed")
+          pendingRequests.foreach {
+            case AwaitUploads(_, _, promise) => promise.failure(workspaceClosed)
+          }
+        }
+        promise.tryComplete(Try(initialDir.exists).map(_ && Try(initialDir.delete()).isSuccess))
         context.stop(self)
     }
   }
 
   def files: Array[String] = workspaceDir.children.map(_.fileName)
 
-  def run(schedule: AwaitUploads) = {
+  def notifyWorkspaceReady(schedule: AwaitUploads) = {
     logger.debug(s"Notifying that ${id} can run under $workspaceDir")
     schedule.workDirResult.tryComplete(Try(workspaceDir))
   }
@@ -72,12 +81,13 @@ private[workspace] class WorkspaceActor(val id: WorkspaceId, workspaceDir: Path)
   def canRun(schedule: AwaitUploads, uploads: => Array[String]) = {
     checkCanRun(schedule, uploads)
   }
+
   def checkCanRun(schedule: AwaitUploads, uploads: => Array[String]) = {
     val dependencies = schedule.fileDependencies
     if (dependencies.isEmpty) {
       true
     } else {
-      val all                  = uploads
+      val all: Array[String]   = uploads
       val missing: Set[String] = dependencies.filterNot(all.contains)
       if (missing.isEmpty) {
         true

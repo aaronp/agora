@@ -5,7 +5,7 @@ import java.nio.file.Path
 import akka.actor.{ActorRef, Props}
 import better.files._
 
-import scala.util.Try
+import scala.util.{Success, Try}
 
 /**
   * The entry point to the dependency system -- creates and destroys [[WorkspaceActor]]s to handle requests
@@ -24,9 +24,9 @@ private[workspace] class WorkspaceEndpointActor(uploadDir: Path) extends BaseAct
         case Some(actor) => actor
         case None =>
           import agora.io.implicits._
-          val workspaceDir = uploadDir.resolve(id).mkDirs()
+          val workspaceDir = uploadDir.resolve(id)
           logger.debug(s"Creating new workspace '$id' under '$workspaceDir'")
-          val newHandler = context.actorOf(Props(new WorkspaceActor(id, workspaceDir)), s"${id.filter(_.isLetterOrDigit)}")
+          val newHandler = context.actorOf(Props(new WorkspaceActor(id, workspaceDir)))
           context.become(handle(workspaceById.updated(id, newHandler)))
           newHandler
       }
@@ -41,10 +41,12 @@ private[workspace] class WorkspaceEndpointActor(uploadDir: Path) extends BaseAct
           val children = uploadDir.toFile.toScala.children.map(_.name)
           children.toList
         })
-      case msg @ Close(id, _) =>
-        workspaceById.get(id).foreach { handler =>
-          handler ! msg
-          context.become(handle(workspaceById - id))
+      case msg @ Close(id, promise) =>
+        workspaceById.get(id) match {
+          case Some(handler) =>
+            handler ! msg
+            context.become(handle(workspaceById - id))
+          case None => promise.tryComplete(Success(false))
         }
     }
   }
