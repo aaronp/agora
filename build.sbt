@@ -30,7 +30,7 @@ scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-language:impli
 
 // see http://scalameta.org/scalafmt/
 scalafmtOnCompile in ThisBuild := true
-scalafmtVersion in ThisBuild := "1.1.0"
+scalafmtVersion in ThisBuild := "1.0.0-RC2"
 
 lazy val agora = (project in file(".")).enablePlugins(BuildInfoPlugin).aggregate(apiJVM, apiJS, rest, ui, exec)
 

@@ -1,13 +1,11 @@
 package agora.ui
 
-import io.circe.generic.auto._
-import io.circe.syntax._
-
 import agora.api.exchange._
 import agora.api.json.JMatcher
+import io.circe.generic.auto._
+import io.circe.syntax._
 import org.scalajs.dom.ext.Ajax
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.language.{implicitConversions, reflectiveCalls}
 
@@ -38,6 +36,11 @@ class AjaxExchange() extends AjaxClient("/rest/exchange") with Exchange {
   override def submit(req: SubmitJob) = {
     val json = req.asJson.noSpaces
     Ajax.put(s"$baseUrl/submit", json).map(_.jsonAs[SubmitJobResponse])
+  }
+
+  override def compose(compose: Compose): Future[WorkSubscriptionAck] = {
+    val json = compose.asJson.noSpaces
+    Ajax.post(s"$baseUrl/compose", json).map(_.jsonAs[WorkSubscriptionAck])
   }
 
   /**

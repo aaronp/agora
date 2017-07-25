@@ -1,11 +1,11 @@
 package agora.api.exchange
 
-import com.typesafe.scalalogging.StrictLogging
 import agora.api._
 import agora.api.worker.SubscriptionKey
+import com.typesafe.scalalogging.StrictLogging
 
-import scala.collection.parallel.ParSeq
 import scala.concurrent.Future
+import scala.util.{Failure, Success, Try}
 
 /**
   * An exchange supports both 'client' requests (e.g. offering and cancelling work to be done)
@@ -21,11 +21,16 @@ trait Exchange {
   }
 
   /**
-    * Submit a job to the exchange. If 'awaitMatch' is specified on the SubmitJob then the response
+    * Submit a job to the exchange and trigger a match for work.
+    *
+    * If 'awaitMatch' is specified on the SubmitJob then the response
     * will be a [[BlockingSubmitJobResponse]]. Otherwise it will just be sent to the exchange an immediately
     * return a [[SubmitJobResponse]].
     *
-    * @param req
+    * If the submitted job already contains a jobId, then that id will be used and any existing submission with
+    * the same Id will be replaced.
+    *
+    * @param req the job request
     * @return either [[BlockingSubmitJobResponse]] or a [[SubmitJobResponse]]
     */
   def submit(req: SubmitJob): Future[ClientResponse] = onClientRequest(req)
@@ -40,6 +45,11 @@ trait Exchange {
     onClientRequest(request).mapTo[QueueStateResponse]
   }
 
+  /**
+    * Cancels the submitted jobs, removing them from the exchange
+    * @param request the request containing the jobs to cancel
+    * @return a response containing a map between the input job Ids and a flag depicting if they were successfully cancelled
+    */
   def cancelJobs(request: CancelJobs): Future[CancelJobsResponse] = {
     onClientRequest(request).mapTo[CancelJobsResponse]
   }
@@ -58,15 +68,42 @@ trait Exchange {
 
   def onSubscriptionRequest(req: SubscriptionRequest): Future[SubscriptionResponse] = {
     req match {
-      case ws: WorkSubscription => subscribe(ws)
-      case next: RequestWork    => take(next)
+      case msg: WorkSubscription => subscribe(msg)
+      case msg: RequestWork      => take(msg)
+      case msg: Compose          => compose(msg)
     }
   }
 
+  /** creates a new subscription based on the input subscriptions.
+    *
+    * When a 'take' request is made for the returned subscription, a 'take' is issued
+    * for each of the subscriptions.
+    *
+    * When a request is received with 'submit', composite subscriptions will match only if all their composite subscriptions
+    * match. It's for this reason that composite subscriptions have to be considered first, since by definition if a
+    * composite subscription matches then any of the constituent subscriptions would match.
+    *
+    * @param compose the subscriptions to combine
+    * @return a new subscription which composes the input subscriptions
+    */
+  def compose(compose: Compose): Future[WorkSubscriptionAck] = onSubscriptionRequest(compose).mapTo[WorkSubscriptionAck]
+
+  /**
+    * Creates a new [[WorkSubscription]], whos returned [[WorkSubscriptionAck]] key can be used to pull work items
+    * from the exchange.
+    *
+    * @param request the work subscription
+    * @return an ack containing the key needed to request work items
+    */
   def subscribe(request: WorkSubscription) = onSubscriptionRequest(request).mapTo[WorkSubscriptionAck]
 
+  /** @param request the number of work items to request
+    * @return an ack which contains the current known total items requested
+    */
   def take(request: RequestWork) = onSubscriptionRequest(request).mapTo[RequestWorkAck]
 
+  /** convenience method for pulling work items
+    */
   def take(id: SubscriptionKey, itemsRequested: Int): Future[RequestWorkAck] = take(RequestWork(id, itemsRequested))
 }
 
@@ -74,11 +111,12 @@ object Exchange {
 
   /**
     * Creates a new, in-memory exchange with the given job/worker match notifier
+    *
     * @param onMatch the observer notified when a job is paired with a worker subscription
     * @param matcher the match logic used to pair work with subscriptions
     * @return a new Exchange instance
     */
-  def apply(onMatch: OnMatch)(implicit matcher: JobPredicate): Exchange = new InMemory(onMatch)
+  def apply(onMatch: OnMatch)(implicit matcher: JobPredicate): Exchange = new InMemory(new ExchangeState(), onMatch)
 
   def instance(): Exchange = apply(MatchObserver())(JobPredicate())
 
@@ -93,48 +131,28 @@ object Exchange {
     * @param onMatch
     * @param matcher
     */
-  class InMemory(onMatch: OnMatch)(implicit matcher: JobPredicate) extends Exchange with StrictLogging {
+  class InMemory(initialState: ExchangeState, onMatch: OnMatch)(implicit matcher: JobPredicate) extends Exchange with StrictLogging {
 
-    private var subscriptionsById = Map[SubscriptionKey, (WorkSubscription, Int)]()
-
-    private def pending(key: SubscriptionKey) = {
-      subscriptionsById.get(key).map(_._2).getOrElse(0)
-    }
-
-    private var jobsById = Map[JobId, SubmitJob]()
+    private var state = initialState
 
     override def queueState(request: QueueState): Future[QueueStateResponse] = {
-      val foundJobs = jobsById.collect {
-        case (_, job) if request.matchesJob(job) => job
-      }
-      val foundWorkers = subscriptionsById.collect {
-        case (key, (sub, pending)) if request.matchesSubscription(sub.details.aboutMe) =>
-          PendingSubscription(key, sub, pending)
-      }
-
-      Future.successful(QueueStateResponse(foundJobs.toList, foundWorkers.toList))
+      Future.fromTry(Try(state.queueState(request)))
     }
 
     override def subscribe(inputSubscription: WorkSubscription) = {
-      val (id, subscription) = inputSubscription.key match {
-        case Some(key) => (key, inputSubscription)
-        case None =>
-          val key = nextSubscriptionKey()
-          key -> inputSubscription.withDetails(_.withSubscriptionKey(key))
-      }
-
-      logger.debug(s"Creating new subscription [$id] $subscription")
-      subscriptionsById = subscriptionsById.updated(id, subscription -> 0)
-      Future.successful(WorkSubscriptionAck(id))
+      val (ack, newState) = state.subscribe(inputSubscription)
+      state = newState
+      Future.successful(ack)
     }
 
     override def take(request: RequestWork) = {
       val RequestWork(id, n) = request
-      subscriptionsById.get(id) match {
+      state.subscriptionsById.get(id) match {
         case None =>
-          Future.failed(new Exception(s"subscription '$id' doesn't exist. Known ${subscriptionsById.size} subscriptions are: ${subscriptionsById.take(100).keySet.mkString(",")}"))
+          Future.failed(
+            new Exception(s"subscription '$id' doesn't exist. Known ${state.subscriptionsById.size} subscriptions are: ${state.subscriptionsById.take(100).keySet.mkString(",")}"))
         case Some((_, before)) =>
-          updatePending(id, before + n)
+          state = state.updatePending(id, before + n)
 
           // if there weren't any jobs previously, then we may be able to take some work
           if (before == 0) {
@@ -142,40 +160,33 @@ object Exchange {
           } else {
             logger.debug(s"Not triggering match for subscriptions increase on [$id]")
           }
-          Future.successful(RequestWorkAck(id, pending(id)))
+          Future.successful(RequestWorkAck(id, state.pending(id)))
       }
     }
 
-    private def updatePending(id: SubscriptionKey, n: Int) = {
-      subscriptionsById = subscriptionsById.get(id).fold(subscriptionsById) {
-        case (sub, before) =>
-          logger.debug(s"changing pending subscriptions for [$id] from $before to $n")
-          subscriptionsById.updated(id, sub -> n)
+    override def compose(request: Compose): Future[WorkSubscriptionAck] = {
+      state.addCompositeSubscription(request) match {
+        case Success((ack, newState)) =>
+          state = newState
+          Future.successful(ack)
+        case Failure(err) => Future.failed(err)
       }
     }
 
     override def submit(inputJob: SubmitJob) = {
-      val (id, job) = inputJob.jobId match {
-        case Some(id) => id -> inputJob
-        case None =>
-          val id = nextJobId()
-          id -> inputJob.withId(id)
-      }
-      logger.debug(s"Adding job [$id] $job")
-      jobsById = jobsById.updated(id, job)
+      val (ack, newState) = state.submit(inputJob)
+      state = newState
       checkForMatches()
-
-      Future.successful(SubmitJobResponse(id))
+      Future.successful(ack)
     }
 
-    def checkForMatches() = {
-      val (subscriptions, notifications) = triggerMatch(jobsById, subscriptionsById)
-      if (notifications.nonEmpty) {
-        jobsById = jobsById -- notifications.map(_.id)
-        subscriptionsById = subscriptions
-      }
+    /**
+      * Checks the jobs against the work subscriptions for matches using
+      */
+    def checkForMatches(): Unit = {
 
-      logger.trace(s"Checking for matches between ${jobsById.size} jobs and ${subscriptionsById.size} subscriptions")
+      val (notifications, newState) = state.matches
+      state = newState
 
       notifications.foreach {
         case MatchNotification(id, job, chosen) =>
@@ -185,46 +196,16 @@ object Exchange {
     }
 
     override def cancelJobs(request: CancelJobs): Future[CancelJobsResponse] = {
-      val cancelled = request.ids.map { id =>
-        id -> jobsById.contains(id)
-      }
-      jobsById = jobsById -- request.ids
-      Future.successful(CancelJobsResponse(cancelled.toMap))
+      val (resp, newState) = state.cancelJobs(request)
+      state = newState
+      Future.successful(resp)
     }
 
     override def cancelSubscriptions(request: CancelSubscriptions): Future[CancelSubscriptionsResponse] = {
-      val cancelled = request.ids.map { id =>
-        id -> subscriptionsById.contains(id)
-      }
-      subscriptionsById = subscriptionsById -- request.ids
-      Future.successful(CancelSubscriptionsResponse(cancelled.toMap))
+      val (resp, newState) = state.cancelSubscriptions(request)
+      state = newState
+      Future.successful(resp)
     }
   }
 
-  private case class MatchNotification(id: JobId, job: SubmitJob, chosen: Seq[(SubscriptionKey, WorkSubscription, Remaining)])
-
-  private def triggerMatch(jobQueue: Map[JobId, SubmitJob], initialSubscriptionQueue: Map[SubscriptionKey, (WorkSubscription, Int)])(
-      implicit matcher: JobPredicate): (Map[SubscriptionKey, (WorkSubscription, Remaining)], List[MatchNotification]) = {
-    jobQueue.foldLeft(initialSubscriptionQueue -> List[MatchNotification]()) {
-      case ((subscriptionQueue, matches), (jobId, job)) =>
-        val candidates: ParSeq[(SubscriptionKey, WorkSubscription, Int)] = subscriptionQueue.toSeq.par.collect {
-          case (id, (subscription, requested)) if requested > 0 && job.matches(subscription) =>
-            (id, subscription, (requested - 1).ensuring(_ >= 0))
-        }
-
-        val chosen: Seq[(SubscriptionKey, WorkSubscription, Remaining)] = job.submissionDetails.selection.select(candidates.seq)
-        if (chosen.isEmpty) {
-          (subscriptionQueue, matches)
-        } else {
-          val newSubscriptionQueue = chosen.foldLeft(subscriptionQueue) {
-            case (map, (key, _, n)) =>
-              require(n >= 0, s"Take cannot be negative ($key, $n)")
-              val pear = map(key)._1
-              map.updated(key, (pear, n))
-          }
-          val newMatches = MatchNotification(jobId, job, chosen) :: matches
-          (newSubscriptionQueue, newMatches)
-        }
-    }
-  }
 }

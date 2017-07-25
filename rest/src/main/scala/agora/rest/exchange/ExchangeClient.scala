@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import agora.api.`match`.MatchDetails
 import agora.api.exchange._
-import agora.api.worker.{HostLocation, WorkerDetails}
+import agora.api.worker.{HostLocation, SubscriptionKey, WorkerDetails}
 import agora.rest.client.{RestClient, RetryClient}
 import agora.rest.exchange.ExchangeClient._
 import agora.rest.worker.WorkerClient
@@ -22,7 +22,12 @@ import scala.concurrent.Future
   *
   * @param rest
   */
-class ExchangeClient(val rest: RestClient, mkWorker: HostLocation => Dispatch) extends Exchange with RoutingClient with FailFastCirceSupport with AutoCloseable with StrictLogging {
+class ExchangeClient(val rest: RestClient, mkWorker: HostLocation => Dispatch)
+    extends Exchange
+    with RoutingClient
+    with FailFastCirceSupport
+    with AutoCloseable
+    with StrictLogging {
 
   import RestClient.implicits._
 
@@ -79,6 +84,10 @@ class ExchangeClient(val rest: RestClient, mkWorker: HostLocation => Dispatch) e
 
   override def submit(submit: SubmitJob): JobResponse = {
     enqueueAndDispatch(submit)(_.sendRequest(submit.job))._1
+  }
+
+  override def compose(request: Compose): Future[WorkSubscriptionAck] = {
+    rest.send(ExchangeHttp(request)).flatMap(_.as[WorkSubscriptionAck](retryOnError(compose(request))))
   }
 
   protected def clientFor(location: HostLocation): Dispatch = mkWorker(location)

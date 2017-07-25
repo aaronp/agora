@@ -66,6 +66,22 @@ object QueueStateResponse {
 
 case class PendingSubscription(key: SubscriptionKey, subscription: WorkSubscription, requested: Int)
 
+/** Composes the subscriptions, responded with an ack
+  * @param subscriptions
+  */
+case class Compose(subscription: WorkSubscription, subscriptions: Set[SubscriptionKey]) extends SubscriptionRequest {
+  def withSubscriptionId(id: SubscriptionKey) = {
+    copy(subscription = subscription.withSubscriptionKey(id))
+  }
+
+  require(subscriptions.nonEmpty, "invalid 'Compose' - no subscription keys specified")
+}
+object Compose {
+  def apply(subscription: WorkSubscription, first: SubscriptionKey, theRest: SubscriptionKey*) = {
+    new Compose(subscription, theRest.toSet + first)
+  }
+}
+
 /**
   * Represents anything which can be run as a job
   *
@@ -78,7 +94,7 @@ case class PendingSubscription(key: SubscriptionKey, subscription: WorkSubscript
   *            asking for work
   */
 case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends ClientRequest {
-  def matches(work: WorkSubscription)(implicit m: JobPredicate) = m.matches(this, work)
+  def matches(work: WorkSubscription)(implicit matcher: JobPredicate) = matcher.matches(this, work)
 
   def withSelection(mode: SelectionMode) = copy(submissionDetails = submissionDetails.copy(selection = mode))
 
@@ -186,7 +202,7 @@ case class WorkSubscription(details: WorkerDetails = WorkerDetails(), jobMatcher
 
   def append(data: Json) = withDetails(_.append(data))
 
-  def withSubscriptionKey(path: String) = withDetails(_.withSubscriptionKey(path))
+  def withSubscriptionKey(id: SubscriptionKey) = withDetails(_.withSubscriptionKey(id))
 
   def withDetails(f: WorkerDetails => WorkerDetails) = {
     copy(details = f(details))

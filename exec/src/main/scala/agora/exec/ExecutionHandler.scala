@@ -36,7 +36,7 @@ object ExecutionHandler extends StrictLogging {
     * @param subscription
     * @return
     */
-  def prepareSubscription(subscription: WorkSubscription) = {
+  def prepareSubscription(subscription: WorkSubscription): WorkSubscription = {
     import agora.api.Implicits._
     subscription.matchingSubmission(("topic" === "exec").asMatcher)
   }
