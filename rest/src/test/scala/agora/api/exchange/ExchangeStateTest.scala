@@ -1,21 +1,37 @@
 package agora.api.exchange
 
+import agora.api.Implicits._
 import agora.api.worker.SubscriptionKey
-import org.scalatest.{FunSuite, Matchers, WordSpec}
+import org.scalatest.{Matchers, WordSpec}
 
 class ExchangeStateTest extends WordSpec with Matchers {
 
+  "ExchangeState.cancel" ignore {
+    "cancel known subscriptions" in {
+      ???
+    }
+    "cancel composite subscriptions which contain the cancelled subscription" in {
+      ???
+
+    }
+  }
+
+  "ExchangeState.request" ignore {
+    "request additional entries from all consistuent suscriptions when a composite subscription is specified" in {
+      ???
+    }
+  }
   "ExchangeState.matches" should {
     "find which jobs match which subscriptions" in new TestData {
       // call the method under test
       val (matches, newState) = state.matches
 
       // both work subscriptions should match and thus be decremented
-      newState.subscriptionsById shouldBe Map[SubscriptionKey, (WorkSubscription, Int)]("foo" -> (s1, 0), "bar" -> (s2, 1))
-
+      newState.subscriptionsById shouldBe Map[SubscriptionKey, (WorkSubscription, Int)]("s1" -> (s1, 0), "s2" -> (s2, 1))
+      newState.jobsById shouldBe Map("never matches"                                         -> neverMatch)
       matches should contain only (
-        MatchNotification("j1", j1, List(("foo", s1, 0))),
-        MatchNotification("j2", j2, List(("bar", s2, 1)))
+        MatchNotification("j1", j1, List(Candidate("s1", s1, 0))),
+        MatchNotification("j2", j2, List(Candidate("s2", s2, 1)))
       )
     }
 
@@ -28,41 +44,59 @@ class ExchangeStateTest extends WordSpec with Matchers {
 
       // only 'just has the one' should match
       newSubscriptions shouldBe Map[SubscriptionKey, (WorkSubscription, Int)]("just has the one" -> (s1, 0), "exhausted" -> (s2, 0))
-
+      newState.jobsById shouldBe Map("j2"                                                        -> j2, "never matches"  -> neverMatch, "never matches" -> neverMatch)
       matches should contain only (
         MatchNotification("j1",
                           j1,
-                          List(("just has the one", s1, 0)))
+                          List(Candidate("just has the one", s1, 0)))
       )
     }
 
     "match composite subscriptions if the constituent subscriptions match" in new TestData {
 
-      val empty = Map[SubscriptionKey, (WorkSubscription, Int)]("A" -> (s1, 1), "B" -> (s2, 1), "A and B" -> (compositeSubscription, 1))
-
-      val composite = Map[SubscriptionKey, Compose]("allThree" -> Compose(compositeSubscription, "A", "B", "C"))
-
-      val compositeState = new ExchangeState(subscriptionsById = empty, compositeSubscriptionsById = composite, jobsById = jobs)
+      val composite      = Map[SubscriptionKey, Compose]("composite" -> Compose(compositeSubscription, "s1", "s2"))
+      val compositeState = state.copy(compositeSubscriptionsById = composite)
 
       // call the method under test
       val (matches, newState) = compositeState.matches(MatchAll)
       val newSubscriptions    = newState.subscriptionsById
 
-      // only 'just has the one' should match
-      newSubscriptions shouldBe Map[SubscriptionKey, (WorkSubscription, Int)]("just has the one" -> (s1, 0), "exhausted" -> (s2, 0))
+      // 's1' should be decremented from 1 to 0, and 's2' from '2' to '1'.
+      // job 'j2' should then match 's2'
+      newSubscriptions shouldBe Map[SubscriptionKey, (WorkSubscription, Int)]("s1" -> (s1, 0), "s2" -> (s2, 0))
+
+      newState.jobsById shouldBe Map("never matches" -> neverMatch)
 
       matches should contain only (
-        MatchNotification("j1",
-                          j1,
-                          List(("just has the one", s1, 0)))
+        MatchNotification("j1", j1, List(Candidate("composite", compositeSubscription, 0))),
+        MatchNotification("j2", j2, List(Candidate("s2", s2, 0)))
       )
     }
 
     "not match composite subscriptions if any of the constituent subscriptions don't match" in new TestData {
-      ???
+
+      val composite           = Map[SubscriptionKey, Compose]("composite" -> Compose(compositeSubscription, "s1", "never matches"))
+      val compositeState      = state.copy(compositeSubscriptionsById = composite)
+      val (matches, newState) = compositeState.matches
+      newState.jobsById.keySet should contain("never matches")
+      matches.map(_.id) should not contain ("never matches")
+      matches.flatMap(_.chosen)
     }
     "not match composite subscriptions if they aren't requesting work items" in new TestData {
-      ???
+
+      val missingSubscriptions = Map("s1" -> (s1, 1), "s2" -> (s2, 0))
+
+      val stateOnlyMatchingJ1 =
+        new ExchangeState(subscriptionsById = subscriptions, compositeSubscriptionsById = Map("composite" -> Compose(compositeSubscription, "s1", "s2")), jobsById = jobs)
+
+      val (matches, newState) = stateOnlyMatchingJ1.matches
+
+      newState.jobsById shouldBe Map("j1" -> j1, "never matches" -> neverMatch)
+
+      matches should contain only (
+        MatchNotification("j1", j1, List(Candidate("composite", compositeSubscription, 0))),
+        MatchNotification("j2", j2, List(Candidate("s2", s2, 0)))
+      )
     }
   }
   "ExchangeState.flattenSubscriptions" should {
@@ -93,19 +127,23 @@ class ExchangeStateTest extends WordSpec with Matchers {
     }
   }
 
+  /**
+    * Some test data -- The implicit matcher in scopt is the 'TestMatcher', which
+    * matches job 'j1' with subscription 's1' and job 'j2' w/ subscription 's2'
+    */
   trait TestData {
-
-    import agora.api.Implicits._
 
     val j1                    = "one".asJob
     val j2                    = "two".asJob
+    val neverMatch            = "i never match anybody".asJob
     val s1                    = WorkSubscription().append("name", "s1")
     val s2                    = WorkSubscription().append("name", "s2")
     val compositeSubscription = WorkSubscription().append("name", "composite")
 
     object MatchAll extends JobPredicate {
-      override def matches(offer: SubmitJob, work: WorkSubscription): Boolean = true
+      override def matches(offer: SubmitJob, work: WorkSubscription): Boolean = offer != neverMatch
     }
+
     implicit object TestMatcher extends JobPredicate {
       override def matches(offer: SubmitJob, work: WorkSubscription): Boolean = {
         if (offer.eq(j1)) work.eq(s1)
@@ -114,9 +152,10 @@ class ExchangeStateTest extends WordSpec with Matchers {
       }
     }
 
-    val jobs          = Map("j1"                                            -> j1, "j2"       -> j2)
-    val subscriptions = Map[SubscriptionKey, (WorkSubscription, Int)]("foo" -> (s1, 1), "bar" -> (s2, 2))
+    val jobs          = Map("j1" -> j1, "j2"      -> j2, "never matches" -> neverMatch)
+    val subscriptions = Map("s1" -> (s1, 1), "s2" -> (s2, 2))
 
     val state = new ExchangeState(subscriptionsById = subscriptions, compositeSubscriptionsById = Map.empty, jobsById = jobs)
   }
+
 }

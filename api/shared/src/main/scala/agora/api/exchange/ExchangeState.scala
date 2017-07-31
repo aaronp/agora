@@ -15,8 +15,12 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
 
   // validate subscription
   {
-    val intersection = compositeSubscriptionsById.keySet &~ subscriptionsById.keySet
-    require(intersection.isEmpty, s"$intersection is both a composite and a normal subscription")
+    val intersection = compositeSubscriptionsById.keySet intersect subscriptionsById.keySet
+
+    require(
+      intersection.isEmpty,
+      s"$intersection is both a composite (${compositeSubscriptionsById.keySet}) and a normal subscription (${subscriptionsById.keySet})"
+    )
   }
 
   def pending(key: SubscriptionKey): Int = {
@@ -28,18 +32,18 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
       case (compositeId, compose) =>
         val ids        = flattenSubscriptions(compositeSubscriptionsById, compositeId)
         val invalidIds = ids.filterNot(subscriptionsById.contains)
-        require(invalidIds.isEmpty, s"$compositeId refers to invalid subscription id(s) $invalidIds")
+        require(invalidIds.isEmpty, s"composite subscription '$compositeId' refers to invalid subscription id: $invalidIds")
         compositeId -> (compose, ids)
     }
   }
 
   def findCompositeCandidate(job: SubmitJob, candidates: CandidateSelection)(implicit matcher: JobPredicate): Option[(SubscriptionKey, Compose, CandidateSelection)] = {
-    val candidateIds = candidates.map(_._1)
+    val candidateIds = candidates.map(_.subscriptionKey)
     val compositeMatchOpt = resolvedCompositeSubscriptionsById.collectFirst {
       case (composeId, (compose, ids)) if job.matches(compose.subscription) && ids.forall(candidateIds.contains) =>
         logger.debug(s"Composite subscription '$composeId' matches")
         val compositeCandidates = candidates.filter {
-          case (id, _, _) => ids.contains(id)
+          case Candidate(id, _, _) => ids.contains(id)
         }
 
         (composeId, compose, compositeCandidates)
@@ -66,9 +70,9 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
         val candidates: Seq[Candidate] = workCandidatesForJob(jobId, job, oldState.subscriptionsById)
         findCompositeCandidate(job, candidates) match {
           case Some((compositeId, composite, filtered)) =>
-            val (_, newState)         = createMatch(jobId, job, filtered)
-            val minRemaining          = filtered.map(_._3).min
-            val candidateSelection    = List((compositeId, composite.subscription, minRemaining))
+            val (_, newState)         = oldState.createMatch(jobId, job, filtered)
+            val minRemaining          = filtered.map(_.remaining).min
+            val candidateSelection    = List(Candidate(compositeId, composite.subscription, minRemaining))
             val candidateNotification = MatchNotification(jobId, job, candidateSelection)
             (candidateNotification :: matches) -> newState
           case None =>
@@ -77,7 +81,7 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
             if (chosen.isEmpty) {
               accumulator
             } else {
-              val (thisMatch, newState) = createMatch(jobId, job, chosen)
+              val (thisMatch, newState) = oldState.createMatch(jobId, job, chosen)
               (thisMatch :: matches, newState)
             }
         }
@@ -109,7 +113,7 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
 
   private def createMatch(jobId: JobId, job: SubmitJob, chosen: CandidateSelection): (MatchNotification, ExchangeState) = {
     val newSubscriptionQueue = chosen.foldLeft(subscriptionsById) {
-      case (map, (key, _, n)) =>
+      case (map, Candidate(key, _, n)) =>
         require(n >= 0, s"Take cannot be negative ($key, $n)")
         val pear = map(key)._1
         map.updated(key, (pear, n))
@@ -222,7 +226,7 @@ object ExchangeState {
   def workCandidatesForJob(jobId: JobId, job: SubmitJob, subscriptionsById: Map[SubscriptionKey, (WorkSubscription, Int)])(implicit matcher: JobPredicate): CandidateSelection = {
     subscriptionsById.collect {
       case (id, (subscription, requested)) if requested > 0 && job.matches(subscription) =>
-        (id, subscription, (requested - 1).ensuring(_ >= 0))
+        Candidate(id, subscription, (requested - 1).ensuring(_ >= 0))
     }.toSeq
   }
 

@@ -120,8 +120,7 @@ object Exchange {
 
   def instance(): Exchange = apply(MatchObserver())(JobPredicate())
 
-  type Remaining = Int
-  type Match     = (SubmitJob, Seq[(SubscriptionKey, WorkSubscription, Remaining)])
+  type Match = (SubmitJob, Seq[Candidate])
 
   type OnMatch = Match => Unit
 

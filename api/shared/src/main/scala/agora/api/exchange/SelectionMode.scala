@@ -1,6 +1,5 @@
 package agora.api.exchange
 
-
 import io.circe.Decoder.Result
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import agora.api.SubscriptionKey
@@ -9,21 +8,16 @@ import agora.api.json.JPath
 import scala.collection.SeqLike
 import scala.collection.generic.CanBuildFrom
 
-
 abstract class SelectionMode(override val toString: String) {
-  type Selected = SelectionMode.Selected
+  type Selected  = SelectionMode.Selected
   type Remaining = SelectionMode.Remaining
 
-  type Work = SelectionMode.Work
-
-  def select[Coll <: SeqLike[Work, Coll]](values: Coll)(implicit bf: CanBuildFrom[Coll, Work, Coll]): Coll
-
-  //  def json: Json = Json.fromString(toString)
+  def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll
 }
 
 // sends the work to the first matching eligible worker
 case class SelectionFirst() extends SelectionMode("select-first") {
-  override def select[Coll <: SeqLike[Work, Coll]](values: Coll)(implicit bf: CanBuildFrom[Coll, Work, Coll]): Coll = {
+  override def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
     values.take(1)
   }
 }
@@ -32,7 +26,7 @@ case class SelectionFirst() extends SelectionMode("select-first") {
 case class SelectionAll() extends SelectionMode("select-all") {
   //  override def select(offers: Stream[(WorkRequestId, RequestWork)]) = offers -> Stream.empty
 
-  override def select[Coll <: SeqLike[Work, Coll]](values: Coll)(implicit bf: CanBuildFrom[Coll, Work, Coll]): Coll = {
+  override def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
     values
   }
 }
@@ -40,7 +34,7 @@ case class SelectionAll() extends SelectionMode("select-all") {
 // sends the work to all eligible workers
 case class SelectN(n: Int, fanOut: Boolean) extends SelectionMode(s"select-$n") {
 
-  override def select[Coll <: SeqLike[Work, Coll]](values: Coll)(implicit bf: CanBuildFrom[Coll, Work, Coll]): Coll = {
+  override def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
     if (fanOut) {
       values.distinct.take(n)
     } else {
@@ -52,9 +46,9 @@ case class SelectN(n: Int, fanOut: Boolean) extends SelectionMode(s"select-$n") 
 // sends work to whichever has the maximum int value for the given property
 case class SelectIntMax(path: JPath) extends SelectionMode("select-int-nax") {
 
-  override def select[Coll <: SeqLike[Work, Coll]](collection: Coll)(implicit bf: CanBuildFrom[Coll, Work, Coll]): Coll = {
+  override def select[Coll <: SeqLike[Candidate, Coll]](collection: Coll)(implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
     val values = collection.flatMap {
-      case pear@(_, work, n) =>
+      case pear @ Candidate(_, work, n) =>
         path.apply(work.details.aboutMe).flatMap { value =>
           value.asNumber.flatMap(_.toInt).map { num =>
             (pear, num)
@@ -76,9 +70,9 @@ case class SelectIntMax(path: JPath) extends SelectionMode("select-int-nax") {
 
 object SelectionMode {
   type Selection = Stream[(SubscriptionKey, RequestWork)]
-  type Selected = Selection
+  type Selected  = Selection
   type Remaining = Selection
-  type Work = (SubscriptionKey, WorkSubscription, Int)
+  type Work      = (SubscriptionKey, WorkSubscription, Int)
 
   def first(): SelectionMode = SelectionFirst()
 
@@ -93,7 +87,7 @@ object SelectionMode {
       mode match {
         case SelectN(n, fanOut) => Json.obj("select" -> Json.fromInt(n), "fanOut" -> Json.fromBoolean(fanOut))
         case SelectIntMax(path) => Json.obj("max" -> path.json)
-        case _ => Json.fromString(mode.toString)
+        case _                  => Json.fromString(mode.toString)
       }
     }
 
@@ -102,7 +96,7 @@ object SelectionMode {
 
       def asSelectN: Result[SelectN] = {
         for {
-          n <- c.downField("select").as[Int]
+          n      <- c.downField("select").as[Int]
           fanOut <- c.downField("fanOut").as[Boolean]
         } yield {
           SelectN(n.toInt, fanOut.booleanValue())
@@ -111,7 +105,7 @@ object SelectionMode {
 
       c.value.asString match {
         case Some("select-first") => Right(first())
-        case Some("select-all") => Right(all())
+        case Some("select-all")   => Right(all())
         case _ =>
           import io.circe._
           import io.circe.generic.auto._

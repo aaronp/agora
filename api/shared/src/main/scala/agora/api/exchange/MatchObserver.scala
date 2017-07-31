@@ -48,7 +48,7 @@ trait MatchObserver extends Exchange.OnMatch with StrictLogging {
           case None     => Failure(new Exception(s"no job id was set on $job"))
         }
         val coordsAndDetails = workers.map {
-          case (key, workSubscription, remaining) =>
+          case Candidate(key, workSubscription, remaining) =>
             val d = workSubscription.details
             val c = WorkerRedirectCoords(workSubscription.details.location, key, remaining)
             (c, d)
