@@ -1,6 +1,5 @@
 package agora.exec.rest
 
-import agora.api.exchange.{QueueState, WorkSubscription}
 import agora.exec.ExecConfig
 import agora.exec.model.{RunProcess, Upload}
 import agora.rest.worker.{RouteSubscriptionSupport, WorkerRoutes}
@@ -24,9 +23,7 @@ object ExecutionRoutes {
   *
   * @param execConfig
   */
-class ExecutionRoutes(val execConfig: ExecConfig) extends
-  RouteSubscriptionSupport
-  with FailFastCirceSupport {
+class ExecutionRoutes(val execConfig: ExecConfig) extends RouteSubscriptionSupport with FailFastCirceSupport {
 
   lazy val exchange = execConfig.exchangeClient
 
@@ -48,19 +45,18 @@ class ExecutionRoutes(val execConfig: ExecConfig) extends
   def upload = {
     post {
       (path("upload") & pathEnd) {
-        entity(as[Multipart.FormData]) { formData =>
+        extractRequestContext { ctxt =>
+          import ctxt.{executionContext, materializer}
 
-          parameter('workspace) { workspace =>
+          entity(as[Multipart.FormData]) { formData =>
+            parameter('workspace) { workspace =>
+              val uploadsFuture: Future[List[Upload]] = MultipartExtractor(formData, execConfig.uploadsDir, execConfig.chunkSize)
+              uploadsFuture.map { uploads =>
+                val upserted = ExecutionHandler.newWorkspaceSubscription(workspace, uploads.map(_.name).toSet)
+                exchange.subscribe(upserted)
+              }
 
-            val uploadsFuture: Future[List[Upload]] = MultipartExtractor(formData, execConfig.uploadsDir, execConfig.chunkSize)
-            uploadsFuture.map { uploads =>
-              val sub = ExecutionHandler.newWorkspaceSubscription(workspace, uploads.map(_.name).toSet)
-              exchange.queueState(QueueState())
-              exchange.subscribe(sub)
-            }
-
-            complete {
-
+              complete {}
             }
           }
         }
@@ -77,17 +73,18 @@ class ExecutionRoutes(val execConfig: ExecConfig) extends
     post {
       (path("run") & pathEnd) {
         entity(as[RunProcess]) { runProcess =>
-          extractRequest { httpReq =>
+          extractRequestContext { ctxt =>
+            import ctxt.executionContext
             extractMatchDetails {
-              case detailsOpt@Some(details) =>
+              case detailsOpt @ Some(details) =>
                 requestOnComplete(details, exchange) {
-                  val runner = execConfig.newRunner(runProcess, detailsOpt, details.jobId)
-                  val respFuture = ExecutionHandler(httpReq, runner, runProcess, detailsOpt)
+                  val runner     = execConfig.newRunner(runProcess, detailsOpt, details.jobId)
+                  val respFuture = ExecutionHandler(ctxt.request, runner, runProcess, detailsOpt)
                   complete(respFuture)
                 }
               case detailsOpt =>
-                val runner = execConfig.newRunner(runProcess, detailsOpt, agora.api.nextJobId())
-                val respFuture = ExecutionHandler(httpReq, runner, runProcess, detailsOpt)
+                val runner     = execConfig.newRunner(runProcess, detailsOpt, agora.api.nextJobId())
+                val respFuture = ExecutionHandler(ctxt.request, runner, runProcess, detailsOpt)
                 complete(respFuture)
             }
           }

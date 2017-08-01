@@ -17,8 +17,6 @@ class ExecConfigTest extends BaseSpec {
         """.stripMargin))
 
       ec.uploadTimeout shouldBe 10.seconds
-      ec.workingDirectory.appendJobId shouldBe false
-      ec.workingDirectory.dir("foo").map(_.toAbsolutePath) shouldBe Some("wd".asPath.toAbsolutePath)
 
       ec.uploads.dir("xyz").map(_.toAbsolutePath) shouldBe Option("uploads/xyz".asPath.toAbsolutePath)
       ec.logs.dir("abc").map(_.toAbsolutePath) shouldBe Option("logs/abc".asPath.toAbsolutePath)

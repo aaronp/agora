@@ -1,8 +1,8 @@
 package agora.exec.rest
 
-import agora.api.JobId
 import agora.api.`match`.MatchDetails
 import agora.api.exchange.WorkSubscription
+import agora.api.json.JPath
 import agora.exec.model.{ProcessException, RunProcess}
 import agora.exec.run.LocalRunner
 import agora.exec.workspace.WorkspaceId
@@ -12,15 +12,28 @@ import akka.http.scaladsl.model.StatusCodes.InternalServerError
 import akka.http.scaladsl.model.{ContentType, HttpEntity, HttpRequest, HttpResponse}
 import com.typesafe.scalalogging.StrictLogging
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Failure
 import scala.util.control.NonFatal
 
-private[rest] object ExecutionHandler extends StrictLogging {
-  def newWorkspaceSubscription(workspace: WorkspaceId, files: Set[String]) = {
-    WorkSubscription()
-  }
+object ExecutionHandler extends StrictLogging {
+  private val hasCommand = JPath("command").asMatcher
 
+  /**
+    * Creates a new WorkSubscription with:
+    * {{{
+    *   "workspace" : <xyz>
+    *     "files: [...]
+    * }}}
+    * that also matches jobs with a 'command' in its json
+    *
+    * @param workspace
+    * @param files
+    * @return
+    */
+  def newWorkspaceSubscription(workspace: WorkspaceId, files: Set[String]): WorkSubscription = {
+    WorkSubscription(jobMatcher = hasCommand).withSubscriptionKey(workspace).append("files", files).append("workspace", workspace)
+  }
 
   def asErrorResponse(exp: ProcessException) = {
     HttpResponse(status = InternalServerError, entity = HttpEntity(`application/json`, exp.json.noSpaces))
@@ -31,11 +44,11 @@ private[rest] object ExecutionHandler extends StrictLogging {
             runProc: RunProcess,
             matchDetails: Option[MatchDetails],
             // TODO - this should be determined from the content-type of the request, which we have
-            outputContentType: ContentType = `text/plain(UTF-8)`): Future[HttpResponse] = {
+            outputContentType: ContentType = `text/plain(UTF-8)`)(implicit ec: ExecutionContext): Future[HttpResponse] = {
 
-    val bytes = runner.asByteIterator(runProc)
+    val bytes                       = runner.asByteIterator(runProc)
     val chunked: HttpEntity.Chunked = HttpEntity(outputContentType, bytes)
-    val future = Marshal(chunked).toResponseFor(request)
+    val future                      = Marshal(chunked).toResponseFor(request)
     future.recover {
       case pr: ProcessException =>
         asErrorResponse(pr)

@@ -2,7 +2,6 @@ package agora.exec.run
 
 import java.nio.file.Path
 
-import agora.exec.rest.ExecutionHandler.logger
 import agora.exec.log._
 import agora.exec.model.RunProcess
 import agora.exec.run.ProcessRunner.ProcessOutput
@@ -29,7 +28,6 @@ class LocalRunner(workDir: Option[Path] = None)(implicit ec: ExecutionContext) e
     }
   }
 
-
   def asByteIterator(runProc: RunProcess): Source[ByteString, NotUsed] = {
     def run = {
       try {
@@ -52,19 +50,19 @@ class LocalRunner(workDir: Option[Path] = None)(implicit ec: ExecutionContext) e
     * @param logger the logger to add for all processes used by this runner
     * @return the local runner instance (builder pattern)
     */
-  def add(logger :ProcessLogger) = {
+  def add(logger: ProcessLogger) = {
     additionalLoggers = logger :: additionalLoggers
     this
   }
-  def remove(logger :ProcessLogger) = additionalLoggers = additionalLoggers diff List(logger)
+  def remove(logger: ProcessLogger) = additionalLoggers = additionalLoggers diff List(logger)
 
-  def mkLogger(proc: RunProcess) : IterableLogger = {
+  def mkLogger(proc: RunProcess): IterableLogger = {
     additionalLoggers.foldLeft(IterableLogger.forProcess(proc)) {
       case (lgr, next) => lgr.add(next)
     }
   }
 
-  def execute(preparedProcess: RunProcess) : IterableLogger = {
+  def execute(preparedProcess: RunProcess): IterableLogger = {
     val builder: ProcessBuilder = Process(preparedProcess.command, workDir.map(_.toFile), preparedProcess.env.toSeq: _*)
     execute(builder, preparedProcess)
   }

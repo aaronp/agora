@@ -8,6 +8,7 @@ import agora.exec.log._
 import agora.exec.model.RunProcess
 import agora.exec.rest.ExecutionRoutes
 import agora.exec.run.{LocalRunner, ProcessRunner}
+import agora.exec.workspace.WorkspaceId
 import agora.rest.worker.WorkerConfig
 import agora.rest.{RunningService, configForArgs}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -21,7 +22,6 @@ import scala.concurrent.duration._
   * @param execConfig
   */
 class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
-
 
   /** Convenience method for starting an exec service.
     * Though this may seem oddly placed on a configuration, a service and its configuration
@@ -43,7 +43,7 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
     * @return a Future of a [[RunningService]]
     */
   def start(): Future[RunningService[ExecConfig, ExecutionRoutes]] = {
-    val execSys = ExecSystem(this)
+    val execSys    = ExecSystem(this)
     val restRoutes = execSys.routes
     RunningService.start[ExecConfig, ExecutionRoutes](this, restRoutes, execSys.executionRoutes)
   }
@@ -111,8 +111,8 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
 
   implicit def uploadTimeout: FiniteDuration = execConfig.getDuration("uploadTimeout", TimeUnit.MILLISECONDS).millis
 
-  def remoteRunner(): ProcessRunner with AutoCloseable = {
-    ProcessRunner(exchangeClient, defaultFrameLength, allowTruncation, replaceWorkOnFailure)
+  def remoteRunner(workspaceIdOpt: Option[WorkspaceId], fileDependencies: Set[String]): ProcessRunner with AutoCloseable = {
+    ProcessRunner(exchangeClient, workspaceIdOpt, fileDependencies, defaultFrameLength, allowTruncation, replaceWorkOnFailure)
   }
 
   override def toString = execConfig.root.render()

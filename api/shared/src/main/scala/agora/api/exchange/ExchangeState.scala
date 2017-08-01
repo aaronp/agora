@@ -23,7 +23,7 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
     )
   }
 
-  def updateSubscription(id: SubscriptionKey, details: WorkerDetails) = {
+  def updateSubscription(id: SubscriptionKey, details: WorkerDetails): (UpdateWorkSubscriptionAck, ExchangeState) = {
     subscriptionsById.get(id) match {
       case Some((subscription, n)) =>
         val before          = Option(subscription.details)
@@ -62,7 +62,7 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
     }
   }
 
-  def findCompositeCandidate(job: SubmitJob, candidates: CandidateSelection)(implicit matcher: JobPredicate): Option[(SubscriptionKey, Compose, CandidateSelection)] = {
+  private def findCompositeCandidate(job: SubmitJob, candidates: CandidateSelection)(implicit matcher: JobPredicate): Option[(SubscriptionKey, Compose, CandidateSelection)] = {
     val candidateIds = candidates.map(_.subscriptionKey)
     val compositeMatchOpt = resolvedCompositeSubscriptionsById.collectFirst {
       case (composeId, (compose, ids)) if job.matches(compose.subscription) && ids.forall(candidateIds.contains) =>
@@ -110,29 +110,6 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
               (thisMatch :: matches, newState)
             }
         }
-    }
-  }
-
-  /** tries to remove the job from the given state and update the pending subscriptions' 'remaining' count
-    *
-    * @param choose  a function to narrow down candidates for a single job match
-    * @param jobId   the job id for the input job
-    * @param job     the job to match
-    * @param matcher the matching logic
-    * @return an optional new state and match notification should the job match
-    */
-  private def matchesForJob(jobId: JobId, job: SubmitJob)(choose: CandidateSelection => Seq[Candidate])(
-      implicit matcher: JobPredicate): Option[(MatchNotification, ExchangeState)] = {
-    require(jobsById.contains(jobId), s"Bug: Job map doesn't contain $jobId")
-    val candidates: Seq[Candidate] = workCandidatesForJob(jobId, job, subscriptionsById)
-
-    val chosen: Seq[Candidate] = choose(candidates)
-
-    if (chosen.isEmpty) {
-      None
-    } else {
-      val newMatch: (MatchNotification, ExchangeState) = createMatch(jobId, job, chosen)
-      Option(newMatch)
     }
   }
 
@@ -211,9 +188,14 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
         key -> newSubscription
     }
 
-    val requested            = subscriptionsById.get(id).map(_._2).getOrElse(0)
-    val newSubscriptionsById = subscriptionsById.updated(id, subscription -> requested)
-    val newState             = copy(subscriptionsById = newSubscriptionsById)
+    val newState = subscriptionsById.get(id).map(_._2) match {
+      case Some(_) =>
+        val (_, newState) = updateSubscription(id, inputSubscription.details)
+        newState
+      case None =>
+        val newSubscriptionsById = subscriptionsById.updated(id, subscription -> 0)
+        copy(subscriptionsById = newSubscriptionsById)
+    }
     WorkSubscriptionAck(id) -> newState
   }
 

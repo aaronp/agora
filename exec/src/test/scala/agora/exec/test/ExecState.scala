@@ -72,7 +72,7 @@ case class ExecState(server: Option[RunningService[ExecConfig, ExecutionRoutes]]
   def connectClient(name: String, port: Int) = {
     clientsByName.keySet should not contain (name)
     val conf: ExecConfig         = ExecConfig(s"port=$port", s"actorSystemName=$name")
-    val newClient: ProcessRunner = conf.remoteRunner()
+    val newClient: ProcessRunner = conf.remoteRunner(None, Set.empty)
 
     copy(clientsByName = clientsByName.updated(name, conf -> newClient))
   }

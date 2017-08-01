@@ -28,6 +28,7 @@ object MultipartExtractor extends LazyLogging {
     */
   def apply(formData: Multipart.FormData, saveUnderDir: => Path, chunkSize: Int)(implicit mat: Materializer): Future[List[Upload]] = {
 
+    import mat.executionContext
     import agora.rest.multipart.MultipartFormImplicits._
 
     val nestedUploads: Future[List[Future[Upload]]] = formData.mapMultipart {

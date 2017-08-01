@@ -14,10 +14,19 @@ import scala.util.{Failure, Success, Try}
 trait Exchange {
 
   def onClientRequest(request: ClientRequest): Future[ClientResponse] = request match {
-    case req: SubmitJob => submit(req)
-    case req: QueueState => queueState(req)
-    case req: CancelJobs => cancelJobs(req)
+    case req: SubmitJob           => submit(req)
+    case req: QueueState          => queueState(req)
+    case req: CancelJobs          => cancelJobs(req)
     case req: CancelSubscriptions => cancelSubscriptions(req)
+  }
+
+  def onSubscriptionRequest(req: SubscriptionRequest): Future[SubscriptionResponse] = {
+    req match {
+      case msg: WorkSubscription       => subscribe(msg)
+      case msg: RequestWork            => take(msg)
+      case msg: UpdateWorkSubscription => updateSubscription(msg)
+      case msg: Compose                => compose(msg)
+    }
   }
 
   /**
@@ -67,15 +76,6 @@ trait Exchange {
     cancelSubscriptions(CancelSubscriptions(theRest.toSet + id))
   }
 
-  def onSubscriptionRequest(req: SubscriptionRequest): Future[SubscriptionResponse] = {
-    req match {
-      case msg: WorkSubscription => subscribe(msg)
-      case msg: RequestWork => take(msg)
-      case msg: UpdateWorkSubscription => updateSubscription(msg)
-      case msg: Compose => compose(msg)
-    }
-  }
-
   /** creates a new subscription based on the input subscriptions.
     *
     * When a 'take' request is made for the returned subscription, a 'take' is issued
@@ -91,10 +91,12 @@ trait Exchange {
   def compose(compose: Compose): Future[WorkSubscriptionAck] = onSubscriptionRequest(compose).mapTo[WorkSubscriptionAck]
 
   /**
-    * Creates a new [[WorkSubscription]], whose returned [[WorkSubscriptionAck]] key can be used to pull work items
+    * Creates or updates a [[WorkSubscription]], whose returned [[WorkSubscriptionAck]] key can be used to pull work items
     * from the exchange.
     *
-    * If the request specifies a subscription key then any existing subscription with the given id will be replaced.
+    * If the request specifies a subscription key then any existing subscription with the given id will be updated as
+    * per [[updateSubscription()]].
+    *
     * If no subscription key is supplied, then a new one will be generated and provided on the ack.
     *
     * @param request the work subscription

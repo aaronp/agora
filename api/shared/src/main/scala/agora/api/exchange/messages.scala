@@ -106,8 +106,6 @@ case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends Cl
     submissionDetails.valueOf[JobId]("jobId").right.toOption
   }
 
-  def +[T: Encoder](keyValue: (String, T)): SubmitJob = add(keyValue)
-
   def add[T: Encoder](keyValue: (String, T)): SubmitJob = withData(keyValue._2, keyValue._1)
 
   def withId(jobId: JobId): SubmitJob = add("jobId" -> jobId)
@@ -223,10 +221,8 @@ object WorkSubscriptionAck {
   implicit val decoder = exportDecoder[WorkSubscriptionAck].instance
 }
 
-
-case class UpdateWorkSubscription(id : SubscriptionKey, details: WorkerDetails) extends SubscriptionRequest
-case class UpdateWorkSubscriptionAck(id : SubscriptionKey, before: Option[WorkerDetails], after: Option[WorkerDetails]) extends SubscriptionResponse
-
+case class UpdateWorkSubscription(id: SubscriptionKey, details: WorkerDetails)                                         extends SubscriptionRequest
+case class UpdateWorkSubscriptionAck(id: SubscriptionKey, before: Option[WorkerDetails], after: Option[WorkerDetails]) extends SubscriptionResponse
 
 case class RequestWork(id: SubscriptionKey, itemsRequested: Int) extends SubscriptionRequest {
   require(itemsRequested > 0)
@@ -248,7 +244,6 @@ case class RequestWorkAck(updated: Map[SubscriptionKey, RequestWorkUpdate]) exte
     copy(updated = updated.updated(id, newUpdate))
   }
 
-
   /** @return true if a subscription previously had 0 pending subscriptions
     */
   def isUpdatedFromEmpty = {
@@ -262,5 +257,5 @@ object RequestWorkAck {
   implicit val encoder = exportEncoder[RequestWorkAck].instance
   implicit val decoder = exportDecoder[RequestWorkAck].instance
 
-  def apply(id : SubscriptionKey, requested : Int) : RequestWorkAck = new RequestWorkAck(Map(id -> RequestWorkUpdate(0, requested)))
+  def apply(id: SubscriptionKey, requested: Int): RequestWorkAck = new RequestWorkAck(Map(id -> RequestWorkUpdate(0, requested)))
 }

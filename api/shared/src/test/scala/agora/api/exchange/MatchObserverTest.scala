@@ -12,10 +12,8 @@ class MatchObserverTest extends WordSpec with Matchers {
     "remove the observer after one event" in {
       object obs extends MatchObserver
 
-      val strEnc: Encoder[String] = implicitly[Encoder[String]]
-
       var notifiedJobs      = List[SubmitJob]()
-      val jobOne: SubmitJob = 123.asJob() + ("id" -> "one")
+      val jobOne: SubmitJob = 123.asJob().add("id" -> "one")
 
       // call the method under test 'when'
       val observer = obs.onceWhen {
@@ -41,8 +39,8 @@ class MatchObserverTest extends WordSpec with Matchers {
       object obs extends MatchObserver
 
       var notifiedJobs      = List[SubmitJob]()
-      val jobOne: SubmitJob = 123.asJob() + ("id" -> "one")
-      val jobTwo: SubmitJob = 456.asJob() + ("id" -> "two")
+      val jobOne: SubmitJob = 123.asJob().add("id" -> "one")
+      val jobTwo: SubmitJob = 456.asJob().add("id" -> "two")
 
       // call the method under test 'when'
       val observer = obs.alwaysWhen {

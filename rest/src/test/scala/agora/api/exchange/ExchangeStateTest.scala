@@ -63,7 +63,7 @@ class ExchangeStateTest extends WordSpec with Matchers {
       val (backAgain, 1) = newState.subscriptionsById("static key")
       backAgain.details.name shouldBe Some("updated name")
       backAgain.details.subscriptionKey shouldBe Some("static key")
-      backAgain.details.aboutMe.hcursor.downField("removed").failed shouldBe true
+      backAgain.details.aboutMe.hcursor.downField("removed").as[Boolean].right.get shouldBe false
     }
   }
 
