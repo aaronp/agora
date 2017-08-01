@@ -46,6 +46,8 @@ class ExchangeStateTest extends WordSpec with Matchers {
 
   "ExchangeState.request" should {
     "request additional entries from all constituent subscriptions when a composite subscription is specified" in {
+      val subscriptions = newSubscriptions("A", "B")
+      val state         = new ExchangeState(subscriptionsById = subscriptions, compositeSubscriptionsById = Map.empty, jobsById = jobs)
       ???
     }
   }
@@ -167,10 +169,10 @@ class ExchangeStateTest extends WordSpec with Matchers {
     val j1                     = "one".asJob
     val j2                     = "two".asJob
     val neverMatchJob          = "i never match anybody".asJob
-    val s1                     = WorkSubscription().append("name", "s1")
-    val s2                     = WorkSubscription().append("name", "s2")
-    val neverMatchSubscription = WorkSubscription().append("name", "i won't match any jobs")
-    val compositeSubscription  = WorkSubscription().append("name", "composite")
+    val s1                     = newSubscription("s1")
+    val s2                     = newSubscription("s2")
+    val neverMatchSubscription = newSubscription("i won't match any jobs")
+    val compositeSubscription  = newSubscription("composite")
 
     object MatchAll extends JobPredicate {
       override def matches(offer: SubmitJob, work: WorkSubscription): Boolean = {
@@ -192,4 +194,9 @@ class ExchangeStateTest extends WordSpec with Matchers {
     val state = new ExchangeState(subscriptionsById = subscriptions, compositeSubscriptionsById = Map.empty, jobsById = jobs)
   }
 
+  def newSubscription(name: String) = WorkSubscription().append("name", name)
+  def newSubscriptions(first: String, theRest: String*) = {
+    val ids = theRest.toSet + first
+    ids.map(id => (id, newSubscription(id))).toMap
+  }
 }
