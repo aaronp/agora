@@ -47,6 +47,7 @@ trait Exchange {
 
   /**
     * Cancels the submitted jobs, removing them from the exchange
+    *
     * @param request the request containing the jobs to cancel
     * @return a response containing a map between the input job Ids and a flag depicting if they were successfully cancelled
     */
@@ -145,22 +146,19 @@ object Exchange {
     }
 
     override def take(request: RequestWork) = {
-      val RequestWork(id, n) = request
-      state.subscriptionsById.get(id) match {
-        case None =>
-          Future.failed(
-            new Exception(s"subscription '$id' doesn't exist. Known ${state.subscriptionsById.size} subscriptions are: ${state.subscriptionsById.take(100).keySet.mkString(",")}"))
-        case Some((_, before)) =>
-          state = state.updatePending(id, before + n)
-
+      val tri = state.request(request.id, request.itemsRequested)
+      val ackTry: Try[RequestWorkAck] = tri.map {
+        case (ack, newState) =>
+          state = newState
           // if there weren't any jobs previously, then we may be able to take some work
-          if (before == 0) {
-            checkForMatches()
+          if (ack.isUpdatedFromEmpty) {
+            checkForMatches
           } else {
-            logger.debug(s"Not triggering match for subscriptions increase on [$id]")
+            logger.debug(s"Not triggering match for subscriptions increase on [${request.id}]")
           }
-          Future.successful(RequestWorkAck(id, state.pending(id)))
+          ack
       }
+      Future.fromTry(ackTry)
     }
 
     override def compose(request: Compose): Future[WorkSubscriptionAck] = {

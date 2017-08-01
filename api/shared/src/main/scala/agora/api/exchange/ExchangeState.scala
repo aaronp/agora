@@ -4,7 +4,7 @@ import agora.api.worker._
 import agora.api.{JobId, nextJobId, nextSubscriptionKey}
 import com.typesafe.scalalogging.StrictLogging
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscription, Int)] = Map[SubscriptionKey, (WorkSubscription, Int)](),
                          compositeSubscriptionsById: Map[SubscriptionKey, Compose] = Map[SubscriptionKey, Compose](),
@@ -27,6 +27,7 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
     subscriptionsById.get(key).map(_._2).getOrElse(0)
   }
 
+  lazy val subscriptionKeys = subscriptionsById.keySet ++ compositeSubscriptionsById.keySet
   private lazy val resolvedCompositeSubscriptionsById: Map[SubscriptionKey, (Compose, Set[SubscriptionKey])] = {
     compositeSubscriptionsById.map {
       case (compositeId, compose) =>
@@ -134,6 +135,7 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
   }
 
   def containsSubscription(id: SubscriptionKey) = compositeSubscriptionsById.contains(id) || subscriptionsById.contains(id)
+
   def cancelSubscriptions(ids: Set[SubscriptionKey]) = {
     val cancelled = ids.map { id =>
       id -> containsSubscription(id)
@@ -178,13 +180,13 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
     WorkSubscriptionAck(id) -> newState
   }
 
-  def updatePending(id: SubscriptionKey, n: Int) = {
-    val newSubscriptionsById = subscriptionsById.get(id).fold(subscriptionsById) {
+  private def updatePending(id: SubscriptionKey, n: Int): ExchangeState = {
+    subscriptionsById.get(id).fold(this) {
       case (sub, before) =>
         logger.debug(s"changing pending subscriptions for [$id] from $before to $n")
-        subscriptionsById.updated(id, sub -> n)
+        val newSubscriptionsById = subscriptionsById.updated(id, sub -> n)
+        copy(subscriptionsById = newSubscriptionsById)
     }
-    copy(subscriptionsById = newSubscriptionsById)
   }
 
   def isValidSubscription(id: SubscriptionKey) = {
@@ -223,6 +225,43 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
     val newJobsById = jobsById.updated(id, job)
 
     SubmitJobResponse(id) -> copy(jobsById = newJobsById)
+  }
+
+  /**
+    * A request for 'n' work items from a composite subscription results in n work items requested for the underlying
+    * subscriptions
+    * @param id the composite subscription id
+    * @param n the number of work items to request
+    * @return failure if the id isn't a composite subscription, success with an ack/ updated state when it is
+    */
+  private def requestComposite(id: SubscriptionKey, n: Int): Try[(RequestWorkAck, ExchangeState)] = {
+    require(n >= 0)
+    resolvedCompositeSubscriptionsById.get(id) match {
+      case None =>
+        Failure(new Exception(s"subscription '$id' doesn't exist. Known ${subscriptionsById.size} subscriptions are: ${subscriptionKeys.mkString(",")}"))
+      case Some((_, ids)) =>
+        val (newSubscriptionsById, ack) = ids.foldLeft((subscriptionsById, RequestWorkAck(Map.empty))) {
+          case ((map, RequestWorkAck(ack)), id) =>
+            val (sub, before) = subscriptionsById(id)
+
+            val newPending = before + n
+            val newMap     = map.updated(id, sub -> newPending)
+            newMap -> RequestWorkAck(ack.updated(id, RequestWorkUpdate(before, newPending)))
+        }
+
+        val newState = copy(subscriptionsById = newSubscriptionsById)
+        Success(ack -> newState)
+    }
+  }
+
+  def request(id: SubscriptionKey, n: Int): Try[(RequestWorkAck, ExchangeState)] = {
+    require(n >= 0)
+    subscriptionsById.get(id) match {
+      case None => requestComposite(id, n)
+      case Some((_, before)) =>
+        val newState = updatePending(id, before + n)
+        Success(RequestWorkAck(Map(id -> RequestWorkUpdate(before, pending(id)))) -> newState)
+    }
   }
 }
 

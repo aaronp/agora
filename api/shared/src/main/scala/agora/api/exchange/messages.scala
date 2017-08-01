@@ -1,10 +1,10 @@
 package agora.api.exchange
 
-import io.circe.generic.auto._
-import io.circe.{Encoder, Json}
 import agora.api.json.JMatcher
 import agora.api.worker.{SubscriptionKey, WorkerDetails, WorkerRedirectCoords}
 import agora.api.{JobId, MatchId}
+import io.circe.generic.auto._
+import io.circe.{Encoder, Json}
 
 import scala.language.implicitConversions
 
@@ -67,6 +67,7 @@ object QueueStateResponse {
 case class PendingSubscription(key: SubscriptionKey, subscription: WorkSubscription, requested: Int)
 
 /** Composes the subscriptions, responded with an ack
+  *
   * @param subscriptions
   */
 case class Compose(subscription: WorkSubscription, subscriptions: Set[SubscriptionKey]) extends SubscriptionRequest {
@@ -76,6 +77,7 @@ case class Compose(subscription: WorkSubscription, subscriptions: Set[Subscripti
 
   require(subscriptions.nonEmpty, "invalid 'Compose' - no subscription keys specified")
 }
+
 object Compose {
   def apply(subscription: WorkSubscription, first: SubscriptionKey, theRest: SubscriptionKey*) = {
     new Compose(subscription, theRest.toSet + first)
@@ -234,7 +236,18 @@ object RequestWork {
   implicit val decoder = exportDecoder[RequestWork].instance
 }
 
-case class RequestWorkAck(id: SubscriptionKey, totalItemsPending: Int) extends SubscriptionResponse
+case class RequestWorkUpdate(previousItemsPending: Int, totalItemsPending: Int) extends SubscriptionResponse
+
+case class RequestWorkAck(updated: Map[SubscriptionKey, RequestWorkUpdate]) extends SubscriptionResponse {
+
+  /** @return true if a subscription previously had 0 pending subscriptions
+    */
+  def isUpdatedFromEmpty = {
+    updated.values.exists {
+      case RequestWorkUpdate(before, _) => before == 0
+    }
+  }
+}
 
 object RequestWorkAck {
   implicit val encoder = exportEncoder[RequestWorkAck].instance
