@@ -1,10 +1,71 @@
 package agora.api.exchange
 
 import agora.api.Implicits._
-import agora.api.worker.SubscriptionKey
+import agora.api.json.JMatcher
+import agora.api.worker.{SubscriptionKey, WorkerDetails}
 import org.scalatest.{Matchers, WordSpec}
 
+import scala.util.Success
+
 class ExchangeStateTest extends WordSpec with Matchers {
+
+  "ExchangeState.updateSubscription" should {
+    "append additional subscription details" in {
+      val original     = WorkSubscription(WorkerDetails().append("someArray", List(1, 2)), JMatcher.matchNone, JMatcher.matchNone)
+      val initialState = new ExchangeState(subscriptionsById = Map("a" -> (original, 11), "b" -> (original, 12)))
+
+      // call the method under test
+      val (ack, newState) = initialState.updateSubscription("a", WorkerDetails().append("someArray", List(3, 4)).append("appended", true))
+
+      implicit def pimpedDetails(wd: WorkerDetails) = new {
+        def someArray = wd.aboutMe.hcursor.downField("someArray").as[List[Int]].right.get
+      }
+
+      ack.id shouldBe "a"
+      ack.before.get.someArray shouldBe List(1, 2)
+      ack.after.get.someArray shouldBe List(1, 2, 3, 4)
+
+      // prove the json has been updated, though the number taken and subscriptions themselves are the same
+      newState.subscriptionsById("b") shouldBe initialState.subscriptionsById("b")
+      val (updated, 11) = newState.subscriptionsById("a")
+
+      updated.jobMatcher shouldBe JMatcher.matchNone
+      updated.submissionMatcher shouldBe JMatcher.matchNone
+      newState.subscriptionsById.keySet shouldBe Set("a", "b")
+      val updatedJson = updated.details.aboutMe
+      val ints        = updatedJson.hcursor.downField("someArray").as[List[Int]].right.get
+      ints shouldBe List(1, 2, 3, 4)
+
+    }
+    "return None if the subscription doesn't exist" in {
+
+      val initialState     = new ExchangeState()
+      val (ack, sameState) = initialState.updateSubscription("doesn't exist", WorkerDetails().append("foo", "bar"))
+      sameState shouldBe initialState
+      ack.id shouldBe "doesn't exist"
+      ack.before shouldBe empty
+      ack.after shouldBe empty
+
+    }
+  }
+
+  "ExchangeState.subscribe" should {
+    "replace existing subscriptions when given the same id" in {
+      val original        = WorkSubscription().append("name", "first").append("removed", false).withSubscriptionKey("static key")
+      val initialState    = new ExchangeState(subscriptionsById = Map("static key" -> (original, 1)))
+      val newSubscription = WorkSubscription().append("name", "updated name").withSubscriptionKey("static key")
+
+      // call the method under test
+      val (ack, newState) = initialState.subscribe(newSubscription)
+
+      ack.id shouldBe "static key"
+      newState.subscriptionsById.keySet shouldBe Set("static key")
+      val (backAgain, 1) = newState.subscriptionsById("static key")
+      backAgain.details.name shouldBe Some("updated name")
+      backAgain.details.subscriptionKey shouldBe Some("static key")
+      backAgain.details.aboutMe.hcursor.downField("removed").failed shouldBe true
+    }
+  }
 
   "ExchangeState.cancel" should {
     "cancel known subscriptions" in {
@@ -27,7 +88,7 @@ class ExchangeStateTest extends WordSpec with Matchers {
 
       newState.subscriptionsById.keySet shouldBe Set("a")
       newState.compositeSubscriptionsById shouldBe empty
-      ack.canceledSubscriptions shouldBe Map("b" -> true)
+      ack.canceledSubscriptions shouldBe Map("b" -> true, "a and b" -> true)
     }
     "cancel composite subscriptions" in {
 
@@ -44,11 +105,52 @@ class ExchangeStateTest extends WordSpec with Matchers {
     }
   }
 
+  "ExchangeState.pending" should {
+    "return the minimum of all constituent subscriptions for composite subscriptions" in {
+      val subscriptions = newSubscriptions("B", "C").updated("A", (newSubscription("A"), 2))
+      val comp          = Map("A and B" -> Compose(WorkSubscription(), Set("A", "B")))
+      val state         = new ExchangeState(subscriptionsById = subscriptions, compositeSubscriptionsById = comp)
+      state.pending("A and B") shouldBe 1
+    }
+  }
   "ExchangeState.request" should {
+    "request additional entries from subscriptions" in {
+      val subscriptions = newSubscriptions("A", "B", "C")
+      val comp          = Map("A and B" -> Compose(WorkSubscription(), Set("A", "B")))
+      val state         = new ExchangeState(subscriptionsById = subscriptions, compositeSubscriptionsById = comp)
+      // verify initial state preconditions
+      state.pending("A") shouldBe 1
+      state.pending("B") shouldBe 1
+      state.pending("C") shouldBe 1
+      state.pending("A and B") shouldBe 1
+
+      // call the method under test
+      val Success((ack, aWithOneMore)) = state.request("A", 1)
+
+      ack.updated shouldBe Map("A" -> RequestWorkUpdate(1, 2))
+      state.pending("A") shouldBe 1
+      aWithOneMore.pending("A") shouldBe 2
+      aWithOneMore.pending("B") shouldBe 1
+      aWithOneMore.pending("C") shouldBe 1
+      aWithOneMore.pending("A and B") shouldBe 1
+    }
     "request additional entries from all constituent subscriptions when a composite subscription is specified" in {
-      val subscriptions = newSubscriptions("A", "B")
-      val state         = new ExchangeState(subscriptionsById = subscriptions, compositeSubscriptionsById = Map.empty, jobsById = jobs)
-      ???
+      val subscriptions = newSubscriptions("A", "B", "C")
+      val comp          = Map("A and B" -> Compose(WorkSubscription(), Set("A", "B")))
+      val state         = new ExchangeState(subscriptionsById = subscriptions, compositeSubscriptionsById = comp)
+      // verify initial state preconditions
+      state.pending("A") shouldBe 1
+      state.pending("B") shouldBe 1
+      state.pending("C") shouldBe 1
+      state.pending("A and B") shouldBe 1
+
+      // call the method under test
+      val Success((ack, newState)) = state.request("A and B", 2)
+      ack.updated shouldBe Map("A" -> RequestWorkUpdate(1, 3), "B" -> RequestWorkUpdate(1, 3))
+      newState.pending("A") shouldBe 3
+      newState.pending("B") shouldBe 3
+      newState.pending("C") shouldBe 1
+      newState.pending("A and B") shouldBe 3
     }
   }
   "ExchangeState.matches" should {
@@ -195,8 +297,9 @@ class ExchangeStateTest extends WordSpec with Matchers {
   }
 
   def newSubscription(name: String) = WorkSubscription().append("name", name)
-  def newSubscriptions(first: String, theRest: String*) = {
+
+  def newSubscriptions(first: String, theRest: String*): Map[String, (WorkSubscription, Int)] = {
     val ids = theRest.toSet + first
-    ids.map(id => (id, newSubscription(id))).toMap
+    ids.map(id => (id, (newSubscription(id), 1))).toMap
   }
 }

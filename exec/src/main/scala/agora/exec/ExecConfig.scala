@@ -12,9 +12,41 @@ import agora.rest.worker.WorkerConfig
 import agora.rest.{RunningService, configForArgs}
 import com.typesafe.config.{Config, ConfigFactory}
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
+/**
+  * Represents a worker configuration which can execute requests
+  *
+  * @param execConfig
+  */
 class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
+
+
+  /** Convenience method for starting an exec service.
+    * Though this may seem oddly placed on a configuration, a service and its configuration
+    * are tightly coupled, so whether you do :
+    * {{{
+    *   Service(config)
+    * }}}
+    * or
+    * {{{
+    *   config.newService
+    * }}}
+    * either should be arbitrary. And by doing it this way, hopefully the readability will be better from
+    * the point of
+    *
+    * {{{
+    * userArgs => config => started/running service
+    * }}}
+    *
+    * @return a Future of a [[RunningService]]
+    */
+  def start(): Future[RunningService[ExecConfig, ExecutionRoutes]] = {
+    val execSys = ExecSystem(this)
+    val restRoutes = execSys.routes
+    RunningService.start[ExecConfig, ExecutionRoutes](this, restRoutes, execSys.executionRoutes)
+  }
 
   override def withFallback(fallback: Config): ExecConfig = new ExecConfig(config.withFallback(fallback))
 
@@ -46,22 +78,20 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
   def newRunner(proc: RunProcess, matchDetails: Option[MatchDetails], jobId: JobId): LocalRunner = {
     import serverImplicits._
     require(system.whenTerminated.isCompleted == false, "Actor system is terminated")
-    ProcessRunner(workDir = workingDirectory.dir(jobId), newLogger(_, jobId, matchDetails))
+    val wd = {
+      val baseDir = uploads.dir(jobId)
+      proc.workspace.fold(baseDir) { workspace =>
+        baseDir.map(_.resolve(workspace))
+      }
+    }
+    new LocalRunner(workDir = wd) {
+      override def mkLogger(proc: RunProcess) = {
+        newLogger(proc, jobId, matchDetails)
+      }
+    }
   }
-
-  /**
-    * @return a handler which will operate on the work requests coming from an exchange ...
-    *         or at least from a client who was redirected to us via the exchange
-    */
-  lazy val handler: ExecutionHandler = ExecutionHandler(this)
 
   override def landingPage = "ui/run.html"
-
-  def start() = {
-    val execSys    = ExecSystem(this)
-    val restRoutes = execSys.routes
-    RunningService.start[ExecConfig, ExecutionRoutes](this, restRoutes, execSys.executionRoutes)
-  }
 
   lazy val logs = PathConfig(execConfig.getConfig("logs").ensuring(!_.isEmpty))
 
@@ -69,17 +99,7 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
 
   def uploadsDir = uploads.path.getOrElse(sys.error("Invalid configuration - no uploads directory set"))
 
-  lazy val workingDirectory = PathConfig(execConfig.getConfig("workingDirectory").ensuring(!_.isEmpty))
-
-  override def toString = execConfig.root.render()
-
   def includeConsoleAppender = execConfig.getBoolean("includeConsoleAppender")
-//
-//  def appendJobIdToLogDir: Boolean = execConfig.getBoolean("appendJobIdToLogDir")
-//
-//  def appendJobIdToWorkDir: Boolean = execConfig.getBoolean("appendJobIdToLogDir")
-//
-//  def appendJobIdToUploadDir: Boolean = execConfig.getBoolean("appendJobIdToUploadDir")
 
   def allowTruncation = execConfig.getBoolean("allowTruncation")
 
@@ -91,11 +111,11 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
 
   implicit def uploadTimeout: FiniteDuration = execConfig.getDuration("uploadTimeout", TimeUnit.MILLISECONDS).millis
 
-  def remoteRunner() = {
+  def remoteRunner(): ProcessRunner with AutoCloseable = {
     ProcessRunner(exchangeClient, defaultFrameLength, allowTruncation, replaceWorkOnFailure)
   }
 
-  //  def sessionRunner() = SessionRunner(exchangeClient, defaultFrameLength, allowTruncation)
+  override def toString = execConfig.root.render()
 }
 
 object ExecConfig {

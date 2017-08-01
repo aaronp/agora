@@ -54,8 +54,8 @@ object ExecuteOverWS extends LazyLogging {
               * load up our saved job/uploads based on the job ID
               */
             runProcess: RunProcess <- Future.successful[RunProcess](???)
-            mkLogger = execConfig.newLogger(_: RunProcess, jobId, None).add(output)
-            runner   = ProcessRunner(workDir = execConfig.workingDirectory.dir(jobId), mkLogger)
+            runner   = ProcessRunner(workDir = execConfig.workingDirectory.dir(jobId)).add(output)
+
             output <- runner.run(runProcess)
           } yield {
             output.size

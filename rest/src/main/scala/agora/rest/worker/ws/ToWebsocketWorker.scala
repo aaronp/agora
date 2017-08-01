@@ -12,7 +12,7 @@ sealed trait ToWebsocketWorker
 object ToWebsocketWorker {
 
   implicit val JsonDecoder: Decoder[ToWebsocketWorker] = {
-    (implicitly[Decoder[QueueState]]
+    (implicitly[Decoder[WSQueueState]]
       .map(x => x: ToWebsocketWorker))
       .or(implicitly[Decoder[OnJob]].map(x => x: ToWebsocketWorker))
       .or(implicitly[Decoder[OnResubmitResponse]].map(x => x: ToWebsocketWorker))
@@ -20,8 +20,8 @@ object ToWebsocketWorker {
 
   implicit object JsonEncoder extends Encoder[ToWebsocketWorker] {
     override def apply(a: ToWebsocketWorker): Json = a match {
-      case msg: QueueState         => implicitly[Encoder[QueueState]].apply(msg)
-      case msg: OnJob              => implicitly[Encoder[OnJob]].apply(msg)
+      case msg: WSQueueState => implicitly[Encoder[WSQueueState]].apply(msg)
+      case msg: OnJob => implicitly[Encoder[OnJob]].apply(msg)
       case msg: OnResubmitResponse => implicitly[Encoder[OnResubmitResponse]].apply(msg)
     }
   }
@@ -32,7 +32,7 @@ object ToWebsocketWorker {
   }
 }
 
-case class QueueState(queueState: QueueStateResponse) extends ToWebsocketWorker
+case class WSQueueState(queueState: QueueStateResponse) extends ToWebsocketWorker
 
 case class OnJob(job: SubmitJob) extends ToWebsocketWorker
 

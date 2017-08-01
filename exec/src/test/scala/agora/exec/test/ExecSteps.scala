@@ -1,9 +1,8 @@
 package agora.exec.test
 
-import agora.exec.model.RunProcess
 import agora.rest.test.TestData
+import cucumber.api.Scenario
 import cucumber.api.scala.{EN, ScalaDsl}
-import cucumber.api.{DataTable, Scenario}
 import miniraft.state.NodeId
 import org.scalatest.Matchers
 
@@ -26,14 +25,6 @@ class ExecSteps extends ScalaDsl with EN with Matchers with TestData {
 
   When("""^we kill the actor system for client (.*)$""") { (nodeId: NodeId) =>
     state = state.stopClient(nodeId)
-  }
-  When("""^client (.*) executes job (.*) with command '(.*)' and the tags$""") { (clientId: String, jobId: String, command: String, tagTable: DataTable) =>
-    val tags = tagTable.toMap.map { row =>
-      row("key") -> row("value")
-    }
-    val commands: List[String] = command.split(" ", -1).toList
-    val job                    = RunProcess(commands).withMetadata(tags.toMap)
-    state = state.executeRunProcess(clientId, jobId, job)
   }
   Before { scen: Scenario =>
     state = ExecState()

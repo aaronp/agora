@@ -52,7 +52,7 @@ trait RoutingClientTest extends agora.api.Implicits { self: BaseIntegrationTest 
         workerRequests = req.request :: workerRequests
         req.completeWithJson(Json.obj("got" -> req.request))
       }
-      val subscriptionKey = subscriptionAckFuture.futureValue.id
+      val List((subscriptionKey, _)) = subscriptionAckFuture.futureValue.updated.toList
 
       // verify the queue is as we expected
       val queue = exchangeClient.queueState().futureValue

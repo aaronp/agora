@@ -96,13 +96,7 @@ object WorkspaceClient {
       val promise = Promise[Path]()
       endpointActor ! AwaitUploads(workspaceId, fileDependencies, promise)
 
-      val fut = promise.future
-      fut.onComplete {
-        case res =>
-          println(s"$workspaceId done for $fileDependencies : $res")
-          println()
-      }
-      fut
+      promise.future
     }
   }
 

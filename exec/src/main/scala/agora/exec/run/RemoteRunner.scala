@@ -1,18 +1,22 @@
 package agora.exec.run
 
-import agora.api.exchange.RequestWork
 import agora.domain.IterableSubscriber
 import agora.exec.model.RunProcess
 import agora.exec.run.ProcessRunner.ProcessOutput
+import agora.exec.workspace.WorkspaceId
 import agora.rest.exchange.ExchangeClient
-import agora.rest.worker.WorkerClient
 import com.typesafe.scalalogging.LazyLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 
 import scala.concurrent.duration.FiniteDuration
 import scala.language.{implicitConversions, reflectiveCalls}
 
-case class RemoteRunner(exchange: ExchangeClient, defaultFrameLength: Int, allowTruncation: Boolean, requestWorkOnFailure: Boolean)(implicit uploadTimeout: FiniteDuration)
+case class RemoteRunner(exchange: ExchangeClient,
+                        workspaceIdOpt : Option[WorkspaceId],
+                        fileDependencies : Set[String],
+                        defaultFrameLength: Int,
+                        allowTruncation: Boolean,
+                        requestWorkOnFailure: Boolean)(implicit uploadTimeout: FiniteDuration)
     extends ProcessRunner
     with AutoCloseable
     with FailFastCirceSupport
@@ -23,9 +27,8 @@ case class RemoteRunner(exchange: ExchangeClient, defaultFrameLength: Int, allow
     import exchange.{execContext, materializer}
     import io.circe.generic.auto._
 
-    /**
-      * @see [[agora.exec.ExecutionHandler.prepareSubscription]] which adds criteria to match jobs w/ this key/value pair
-      */
+    // ???
+    ???
     val job = proc.asJob.add("topic" -> "exec")
 
     val workerResponses = exchange.enqueue(job)

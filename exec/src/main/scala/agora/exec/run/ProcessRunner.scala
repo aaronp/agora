@@ -2,7 +2,6 @@ package agora.exec.run
 
 import java.nio.file.Path
 
-import agora.exec.log.IterableLogger
 import agora.exec.model.RunProcess
 import agora.rest.exchange.ExchangeClient
 
@@ -29,8 +28,8 @@ object ProcessRunner {
     *
     * @param workDir the working directory to run the process under
     */
-  def apply(workDir: Option[Path] = None, mkLogger: RunProcess => IterableLogger = IterableLogger.forProcess)(implicit ec: ExecutionContext): LocalRunner = {
-    LocalRunner(workDir, mkLogger)
+  def apply(workDir: Option[Path] = None)(implicit ec: ExecutionContext): LocalRunner = {
+    new LocalRunner(workDir)
   }
 
   /**

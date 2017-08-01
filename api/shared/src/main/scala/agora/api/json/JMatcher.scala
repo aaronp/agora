@@ -23,6 +23,7 @@ object JMatcher {
   def apply(jpath: JPath): JMatcher = ExistsMatcher(jpath)
 
   def matchAll: JMatcher = MatchAll
+  def matchNone: JMatcher = MatchNone
 
   implicit object JMatcherJson extends Encoder[JMatcher] with Decoder[JMatcher] {
     override def apply(jsonMatcher: JMatcher): Json = {
@@ -80,6 +81,9 @@ case class ExistsMatcher(jpath: JPath) extends JMatcher {
 
 object MatchAll extends JMatcher {
   override def matches(json: Json): Boolean = true
+}
+object MatchNone extends JMatcher {
+  override def matches(json: Json): Boolean = false
 }
 
 case class MatchOr(lhs: JMatcher, rhs: JMatcher) extends JMatcher {

@@ -39,15 +39,17 @@ object JPredicate {
     implicit def intAsJson(i: Int) = Json.fromInt(i)
 
     implicit class RichJson(field: String) {
-      private implicit def predAsJFilter(p: JPredicate): JFilter = {
-        JFilter(field, p)
-      }
+      private implicit def predAsJFilter(p: JPredicate): JFilter = JFilter(field, p)
+
+      def asJPath = JPath(field)
 
       def !(other: JPredicate): JFilter = Not(other)
 
       def =!=[J](value: J)(implicit ev: J => Json): JFilter = Not(Eq(value))
 
-      def !==[J](value: J)(implicit ev: J => Json): JFilter = Not(Eq(value))
+      def !==[J](value: J)(implicit ev: J => Json): JFilter = {
+        =!=(value)
+      }
 
       def ===[J](value: J)(implicit ev: J => Json): JFilter     = Eq(value)
       def equalTo[J](value: J)(implicit ev: J => Json): JFilter = Eq(value)
@@ -61,6 +63,13 @@ object JPredicate {
       def lte[J](value: J)(implicit ev: J => Json): JFilter = Lte(value)
 
       def ~=(regex: String): JFilter = JRegex(regex)
+
+      /** Assumes a simple json array at the given field, whose contents match each of the
+        * given json elements
+        * @param items
+        * @return
+        */
+      def includes[J](items: Set[J])(implicit ev: J => Json): JFilter = JIncludes(items.map(ev))
     }
 
   }
@@ -71,7 +80,18 @@ object JPredicate {
     override def apply(c: HCursor): Result[JPredicate] = {
       import cats.syntax.either._
 
-      c.as[And].orElse(c.as[Or]).orElse(c.as[Not]).orElse(c.as[Eq]).orElse(c.as[JRegex]).orElse(c.as[Gt]).orElse(c.as[Gte]).orElse(c.as[Lt]).orElse(c.as[Lte])
+      // format: off
+      c.as[And].
+        orElse(c.as[Or]).
+        orElse(c.as[Not]).
+        orElse(c.as[Eq]).
+        orElse(c.as[JRegex]).
+        orElse(c.as[JIncludes]).
+        orElse(c.as[Gt]).
+        orElse(c.as[Gte]).
+        orElse(c.as[Lt]).
+        orElse(c.as[Lte])
+      // format: on
     }
 
     override def apply(a: JPredicate): Json = a match {
@@ -80,6 +100,7 @@ object JPredicate {
       case p: Not    => p.asJson
       case p: Eq     => p.asJson
       case p: JRegex => p.asJson
+      case p: JIncludes => p.asJson
 
       case p: Gt  => p.asJson
       case p: Gte => p.asJson
@@ -124,6 +145,14 @@ case class JRegex(regex: String) extends JPredicate {
   private val pattern = regex.r
 
   override def matches(json: Json) = json.asString.exists(v => pattern.findFirstIn(v).isDefined)
+
+  override def json: Json = this.asJson
+}
+case class JIncludes(elements: Set[Json]) extends JPredicate {
+
+  def contains(array : Vector[Json]) : Boolean = elements.forall(array.contains)
+
+  override def matches(json: Json) = json.asArray.exists(contains)
 
   override def json: Json = this.asJson
 }

@@ -16,10 +16,10 @@ sealed trait ClientRequest
 sealed trait ClientResponse
 
 /**
-  * Queries the exchange for a fiew of the pending jobs and subscriptions
+  * Queries the exchange for a view of the pending jobs and subscriptions
   *
   * @param workerSubscriptionMatcher         the same as what a SubmitJob matcher would be, used to match work subscriptions
-  * @param submitJobMatcher                  the same as a subscription matcher would be, used to match submitted job requsts
+  * @param submitJobMatcher                  the same as a subscription matcher would be, used to match submitted job requests
   * @param submitJobSubmissionDetailsMatcher also as per a subscription matcher, this time matching the submissionDetails
   */
 case class QueueState(workerSubscriptionMatcher: JMatcher = JMatcher.matchAll,
@@ -209,7 +209,6 @@ case class WorkSubscription(details: WorkerDetails = WorkerDetails(), jobMatcher
   def withDetails(f: WorkerDetails => WorkerDetails) = {
     copy(details = f(details))
   }
-
 }
 
 object WorkSubscription {
@@ -223,6 +222,11 @@ object WorkSubscriptionAck {
   implicit val encoder = exportEncoder[WorkSubscriptionAck].instance
   implicit val decoder = exportDecoder[WorkSubscriptionAck].instance
 }
+
+
+case class UpdateWorkSubscription(id : SubscriptionKey, details: WorkerDetails) extends SubscriptionRequest
+case class UpdateWorkSubscriptionAck(id : SubscriptionKey, before: Option[WorkerDetails], after: Option[WorkerDetails]) extends SubscriptionResponse
+
 
 case class RequestWork(id: SubscriptionKey, itemsRequested: Int) extends SubscriptionRequest {
   require(itemsRequested > 0)
@@ -239,6 +243,11 @@ object RequestWork {
 case class RequestWorkUpdate(previousItemsPending: Int, totalItemsPending: Int) extends SubscriptionResponse
 
 case class RequestWorkAck(updated: Map[SubscriptionKey, RequestWorkUpdate]) extends SubscriptionResponse {
+  private[exchange] def withNewTotal(id: SubscriptionKey, remaining: Int) = {
+    val newUpdate = updated(id).copy(totalItemsPending = remaining)
+    copy(updated = updated.updated(id, newUpdate))
+  }
+
 
   /** @return true if a subscription previously had 0 pending subscriptions
     */
@@ -252,4 +261,6 @@ case class RequestWorkAck(updated: Map[SubscriptionKey, RequestWorkUpdate]) exte
 object RequestWorkAck {
   implicit val encoder = exportEncoder[RequestWorkAck].instance
   implicit val decoder = exportDecoder[RequestWorkAck].instance
+
+  def apply(id : SubscriptionKey, requested : Int) : RequestWorkAck = new RequestWorkAck(Map(id -> RequestWorkUpdate(0, requested)))
 }

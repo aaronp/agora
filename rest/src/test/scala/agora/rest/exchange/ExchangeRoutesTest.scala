@@ -71,9 +71,9 @@ class ExchangeRoutesTest extends BaseRoutesSpec {
 
       // now pull the job
       ExchangeHttp(RequestWork(subscription, 2)) ~> route.routes ~> check {
-        val resp = responseAs[RequestWorkAck]
-        resp.id shouldBe subscription
-        resp.totalItemsPending shouldBe 2
+        val List((subsctriptionId, updates)) = responseAs[RequestWorkAck].updated.toList
+        subsctriptionId shouldBe subscription
+        updates.totalItemsPending shouldBe 2
       }
 
       // now push the job

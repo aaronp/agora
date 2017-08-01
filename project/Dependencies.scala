@@ -22,15 +22,11 @@ object Dependencies {
   } :+ ("de.heikoseeberger" %% "akka-http-circe" % "1.17.0")
 
   val pprint = "com.lihaoyi" %% "pprint" % "0.5.2"
-
   val streamsTck = "org.reactivestreams" % "reactive-streams-tck" % "1.0.0" % "test"
-
   val betterFiles = "com.github.pathikrit" %% "better-files" % "2.17.1"
+  val swagger = "com.github.swagger-akka-http" %% "swagger-akka-http" % "0.10.0"
 
   val Api = logging ++ testDependencies ++ circe
-
-  val Rest = Api ++ akkaHttp ++ cucumber ++ List(streamsTck, pprint, betterFiles)
-
+  val Rest = Api ++ akkaHttp ++ cucumber ++ List(streamsTck, pprint, betterFiles) //, swagger)
   val UI = Api
-
 }

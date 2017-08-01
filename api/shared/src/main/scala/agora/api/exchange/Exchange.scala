@@ -14,9 +14,9 @@ import scala.util.{Failure, Success, Try}
 trait Exchange {
 
   def onClientRequest(request: ClientRequest): Future[ClientResponse] = request match {
-    case req: SubmitJob           => submit(req)
-    case req: QueueState          => queueState(req)
-    case req: CancelJobs          => cancelJobs(req)
+    case req: SubmitJob => submit(req)
+    case req: QueueState => queueState(req)
+    case req: CancelJobs => cancelJobs(req)
     case req: CancelSubscriptions => cancelSubscriptions(req)
   }
 
@@ -70,8 +70,9 @@ trait Exchange {
   def onSubscriptionRequest(req: SubscriptionRequest): Future[SubscriptionResponse] = {
     req match {
       case msg: WorkSubscription => subscribe(msg)
-      case msg: RequestWork      => take(msg)
-      case msg: Compose          => compose(msg)
+      case msg: RequestWork => take(msg)
+      case msg: UpdateWorkSubscription => updateSubscription(msg)
+      case msg: Compose => compose(msg)
     }
   }
 
@@ -90,13 +91,23 @@ trait Exchange {
   def compose(compose: Compose): Future[WorkSubscriptionAck] = onSubscriptionRequest(compose).mapTo[WorkSubscriptionAck]
 
   /**
-    * Creates a new [[WorkSubscription]], whos returned [[WorkSubscriptionAck]] key can be used to pull work items
+    * Creates a new [[WorkSubscription]], whose returned [[WorkSubscriptionAck]] key can be used to pull work items
     * from the exchange.
+    *
+    * If the request specifies a subscription key then any existing subscription with the given id will be replaced.
+    * If no subscription key is supplied, then a new one will be generated and provided on the ack.
     *
     * @param request the work subscription
     * @return an ack containing the key needed to request work items
     */
   def subscribe(request: WorkSubscription) = onSubscriptionRequest(request).mapTo[WorkSubscriptionAck]
+
+  /**
+    * Appends the given work details to the existing subscription
+    * @param request
+    * @return
+    */
+  def updateSubscription(request: UpdateWorkSubscription) = onSubscriptionRequest(request).mapTo[UpdateWorkSubscriptionAck]
 
   /** @param request the number of work items to request
     * @return an ack which contains the current known total items requested
@@ -145,6 +156,12 @@ object Exchange {
       Future.successful(ack)
     }
 
+    override def updateSubscription(request: UpdateWorkSubscription) = {
+      val (ack, newState) = state.updateSubscription(request.id, request.details)
+      state = newState
+      Future.successful(ack)
+    }
+
     override def take(request: RequestWork) = {
       val tri = state.request(request.id, request.itemsRequested)
       val ackTry: Try[RequestWorkAck] = tri.map {
@@ -152,11 +169,15 @@ object Exchange {
           state = newState
           // if there weren't any jobs previously, then we may be able to take some work
           if (ack.isUpdatedFromEmpty) {
-            checkForMatches
+
+            val matches = checkForMatches()
+            matches.flatMap(_.chosen).foldLeft(ack) {
+              case (ack, chosen) => ack.withNewTotal(chosen.subscriptionKey, chosen.remaining)
+            }
           } else {
             logger.debug(s"Not triggering match for subscriptions increase on [${request.id}]")
+            ack
           }
-          ack
       }
       Future.fromTry(ackTry)
     }
@@ -180,7 +201,7 @@ object Exchange {
     /**
       * Checks the jobs against the work subscriptions for matches using
       */
-    def checkForMatches(): Unit = {
+    private def checkForMatches(): List[MatchNotification] = {
 
       val (notifications, newState) = state.matches
       state = newState
@@ -190,6 +211,7 @@ object Exchange {
           logger.debug(s"Triggering match between $job and $chosen")
           onMatch((job, chosen))
       }
+      notifications
     }
 
     override def cancelJobs(request: CancelJobs): Future[CancelJobsResponse] = {

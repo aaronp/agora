@@ -23,8 +23,32 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
     )
   }
 
-  def pending(key: SubscriptionKey): Int = {
-    subscriptionsById.get(key).map(_._2).getOrElse(0)
+  def updateSubscription(id: SubscriptionKey, details: WorkerDetails) = {
+    subscriptionsById.get(id) match {
+      case Some((subscription, n)) =>
+        val before          = Option(subscription.details)
+        val newSubscription = subscription.append(details.aboutMe)
+        val newState        = copy(subscriptionsById = subscriptionsById.updated(id, (newSubscription, n)))
+        val after           = Option(newSubscription.details)
+        UpdateWorkSubscriptionAck(id, before, after) -> newState
+      case None =>
+        UpdateWorkSubscriptionAck(id, None, None) -> this
+    }
+  }
+
+  private def compositePending(key: SubscriptionKey): Option[Int] = {
+    resolvedCompositeSubscriptionsById.get(key).map {
+      case (_, keys) =>
+        val pendingCounts = keys.flatMap(subscriptionsById.get).map(_._2)
+        if (pendingCounts.isEmpty) 0 else pendingCounts.min
+    }
+  }
+
+  /** @param key the subscription key
+    * @return the number of work items pending for the given subscription, or 0 if the subscription is unknown
+    */
+  private[exchange] def pending(key: SubscriptionKey): Int = {
+    subscriptionsById.get(key).map(_._2).orElse(compositePending(key)).getOrElse(0)
   }
 
   lazy val subscriptionKeys = subscriptionsById.keySet ++ compositeSubscriptionsById.keySet
@@ -134,21 +158,33 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
     CancelJobsResponse(cancelled.toMap) -> copy(jobsById = newJobsById)
   }
 
-  def containsSubscription(id: SubscriptionKey) = compositeSubscriptionsById.contains(id) || subscriptionsById.contains(id)
+  private def containsSubscription(id: SubscriptionKey) = compositeSubscriptionsById.contains(id) || subscriptionsById.contains(id)
 
-  def cancelSubscriptions(ids: Set[SubscriptionKey]) = {
-    val cancelled = ids.map { id =>
-      id -> containsSubscription(id)
-    }
+  /** cancels the subscription IDs.
+    * If the id is a composite ID then that composite subscription alone is cancelled, not the constituent subscriptions.
+    *
+    * Any composite subscriptions referring to the cancelled subscription are also cancelled, however.
+    *
+    * @param ids the subscription IDs to cancel
+    * @return a cancelled response and updated state
+    */
+  def cancelSubscriptions(ids: Set[SubscriptionKey]): (CancelSubscriptionsResponse, ExchangeState) = {
 
     val compositeIdsToCancel = resolvedCompositeSubscriptionsById.collect {
-      case (id, (_, subscriptionIds)) if subscriptionIds.exists(ids.contains) => id
+      case (compId, (_, subscriptionIds)) if subscriptionIds.exists(ids.contains) => compId
     }
 
     val newSubscriptionsById     = subscriptionsById -- ids
     val newCompositeSubscription = (compositeSubscriptionsById -- ids) -- compositeIdsToCancel
     val newState                 = copy(subscriptionsById = newSubscriptionsById, compositeSubscriptionsById = newCompositeSubscription)
 
+    val cancelled = (compositeIdsToCancel ++ ids).map { id =>
+      val usedToContain = containsSubscription(id)
+      if (usedToContain) {
+        require(!newState.containsSubscription(id), s"$id wasn't actually cancelled")
+      }
+      id -> usedToContain
+    }
     CancelSubscriptionsResponse(cancelled.toMap) -> newState
   }
 
@@ -175,7 +211,8 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
         key -> newSubscription
     }
 
-    val newSubscriptionsById = subscriptionsById.updated(id, subscription -> 0)
+    val requested            = subscriptionsById.get(id).map(_._2).getOrElse(0)
+    val newSubscriptionsById = subscriptionsById.updated(id, subscription -> requested)
     val newState             = copy(subscriptionsById = newSubscriptionsById)
     WorkSubscriptionAck(id) -> newState
   }
@@ -230,12 +267,12 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
   /**
     * A request for 'n' work items from a composite subscription results in n work items requested for the underlying
     * subscriptions
+    *
     * @param id the composite subscription id
-    * @param n the number of work items to request
+    * @param n  the number of work items to request
     * @return failure if the id isn't a composite subscription, success with an ack/ updated state when it is
     */
   private def requestComposite(id: SubscriptionKey, n: Int): Try[(RequestWorkAck, ExchangeState)] = {
-    require(n >= 0)
     resolvedCompositeSubscriptionsById.get(id) match {
       case None =>
         Failure(new Exception(s"subscription '$id' doesn't exist. Known ${subscriptionsById.size} subscriptions are: ${subscriptionKeys.mkString(",")}"))
@@ -260,7 +297,7 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
       case None => requestComposite(id, n)
       case Some((_, before)) =>
         val newState = updatePending(id, before + n)
-        Success(RequestWorkAck(Map(id -> RequestWorkUpdate(before, pending(id)))) -> newState)
+        Success(RequestWorkAck(Map(id -> RequestWorkUpdate(before, newState.pending(id)))) -> newState)
     }
   }
 }

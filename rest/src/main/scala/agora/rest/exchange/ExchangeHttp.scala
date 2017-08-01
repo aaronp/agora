@@ -32,6 +32,8 @@ object ExchangeHttp extends CommonRequestBuilding {
 
   def apply(request: WorkSubscription): HttpRequest = put("subscribe", request.asJson)
 
+  def apply(request: UpdateWorkSubscription): HttpRequest = post("update", request.asJson)
+
   def apply(request: RequestWork): HttpRequest = post("take", request.asJson)
 
   private def put(path: String, json: Json): HttpRequest = {

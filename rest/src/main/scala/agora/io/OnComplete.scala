@@ -35,7 +35,6 @@ class OnComplete[In, Out](upstreamCallback: Option[Throwable] => Unit, downstrea
         new InHandler {
           override def onPush(): Unit = {
             val elm = grab(in)
-            println(s"input pushing $elm")
             push(out.as[Any], elm)
           }
 
@@ -55,11 +54,7 @@ class OnComplete[In, Out](upstreamCallback: Option[Throwable] => Unit, downstrea
         new OutHandler {
           override def onPull(): Unit = {
             if (!hasBeenPulled(in)) {
-              println("out Pulling...")
               pull(in)
-            } else {
-              println(s"$in has already been pulled")
-
             }
           }
 

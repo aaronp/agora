@@ -8,11 +8,15 @@ object JPath {
 
   def apply(first : JPart, parts: JPart*): JPath = JPath(first :: parts.toList)
 
-  def apply(first : String, parts: String*): JPath = JPath((first +: parts).map {
+  def apply(only: String): JPath = forParts(only.split("\\.", -1).map(_.trim).filterNot(_.isEmpty).toList)
+
+  def apply(first : String, second : String, parts: String*): JPath = forParts(first :: second :: parts.toList)
+
+  def forParts(parts: List[String]): JPath = JPath(parts.map {
     case IntR(i) => JPos(i.toInt)
     case ValueR(f, v) => f === Json.fromString(v)
     case name => JField(name)
-  }.toList)
+  })
 
   def fromJson(jsonString: String): JPath = {
 
@@ -67,6 +71,7 @@ case class JPath(parts: List[JPart]) {
 
   def ++(other : JPath) = copy(parts = parts ++ other.parts)
   def +:(other : JPart) = copy(parts = other +: parts)
+  def :+(other : JPart) = copy(parts = parts :+ other)
 
   def json: Json = {
     new EncoderOps(this).asJson

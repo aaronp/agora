@@ -2,7 +2,7 @@ package agora.exec
 
 import agora.api.exchange.MatchObserver
 import agora.exec.model.RunProcess
-import agora.exec.rest.ExecutionRoutes
+import agora.exec.rest.{ExecutionHandler, ExecutionRoutes}
 import agora.rest.exchange.ExchangeRoutes
 import agora.rest.worker.WorkerRoutes
 import akka.http.scaladsl.unmarshalling.FromRequestUnmarshaller
@@ -25,17 +25,14 @@ case class ExecSystem(conf: ExecConfig) extends FailFastCirceSupport {
     (exchangeClient, None)
   }
 
-  // create something to actually process jobs
-  val handler = ExecutionHandler(conf)
-
   // create a worker to subscribe to the exchange
   lazy val workerRoutes: WorkerRoutes = {
     val wr = newWorkerRoutes(exchange)
 
-    // add the normal handler
-    val execSubscription = ExecutionHandler.prepareSubscription(subscription)
-    import io.circe.generic.auto._
-    wr.addHandler(handler.onExecute)(execSubscription, initialRequest, implicitly[FromRequestUnmarshaller[RunProcess]])
+//    // add the normal handler
+//    val execSubscription = ExecutionHandler.prepareSubscription(subscription)
+//    import io.circe.generic.auto._
+//    wr.addHandler(handler.onExecute)(execSubscription, initialRequest, implicitly[FromRequestUnmarshaller[RunProcess]])
 
     wr
   }

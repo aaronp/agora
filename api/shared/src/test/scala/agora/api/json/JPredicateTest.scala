@@ -1,14 +1,12 @@
 package agora.api.json
 
-import io.circe.{Decoder, Json}
-import org.scalatest.{FunSuite, Matchers, WordSpec}
+import org.scalatest.{Matchers, WordSpec}
 
 class JPredicateTest extends WordSpec with Matchers {
 
-  import io.circe.syntax._
-  import io.circe.generic.auto._
-  import JPredicate.implicits._
   import JPredicate._
+  import JPredicate.implicits._
+  import io.circe.syntax._
 
   Seq[JPredicate](
     Eq("foo"),
@@ -26,6 +24,39 @@ class JPredicateTest extends WordSpec with Matchers {
         val Right(backAgain) = pred.asJson.as[JPredicate]
         backAgain shouldBe pred
       }
+    }
+  }
+
+  "json includes" should {
+
+    def jsonList(theRest: String*) = Map("list" -> theRest.toList).asJson
+
+    "match nested lists" in {
+
+      val path = "nested".asJPath :+ "array".includes(Set("first", "last"))
+      println(path)
+      path.asMatcher.matches(Map("nested" -> Map("array" -> List("first", "middle", "last"))).asJson) shouldBe true
+      path.asMatcher.matches(Map("nested" -> Map("array" -> List("middle", "last"))).asJson) shouldBe false
+      path.asMatcher.matches(Map("differentRoot" -> Map("array" -> List("first", "middle", "last"))).asJson) shouldBe false
+    }
+
+    "match json which includes the given elements" in {
+      val matcher = "list".includes(Set("first", "last")).asMatcher
+      matcher.matches(jsonList("first", "middle", "last")) shouldBe true
+      matcher.matches(jsonList("", "last", "first", "middle")) shouldBe true
+      matcher.matches(jsonList()) shouldBe false
+      matcher.matches(jsonList("first", "middle")) shouldBe false
+    }
+    "match numeric elements" in {
+      "list".includes(Set(4, 5, 6)).asMatcher.matches(Map("list" -> List(3, 4, 5, 6, 7)).asJson) shouldBe true
+    }
+    "return false when the element doesn't exist" in {
+      "list".includes(Set(1)).asMatcher.matches(Map("different" -> List(1)).asJson) shouldBe false
+    }
+    "return true for any list when given an empty list" in {
+      "list".includes(Set.empty).asMatcher.matches(jsonList("first", "middle", "last")) shouldBe true
+      "list".includes(Set.empty).asMatcher.matches(jsonList()) shouldBe true
+      "list".includes(Set.empty).asMatcher.matches(Map("list" -> Map("actuallyAnObj" -> 123)).asJson) shouldBe false
     }
   }
 }

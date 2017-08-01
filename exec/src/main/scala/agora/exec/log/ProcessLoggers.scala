@@ -1,9 +1,9 @@
 package agora.exec.log
 
-import com.typesafe.scalalogging.LazyLogging
 import agora.api.`match`.MatchDetails
 import agora.domain.TryIterator
 import agora.exec.model.{ProcessException, RunProcess}
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.Future
 import scala.sys.process.ProcessLogger
@@ -27,17 +27,18 @@ class ProcessLoggers(val proc: RunProcess, override val matchDetails: Option[Mat
 
   private val stdOutLog = StreamLogger.forProcess {
     case Success(n) if proc.successExitCodes.contains(n) => Stream.empty
-    case failure                                         => onIterError(failure)
+    case failure => onIterError(failure)
   }
 
   private var splitLogger: SplitLogger = SplitLogger(JustStdOut(stdOutLog), JustStdErr(limitedErrorLog))
 
   override def exitCodeFuture: Future[Int] = stdOutLog.exitCode
 
+  def stdErr = stdErrLog.iterator.toList
+
   private def onIterError(failure: Try[Int]) = {
     stdErrLog.complete(failure)
-    val stdErr = stdErrLog.iterator.toList
-    val json   = ProcessException(proc, failure, None, stdErr).json.spaces2.lines.toStream
+    val json = ProcessException(proc, failure, None, stdErr).json.spaces2.lines.toStream
     proc.errorMarker #:: json
   }
 
@@ -64,5 +65,11 @@ class ProcessLoggers(val proc: RunProcess, override val matchDetails: Option[Mat
 
   override def buffer[T](f: => T): T = f
 
-  override def complete(exception: Throwable): Unit = splitLogger.complete(exception)
+  override def complete(exception: Throwable): Unit = {
+//    val processExp = exception match {
+//      case pe: ProcessException => pe
+//      case other => ProcessException(proc, Failure(other), None, stdErr)
+//    }
+    splitLogger.complete(exception)
+  }
 }

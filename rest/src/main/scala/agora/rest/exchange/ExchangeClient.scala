@@ -1,13 +1,14 @@
 package agora.rest.exchange
 
-import com.typesafe.scalalogging.StrictLogging
-import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import agora.api.`match`.MatchDetails
 import agora.api.exchange._
-import agora.api.worker.{HostLocation, SubscriptionKey, WorkerDetails}
+import agora.api.worker.{HostLocation, WorkerDetails}
 import agora.rest.client.{RestClient, RetryClient}
 import agora.rest.exchange.ExchangeClient._
 import agora.rest.worker.WorkerClient
+import com.typesafe.scalalogging.StrictLogging
+import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
+import io.circe.generic.auto._
 
 import scala.concurrent.Future
 
@@ -78,6 +79,12 @@ class ExchangeClient(val rest: RestClient, mkWorker: HostLocation => Dispatch)
     }
   }
 
+  override def updateSubscription(request: UpdateWorkSubscription): Future[UpdateWorkSubscriptionAck] = {
+    rest.send(ExchangeHttp(request)).flatMap { exchangeResp =>
+      exchangeResp.as[UpdateWorkSubscriptionAck](retryOnError(updateSubscription(request)))
+    }
+  }
+
   override def take(request: RequestWork): Future[RequestWorkAck] = {
     rest.send(ExchangeHttp(request)).flatMap(_.as[RequestWorkAck](retryOnError(take(request))))
   }
@@ -99,12 +106,10 @@ class ExchangeClient(val rest: RestClient, mkWorker: HostLocation => Dispatch)
   override def close(): Unit = rest.close()
 
   override def cancelJobs(request: CancelJobs): Future[CancelJobsResponse] = {
-    import io.circe.generic.auto._
     rest.send(ExchangeHttp(request)).flatMap(_.as[CancelJobsResponse](retryOnError(cancelJobs(request))))
   }
 
   override def cancelSubscriptions(request: CancelSubscriptions): Future[CancelSubscriptionsResponse] = {
-    import io.circe.generic.auto._
     rest.send(ExchangeHttp(request)).flatMap(_.as[CancelSubscriptionsResponse](retryOnError(cancelSubscriptions(request))))
   }
 }

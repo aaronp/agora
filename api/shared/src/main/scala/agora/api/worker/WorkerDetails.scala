@@ -3,6 +3,7 @@ package agora.api.worker
 import agora.api.User
 import agora.api.json.JsonAppendable
 import io.circe.Decoder.Result
+import io.circe.Json.fromJsonObject
 import io.circe._
 import io.circe.optics.JsonPath
 
@@ -26,7 +27,7 @@ case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
     append(Json.obj(name -> json))
   }
 
-  def append(data: Json): WorkerDetails = copy(aboutMe.deepMerge(data))
+  def append(data: Json): WorkerDetails = copy(WorkerDetails.deepMergeWithArrayConcat(aboutMe, data))
 
   import WorkerDetails._
 
@@ -92,6 +93,29 @@ object WorkerDetails {
   val keyPath        = root.id.string
   val runUserPath    = root.runUser.string
 
+
+  def deepMergeWithArrayConcat(from :Json, that: Json): Json =
+    (from.asObject, that.asObject) match {
+      case (Some(lhs), Some(rhs)) =>
+        fromJsonObject(
+          lhs.toList.foldLeft(rhs) {
+            case (acc, (key, value)) =>
+              val concatenatedOpt: Option[JsonObject ] = for {
+                leftArray <- value.asArray
+                rightArray <- rhs(key).flatMap(_.asArray)
+              } yield {
+                val arr = Json.fromValues(leftArray ++ rightArray)
+                acc.add(key, arr)
+              }
+
+              def fallback = rhs(key).fold(acc.add(key, value)) { r => acc.add(key, value.deepMerge(r)) }
+
+              concatenatedOpt.getOrElse(fallback)
+          }
+
+        )
+      case _ => that
+    }
   /**
     * TODO - move the typesafe config as part of the jvn dependency so that we can pull the worker config
     * in here. As it currently stands, we have to duplicate these fields in this weird way instead of
