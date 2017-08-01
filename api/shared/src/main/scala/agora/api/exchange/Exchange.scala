@@ -116,7 +116,7 @@ object Exchange {
     * @param matcher the match logic used to pair work with subscriptions
     * @return a new Exchange instance
     */
-  def apply(onMatch: OnMatch)(implicit matcher: JobPredicate): Exchange = new InMemory(new ExchangeState(), onMatch)
+  def apply(onMatch: OnMatch)(implicit matcher: JobPredicate): Exchange = new Instance(new ExchangeState(), onMatch)
 
   def instance(): Exchange = apply(MatchObserver())(JobPredicate())
 
@@ -130,7 +130,7 @@ object Exchange {
     * @param onMatch
     * @param matcher
     */
-  class InMemory(initialState: ExchangeState, onMatch: OnMatch)(implicit matcher: JobPredicate) extends Exchange with StrictLogging {
+  class Instance(initialState: ExchangeState, onMatch: OnMatch)(implicit matcher: JobPredicate) extends Exchange with StrictLogging {
 
     private var state = initialState
 
@@ -201,7 +201,7 @@ object Exchange {
     }
 
     override def cancelSubscriptions(request: CancelSubscriptions): Future[CancelSubscriptionsResponse] = {
-      val (resp, newState) = state.cancelSubscriptions(request)
+      val (resp, newState) = state.cancelSubscriptions(request.ids)
       state = newState
       Future.successful(resp)
     }

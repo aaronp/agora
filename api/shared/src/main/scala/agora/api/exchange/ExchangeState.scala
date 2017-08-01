@@ -133,12 +133,21 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
     CancelJobsResponse(cancelled.toMap) -> copy(jobsById = newJobsById)
   }
 
-  def cancelSubscriptions(request: CancelSubscriptions) = {
-    val cancelled = request.ids.map { id =>
-      id -> subscriptionsById.contains(id)
+  def containsSubscription(id: SubscriptionKey) = compositeSubscriptionsById.contains(id) || subscriptionsById.contains(id)
+  def cancelSubscriptions(ids: Set[SubscriptionKey]) = {
+    val cancelled = ids.map { id =>
+      id -> containsSubscription(id)
     }
-    val newSubscriptionsById = subscriptionsById -- request.ids
-    CancelSubscriptionsResponse(cancelled.toMap) -> copy(subscriptionsById = newSubscriptionsById)
+
+    val compositeIdsToCancel = resolvedCompositeSubscriptionsById.collect {
+      case (id, (_, subscriptionIds)) if subscriptionIds.exists(ids.contains) => id
+    }
+
+    val newSubscriptionsById     = subscriptionsById -- ids
+    val newCompositeSubscription = (compositeSubscriptionsById -- ids) -- compositeIdsToCancel
+    val newState                 = copy(subscriptionsById = newSubscriptionsById, compositeSubscriptionsById = newCompositeSubscription)
+
+    CancelSubscriptionsResponse(cancelled.toMap) -> newState
   }
 
   def queueState(request: QueueState): QueueStateResponse = {

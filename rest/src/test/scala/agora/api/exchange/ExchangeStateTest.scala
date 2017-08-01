@@ -6,18 +6,46 @@ import org.scalatest.{Matchers, WordSpec}
 
 class ExchangeStateTest extends WordSpec with Matchers {
 
-  "ExchangeState.cancel" ignore {
+  "ExchangeState.cancel" should {
     "cancel known subscriptions" in {
-      ???
+      val state           = new ExchangeState(subscriptionsById = Map("a" -> (WorkSubscription(), 1), "b" -> (WorkSubscription(), 1)))
+      val (ack, newState) = state.cancelSubscriptions(Set("b", "c"))
+      state.subscriptionsById.keySet shouldBe Set("a", "b")
+      newState.subscriptionsById.keySet shouldBe Set("a")
+      ack.canceledSubscriptions shouldBe Map("b" -> true, "c" -> false)
     }
     "cancel composite subscriptions which contain the cancelled subscription" in {
-      ???
 
+      val state = new ExchangeState(
+        subscriptionsById = Map("a"                -> (WorkSubscription(), 1), "b" -> (WorkSubscription(), 1)),
+        compositeSubscriptionsById = Map("a and b" -> Compose(WorkSubscription(), Set("a", "b")))
+      )
+
+      val (ack, newState) = state.cancelSubscriptions(Set("b"))
+      state.subscriptionsById.keySet shouldBe Set("a", "b")
+      state.compositeSubscriptionsById.keySet shouldBe Set("a and b")
+
+      newState.subscriptionsById.keySet shouldBe Set("a")
+      newState.compositeSubscriptionsById shouldBe empty
+      ack.canceledSubscriptions shouldBe Map("b" -> true)
+    }
+    "cancel composite subscriptions" in {
+
+      val state = new ExchangeState(
+        subscriptionsById = Map("a"                -> (WorkSubscription(), 1), "b" -> (WorkSubscription(), 1)),
+        compositeSubscriptionsById = Map("a and b" -> Compose(WorkSubscription(), Set("a", "b")))
+      )
+
+      val (ack, newState) = state.cancelSubscriptions(Set("a and b"))
+      state.subscriptionsById.keySet shouldBe Set("a", "b")
+      newState.subscriptionsById.keySet shouldBe Set("a", "b")
+      newState.compositeSubscriptionsById shouldBe empty
+      ack.canceledSubscriptions shouldBe Map("a and b" -> true)
     }
   }
 
-  "ExchangeState.request" ignore {
-    "request additional entries from all consistuent suscriptions when a composite subscription is specified" in {
+  "ExchangeState.request" should {
+    "request additional entries from all constituent subscriptions when a composite subscription is specified" in {
       ???
     }
   }
@@ -146,7 +174,7 @@ class ExchangeStateTest extends WordSpec with Matchers {
 
     object MatchAll extends JobPredicate {
       override def matches(offer: SubmitJob, work: WorkSubscription): Boolean = {
-        offer != neverMatchJob && work != "never match sub"
+        offer != neverMatchJob && work != neverMatchSubscription
       }
     }
 
