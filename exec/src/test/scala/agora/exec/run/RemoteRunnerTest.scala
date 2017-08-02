@@ -33,14 +33,13 @@ class RemoteRunnerTest extends BaseSpec with BeforeAndAfterAll with AppendedClue
       val fileDependencies: Set[String]       = Set("file.one")
       val job                                 = ExecutionClient.prepare(runProcess, workspaceIdOpt, fileDependencies)
 
-      val subscription = ExecutionHandler.newWorkspaceSubscription("session a", Set("file.one"))
+      val subscription = ExecutionHandler.newWorkspaceSubscription("execKey", "session a", Set("file.one"))
 
       val matcher = JobPredicate()
       matcher.matches(job, subscription) shouldBe true
 
     }
   }
-
 
   override def beforeAll = startAll
 
