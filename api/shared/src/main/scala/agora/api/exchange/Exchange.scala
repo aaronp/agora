@@ -24,8 +24,6 @@ trait Exchange {
     req match {
       case msg: WorkSubscription       => subscribe(msg)
       case msg: RequestWork            => take(msg)
-      case msg: UpdateWorkSubscription => updateSubscription(msg)
-      case msg: Compose                => compose(msg)
     }
   }
 
@@ -76,26 +74,12 @@ trait Exchange {
     cancelSubscriptions(CancelSubscriptions(theRest.toSet + id))
   }
 
-  /** creates a new subscription based on the input subscriptions.
-    *
-    * When a 'take' request is made for the returned subscription, a 'take' is issued
-    * for each of the subscriptions.
-    *
-    * When a request is received with 'submit', composite subscriptions will match only if all their composite subscriptions
-    * match. It's for this reason that composite subscriptions have to be considered first, since by definition if a
-    * composite subscription matches then any of the constituent subscriptions would match.
-    *
-    * @param compose the subscriptions to combine
-    * @return a new subscription which composes the input subscriptions
-    */
-  def compose(compose: Compose): Future[WorkSubscriptionAck] = onSubscriptionRequest(compose).mapTo[WorkSubscriptionAck]
-
   /**
     * Creates or updates a [[WorkSubscription]], whose returned [[WorkSubscriptionAck]] key can be used to pull work items
     * from the exchange.
     *
-    * If the request specifies a subscription key then any existing subscription with the given id will be updated as
-    * per [[updateSubscription()]].
+    * If the request specifies a subscription key then any existing subscription with the given id will be updated by
+    * having its work details combined w/ the existing subscription
     *
     * If no subscription key is supplied, then a new one will be generated and provided on the ack.
     *
@@ -103,13 +87,6 @@ trait Exchange {
     * @return an ack containing the key needed to request work items
     */
   def subscribe(request: WorkSubscription) = onSubscriptionRequest(request).mapTo[WorkSubscriptionAck]
-
-  /**
-    * Appends the given work details to the existing subscription
-    * @param request
-    * @return
-    */
-  def updateSubscription(request: UpdateWorkSubscription) = onSubscriptionRequest(request).mapTo[UpdateWorkSubscriptionAck]
 
   /** @param request the number of work items to request
     * @return an ack which contains the current known total items requested
@@ -148,18 +125,14 @@ object Exchange {
 
     private var state = initialState
 
+    override def toString = state.toString
+
     override def queueState(request: QueueState): Future[QueueStateResponse] = {
       Future.fromTry(Try(state.queueState(request)))
     }
 
     override def subscribe(inputSubscription: WorkSubscription) = {
       val (ack, newState) = state.subscribe(inputSubscription)
-      state = newState
-      Future.successful(ack)
-    }
-
-    override def updateSubscription(request: UpdateWorkSubscription) = {
-      val (ack, newState) = state.updateSubscription(request.id, request.details)
       state = newState
       Future.successful(ack)
     }
@@ -174,7 +147,7 @@ object Exchange {
 
             val matches = checkForMatches()
             matches.flatMap(_.chosen).foldLeft(ack) {
-              case (ack, chosen) => ack.withNewTotal(chosen.subscriptionKey, chosen.remaining)
+              case (ack, chosen) => ack.withNewTotal(chosen.remaining)
             }
           } else {
             logger.debug(s"Not triggering match for subscriptions increase on [${request.id}]")
@@ -182,15 +155,6 @@ object Exchange {
           }
       }
       Future.fromTry(ackTry)
-    }
-
-    override def compose(request: Compose): Future[WorkSubscriptionAck] = {
-      state.addCompositeSubscription(request) match {
-        case Success((ack, newState)) =>
-          state = newState
-          Future.successful(ack)
-        case Failure(err) => Future.failed(err)
-      }
     }
 
     override def submit(inputJob: SubmitJob) = {

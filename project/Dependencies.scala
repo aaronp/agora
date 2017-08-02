@@ -18,15 +18,15 @@ object Dependencies {
   val circe = Seq("core", "generic", "parser", "optics").map(name => "io.circe" %% s"circe-$name" % "0.8.0")
 
   val akkaHttp = List("", "-core", "-testkit").map { suffix =>
-    "com.typesafe.akka" %% s"akka-http$suffix" % "10.0.9" //10.0.7
+    "com.typesafe.akka" %% s"akka-http$suffix" % "10.0.9"
   } :+ ("de.heikoseeberger" %% "akka-http-circe" % "1.17.0")
 
-  val pprint = "com.lihaoyi" %% "pprint" % "0.5.2"
-  val streamsTck = "org.reactivestreams" % "reactive-streams-tck" % "1.0.0" % "test"
-  val betterFiles = "com.github.pathikrit" %% "better-files" % "2.17.1"
-  val swagger = "com.github.swagger-akka-http" %% "swagger-akka-http" % "0.10.0"
+  val pprint      = "com.lihaoyi"                  %% "pprint"              % "0.5.2"
+  val streamsTck  = "org.reactivestreams"          % "reactive-streams-tck" % "1.0.0" % "test"
+  val betterFiles = "com.github.pathikrit"         %% "better-files"        % "2.17.1"
+  val swagger     = "com.github.swagger-akka-http" %% "swagger-akka-http"   % "0.10.0"
 
-  val Api = logging ++ testDependencies ++ circe
-  val Rest = Api ++ akkaHttp ++ cucumber ++ List(streamsTck, pprint, betterFiles) //, swagger)
-  val UI = Api
+  val Api  = logging ++ testDependencies ++ circe
+  val Rest = Api ++ akkaHttp ++ cucumber ++ List(streamsTck, pprint, betterFiles, swagger)
+  val UI   = Api
 }

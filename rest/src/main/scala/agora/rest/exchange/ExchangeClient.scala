@@ -79,22 +79,12 @@ class ExchangeClient(val rest: RestClient, mkWorker: HostLocation => Dispatch)
     }
   }
 
-  override def updateSubscription(request: UpdateWorkSubscription): Future[UpdateWorkSubscriptionAck] = {
-    rest.send(ExchangeHttp(request)).flatMap { exchangeResp =>
-      exchangeResp.as[UpdateWorkSubscriptionAck](retryOnError(updateSubscription(request)))
-    }
-  }
-
   override def take(request: RequestWork): Future[RequestWorkAck] = {
     rest.send(ExchangeHttp(request)).flatMap(_.as[RequestWorkAck](retryOnError(take(request))))
   }
 
   override def submit(submit: SubmitJob): JobResponse = {
     enqueueAndDispatch(submit)(_.sendRequest(submit.job))._1
-  }
-
-  override def compose(request: Compose): Future[WorkSubscriptionAck] = {
-    rest.send(ExchangeHttp(request)).flatMap(_.as[WorkSubscriptionAck](retryOnError(compose(request))))
   }
 
   protected def clientFor(location: HostLocation): Dispatch = mkWorker(location)

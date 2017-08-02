@@ -42,7 +42,10 @@ class LocalRunner(workDir: Option[Path] = None)(implicit ec: ExecutionContext) e
     Source.fromIterator(() => run).map(line => ByteString(s"$line\n"))
   }
 
-  override def run(proc: RunProcess): ProcessOutput = Future.fromTry(Try(execute(proc).iterator))
+  override def run(proc: RunProcess): ProcessOutput = {
+    val iter = proc.filterForErrors(execute(proc).iterator)
+    Future.successful(iter)
+  }
 
   private var additionalLoggers = List[ProcessLogger]()
 

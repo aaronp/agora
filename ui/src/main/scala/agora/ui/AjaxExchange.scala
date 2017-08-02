@@ -27,11 +27,6 @@ class AjaxExchange() extends AjaxClient("/rest/exchange") with Exchange {
     val json = request.asJson.noSpaces
     Ajax.put(s"$baseUrl/subscribe", json).map(_.jsonAs[WorkSubscriptionAck])
   }
-  override def updateSubscription(request: UpdateWorkSubscription) = {
-    val json = request.asJson.noSpaces
-    Ajax.put(s"$baseUrl/update", json).map(_.jsonAs[UpdateWorkSubscriptionAck])
-  }
-
   override def take(request: RequestWork) = {
     val json = request.asJson.noSpaces
     Ajax.put(s"$baseUrl/take", json).map(_.jsonAs[RequestWorkAck])
@@ -40,11 +35,6 @@ class AjaxExchange() extends AjaxClient("/rest/exchange") with Exchange {
   override def submit(req: SubmitJob) = {
     val json = req.asJson.noSpaces
     Ajax.put(s"$baseUrl/submit", json).map(_.jsonAs[SubmitJobResponse])
-  }
-
-  override def compose(compose: Compose): Future[WorkSubscriptionAck] = {
-    val json = compose.asJson.noSpaces
-    Ajax.post(s"$baseUrl/compose", json).map(_.jsonAs[WorkSubscriptionAck])
   }
 
   /**

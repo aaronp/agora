@@ -25,7 +25,7 @@ class MultipartBuilder(defaultSourceContentType: ContentType) {
 
   private var partsList = List[Multipart.FormData.BodyPart]()
 
-  def parts = partsList
+  def parts: List[FormData.BodyPart] = partsList
 
   def fromPath(file: Path, chunkSize: Int = -1, contentType: ContentType = defaultSourceContentType, fileName: String = null): MultipartBuilder = {
     val entity  = HttpEntity.fromPath(contentType, file, chunkSize)
@@ -33,15 +33,10 @@ class MultipartBuilder(defaultSourceContentType: ContentType) {
     add(fileKey.get, entity, fileKey)
   }
 
-  def fromSource(key: String, length: Long, data: Source[ByteString, Any], contentType: ContentType = defaultSourceContentType, fileName: String = null): MultipartBuilder = {
+  def fromStrictSource(key: String, length: Long, data: Source[ByteString, Any], contentType: ContentType = defaultSourceContentType, fileName: String = null): MultipartBuilder = {
     val entity: BodyPartEntity = HttpEntity.Default(contentType, length, data)
     add(key, entity, Option(fileName))
   }
-//
-//  def fromSrc(key: String, data: Source[ByteString, Any], contentType: ContentType = defaultSourceContentType, fileName: String = null): MultipartBuilder = {
-//    val entity: HttpEntity.Chunked = HttpEntity(contentType, data)
-//    add(key, entity, Option(fileName))
-//  }
 
   def json[T: Encoder: ClassTag](value: T): MultipartBuilder = {
     val key = implicitly[ClassTag[T]].runtimeClass.getName

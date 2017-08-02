@@ -35,7 +35,7 @@ trait WorkerIntegrationTest { self: BaseIntegrationTest =>
         }
 
         val len = Sources.sizeOf(src).futureValue
-        val fd  = MultipartBuilder().fromSource("ints", len, src).formData.futureValue
+        val fd  = MultipartBuilder().fromStrictSource("ints", len, src).formData.futureValue
         worker.sendRequest(fd)
       }
 
@@ -70,7 +70,7 @@ trait WorkerIntegrationTest { self: BaseIntegrationTest =>
           numbers
         }
         val len = Sources.sizeOf(src).futureValue
-        val fd  = MultipartBuilder().fromSource("ints", len, src).formData.futureValue
+        val fd  = MultipartBuilder().fromStrictSource("ints", len, src).formData.futureValue
         worker.sendRequest(fd)
       }
 

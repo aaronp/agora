@@ -3,6 +3,7 @@ package agora.exec.rest
 import agora.api.`match`.MatchDetails
 import agora.api.exchange.WorkSubscription
 import agora.api.json.JPath
+import agora.api.worker.SubscriptionKey
 import agora.exec.model.{ProcessException, RunProcess}
 import agora.exec.run.LocalRunner
 import agora.exec.workspace.WorkspaceId
@@ -31,8 +32,8 @@ object ExecutionHandler extends StrictLogging {
     * @param files
     * @return
     */
-  def newWorkspaceSubscription(workspace: WorkspaceId, files: Set[String]): WorkSubscription = {
-    WorkSubscription(jobMatcher = hasCommand).withSubscriptionKey(workspace).append("files", files).append("workspace", workspace)
+  def newWorkspaceSubscription(referencedConf : SubscriptionKey, workspace: WorkspaceId, files: Set[String]): WorkSubscription = {
+    WorkSubscription(jobMatcher = hasCommand).withSubscriptionKey(workspace).append("files", files).append("workspace", workspace).referencing(referencedConf)
   }
 
   def asErrorResponse(exp: ProcessException) = {

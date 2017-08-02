@@ -24,8 +24,6 @@ case class SelectionFirst() extends SelectionMode("select-first") {
 
 // sends the work to all eligible workers
 case class SelectionAll() extends SelectionMode("select-all") {
-  //  override def select(offers: Stream[(WorkRequestId, RequestWork)]) = offers -> Stream.empty
-
   override def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
     values
   }
@@ -63,9 +61,7 @@ case class SelectIntMax(path: JPath) extends SelectionMode("select-int-nax") {
     } else {
       bf().result()
     }
-
   }
-
 }
 
 object SelectionMode {

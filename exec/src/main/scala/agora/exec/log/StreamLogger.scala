@@ -13,12 +13,20 @@ object StreamLogger {
 
   def apply() = new StreamLogger(handle(PartialFunction.empty))
 
-  def forProcess(pf: PartialFunction[Try[Int], Stream[String]]): StreamLogger = {
-    StreamLogger(handle(pf))
+  /**
+    * @param outputStreamForExitCode a function which can provide an output stream based on a return value
+    * @return a StreamLogger using the given partial function used to provide error output given an exit code
+    */
+  def forProcess(outputStreamForExitCode: PartialFunction[Try[Int], Stream[String]]): StreamLogger = {
+    StreamLogger(handle(outputStreamForExitCode))
   }
 
-  def handle(pf: PartialFunction[Try[Int], Stream[String]]): Try[Int] => Stream[String] = {
-    pf.lift.andThen(_.getOrElse(Stream.empty[String]))
+  /**
+    * @param outputStreamForExitCode a function which can provide an output stream based on a return value
+    * @return a StreamLogger using the given partial function used to provide error output given an exit code
+    */
+  def handle(outputStreamForExitCode: PartialFunction[Try[Int], Stream[String]]): Try[Int] => Stream[String] = {
+    outputStreamForExitCode.lift.andThen(_.getOrElse(Stream.empty[String]))
   }
 
 }

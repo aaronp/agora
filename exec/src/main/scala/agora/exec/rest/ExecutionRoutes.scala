@@ -1,7 +1,11 @@
 package agora.exec.rest
 
+import agora.api.exchange.{WorkSubscription, WorkSubscriptionAck}
+import agora.api.json.JPath
+import agora.api.worker.SubscriptionKey
 import agora.exec.ExecConfig
 import agora.exec.model.{RunProcess, Upload}
+import agora.rest.exchange.ExchangeClient
 import agora.rest.worker.{RouteSubscriptionSupport, WorkerRoutes}
 import akka.http.scaladsl.model.Multipart
 import akka.http.scaladsl.server.Directives.{entity, path, _}
@@ -10,9 +14,23 @@ import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.generic.auto._
 
 import scala.concurrent.Future
+import scala.util.{Failure, Success}
 
 object ExecutionRoutes {
-  def apply(execConfig: ExecConfig) = new ExecutionRoutes(execConfig)
+  def apply(execConfig: ExecConfig) = {
+
+
+    val execSubscription = WorkSubscription().matchingSubmission(JPath("command").asMatcher)
+
+    val exchange = execConfig.exchangeClient
+      import execConfig.serverImplicits.executionContext
+
+      // TODO - think of a better approach, like providing the subscription to this constructor
+      exchange.subscribe(execSubscription).map { result =>
+        new ExecutionRoutes(execConfig, exchange, result.id)
+      }
+
+  }
 }
 
 /**
@@ -23,17 +41,38 @@ object ExecutionRoutes {
   *
   * @param execConfig
   */
-class ExecutionRoutes(val execConfig: ExecConfig) extends RouteSubscriptionSupport with FailFastCirceSupport {
-
-  lazy val exchange = execConfig.exchangeClient
+class ExecutionRoutes(val execConfig: ExecConfig, exchange: ExchangeClient, execSubscriptionKey : SubscriptionKey) extends RouteSubscriptionSupport with FailFastCirceSupport {
 
   def routes(workerRoutes: WorkerRoutes, exchangeRoutes: Option[Route]): Route = {
-    execConfig.routes(workerRoutes, exchangeRoutes) ~ jobRoutes
+    execConfig.routes(workerRoutes, exchangeRoutes) ~ execute ~ upload
   }
 
-  def jobRoutes = pathPrefix("rest" / "exec") {
-    execute
-  }
+  def execute =
+    post {
+      (path("rest" / "exec" / "run") & pathEnd) {
+        entity(as[RunProcess]) { runProcess =>
+          extractRequestContext { ctxt =>
+            import ctxt.executionContext
+            extractMatchDetails {
+              case detailsOpt@Some(details) =>
+
+                /**
+                  * We were called as part of a match on the exchange, so take another work item when this one finishes
+                  */
+                requestOnComplete(details, exchange) {
+                  val runner = execConfig.newRunner(runProcess, detailsOpt, details.jobId)
+                  val respFuture = ExecutionHandler(ctxt.request, runner, runProcess, detailsOpt)
+                  complete(respFuture)
+                }
+              case None =>
+                val runner = execConfig.newRunner(runProcess, None, agora.api.nextJobId())
+                val respFuture = ExecutionHandler(ctxt.request, runner, runProcess, None)
+                complete(respFuture)
+            }
+          }
+        }
+      }
+    }
 
   /**
     * Uploads some files to a workspace.
@@ -44,19 +83,33 @@ class ExecutionRoutes(val execConfig: ExecConfig) extends RouteSubscriptionSuppo
     */
   def upload = {
     post {
-      (path("upload") & pathEnd) {
+      (path("rest" / "exec" / "upload") & pathEnd) {
         extractRequestContext { ctxt =>
           import ctxt.{executionContext, materializer}
 
           entity(as[Multipart.FormData]) { formData =>
-            parameter('workspace) { workspace =>
-              val uploadsFuture: Future[List[Upload]] = MultipartExtractor(formData, execConfig.uploadsDir, execConfig.chunkSize)
-              uploadsFuture.map { uploads =>
-                val upserted = ExecutionHandler.newWorkspaceSubscription(workspace, uploads.map(_.name).toSet)
-                exchange.subscribe(upserted)
+            parameter('filename, 'workspace) { (filename, workspace) =>
+              val saveTo = execConfig.uploadsDir.resolve(workspace)
+              val uploadsFuture: Future[List[Upload]] = MultipartExtractor(formData, saveTo, execConfig.chunkSize)
+
+              /**
+                * Once the files are uploaded, create a subscription which contains 'file: [...], workspace: ...'
+                * So that pending submits will find us (and not some other server's exec).
+                */
+              val uploadFuture: Future[WorkSubscriptionAck] = uploadsFuture.flatMap { uploads =>
+                val fileNames = uploads.map(_.name).toSet
+                val upserted = ExecutionHandler.newWorkspaceSubscription(execSubscriptionKey, workspace, fileNames)
+                exchange.subscribe(upserted).map { ack =>
+                  import io.circe.syntax._
+                  import io.circe.generic.auto._
+                  fileNames.asJ
+
+                }
               }
 
-              complete {}
+              complete {
+                uploadFuture
+              }
             }
           }
         }
@@ -64,34 +117,6 @@ class ExecutionRoutes(val execConfig: ExecConfig) extends RouteSubscriptionSuppo
     }
   }
 
-  /**
-    * Executes a RunProcess and pulls another work item upon completion.
-    *
-    * @return the route for executing a RunProcess request
-    */
-  def execute = {
-    post {
-      (path("run") & pathEnd) {
-        entity(as[RunProcess]) { runProcess =>
-          extractRequestContext { ctxt =>
-            import ctxt.executionContext
-            extractMatchDetails {
-              case detailsOpt @ Some(details) =>
-                requestOnComplete(details, exchange) {
-                  val runner     = execConfig.newRunner(runProcess, detailsOpt, details.jobId)
-                  val respFuture = ExecutionHandler(ctxt.request, runner, runProcess, detailsOpt)
-                  complete(respFuture)
-                }
-              case detailsOpt =>
-                val runner     = execConfig.newRunner(runProcess, detailsOpt, agora.api.nextJobId())
-                val respFuture = ExecutionHandler(ctxt.request, runner, runProcess, detailsOpt)
-                complete(respFuture)
-            }
-          }
-        }
-      }
-    }
-  }
 
   override def toString = {
     s"ExecutionRoutes {${execConfig.describe}}"

@@ -1,5 +1,8 @@
 package agora.rest.multipart
 
+import agora.io.Sources
+import agora.rest.multipart.MultipartFormImplicits._
+import agora.rest.{BaseRoutesSpec, HasMaterializer}
 import akka.http.scaladsl.model.Multipart
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
@@ -8,13 +11,8 @@ import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import io.circe.Json
 import io.circe.generic.auto._
-import agora.rest.BaseRoutesSpec
-import agora.rest.test.TestUtils
 
-import scala.collection.immutable
 import scala.concurrent.Future
-import MultipartFormImplicits._
-import agora.io.Sources
 
 class MultipartFormImplicitsTest extends BaseRoutesSpec {
 
@@ -27,41 +25,39 @@ class MultipartFormImplicitsTest extends BaseRoutesSpec {
       val form = MultipartBuilder()
         .json("foo", MultipartFormImplicitsTest.JsonData("BB", 8))
         .text("something", "text")
-        .fromSource("upload1", bytes.size, data, fileName = "upload1.dat")
-        .fromSource("upload2", bytes.size, data, fileName = "upload2.dat")
+        .fromStrictSource("upload1", bytes.size, data, fileName = "upload1.dat")
+        .fromStrictSource("upload2", bytes.size, data, fileName = "upload2.dat")
 
-      TestUtils.withMaterializer { implicit mat =>
-        val testUploadRoute = post {
-          (path("test")) {
-            entity(as[Multipart.FormData]) { (formData: Multipart.FormData) =>
-              complete {
-                val sizesForKeysFuture: Future[List[Future[(String, Long)]]] = formData.mapMultipart {
-                  case (info, src) =>
-                    val lenFuture = Sources.sizeOf(src)
-                    lenFuture.map { len =>
-                      info.fieldName -> len
-                    }
-                }
-                sizesForKeysFuture.flatMap { sizesForKeys =>
-                  Future.sequence(sizesForKeys).fast.map { sizeByName =>
-                    val pears = sizeByName.map {
-                      case (name, len) => (name, Json.fromLong(len))
-                    }
-                    Json.obj(pears.toList: _*)
+      val testUploadRoute = post {
+        (path("test")) {
+          entity(as[Multipart.FormData]) { (formData: Multipart.FormData) =>
+            complete {
+              val sizesForKeysFuture: Future[List[Future[(String, Long)]]] = formData.mapMultipart {
+                case (info, src) =>
+                  val lenFuture = Sources.sizeOf(src)
+                  lenFuture.map { len =>
+                    info.fieldName -> len
                   }
+              }
+              sizesForKeysFuture.flatMap { sizesForKeys =>
+                Future.sequence(sizesForKeys).fast.map { sizeByName =>
+                  val pears = sizeByName.map {
+                    case (name, len) => (name, Json.fromLong(len))
+                  }
+                  Json.obj(pears: _*)
                 }
               }
             }
           }
         }
+      }
 
-        val fd: Multipart.FormData.Strict = form.formData.futureValue
+      val fd: Multipart.FormData.Strict = form.formData.futureValue
 
-        Post("/test", fd) ~> Route.seal(testUploadRoute) ~> check {
-          response.status.intValue() shouldBe 200
-          val sizeByName = responseAs[Map[String, Long]]
-          sizeByName shouldBe Map("upload2" -> 22000000, "upload1" -> 22000000, "something" -> 4, "foo" -> 16)
-        }
+      Post("/test", fd) ~> Route.seal(testUploadRoute) ~> check {
+        response.status.intValue() shouldBe 200
+        val sizeByName = responseAs[Map[String, Long]]
+        sizeByName shouldBe Map("upload2" -> 22000000, "upload1" -> 22000000, "something" -> 4, "foo" -> 16)
       }
     }
   }

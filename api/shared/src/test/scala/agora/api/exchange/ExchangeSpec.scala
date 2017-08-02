@@ -74,14 +74,9 @@ trait ExchangeSpec extends WordSpec with Matchers with ScalaFutures with Eventua
         val sub = WorkSubscription(jobMatcher = jobPath)
 
         val subscriptionId = ex.subscribe(sub).futureValue.id
-        val consumedJob: RequestWorkAck = ex.take(subscriptionId, 1).futureValue
+        ex.take(subscriptionId, 1).futureValue shouldBe RequestWorkAck(subscriptionId, 0, 0)
 
         matches.size shouldBe 1
-
-        val List((_, requestWorkUpdate)) = consumedJob.updated.toList
-
-        requestWorkUpdate.previousItemsPending shouldBe 0
-        requestWorkUpdate.totalItemsPending shouldBe 0
       }
     }
   }

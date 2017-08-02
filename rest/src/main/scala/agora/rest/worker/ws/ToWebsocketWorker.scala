@@ -20,8 +20,8 @@ object ToWebsocketWorker {
 
   implicit object JsonEncoder extends Encoder[ToWebsocketWorker] {
     override def apply(a: ToWebsocketWorker): Json = a match {
-      case msg: WSQueueState => implicitly[Encoder[WSQueueState]].apply(msg)
-      case msg: OnJob => implicitly[Encoder[OnJob]].apply(msg)
+      case msg: WSQueueState       => implicitly[Encoder[WSQueueState]].apply(msg)
+      case msg: OnJob              => implicitly[Encoder[OnJob]].apply(msg)
       case msg: OnResubmitResponse => implicitly[Encoder[OnResubmitResponse]].apply(msg)
     }
   }

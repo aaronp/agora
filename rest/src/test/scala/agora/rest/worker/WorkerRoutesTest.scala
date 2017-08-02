@@ -14,10 +14,11 @@ import akka.util.ByteString
 import io.circe.generic.auto._
 import io.circe.optics.JsonPath
 import io.circe.syntax._
+import org.scalatest.concurrent.Eventually
 
 import scala.concurrent.Future
 
-class WorkerRoutesTest extends BaseRoutesSpec {
+class WorkerRoutesTest extends BaseRoutesSpec with Eventually {
 
   import WorkerRoutesTest._
 
@@ -34,7 +35,7 @@ class WorkerRoutesTest extends BaseRoutesSpec {
   }
   "WorkerRoutes.updateSubscription" should {
     "replace the subscription details" in {
-      // start out with a single route, but whos handler replaces (updates) the subscription
+      // start out with a single route, but whose handler replaces (updates) the subscription
       val wr = WorkerRoutes()
 
       def invocations(ctxt: WorkContext[_]) = JsonPath.root.invoked.int.getOption(ctxt.details.aboutMe).getOrElse(0)
@@ -56,9 +57,16 @@ class WorkerRoutesTest extends BaseRoutesSpec {
       }
 
       // verify our initial subscription
-      val initialState               = wr.exchange.queueState().futureValue
-      val List(originalSubscription) = initialState.subscriptions
-      originalSubscription.requested shouldBe 1
+      val originalSubscription = eventually {
+        val initialState               = wr.exchange.queueState().futureValue
+        val List(originalSubscription) = initialState.subscriptions
+        if (originalSubscription.requested != 1) {
+          val str = wr.exchange
+          println(str)
+        }
+        originalSubscription.requested shouldBe 1
+        originalSubscription
+      }
 
       val originalData = originalSubscription.subscription.details.aboutMe
       val someValue    = JsonPath.root.someValue.string.getOption(originalData)
@@ -212,7 +220,7 @@ class WorkerRoutesTest extends BaseRoutesSpec {
         val bytes = Sources.asBytes(Source.single(expectedContent), "")
         val len   = Sources.sizeOf(bytes).futureValue
 
-        MultipartBuilder().fromSource("some.file", len, bytes, fileName = "some.file").formData.futureValue
+        MultipartBuilder().fromStrictSource("some.file", len, bytes, fileName = "some.file").formData.futureValue
       }
 
       val httpRequest = WorkerClient.multipartRequest("uploadTest", matchDetails, upload)

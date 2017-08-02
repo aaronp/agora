@@ -29,7 +29,7 @@ class SelectionModeTest extends WordSpec with Matchers {
   }
 
   "max selection mode" should {
-    "pick the one with the biggest value" in {
+    "pick the one with the biggest value at a given json path" in {
 
       val a                   = Status(List(Holder(5689), Holder(6)))
       val b                   = Status(List(Holder(10)))

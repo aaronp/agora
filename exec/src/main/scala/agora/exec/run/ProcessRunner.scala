@@ -43,7 +43,7 @@ object ProcessRunner {
             defaultFrameLength: Int,
             allowTruncation: Boolean,
             replaceWorkOnFailure: Boolean)(implicit uploadTimeout: FiniteDuration): ProcessRunner with AutoCloseable = {
-    RemoteRunner(exchange, workspaceIdOpt, fileDependencies, defaultFrameLength, allowTruncation, replaceWorkOnFailure)
+    ExecutionClient(exchange, workspaceIdOpt, fileDependencies, defaultFrameLength, allowTruncation, replaceWorkOnFailure)
   }
 
 }

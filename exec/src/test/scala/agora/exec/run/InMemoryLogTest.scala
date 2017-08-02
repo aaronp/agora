@@ -19,12 +19,12 @@ class InMemoryLogTest extends BaseSpec with HasMaterializer {
     "Cache if the computation took longer than the computationThreshold and the output sise is less than the size threshold" in {
 
       val durationOverWhichToCache = 10.millis
-      val underlying = new TestRunner()
-      val sizeThreshold = 10
-      val run = CachingRunner(underlying, durationOverWhichToCache, sizeThreshold)
-      val key = CachingRunner.keyForProc(RunProcess(Nil))
+      val underlying               = new TestRunner()
+      val sizeThreshold            = 10
+      val run                      = CachingRunner(underlying, durationOverWhichToCache, sizeThreshold)
+      val key                      = CachingRunner.keyForProc(RunProcess(Nil))
       run.isCached(key) shouldBe false
-      val fakeStartTime = System.currentTimeMillis() + durationOverWhichToCache.toMillis
+      val fakeStartTime                   = System.currentTimeMillis() + durationOverWhichToCache.toMillis
       val timeAtWhichCalcExceedsThreshold = fakeStartTime + durationOverWhichToCache.toMillis
 
       // call the method under test. If our 'process' completes within the 'durationOverWhichToCache' then it should cache
@@ -56,7 +56,7 @@ object InMemoryLogTest {
 
   class TestRunner(implicit ec: ExecutionContext = ExecutionContext.global) extends ProcessRunner {
     val fixedResult = Promise[Iterator[String]]()
-    val processes = ListBuffer[RunProcess]()
+    val processes   = ListBuffer[RunProcess]()
 
     def complete(lines: Iterator[String]) = {
       fixedResult.tryComplete(Try(lines))

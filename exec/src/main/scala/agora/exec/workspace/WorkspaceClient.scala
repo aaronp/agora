@@ -3,6 +3,7 @@ package agora.exec.workspace
 import java.nio.file.Path
 
 import agora.exec.model.Upload
+import agora.exec.run.UploadClient
 import akka.actor.{ActorRef, ActorRefFactory, Props}
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
@@ -22,10 +23,30 @@ trait WorkspaceClient {
 
   /**
     * closing the workspace releases the resources used -- e.g. deletes the relevant directory
+    *
     * @param workspaceId
     * @return a future which completes once the workspace has been cleaned up, with the boolean value signalling if it was a known/valid workspace
     */
   def close(workspaceId: WorkspaceId): Future[Boolean]
+
+  /**
+    * Saves a files to the given workspace
+    *
+    * @param workspaceId
+    * @param fileName
+    * @param src
+    * @return
+    */
+  def upload(workspaceId: WorkspaceId, fileName: String, src: Source[ByteString, Any]): Future[Boolean]
+
+  /**
+    * convenience method for uploading to the workspace
+    *
+    * @param workspaceId
+    * @param file
+    * @return
+    */
+  final def upload(workspaceId: WorkspaceId, file: Upload): Future[Boolean] = upload(workspaceId, file.name, file.source)
 
   /** Used to wait for the given files (relative filenames) to be uploaded into the workspace.
     *
@@ -38,26 +59,9 @@ trait WorkspaceClient {
   def await(workspaceId: WorkspaceId, fileDependencies: Set[String]): Future[Path]
 
   /**
-    * Saves a files to the given workspace
-    * @param workspaceId
-    * @param fileName
-    * @param src
-    * @return
-    */
-  def upload(workspaceId: WorkspaceId, fileName: String, src: Source[ByteString, Any]): Future[Boolean]
-
-  /**
     * @return all known workspace ids
     */
   def list(): Future[List[WorkspaceId]]
-
-  /**
-    * convenience method for uploading to the workspace
-    * @param workspaceId
-    * @param file
-    * @return
-    */
-  final def upload(workspaceId: WorkspaceId, file: Upload): Future[Boolean] = upload(workspaceId, file.name, file.source)
 }
 
 object WorkspaceClient {

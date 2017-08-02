@@ -66,23 +66,6 @@ object QueueStateResponse {
 
 case class PendingSubscription(key: SubscriptionKey, subscription: WorkSubscription, requested: Int)
 
-/** Composes the subscriptions, responded with an ack
-  *
-  * @param subscriptions
-  */
-case class Compose(subscription: WorkSubscription, subscriptions: Set[SubscriptionKey]) extends SubscriptionRequest {
-  def withSubscriptionId(id: SubscriptionKey) = {
-    copy(subscription = subscription.withSubscriptionKey(id))
-  }
-
-  require(subscriptions.nonEmpty, "invalid 'Compose' - no subscription keys specified")
-}
-
-object Compose {
-  def apply(subscription: WorkSubscription, first: SubscriptionKey, theRest: SubscriptionKey*) = {
-    new Compose(subscription, theRest.toSet + first)
-  }
-}
 
 /**
   * Represents anything which can be run as a job
@@ -179,8 +162,12 @@ sealed trait SubscriptionResponse
   * @param details
   * @param jobMatcher        the json matcher used against the 'job' portion of SubmitJob
   * @param submissionMatcher the json matcher used against the additional 'details' part of SubmitJob
+  * @param subscriptionReferences If non-empty, changes to the number of work items requested for this subscription will be performed on the referenced subscriptions
   */
-case class WorkSubscription(details: WorkerDetails = WorkerDetails(), jobMatcher: JMatcher = JMatcher.matchAll, submissionMatcher: JMatcher = JMatcher.matchAll)
+case class WorkSubscription(details: WorkerDetails = WorkerDetails(),
+                            jobMatcher: JMatcher = JMatcher.matchAll,
+                            submissionMatcher: JMatcher = JMatcher.matchAll,
+                            subscriptionReferences : Set[SubscriptionKey] = Set.empty)
     extends SubscriptionRequest {
   def matches(job: SubmitJob)(implicit m: JobPredicate): Boolean = m.matches(job, this)
 
@@ -191,6 +178,9 @@ case class WorkSubscription(details: WorkerDetails = WorkerDetails(), jobMatcher
     * @return a subscription with the matcher replaces
     */
   def matchingJob(matcher: JMatcher): WorkSubscription = copy(jobMatcher = matcher)
+
+  def withReferences(references : Set[SubscriptionKey]) = copy(subscriptionReferences = references)
+  def referencing(reference :SubscriptionKey, theRest :SubscriptionKey*) = withReferences(theRest.toSet + reference)
 
   def matchingSubmission(matcher: JMatcher) = copy(submissionMatcher = matcher)
 
@@ -221,9 +211,6 @@ object WorkSubscriptionAck {
   implicit val decoder = exportDecoder[WorkSubscriptionAck].instance
 }
 
-case class UpdateWorkSubscription(id: SubscriptionKey, details: WorkerDetails)                                         extends SubscriptionRequest
-case class UpdateWorkSubscriptionAck(id: SubscriptionKey, before: Option[WorkerDetails], after: Option[WorkerDetails]) extends SubscriptionResponse
-
 case class RequestWork(id: SubscriptionKey, itemsRequested: Int) extends SubscriptionRequest {
   require(itemsRequested > 0)
 
@@ -236,26 +223,18 @@ object RequestWork {
   implicit val decoder = exportDecoder[RequestWork].instance
 }
 
-case class RequestWorkUpdate(previousItemsPending: Int, totalItemsPending: Int) extends SubscriptionResponse
 
-case class RequestWorkAck(updated: Map[SubscriptionKey, RequestWorkUpdate]) extends SubscriptionResponse {
-  private[exchange] def withNewTotal(id: SubscriptionKey, remaining: Int) = {
-    val newUpdate = updated(id).copy(totalItemsPending = remaining)
-    copy(updated = updated.updated(id, newUpdate))
-  }
+case class RequestWorkAck(id : SubscriptionKey, previousItemsPending: Int, totalItemsPending: Int) extends SubscriptionResponse {
+  private[exchange] def withNewTotal(remaining: Int) = copy(totalItemsPending = remaining)
 
   /** @return true if a subscription previously had 0 pending subscriptions
     */
-  def isUpdatedFromEmpty = {
-    updated.values.exists {
-      case RequestWorkUpdate(before, _) => before == 0
-    }
-  }
+  def isUpdatedFromEmpty = previousItemsPending == 0
 }
 
 object RequestWorkAck {
   implicit val encoder = exportEncoder[RequestWorkAck].instance
   implicit val decoder = exportDecoder[RequestWorkAck].instance
 
-  def apply(id: SubscriptionKey, requested: Int): RequestWorkAck = new RequestWorkAck(Map(id -> RequestWorkUpdate(0, requested)))
+  def apply(id: SubscriptionKey, requested: Int): RequestWorkAck = new RequestWorkAck(id, 0, requested)
 }

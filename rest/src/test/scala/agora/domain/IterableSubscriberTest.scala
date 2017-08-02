@@ -2,7 +2,7 @@ package agora.domain
 
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
-import agora.rest.BaseSpec
+import agora.rest.{BaseSpec, HasMaterializer}
 import agora.rest.test.TestUtils
 import org.reactivestreams.Subscription
 
@@ -10,7 +10,7 @@ import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-class IterableSubscriberTest extends BaseSpec {
+class IterableSubscriberTest extends BaseSpec with HasMaterializer {
 
   class TestSubscription extends Subscription {
     var requested = List[Long]()
@@ -35,12 +35,10 @@ class IterableSubscriberTest extends BaseSpec {
         """.stripMargin
 
     "iterate a source of bytes" in {
-      TestUtils.withMaterializer { implicit mat =>
-        def lines = IterableSubscriber.iterate(Source.single(ByteString(expected)), longLine.length, true)
+      def lines = IterableSubscriber.iterate(Source.single(ByteString(expected)), longLine.length, true)
 
-        lines.mkString("\n") shouldBe expected
-        lines.size shouldBe expected.lines.size
-      }
+      lines.mkString("\n") shouldBe expected
+      lines.size shouldBe expected.lines.size
     }
   }
   "IterableSubscriber.iterator" should {

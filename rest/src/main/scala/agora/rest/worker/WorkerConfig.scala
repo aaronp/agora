@@ -26,7 +26,6 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
   def initialRequest = config.getInt("initialRequest")
 
   def startWorker(): Future[WorkerConfig.RunningWorker] = {
-
     import serverImplicits._
     val (exchange, optionalExchangeRoutes) = if (includeExchangeRoutes) {
       val obs                      = MatchObserver()

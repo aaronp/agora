@@ -1,10 +1,11 @@
 package agora.exec.run
 
+import agora.rest.BaseSpec
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import scala.concurrent.ExecutionContext.Implicits.global
-import agora.rest.BaseSpec
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 class LocalRunnerTest extends BaseSpec with ProcessRunnerTCK with BeforeAndAfter with BeforeAndAfterAll {
 

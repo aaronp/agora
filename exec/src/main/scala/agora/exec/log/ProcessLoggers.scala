@@ -27,7 +27,7 @@ class ProcessLoggers(val proc: RunProcess, override val matchDetails: Option[Mat
 
   private val stdOutLog = StreamLogger.forProcess {
     case Success(n) if proc.successExitCodes.contains(n) => Stream.empty
-    case failure => onIterError(failure)
+    case failure                                         => onIterError(failure)
   }
 
   private var splitLogger: SplitLogger = SplitLogger(JustStdOut(stdOutLog), JustStdErr(limitedErrorLog))
