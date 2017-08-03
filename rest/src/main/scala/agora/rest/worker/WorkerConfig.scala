@@ -3,17 +3,16 @@ package worker
 
 import java.util.concurrent.TimeUnit
 
+import agora.api.exchange.{Exchange, WorkSubscription}
+import agora.api.json.JMatcher
+import agora.api.worker.{HostLocation, WorkerDetails}
+import agora.rest.exchange.{ExchangeClient, ExchangeConfig, ExchangeRoutes}
+import agora.rest.support.SupportRoutes
+import agora.rest.ui.UIRoutes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import com.typesafe.config.{Config, ConfigFactory}
 import io.circe
-import agora.api.exchange.{Exchange, MatchObserver, WorkSubscription}
-import agora.api.json.JMatcher
-import agora.api.worker.{HostLocation, WorkerDetails}
-import agora.rest.client.CachedClient
-import agora.rest.exchange.{ExchangeClient, ExchangeConfig, ExchangeRoutes}
-import agora.rest.support.SupportRoutes
-import agora.rest.ui.UIRoutes
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -26,29 +25,27 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
   def initialRequest = config.getInt("initialRequest")
 
   def startWorker(): Future[WorkerConfig.RunningWorker] = {
-    import serverImplicits._
     val (exchange, optionalExchangeRoutes) = if (includeExchangeRoutes) {
-      val obs                      = MatchObserver()
-      val localExchange            = exchangeConfig.newExchange(obs)
+      val localExchange            = exchangeConfig.newExchange
       val exRoutes: ExchangeRoutes = exchangeConfig.newExchangeRoutes(localExchange)
       (localExchange, Option(exRoutes.routes))
     } else {
       (exchangeClient, None)
     }
 
-    val workerRoutes: WorkerRoutes = newWorkerRoutes(exchange)
-    val restRoutes: Route          = routes(workerRoutes, optionalExchangeRoutes)
+    val workerRoutes: DynamicWorkerRoutes = newWorkerRoutes(exchange)
+    val restRoutes: Route                 = routes(workerRoutes, optionalExchangeRoutes)
 
     RunningService.start(this, restRoutes, workerRoutes)
   }
 
-  override def withFallback(fallback: Config): WorkerConfig   = new WorkerConfig(config.withFallback(fallback))
+  override def withFallback(fallback: Config): WorkerConfig = new WorkerConfig(config.withFallback(fallback))
+
   override def withOverrides(overrides: Config): WorkerConfig = new WorkerConfig(overrides).withFallback(config)
 
   def landingPage = "ui/test.html"
 
-  def routes(workerRoutes: WorkerRoutes, exchangeRoutes: Option[Route]): Route = {
-    import serverImplicits._
+  def routes(workerRoutes: DynamicWorkerRoutes, exchangeRoutes: Option[Route]): Route = {
     def when(include: Boolean)(r: => Route): Stream[Route] = {
       if (include) Stream(r) else Stream.empty
     }
@@ -68,9 +65,9 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
     new ExchangeConfig(config.getConfig("exchange"))
   }
 
-  def newWorkerRoutes(exchange: Exchange): WorkerRoutes = {
+  def newWorkerRoutes(exchange: Exchange): DynamicWorkerRoutes = {
     import serverImplicits.materializer
-    WorkerRoutes(exchange, subscription, initialRequest)
+    DynamicWorkerRoutes(exchange, subscription, initialRequest)
   }
 
   def exchangeClient: ExchangeClient = defaultExchangeClient
@@ -123,7 +120,7 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
 
 object WorkerConfig {
 
-  type RunningWorker = RunningService[WorkerConfig, WorkerRoutes]
+  type RunningWorker = RunningService[WorkerConfig, DynamicWorkerRoutes]
 
   def apply(firstArg: String, theRest: String*): WorkerConfig = apply(firstArg +: theRest.toArray)
 

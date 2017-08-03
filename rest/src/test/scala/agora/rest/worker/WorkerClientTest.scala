@@ -13,7 +13,7 @@ class WorkerClientTest extends BaseRoutesSpec {
   }
 
   lazy val workerClient = {
-    val worker        = WorkerRoutes()
+    val worker        = DynamicWorkerRoutes()
     val restClient    = DirectRestClient(worker.routes)
     val workerDetails = WorkerDetails()
     val matchDetails  = MatchDetails.empty

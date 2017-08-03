@@ -31,7 +31,7 @@ object ExchangeConfig {
 
 class ExchangeConfig(c: Config) extends ServerConfig(c) {
 
-  def start(exchange: ServerSideExchange = newExchange(MatchObserver())): Future[ExchangeConfig.RunningExchange] = {
+  def start(exchange: ServerSideExchange = newExchange): Future[ExchangeConfig.RunningExchange] = {
     val er = newExchangeRoutes(exchange)
     RunningService.start(this, routes(er), er)
   }
@@ -45,7 +45,7 @@ class ExchangeConfig(c: Config) extends ServerConfig(c) {
     }
   }
 
-  def newExchange(obs: MatchObserver)(implicit matcher: JobPredicate = JobPredicate()): ServerSideExchange = {
+  def newExchange(implicit obs: MatchObserver = MatchObserver(), matcher: JobPredicate = JobPredicate()): ServerSideExchange = {
     val underlying: Exchange   = Exchange(obs)(matcher)
     val safeExchange: Exchange = ActorExchange(underlying, serverImplicits.system)
     new ServerSideExchange(safeExchange, obs)

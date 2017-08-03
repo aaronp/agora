@@ -18,14 +18,14 @@ import org.scalatest.concurrent.Eventually
 
 import scala.concurrent.Future
 
-class WorkerRoutesTest extends BaseRoutesSpec with Eventually {
+class DynamicWorkerRoutesTest extends BaseRoutesSpec with Eventually {
 
-  import WorkerRoutesTest._
+  import DynamicWorkerRoutesTest._
 
   "WorkerRoutes.health" should {
     "reply w/ the worker health" in {
 
-      WorkerHttp.healthRequest ~> WorkerRoutes().routes ~> check {
+      WorkerHttp.healthRequest ~> DynamicWorkerRoutes().routes ~> check {
         status shouldEqual StatusCodes.OK
         val dto = responseAs[HealthDto]
         dto.objectPendingFinalizationCount should be >= 0
@@ -36,7 +36,7 @@ class WorkerRoutesTest extends BaseRoutesSpec with Eventually {
   "WorkerRoutes.updateSubscription" should {
     "replace the subscription details" in {
       // start out with a single route, but whose handler replaces (updates) the subscription
-      val wr = WorkerRoutes()
+      val wr = DynamicWorkerRoutes()
 
       def invocations(ctxt: WorkContext[_]) = JsonPath.root.invoked.int.getOption(ctxt.details.aboutMe).getOrElse(0)
 
@@ -126,7 +126,7 @@ class WorkerRoutesTest extends BaseRoutesSpec with Eventually {
   }
   "WorkerRoutes.become" should {
     "replace existing routes" in {
-      val wr = WorkerRoutes()
+      val wr = DynamicWorkerRoutes()
 
       var oldCount = 0
       var newCount = 0
@@ -164,7 +164,7 @@ class WorkerRoutesTest extends BaseRoutesSpec with Eventually {
   "WorkerRoutes" should {
 
     "be able to upload from strict multipart requests" in {
-      val wr = WorkerRoutes()
+      val wr = DynamicWorkerRoutes()
 
       wr.usingSubscription(_.withPath("uploadTest")).addHandler[Multipart.FormData] { workContext =>
         val respFuture: Future[HttpResponse] = workContext.mapFirstMultipart {
@@ -195,7 +195,7 @@ class WorkerRoutesTest extends BaseRoutesSpec with Eventually {
     }
 
     "be able to upload from indefinite multipart requests" in {
-      val wr = WorkerRoutes()
+      val wr = DynamicWorkerRoutes()
 
       wr.usingSubscription(_.withPath("uploadTest")).addHandler { (ctxt: WorkContext[Multipart.FormData]) =>
         ctxt.foreachMultipart {
@@ -244,7 +244,7 @@ class WorkerRoutesTest extends BaseRoutesSpec with Eventually {
 
       val httpReq: HttpRequest = WorkerClient.multipartRequest("doit", matchDetails, request)
 
-      val wr = WorkerRoutes()
+      val wr = DynamicWorkerRoutes()
 
       // add a handler for 'doit'
       wr.usingSubscription(_.withPath("doit")).addHandler[Multipart.FormData] { ctxt =>
@@ -272,7 +272,7 @@ class WorkerRoutesTest extends BaseRoutesSpec with Eventually {
     }
 
     "handle routes with paths of varying length" in {
-      val wr = WorkerRoutes()
+      val wr = DynamicWorkerRoutes()
 
       // add an echo handler for 'a/b/c'
       wr.usingSubscription(_.withPath("some/nested/route/echo")).addHandler[String] { ctxt =>
@@ -290,7 +290,7 @@ class WorkerRoutesTest extends BaseRoutesSpec with Eventually {
   }
 }
 
-object WorkerRoutesTest {
+object DynamicWorkerRoutesTest {
 
   case class SomeData(foo: String, bar: Int)
 

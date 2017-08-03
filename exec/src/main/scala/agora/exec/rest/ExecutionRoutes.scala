@@ -1,13 +1,14 @@
 package agora.exec.rest
 
 import agora.api.Implicits._
+import agora.api.`match`.MatchDetails
 import agora.api.exchange.{Exchange, WorkSubscription}
 import agora.api.json.JPath
 import agora.api.worker.SubscriptionKey
 import agora.exec.ExecConfig
 import agora.exec.model.{RunProcess, Upload}
 import agora.exec.workspace.WorkspaceId
-import agora.rest.worker.{RouteSubscriptionSupport, WorkerRoutes}
+import agora.rest.worker.{DynamicWorkerRoutes, RouteSubscriptionSupport}
 import akka.http.scaladsl.model.Multipart
 import akka.http.scaladsl.server.Directives.{entity, path, _}
 import akka.http.scaladsl.server.Route
@@ -18,28 +19,57 @@ import scala.concurrent.Future
 
 object ExecutionRoutes {
 
-  /** @param execConfig a configuration
-    * @return a future of the ExecutionRoutes once the exec subscription completes
+  /**
+    * Creates a [[WorkSubscription]] for the given key (if provided)
+    * It will match requests made with a 'command' key, asking for them to be
+    * sent to /rest/exec/run
+    *
+    * @return
     */
-  def apply(execConfig: ExecConfig): Future[ExecutionRoutes] = apply(execConfig, execConfig.exchangeClient)
+  def execSubscription() = {
+    // format: off
+    WorkSubscription().
+      withPath("/rest/exec/run").
+      matchingSubmission(JPath("command").asMatcher)
+    // format: on
+  }
 
-  /** @param execConfig a configuration
-    * @param exchange   the exchange to subscribe to
-    * @return a future of the ExecutionRoutes once the exec subscription completes
+  def uploadSubscription() = {
+    // format: off
+    WorkSubscription().
+      withPath("/rest/exec/upload").
+      append("topic", "upload")
+    // format: on
+  }
+
+  /**
+    * This subscription depends on the 'uploadSubscription'
+    * @param workspace
+    * @param uploadSubscriptionKey
     */
-  def apply(execConfig: ExecConfig, exchange: Exchange): Future[ExecutionRoutes] = {
-    val execSubscription   = WorkSubscription().matchingSubmission(JPath("command").asMatcher)
-    val uploadSubscription = WorkSubscription().append("topic", "upload")
+  def uploadSubscriptionForWorkspace(workspace: WorkspaceId, uploadSubscriptionKey: SubscriptionKey) = {
+    // format: off
+    WorkSubscription().
+      withPath("/rest/exec/upload").
+      append("topic", "upload").
+      append("workspace", workspace).
+      referencing(uploadSubscriptionKey).
+      matchingSubmission("workspace" === workspace)
+    // format: on
+  }
 
-    val execAckFut   = exchange.subscribe(execSubscription)
-    val uploadAckFut = exchange.subscribe(uploadSubscription)
-
-    // subscribe to handle 'execute' requests
+  def subscribeToExchange(exchange: Exchange,
+                          execSubscriptionKey: SubscriptionKey,
+                          initialExecSubscription: Int,
+                          uploadSubscriptionKey: SubscriptionKey,
+                          initialUploadSubscription: Int): Future[Nothing] = {
     for {
-      execAck   <- execAckFut
-      uploadAck <- uploadAckFut
+      execFuture   <- exchange.take(execSubscriptionKey, initialExecSubscription)
+      uploadFuture <- exchange.take(uploadSubscriptionKey, initialUploadSubscription)
+      _            <- execFuture
+      _            <- uploadFuture
     } yield {
-      new ExecutionRoutes(execConfig, exchange, execAck.id, uploadAck.id)
+      true
     }
   }
 }
@@ -54,13 +84,11 @@ object ExecutionRoutes {
   */
 case class ExecutionRoutes(
     execConfig: ExecConfig,
-    exchange: Exchange,
-    execSubscriptionKey: SubscriptionKey,
-    uploadSubscriptionKey: SubscriptionKey
+    exchange: Exchange
 ) extends RouteSubscriptionSupport
     with FailFastCirceSupport {
 
-  def routes(workerRoutes: WorkerRoutes, exchangeRoutes: Option[Route]): Route = {
+  def routes(workerRoutes: DynamicWorkerRoutes, exchangeRoutes: Option[Route]): Route = {
     execConfig.routes(workerRoutes, exchangeRoutes) ~ execRoutes
   }
 
@@ -107,36 +135,32 @@ case class ExecutionRoutes(
   def uploadRoute: Route = {
     (post & path("rest" / "exec" / "upload") & pathEnd) {
       extractRequestContext { ctxt =>
-        import ctxt.{executionContext, materializer}
-
-        entity(as[Multipart.FormData]) { formData: Multipart.FormData =>
-          parameter('workspace) { workspace =>
-            val uploadFuture = uploadToWorkspace(workspace, formData)
-            complete(uploadFuture)
+        extractMatchDetails { (detailsOpt: Option[MatchDetails]) =>
+          entity(as[Multipart.FormData]) { formData: Multipart.FormData =>
+            parameter('workspace) { workspace =>
+              detailsOpt.map(_.subscriptionKey).foreach { uploadSubscription =>
+                }
+              val uploadFuture = uploadToWorkspace(workspace, formData)
+              complete(uploadFuture)
+            }
           }
         }
       }
     }
   }
 
+  def createUploadSubscription(workspace: WorkspaceId, uploadSubscription: SubscriptionKey) = {
+    // format: off
+
+      // format: on
+
+    exchange.subscribe(workspaceSubscription).onComplete { resp =>
+      logger.debug(s"Added $workspaceSubscription : $resp")
+    }
+  }
   def uploadToWorkspace(workspace: WorkspaceId, formData: Multipart.FormData) = {
     val saveTo                              = execConfig.uploadsDir.resolve(workspace)
     val uploadsFuture: Future[List[Upload]] = MultipartExtractor(formData, saveTo, execConfig.chunkSize)
-
-    // subscribe to this workspace. We can do this async
-    {
-      // format: off
-      val workspaceSubscription = WorkSubscription().
-        append("topic", "upload").
-        append("workspace", workspace).
-        referencing(uploadSubscriptionKey).
-        matchingSubmission(("workspace" === workspace).asMatcher)
-      // format: on
-
-      exchange.subscribe(workspaceSubscription).onComplete { resp =>
-        logger.debug(s"Added $workspaceSubscription : $resp")
-      }
-    }
 
     /**
       * Once the files are uploaded, create a subscription which contains 'file: [...], workspace: ...'

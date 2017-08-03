@@ -10,12 +10,22 @@ import akka.util.ByteString
 
 class ExecutionRoutesTest extends BaseRoutesSpec {
 
+  "ExecutionRoutes.execSubscription" should {
+    "match "
+
+    val execSubscription = ExecutionRoutes.execSubscription()
+
+    val uploadSubscription = ExecutionRoutes.uploadSubscription()
+  }
   "ExecutionRoutes" should {
     "handle uploads to POST /rest/exec/upload" in {
 
       val execConfig = ExecConfig()
       val exchange   = Exchange.instance()
-      val execRoutes = ExecutionRoutes(execConfig, exchange).futureValue
+
+//      ExchangeClient
+
+      val execRoutes = new ExecutionRoutes(execConfig, exchange, "executions", "uploads") //.futureValue
 
       val restClient = new DirectRestClient(execRoutes.execRoutes)
 

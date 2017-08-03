@@ -107,7 +107,7 @@ trait RoutingClient { self: ExchangeClient =>
 
 object RoutingClient {
 
-  val strM: ToEntityMarshaller[String]                        = Marshaller.stringMarshaller(MediaTypes.`application/json`)
+  private val strM: ToEntityMarshaller[String]                = Marshaller.stringMarshaller(MediaTypes.`application/json`)
   implicit val JsonEntityMarshaller: ToEntityMarshaller[Json] = strM.compose((_: Json).noSpaces)
 
 }

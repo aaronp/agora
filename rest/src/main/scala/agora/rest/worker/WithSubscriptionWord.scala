@@ -17,7 +17,7 @@ import scala.concurrent.Future
   * @param routes the worker routes
   * @param f the handler
   */
-class WithSubscriptionWord private[worker] (routes: WorkerRoutes, f: WorkSubscription => WorkSubscription, initialRequestOpt: Option[Int]) {
+class WithSubscriptionWord private[worker] (routes: DynamicWorkerRoutes, f: WorkSubscription => WorkSubscription, initialRequestOpt: Option[Int]) {
 
   def withInitialRequest(n: Int) = {
     new WithSubscriptionWord(routes, f, Option(n))

@@ -6,7 +6,7 @@ import org.junit.runner.RunWith
 
 @RunWith(classOf[Cucumber])
 @CucumberOptions(
-  tags = Array("@Exec"),
+  tags = Array("@ExecUpload"),
   plugin = Array("pretty", "html:target/cucumber/exec-report.html")
 )
 class ExecTest

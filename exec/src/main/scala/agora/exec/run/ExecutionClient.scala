@@ -23,29 +23,22 @@ import scala.language.{implicitConversions, reflectiveCalls}
 
 /**
   * A client of the ExecutionRoutes
+  *
   * @param exchange
-  * @param workspaceIdOpt
-  * @param fileDependencies
   * @param defaultFrameLength
   * @param allowTruncation
   * @param requestWorkOnFailure
   * @param uploadTimeout
   */
-case class ExecutionClient(exchange: ExchangeClient,
-                           workspaceIdOpt: Option[WorkspaceId],
-                           fileDependencies: Set[String],
-                           defaultFrameLength: Int,
-                           allowTruncation: Boolean,
-                           requestWorkOnFailure: Boolean)(implicit uploadTimeout: FiniteDuration)
-    extends ProcessRunner
-    with AutoCloseable
+case class ExecutionClient(exchange: ExchangeClient, defaultFrameLength: Int, allowTruncation: Boolean, requestWorkOnFailure: Boolean)(implicit uploadTimeout: FiniteDuration)
+    extends AutoCloseable
     with FailFastCirceSupport
     with LazyLogging {
 
-  override def run(proc: RunProcess): ProcessOutput = {
+  def run(proc: RunProcess, workspaceIdOpt: Option[WorkspaceId] = None, fileDependencies: Set[String] = Set.empty): ProcessOutput = {
     import exchange.{execContext, materializer}
 
-    val job = ExecutionClient.prepare(proc, workspaceIdOpt, fileDependencies)
+    val job = ExecutionClient.execAsJob(proc, workspaceIdOpt, fileDependencies)
 
     val workerResponses = exchange.enqueue(job)
 
@@ -58,22 +51,18 @@ case class ExecutionClient(exchange: ExchangeClient,
   }
 
   def upload(workspaceId: WorkspaceId, fileName: String, src: Source[ByteString, Any], contentType: ContentType = ContentTypes.`text/plain(UTF-8)`) = {
-    val job = {
-      val baseJob = "upload".asJob
-      workspaceIdOpt.fold(baseJob) { workspace =>
-        baseJob.add("workspace", workspace)
-      }
-    }
+    val job = ExecutionClient.uploadAsJob(workspaceId)
     exchange.enqueueAndDispatch(job) { worker =>
       val request = ExecutionClient.asRequest(workspaceId, fileName, src, contentType)
       worker.send(request)
     }
   }
 
-  override def close(): Unit = {
+  def deleteWorkspace(workspaceId: WorkspaceId): Unit = {
     ???
-    workspaceIdOpt.foreach { workspace =>
-      }
+  }
+
+  override def close(): Unit = {
     exchange.close()
   }
 }
@@ -88,6 +77,10 @@ object ExecutionClient extends RequestBuilding {
     Post(uri, chunk).withHeaders(`Content-Disposition`(ContentDispositionTypes.`form-data`, Map("filename" -> fileName)))
   }
 
+  def uploadAsJob(workspace: WorkspaceId) = {
+    "upload".asJob.add("workspace", workspace).matching("topic" === "upload")
+  }
+
   /**
     * @see ExecutionHandler#newWorkspaceSubscription for the flip-side of this which prepares the work subscription
     * @param runProcess
@@ -95,7 +88,7 @@ object ExecutionClient extends RequestBuilding {
     * @param fileDependencies
     * @return
     */
-  def prepare(runProcess: RunProcess, workspaceIdOpt: Option[WorkspaceId], fileDependencies: Set[String]): SubmitJob = {
+  def execAsJob(runProcess: RunProcess, workspaceIdOpt: Option[WorkspaceId], fileDependencies: Set[String]): SubmitJob = {
     //    import agora.api.json.JPredicate.implicits._
     import agora.api.Implicits._
 

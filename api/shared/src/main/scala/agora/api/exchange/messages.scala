@@ -1,6 +1,6 @@
 package agora.api.exchange
 
-import agora.api.json.JMatcher
+import agora.api.json.{JFilter, JMatcher}
 import agora.api.worker.{SubscriptionKey, WorkerDetails, WorkerRedirectCoords}
 import agora.api.{JobId, MatchId}
 import io.circe.generic.auto._
@@ -66,7 +66,6 @@ object QueueStateResponse {
 
 case class PendingSubscription(key: SubscriptionKey, subscription: WorkSubscription, requested: Int)
 
-
 /**
   * Represents anything which can be run as a job
   *
@@ -83,7 +82,7 @@ case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends Cl
 
   def withSelection(mode: SelectionMode) = copy(submissionDetails = submissionDetails.copy(selection = mode))
 
-  def matching(matcher: JMatcher) = copy(submissionDetails.copy(workMatcher = matcher))
+  def matching[T](matcher: JMatcher)(implicit ev: T => JMatcher): SubmitJob = copy(submissionDetails.copy(workMatcher = ev(matcher)))
 
   def jobId: Option[JobId] = {
     submissionDetails.valueOf[JobId]("jobId").right.toOption
@@ -107,7 +106,10 @@ object SubmitJob {
 
   trait LowPriorityImplicits {
     implicit def asJob[T: Encoder](value: T) = new {
-      def asJob(implicit details: SubmissionDetails = SubmissionDetails()): SubmitJob = SubmitJob[T](details, value)
+      def asJob(implicit details: SubmissionDetails = SubmissionDetails()): SubmitJob = {
+        require(!value.isInstanceOf[SubmitJob], s"'asJob' called on $value which is already a SubmitJob")
+        SubmitJob[T](details, value)
+      }
     }
   }
 
@@ -167,7 +169,7 @@ sealed trait SubscriptionResponse
 case class WorkSubscription(details: WorkerDetails = WorkerDetails(),
                             jobMatcher: JMatcher = JMatcher.matchAll,
                             submissionMatcher: JMatcher = JMatcher.matchAll,
-                            subscriptionReferences : Set[SubscriptionKey] = Set.empty)
+                            subscriptionReferences: Set[SubscriptionKey] = Set.empty)
     extends SubscriptionRequest {
   def matches(job: SubmitJob)(implicit m: JobPredicate): Boolean = m.matches(job, this)
 
@@ -179,10 +181,10 @@ case class WorkSubscription(details: WorkerDetails = WorkerDetails(),
     */
   def matchingJob(matcher: JMatcher): WorkSubscription = copy(jobMatcher = matcher)
 
-  def withReferences(references : Set[SubscriptionKey]) = copy(subscriptionReferences = references)
-  def referencing(reference :SubscriptionKey, theRest :SubscriptionKey*) = withReferences(theRest.toSet + reference)
+  def withReferences(references: Set[SubscriptionKey])                   = copy(subscriptionReferences = references)
+  def referencing(reference: SubscriptionKey, theRest: SubscriptionKey*) = withReferences(theRest.toSet + reference)
 
-  def matchingSubmission(matcher: JMatcher) = copy(submissionMatcher = matcher)
+  def matchingSubmission[T](matcher: T)(ev: T => JMatcher): WorkSubscription = copy(submissionMatcher = ev(matcher))
 
   def withData[T: Encoder](data: T, name: String = null) = withDetails(_.withData(data, name))
 
@@ -200,6 +202,8 @@ case class WorkSubscription(details: WorkerDetails = WorkerDetails(),
 }
 
 object WorkSubscription {
+  implicit def filterAsMatcher(filter: JFilter): JMatcher = filter.asMatcher
+
   implicit val encoder = exportEncoder[WorkSubscription].instance
   implicit val decoder = exportDecoder[WorkSubscription].instance
 }
@@ -223,8 +227,7 @@ object RequestWork {
   implicit val decoder = exportDecoder[RequestWork].instance
 }
 
-
-case class RequestWorkAck(id : SubscriptionKey, previousItemsPending: Int, totalItemsPending: Int) extends SubscriptionResponse {
+case class RequestWorkAck(id: SubscriptionKey, previousItemsPending: Int, totalItemsPending: Int) extends SubscriptionResponse {
   private[exchange] def withNewTotal(remaining: Int) = copy(totalItemsPending = remaining)
 
   /** @return true if a subscription previously had 0 pending subscriptions

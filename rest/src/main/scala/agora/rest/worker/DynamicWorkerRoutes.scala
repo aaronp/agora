@@ -15,16 +15,16 @@ import io.circe.Json
 import scala.concurrent.Future
 import scala.language.reflectiveCalls
 
-object WorkerRoutes {
-  def apply()(implicit mat: Materializer): WorkerRoutes = {
+object DynamicWorkerRoutes {
+  def apply()(implicit mat: Materializer): DynamicWorkerRoutes = {
     implicit val predicate = JobPredicate()
     val exchange           = Exchange(MatchObserver())
-    WorkerRoutes(exchange, WorkSubscription(), 1)
+    DynamicWorkerRoutes(exchange, WorkSubscription(), 1)
   }
 }
 
 // see http://doc.akka.io/docs/akka-stream-and-http-experimental/1.0/scala/http/routing-dsl/index.html
-case class WorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscription, defaultInitialRequest: Int)(implicit mat: Materializer) { self =>
+case class DynamicWorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscription, defaultInitialRequest: Int)(implicit mat: Materializer) { self =>
   implicit val ec = mat.executionContext
 
   private object HandlerWriteLock

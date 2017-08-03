@@ -11,6 +11,7 @@ import agora.exec.run.{LocalRunner, ProcessRunner}
 import agora.exec.workspace.WorkspaceId
 import agora.rest.worker.WorkerConfig
 import agora.rest.{RunningService, configForArgs}
+import akka.http.scaladsl.server.Route
 import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.concurrent.Future
@@ -43,9 +44,10 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
     * @return a Future of a [[RunningService]]
     */
   def start(): Future[RunningService[ExecConfig, ExecutionRoutes]] = {
-    val execSys    = ExecSystem(this)
-    val restRoutes = execSys.routes
-    RunningService.start[ExecConfig, ExecutionRoutes](this, restRoutes, execSys.executionRoutes)
+
+    val boot = ExecBoot(this)
+    import serverImplicits._
+
   }
 
   override def withFallback(fallback: Config): ExecConfig = new ExecConfig(config.withFallback(fallback))
@@ -108,6 +110,10 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
   def defaultFrameLength = execConfig.getInt("defaultFrameLength")
 
   def errorLimit = Option(execConfig.getInt("errorLimit")).filter(_ > 0)
+
+  val initialUploadSubscription = execConfig.getInt("initialUploadSubscription")
+
+  val initialExecSubscription = execConfig.getInt("initialExecSubscription")
 
   implicit def uploadTimeout: FiniteDuration = execConfig.getDuration("uploadTimeout", TimeUnit.MILLISECONDS).millis
 

@@ -37,7 +37,7 @@ import scala.util.control.NonFatal
   * @tparam T the request type
   */
 case class WorkContext[T: FromRequestUnmarshaller](exchange: Exchange,
-                                                   routes: WorkerRoutes,
+                                                   routes: DynamicWorkerRoutes,
                                                    subscriptionKey: Option[SubscriptionKey],
                                                    subscription: WorkSubscription,
                                                    requestContext: RequestContext,
