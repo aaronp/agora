@@ -93,7 +93,8 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
 
   def asMatcher(at: String): Either[circe.Error, JMatcher] = {
     val fromConfig: Option[Either[circe.Error, JMatcher]] = Try(config.getConfig(at)).toOption.map { subConf =>
-      asJson(subConf).as[JMatcher]
+      val json = asJson(subConf)
+      json.as[JMatcher]
     }
 
     val fromString = asJson(config).hcursor.downField(at).as[JMatcher]

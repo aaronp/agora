@@ -15,4 +15,4 @@ private[workspace] final case class UploadFile(workspaceId: WorkspaceId, name: S
 
 private[workspace] final case class Close(workspaceId: WorkspaceId, result: Promise[Boolean]) extends Msg
 
-private[workspace] final case class AwaitUploads(workspace: WorkspaceId, fileDependencies: Set[String], workDirResult: Promise[Path]) extends Msg
+private[workspace] final case class AwaitUploads(dependencies: UploadDependencies, workDirResult: Promise[Path]) extends Msg

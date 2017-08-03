@@ -60,11 +60,9 @@ object JPart {
 
   implicit object JPartFormat extends Decoder[JPart] with Encoder[JPart] {
     override def apply(c: HCursor): Result[JPart] = {
-      val jposDec = implicitly[Decoder[JPos]]
+      val jposDec   = implicitly[Decoder[JPos]]
       val jfieldDec = implicitly[Decoder[JField]]
-      jfieldDec.tryDecode(c).
-        orElse(jposDec.tryDecode(c)).
-        orElse(JFilterDec.tryDecode(c))
+      jfieldDec.tryDecode(c).orElse(jposDec.tryDecode(c)).orElse(JFilterDec.tryDecode(c))
 
     }
 
@@ -73,7 +71,7 @@ object JPart {
         case filter: JFilter =>
           Json.obj("field" -> Json.fromString(filter.field), "predicate" -> filter.predicate.json)
         case field: JField => field.asJson
-        case pos: JPos => pos.asJson
+        case pos: JPos     => pos.asJson
       }
     }
   }
@@ -82,6 +80,6 @@ object JPart {
 
 case class JField(name: String) extends JPart
 
-case class JPos(i: Int) extends JPart
+case class JPos(pos: Int) extends JPart
 
 case class JFilter(field: String, predicate: JPredicate) extends JPart

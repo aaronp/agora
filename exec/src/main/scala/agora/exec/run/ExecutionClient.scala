@@ -1,107 +1,52 @@
 package agora.exec.run
 
-import agora.api.Implicits._
-import agora.api.exchange.SubmitJob
-import agora.api.json.JMatcher
 import agora.domain.IterableSubscriber
 import agora.exec.model.RunProcess
-import agora.exec.run.ProcessRunner.ProcessOutput
-import agora.exec.workspace.WorkspaceId
-import agora.rest.exchange.ExchangeClient
+import agora.rest.client.RestClient
 import akka.http.scaladsl.client.RequestBuilding
-import akka.http.scaladsl.model.Uri.Query
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers._
-import akka.stream.scaladsl.Source
-import akka.util.ByteString
-import com.typesafe.scalalogging.LazyLogging
-import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
-import io.circe.generic.auto._
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse}
 
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.{implicitConversions, reflectiveCalls}
 
 /**
   * A client of the ExecutionRoutes
   *
-  * @param exchange
-  * @param defaultFrameLength
-  * @param allowTruncation
-  * @param requestWorkOnFailure
-  * @param uploadTimeout
+  * @param client
   */
-case class ExecutionClient(exchange: ExchangeClient, defaultFrameLength: Int, allowTruncation: Boolean, requestWorkOnFailure: Boolean)(implicit uploadTimeout: FiniteDuration)
-    extends AutoCloseable
-    with FailFastCirceSupport
-    with LazyLogging {
+case class ExecutionClient(client: RestClient, defaultFrameLength: Int, allowTruncation: Boolean)(implicit uploadTimeout: FiniteDuration) extends AutoCloseable {
 
-  def run(proc: RunProcess, workspaceIdOpt: Option[WorkspaceId] = None, fileDependencies: Set[String] = Set.empty): ProcessOutput = {
-    import exchange.{execContext, materializer}
+  def uploader = UploadClient(client)
 
-    val job = ExecutionClient.execAsJob(proc, workspaceIdOpt, fileDependencies)
-
-    val workerResponses = exchange.enqueue(job)
-
-    val lineIterFuture = workerResponses.map { completedWork =>
-      val resp = completedWork.onlyResponse
-      IterableSubscriber.iterate(resp.entity.dataBytes, proc.frameLength.getOrElse(defaultFrameLength), allowTruncation)
-    }
-
-    lineIterFuture.map(proc.filterForErrors)
+  def execute(proc: RunProcess) = {
+    import client.executionContext
+    import client.materializer
+    client.send(ExecutionClient.asRequest(proc))
   }
-
-  def upload(workspaceId: WorkspaceId, fileName: String, src: Source[ByteString, Any], contentType: ContentType = ContentTypes.`text/plain(UTF-8)`) = {
-    val job = ExecutionClient.uploadAsJob(workspaceId)
-    exchange.enqueueAndDispatch(job) { worker =>
-      val request = ExecutionClient.asRequest(workspaceId, fileName, src, contentType)
-      worker.send(request)
+  def run(proc: RunProcess): Future[Iterator[String]] = {
+    import client.executionContext
+    import client.materializer
+    execute(proc).map { httpResp =>
+      val iter: Iterator[String] = IterableSubscriber.iterate(httpResp.entity.dataBytes, proc.frameLength.getOrElse(defaultFrameLength), allowTruncation)
+      proc.filterForErrors(iter)
     }
   }
 
-  def deleteWorkspace(workspaceId: WorkspaceId): Unit = {
-    ???
+  final def run(cmd: String, theRest: String*): Future[Iterator[String]] = {
+    run(RunProcess(cmd :: theRest.toList))
   }
 
-  override def close(): Unit = {
-    exchange.close()
-  }
+  override def close(): Unit = client.close()
 }
 
 object ExecutionClient extends RequestBuilding {
 
-  def asRequest(workspaceId: WorkspaceId, fileName: String, src: Source[ByteString, Any], contentType: ContentType): HttpRequest = {
-    val chunk = HttpEntity(contentType, src).withContentType(contentType)
-    //    val query = ("filename", fileName) +: Query(s"workspace=$workspaceId")
-    val query = Query(s"workspace=$workspaceId")
-    val uri   = Uri("/rest/exec/upload").withQuery(query)
-    Post(uri, chunk).withHeaders(`Content-Disposition`(ContentDispositionTypes.`form-data`, Map("filename" -> fileName)))
-  }
+  def asRequest(job: RunProcess)(implicit ec: ExecutionContext) = {
+    import io.circe.generic.auto._
+    import io.circe.syntax._
 
-  def uploadAsJob(workspace: WorkspaceId) = {
-    "upload".asJob.add("workspace", workspace).matching("topic" === "upload")
-  }
-
-  /**
-    * @see ExecutionHandler#newWorkspaceSubscription for the flip-side of this which prepares the work subscription
-    * @param runProcess
-    * @param workspaceIdOpt
-    * @param fileDependencies
-    * @return
-    */
-  def execAsJob(runProcess: RunProcess, workspaceIdOpt: Option[WorkspaceId], fileDependencies: Set[String]): SubmitJob = {
-    //    import agora.api.json.JPredicate.implicits._
-    import agora.api.Implicits._
-
-    val subscriptionMatcher: JMatcher = workspaceIdOpt match {
-      case Some(workspace) if fileDependencies.nonEmpty =>
-        val hasFiles          = "files".includes(fileDependencies)
-        val matchesWorkspace  = "workspace" === workspace
-        val matcher: JMatcher = hasFiles.and(matchesWorkspace)
-        matcher
-      case Some(workspace) => ("workspace" === workspace).asMatcher
-      case None            => JMatcher.matchAll
-    }
-
-    runProcess.asJob.matching(subscriptionMatcher)
+    val e = HttpEntity(ContentTypes.`application/json`, job.asJson.noSpaces)
+    Post("/rest/exec/run").withEntity(e)
   }
 }

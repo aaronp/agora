@@ -1,77 +1,64 @@
 package agora.exec.rest
 
+import java.nio.file.Path
+
 import agora.api.Implicits._
-import agora.api.`match`.MatchDetails
+import agora.api._
 import agora.api.exchange.{Exchange, WorkSubscription}
-import agora.api.json.JPath
-import agora.api.worker.SubscriptionKey
+import agora.api.json.{JMatcher, JPath}
 import agora.exec.ExecConfig
-import agora.exec.model.{RunProcess, Upload}
-import agora.exec.workspace.WorkspaceId
-import agora.rest.worker.{DynamicWorkerRoutes, RouteSubscriptionSupport}
-import akka.http.scaladsl.model.Multipart
+import agora.exec.model.RunProcess
+import agora.exec.workspace.{UploadDependencies, WorkspaceClient}
+import agora.rest.MatchDetailsExtractor
+import agora.rest.worker.{DynamicWorkerRoutes, RouteSubscriptionSupport, WorkerConfig}
+import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.http.scaladsl.server.Directives.{entity, path, _}
 import akka.http.scaladsl.server.Route
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.generic.auto._
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
+/**
+  * The execution routes can execute commands on the machine, as well as upload files to workspaces.
+  *
+  * == Use Case Example w/ Spark ==
+  * Consider an Apache Spark use-case, where we have a command we want to execute on a machine
+  * which depends on data being uploaded from some worker nodes.
+  *
+  * One approach would be to execute an initial command in order to 'select' a number of workers.
+  * That could be a command to actually get data, or just choose which workers match particular criteria.
+  *
+  * Once we have chosen that/those worker(s), we have each Spark node make a request to upload its partitioned data
+  * to them in a prepare step asynchronously (fire and forget).
+  *
+  * The workers could then perform actions based on normal executions via the exchange which specify selection criteria
+  * that target those specific nodes (as we want to ensure our commands operate on the same files which were uploaded
+  * by specifying [[UploadDependencies]].
+  *
+  * == Subscriptions ==
+  * 1) Execute -- subscribe with "topic=execute" (which also matches work requests with a 'command' json element).
+  *
+  */
 object ExecutionRoutes {
+  val execCriteria: JMatcher = ("topic" === "execute").asMatcher
 
-  /**
-    * Creates a [[WorkSubscription]] for the given key (if provided)
-    * It will match requests made with a 'command' key, asking for them to be
+  /** It will match requests made with a 'command' key, asking for them to be
     * sent to /rest/exec/run
     *
-    * @return
+    * @return a [[WorkSubscription]] for the given key (if provided)
     */
-  def execSubscription() = {
+  def execSubscription(config: WorkerConfig): WorkSubscription = {
     // format: off
-    WorkSubscription().
+    val sub = config.subscription.
       withPath("/rest/exec/run").
-      matchingSubmission(JPath("command").asMatcher)
+      append("topic", "execute").
+      matchingJob(JPath("command").asMatcher)
     // format: on
+    assert(execCriteria.matches(sub.details.aboutMe))
+    sub
   }
 
-  def uploadSubscription() = {
-    // format: off
-    WorkSubscription().
-      withPath("/rest/exec/upload").
-      append("topic", "upload")
-    // format: on
-  }
-
-  /**
-    * This subscription depends on the 'uploadSubscription'
-    * @param workspace
-    * @param uploadSubscriptionKey
-    */
-  def uploadSubscriptionForWorkspace(workspace: WorkspaceId, uploadSubscriptionKey: SubscriptionKey) = {
-    // format: off
-    WorkSubscription().
-      withPath("/rest/exec/upload").
-      append("topic", "upload").
-      append("workspace", workspace).
-      referencing(uploadSubscriptionKey).
-      matchingSubmission("workspace" === workspace)
-    // format: on
-  }
-
-  def subscribeToExchange(exchange: Exchange,
-                          execSubscriptionKey: SubscriptionKey,
-                          initialExecSubscription: Int,
-                          uploadSubscriptionKey: SubscriptionKey,
-                          initialUploadSubscription: Int): Future[Nothing] = {
-    for {
-      execFuture   <- exchange.take(execSubscriptionKey, initialExecSubscription)
-      uploadFuture <- exchange.take(uploadSubscriptionKey, initialUploadSubscription)
-      _            <- execFuture
-      _            <- uploadFuture
-    } yield {
-      true
-    }
-  }
 }
 
 /**
@@ -82,100 +69,40 @@ object ExecutionRoutes {
   *
   * @param execConfig
   */
-case class ExecutionRoutes(
-    execConfig: ExecConfig,
-    exchange: Exchange
-) extends RouteSubscriptionSupport
-    with FailFastCirceSupport {
+case class ExecutionRoutes(execConfig: ExecConfig, exchange: Exchange, workspaces: WorkspaceClient) extends RouteSubscriptionSupport with FailFastCirceSupport {
 
   def routes(workerRoutes: DynamicWorkerRoutes, exchangeRoutes: Option[Route]): Route = {
-    execConfig.routes(workerRoutes, exchangeRoutes) ~ execRoutes
+    execConfig.routes(workerRoutes, exchangeRoutes) ~ executeRoute
   }
 
-  def execRoutes = executeRoute ~ uploadRoute
+  private def execute(runProcess: RunProcess, httpRequest: HttpRequest, workingDir: Option[Path])(implicit ec: ExecutionContext): Future[HttpResponse] = {
+    val detailsOpt = MatchDetailsExtractor.unapply(httpRequest)
+    val jobId      = detailsOpt.map(_.jobId).getOrElse(nextJobId)
+    val runner     = execConfig.newRunner(runProcess, detailsOpt, workingDir, jobId)
+    ExecutionHandler(httpRequest, runner, runProcess, detailsOpt)
+  }
 
   def executeRoute = {
-    post {
-      (path("rest" / "exec" / "run") & pathEnd) {
-        entity(as[RunProcess]) { runProcess =>
-          extractRequestContext { ctxt =>
-            import ctxt.executionContext
-            extractMatchDetails {
-              case detailsOpt @ Some(details) =>
-                /**
-                  * We were called as part of a match on the exchange, so take another work item when this one finishes
-                  */
-                requestOnComplete(details, exchange) {
-                  val runner     = execConfig.newRunner(runProcess, detailsOpt, details.jobId)
-                  val respFuture = ExecutionHandler(ctxt.request, runner, runProcess, detailsOpt)
-                  complete(respFuture)
+    (post & path("rest" / "exec" / "run")) {
+      entity(as[RunProcess]) { runProcess =>
+        extractRequestContext { ctxt =>
+          import ctxt.executionContext
+
+          takeNextOnComplete(exchange) {
+            val future = runProcess.dependencies match {
+              case None                                                           => execute(runProcess, ctxt.request, None)
+              case Some(UploadDependencies(workspace, fileDependencies, timeout)) =>
+                // ensure we wait for all files to arrive
+                workspaces.await(workspace, fileDependencies, timeout).flatMap { path =>
+                  execute(runProcess, ctxt.request, Option(path))
                 }
-              case None =>
-                val runner     = execConfig.newRunner(runProcess, None, agora.api.nextJobId())
-                val respFuture = ExecutionHandler(ctxt.request, runner, runProcess, None)
-                complete(respFuture)
             }
+            complete(future)
           }
         }
-      }
-    }
-  }
-
-  /**
-    * Uploads some files to a workspace.
-    *
-    * We start with creating a subscription for 'topic : upload'.
-    * When summat gets uploaded we add a subscription for 'workspace : xyz' based
-    * on the upload subscription
-    *
-    * When a file is uploaded, a new subscription is added for the new files/workspace
-    *
-    * @return a Route used to update
-    */
-  def uploadRoute: Route = {
-    (post & path("rest" / "exec" / "upload") & pathEnd) {
-      extractRequestContext { ctxt =>
-        extractMatchDetails { (detailsOpt: Option[MatchDetails]) =>
-          entity(as[Multipart.FormData]) { formData: Multipart.FormData =>
-            parameter('workspace) { workspace =>
-              detailsOpt.map(_.subscriptionKey).foreach { uploadSubscription =>
-                }
-              val uploadFuture = uploadToWorkspace(workspace, formData)
-              complete(uploadFuture)
-            }
-          }
-        }
-      }
-    }
-  }
-
-  def createUploadSubscription(workspace: WorkspaceId, uploadSubscription: SubscriptionKey) = {
-    // format: off
-
-      // format: on
-
-    exchange.subscribe(workspaceSubscription).onComplete { resp =>
-      logger.debug(s"Added $workspaceSubscription : $resp")
-    }
-  }
-  def uploadToWorkspace(workspace: WorkspaceId, formData: Multipart.FormData) = {
-    val saveTo                              = execConfig.uploadsDir.resolve(workspace)
-    val uploadsFuture: Future[List[Upload]] = MultipartExtractor(formData, saveTo, execConfig.chunkSize)
-
-    /**
-      * Once the files are uploaded, create a subscription which contains 'file: [...], workspace: ...'
-      * So that pending submits will find us (and not some other server's exec).
-      */
-    uploadsFuture.flatMap { uploads =>
-      val fileNames = uploads.map(_.name).toSet
-      val upserted  = ExecutionHandler.newWorkspaceSubscription(execSubscriptionKey, workspace, fileNames)
-      exchange.subscribe(upserted).map { ack =>
-        import io.circe.syntax._
-        fileNames.asJson
       }
     }
   }
 
   override def toString = s"ExecutionRoutes {${execConfig.describe}}"
-
 }

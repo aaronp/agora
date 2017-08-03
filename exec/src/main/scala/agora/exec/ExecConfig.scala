@@ -1,5 +1,6 @@
 package agora.exec
 
+import java.nio.file.Path
 import java.util.concurrent.TimeUnit
 
 import agora.api._
@@ -43,12 +44,7 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
     *
     * @return a Future of a [[RunningService]]
     */
-  def start(): Future[RunningService[ExecConfig, ExecutionRoutes]] = {
-
-    val boot = ExecBoot(this)
-    import serverImplicits._
-
-  }
+  def start(): Future[RunningService[ExecConfig, ExecutionRoutes]] = ExecBoot(this).start
 
   override def withFallback(fallback: Config): ExecConfig = new ExecConfig(config.withFallback(fallback))
 
@@ -77,16 +73,10 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
     * @param jobId
     * @return
     */
-  def newRunner(proc: RunProcess, matchDetails: Option[MatchDetails], jobId: JobId): LocalRunner = {
+  def newRunner(proc: RunProcess, matchDetails: Option[MatchDetails], workingDirectory: Option[Path], jobId: JobId): LocalRunner = {
     import serverImplicits._
     require(system.whenTerminated.isCompleted == false, "Actor system is terminated")
-    val wd = {
-      val baseDir = uploads.dir(jobId)
-      proc.workspace.fold(baseDir) { workspace =>
-        baseDir.map(_.resolve(workspace))
-      }
-    }
-    new LocalRunner(workDir = wd) {
+    new LocalRunner(workDir = workingDirectory) {
       override def mkLogger(proc: RunProcess) = {
         newLogger(proc, jobId, matchDetails)
       }
@@ -111,14 +101,12 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
 
   def errorLimit = Option(execConfig.getInt("errorLimit")).filter(_ > 0)
 
-  val initialUploadSubscription = execConfig.getInt("initialUploadSubscription")
-
-  val initialExecSubscription = execConfig.getInt("initialExecSubscription")
+  def initialExecutionSubscription = execConfig.getInt("initialExecutionSubscription")
 
   implicit def uploadTimeout: FiniteDuration = execConfig.getDuration("uploadTimeout", TimeUnit.MILLISECONDS).millis
 
-  def remoteRunner(workspaceIdOpt: Option[WorkspaceId], fileDependencies: Set[String]): ProcessRunner with AutoCloseable = {
-    ProcessRunner(exchangeClient, workspaceIdOpt, fileDependencies, defaultFrameLength, allowTruncation, replaceWorkOnFailure)
+  def remoteRunner() = {
+    ProcessRunner(exchangeClient, defaultFrameLength, allowTruncation, replaceWorkOnFailure)
   }
 
   override def toString = execConfig.root.render()

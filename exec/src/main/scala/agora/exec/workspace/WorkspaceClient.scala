@@ -8,6 +8,7 @@ import akka.actor.{ActorRef, ActorRefFactory, Props}
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 
+import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
 /**
@@ -52,11 +53,12 @@ trait WorkspaceClient {
     *
     * The returned future completes with the directory path containing the files once they are available.
     *
-    * @param workspaceId
-    * @param fileDependencies
-    * @return
+    * @param dependencies the dependencies to await
+    * @return a future of the local file path which contains the given workspace/files
     */
-  def await(workspaceId: WorkspaceId, fileDependencies: Set[String]): Future[Path]
+  def await(dependencies: UploadDependencies): Future[Path]
+
+  final def await(workspace: WorkspaceId, dependsOnFiles: Set[String], timeoutInMillis: Long): Future[Path] = await(UploadDependencies(workspace, dependsOnFiles, timeoutInMillis))
 
   /**
     * @return all known workspace ids
@@ -96,9 +98,9 @@ object WorkspaceClient {
       promise.future
     }
 
-    override def await(workspaceId: WorkspaceId, fileDependencies: Set[String]) = {
+    override def await(dependencies: UploadDependencies) = {
       val promise = Promise[Path]()
-      endpointActor ! AwaitUploads(workspaceId, fileDependencies, promise)
+      endpointActor ! AwaitUploads(dependencies, promise)
 
       promise.future
     }

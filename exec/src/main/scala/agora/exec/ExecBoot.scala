@@ -1,8 +1,8 @@
 package agora.exec
 
-import agora.api.SubscriptionKey
 import agora.api.exchange.Exchange
 import agora.exec.rest.ExecutionRoutes
+import agora.exec.workspace.WorkspaceClient
 import agora.rest.RunningService
 import agora.rest.exchange.ExchangeRoutes
 import agora.rest.worker.DynamicWorkerRoutes
@@ -18,7 +18,7 @@ object ExecBoot {
 
     // either attach to or create a new exchange
     val (exchange: Exchange, optionalExchangeRoutes: Option[Route]) = if (includeExchangeRoutes) {
-      val localExchange = exchangeConfig.newExchange
+      val localExchange            = exchangeConfig.newExchange
       val exRoutes: ExchangeRoutes = exchangeConfig.newExchangeRoutes(localExchange)
       (localExchange, Option(exRoutes.routes))
     } else {
@@ -35,42 +35,31 @@ object ExecBoot {
   */
 case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes: Option[Route]) extends FailFastCirceSupport {
 
-  val execSubscription = ExecutionRoutes.execSubscription()
-
-  val uploadSubscription = ExecutionRoutes.uploadSubscription()
-
   import conf._
   import conf.serverImplicits._
 
   // create a worker to subscribe to the exchange
   def workerRoutes: DynamicWorkerRoutes = newWorkerRoutes(exchange)
 
+  def workspaceClient: WorkspaceClient = WorkspaceClient(conf.uploadsDir, conf.serverImplicits.system)
+
   /** @return a future of the ExecutionRoutes once the exec subscription completes
     */
-  def executionRoutes: Future[ExecutionRoutes] = {
-    val execAckFut = exchange.subscribe(execSubscription)
-    val uploadAckFut = exchange.subscribe(uploadSubscription)
-
-    // subscribe to handle 'execute' requests
-    for {
-      execAck <- execAckFut
-      uploadAck <- uploadAckFut
-    } yield {
-      new ExecutionRoutes(conf, exchange, execAck.id, uploadAck.id)
-    }
-  }
+  def executionRoutes = new ExecutionRoutes(conf, exchange, workspaceClient)
 
   /**
     * Start the service, subscribe for upload and exec routes, then requests work items
     */
-  def start: Future[RunningService[ExecConfig, ExecutionRoutes]] = {
-    val execRoutesFuture = executionRoutes
+  def start(): Future[RunningService[ExecConfig, ExecutionRoutes]] = {
+    val execRoutes = executionRoutes
+    val restRoutes = execRoutes.routes(workerRoutes, optionalExchangeRoutes)
+
+    val execSubscription = conf.subscription
 
     for {
-      execRoutes <- execRoutesFuture
-      restRoutes = execRoutes.routes(workerRoutes, optionalExchangeRoutes)
-      rs <- RunningService.start[ExecConfig, ExecutionRoutes](conf, restRoutes, execRoutes)
-      ExecBoot.subscribeToExchange(exchange, execRoutes)
+      rs           <- RunningService.start[ExecConfig, ExecutionRoutes](conf, restRoutes, execRoutes)
+      subscribeAck <- exchange.subscribe(execSubscription)
+      _            <- exchange.take(subscribeAck.id, conf.initialExecutionSubscription)
     } yield {
       rs
     }

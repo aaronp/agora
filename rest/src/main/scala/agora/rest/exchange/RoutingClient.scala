@@ -41,17 +41,6 @@ trait RoutingClient { self: ExchangeClient =>
     */
   def enqueue(submit: SubmitJob): WorkerResponses = enqueueAndDispatch(submit)(_.sendRequest(submit.job))._2
 
-  /**
-    * Enqueues the given job, then uses the supplied function to send the matched work to the workers
-    *
-    * @param submit
-    * @param doWork
-    * @return
-    */
-  def enqueueAndDispatch(submit: SubmitJob)(doWork: WorkerClient => Future[HttpResponse]): (JobResponse, WorkerResponses) = {
-    sendAndRouteWorkerRequest(submit)(doWork)
-  }
-
   protected def onSubmitResponse(resp: BlockingSubmitJobResponse)(sendToWorker: WorkerClient => Future[HttpResponse]): WorkerResponses = {
     val pears: List[(WorkerRedirectCoords, WorkerDetails)] = resp.workerCoords.zip(resp.workers)
     val futures = pears.map {
@@ -68,13 +57,13 @@ trait RoutingClient { self: ExchangeClient =>
   }
 
   /**
-    * Submit the job, then on the (expected) rediret response, route the work to the given worker using the 'sendToWorker'
+    * Submit the job, then on the (expected) redirect response, route the work to the given worker using the 'sendToWorker'
     *
     * @param submit       the job to submit
     * @param sendToWorker the function used to send work to the worker (which may or may not have been the same request)
     * @return both the original work submission response and the response from the worker
     */
-  def sendAndRouteWorkerRequest(submit: SubmitJob)(sendToWorker: WorkerClient => Future[HttpResponse]): (JobResponse, WorkerResponses) = {
+  def enqueueAndDispatch(submit: SubmitJob)(sendToWorker: WorkerClient => Future[HttpResponse]): (JobResponse, WorkerResponses) = {
 
     // the submission is requesting that it doesn't receive a response until a match, which means the response
     // will come back as a BlockingSubmitJobResponse

@@ -38,10 +38,23 @@ trait RouteSubscriptionSupport extends LazyLogging {
 
   import akka.http.scaladsl.server.directives.BasicDirectives._
 
+  /**
+    * Represents how many work items will be requested upon request completion
+    */
   protected sealed trait TakeAction
 
+  /** This is the default case -- just request one work item (e.g. one in, one out semantics)
+    */
   case object ReplaceOne extends TakeAction
 
+  /**
+    * Tries subscribe to the 'optimal' requests. So if we handle a request
+    * which tells us there are 3 items remaining and 'optimal' is set to 10,
+    * then a 'take' request is made for 7 work items.
+    *
+    * If 'optimal' is less than the items remaining then no action is performed.
+    * @param optimal
+    */
   case class SetPendingTarget(optimal: Int) extends TakeAction
 
   def requestIsFromExchange(originalRequest: HttpRequest): Boolean = {
@@ -63,7 +76,7 @@ trait RouteSubscriptionSupport extends LazyLogging {
     * @param action   how many items should be requested on complete? Defaults to just replacing one work item
     * @return a directive yo
     */
-  def takeNextOnComplete(exchange: Exchange, action: TakeAction) = {
+  def takeNextOnComplete(exchange: Exchange, action: TakeAction = ReplaceOne) = {
 
     extractMatchDetails.tflatMap {
       case Tuple1(Some(md)) => requestOnComplete(md, exchange, action)

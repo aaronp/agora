@@ -1,12 +1,7 @@
 package agora.exec.run
 
-import java.nio.charset.StandardCharsets._
-
-import agora.api.exchange.JobPredicate
 import agora.exec.ExecConfig
-import agora.exec.model.{RunProcess, Upload}
-import agora.exec.rest.{ExecutionHandler, ExecutionRoutes}
-import agora.exec.workspace.WorkspaceId
+import agora.exec.rest.ExecutionRoutes
 import agora.rest.test.TestUtils._
 import agora.rest.{BaseSpec, RunningService}
 import org.scalatest.{AppendedClues, BeforeAndAfterAll}
@@ -26,21 +21,6 @@ class RemoteRunnerTest extends BaseSpec with BeforeAndAfterAll with AppendedClue
     }
   }
 
-  "RemoteRunner.prepare" should {
-    "match subscriptions" in {
-      val runProcess                          = RunProcess(List("cat", "file.one"))
-      val workspaceIdOpt: Option[WorkspaceId] = Option("session a")
-      val fileDependencies: Set[String]       = Set("file.one")
-      val job                                 = ExecutionClient.prepare(runProcess, workspaceIdOpt, fileDependencies)
-
-      val subscription = ExecutionHandler.newWorkspaceSubscription("execKey", "session a", Set("file.one"))
-
-      val matcher = JobPredicate()
-      matcher.matches(job, subscription) shouldBe true
-
-    }
-  }
-
   override def beforeAll = startAll
 
   override def afterAll = stopAll
@@ -49,7 +29,7 @@ class RemoteRunnerTest extends BaseSpec with BeforeAndAfterAll with AppendedClue
 
   def startAll = {
     runningWorker = conf.start().futureValue
-    remoteRunner = conf.remoteRunner(None, Set.empty)
+    remoteRunner = conf.remoteRunner
   }
 
   def stopAll = {

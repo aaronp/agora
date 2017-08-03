@@ -82,7 +82,9 @@ case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends Cl
 
   def withSelection(mode: SelectionMode) = copy(submissionDetails = submissionDetails.copy(selection = mode))
 
-  def matching[T](matcher: JMatcher)(implicit ev: T => JMatcher): SubmitJob = copy(submissionDetails.copy(workMatcher = ev(matcher)))
+  def matching[T](matcher: T)(implicit ev: T => JMatcher): SubmitJob = {
+    copy(submissionDetails.copy(workMatcher = ev(matcher)))
+  }
 
   def jobId: Option[JobId] = {
     submissionDetails.valueOf[JobId]("jobId").right.toOption
@@ -184,7 +186,9 @@ case class WorkSubscription(details: WorkerDetails = WorkerDetails(),
   def withReferences(references: Set[SubscriptionKey])                   = copy(subscriptionReferences = references)
   def referencing(reference: SubscriptionKey, theRest: SubscriptionKey*) = withReferences(theRest.toSet + reference)
 
-  def matchingSubmission[T](matcher: T)(ev: T => JMatcher): WorkSubscription = copy(submissionMatcher = ev(matcher))
+  def matchingSubmission[T](matcher: T)(implicit ev: T => JMatcher): WorkSubscription = {
+    copy(submissionMatcher = ev(matcher))
+  }
 
   def withData[T: Encoder](data: T, name: String = null) = withDetails(_.withData(data, name))
 
@@ -202,7 +206,6 @@ case class WorkSubscription(details: WorkerDetails = WorkerDetails(),
 }
 
 object WorkSubscription {
-  implicit def filterAsMatcher(filter: JFilter): JMatcher = filter.asMatcher
 
   implicit val encoder = exportEncoder[WorkSubscription].instance
   implicit val decoder = exportDecoder[WorkSubscription].instance

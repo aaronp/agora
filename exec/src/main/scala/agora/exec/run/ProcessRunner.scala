@@ -3,7 +3,7 @@ package agora.exec.run
 import java.nio.file.Path
 
 import agora.exec.model.RunProcess
-import agora.exec.workspace.WorkspaceId
+import agora.exec.workspace.{UploadDependencies, WorkspaceId}
 import agora.rest.exchange.ExchangeClient
 
 import scala.concurrent.duration.FiniteDuration
@@ -18,7 +18,9 @@ trait ProcessRunner {
 
   def run(proc: RunProcess): ProcessRunner.ProcessOutput
 
-  def run(cmd: String, theRest: String*): ProcessRunner.ProcessOutput = run(RunProcess(cmd :: theRest.toList, Map[String, String]()))
+  final def run(cmd: String, theRest: String*): ProcessRunner.ProcessOutput = {
+    run(RunProcess(cmd :: theRest.toList, Map[String, String]()))
+  }
 }
 
 object ProcessRunner {
@@ -37,13 +39,8 @@ object ProcessRunner {
     * @param exchange the worker client used to send requests
     * @return a runner which executes stuff remotely
     */
-  def apply(exchange: ExchangeClient,
-            workspaceIdOpt: Option[WorkspaceId],
-            fileDependencies: Set[String],
-            defaultFrameLength: Int,
-            allowTruncation: Boolean,
-            replaceWorkOnFailure: Boolean)(implicit uploadTimeout: FiniteDuration): ProcessRunner with AutoCloseable = {
-    ExecutionClient(exchange, workspaceIdOpt, fileDependencies, defaultFrameLength, allowTruncation, replaceWorkOnFailure)
+  def apply(exchange: ExchangeClient, defaultFrameLength: Int, allowTruncation: Boolean, replaceWorkOnFailure: Boolean)(implicit uploadTimeout: FiniteDuration) = {
+    RemoteRunner(exchange, defaultFrameLength, allowTruncation, replaceWorkOnFailure)
   }
 
 }

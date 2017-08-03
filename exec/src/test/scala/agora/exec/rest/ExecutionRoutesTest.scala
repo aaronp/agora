@@ -1,42 +1,63 @@
 package agora.exec.rest
 
-import agora.api.exchange.Exchange
+import java.util.UUID
+
+import agora.api.exchange.{Exchange, JobPredicate, WorkSubscription}
+import agora.api.json.JPath
+import agora.api.worker.{HostLocation, WorkerDetails}
 import agora.exec.ExecConfig
-import agora.exec.run.ExecutionClient
+import agora.exec.model.RunProcess
+import agora.exec.rest.ExecutionRoutes.execCriteria
+import agora.exec.run.{ExecutionClient, RemoteRunner}
+import agora.exec.workspace.WorkspaceClient
+import agora.io.Sources
 import agora.rest.BaseRoutesSpec
-import akka.http.scaladsl.model.ContentTypes
-import akka.stream.scaladsl.Source
-import akka.util.ByteString
 
 class ExecutionRoutesTest extends BaseRoutesSpec {
 
   "ExecutionRoutes.execSubscription" should {
-    "match "
+    "match jobs produced from RemoteRunner.execAsJob" in {
 
-    val execSubscription = ExecutionRoutes.execSubscription()
+      // format: off
+      val expectedSubscription = WorkSubscription(details = WorkerDetails(location = HostLocation("localhost", 7770))).
+        withPath("/rest/exec/run").
+        append("topic", "execute").
+        matchingJob(JPath("command").asMatcher)
+      // format: on
+      val x = JPath("command")
+      println(x.json.spaces2)
 
-    val uploadSubscription = ExecutionRoutes.uploadSubscription()
+      println()
+      println(expectedSubscription.details)
+      println()
+
+      val config = ExecConfig()
+
+      val actualSubscription = config.subscription
+
+      println()
+      println(actualSubscription.details)
+      println()
+
+      //      val execSubscription = ExecutionRoutes.execSubscription()
+      val job = RemoteRunner.execAsJob(RunProcess("hello"))
+      JobPredicate().matches(job, actualSubscription) shouldBe true
+
+      execCriteria.matches(expectedSubscription.details.aboutMe) shouldBe true
+    }
   }
-  "ExecutionRoutes" should {
-    "handle uploads to POST /rest/exec/upload" in {
+  "POST /rest/exec/run" should {
+    "execute commands" in {
+      withDir { dir =>
+        val workspaces = WorkspaceClient(dir, system)
+        val er         = ExecutionRoutes(ExecConfig(), Exchange.instance(), workspaces)
 
-      val execConfig = ExecConfig()
-      val exchange   = Exchange.instance()
-
-//      ExchangeClient
-
-      val execRoutes = new ExecutionRoutes(execConfig, exchange, "executions", "uploads") //.futureValue
-
-      val restClient = new DirectRestClient(execRoutes.execRoutes)
-
-      val workspace                    = "someWorkspace"
-      val src: Source[ByteString, Any] = Source.single(ByteString("hello world"))
-      val request                      = ExecutionClient.asRequest(workspace, "someFile.txt", src, ContentTypes.`text/plain(UTF-8)`)
-
-      request ~> execRoutes.execRoutes ~> check {
-        responseAs[List[String]]
+        val txt = UUID.randomUUID().toString
+        ExecutionClient.asRequest(RunProcess("echo", txt)) ~> er.executeRoute ~> check {
+          val content = Sources.asText(responseEntity.dataBytes).futureValue
+          content.lines.mkString("") shouldBe txt
+        }
       }
     }
   }
-
 }

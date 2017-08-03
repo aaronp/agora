@@ -34,8 +34,8 @@ private[workspace] class WorkspaceEndpointActor(uploadDir: Path) extends BaseAct
 
     // handler
     {
-      case msg @ AwaitUploads(id, _, _)  => handlerForId(id) ! msg
-      case msg @ UploadFile(id, _, _, _) => handlerForId(id) ! msg
+      case msg @ AwaitUploads(UploadDependencies(id, _, _), _) => handlerForId(id) ! msg
+      case msg @ UploadFile(id, _, _, _)                       => handlerForId(id) ! msg
       case ListWorkspaces(promise) =>
         promise.tryComplete(Try {
           val children = uploadDir.toFile.toScala.children.map(_.name)

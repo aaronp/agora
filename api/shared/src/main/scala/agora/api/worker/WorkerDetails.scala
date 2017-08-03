@@ -93,33 +93,34 @@ object WorkerDetails {
   val keyPath        = root.id.string
   val runUserPath    = root.runUser.string
 
-
-  def deepMergeWithArrayConcat(from :Json, that: Json): Json =
+  def deepMergeWithArrayConcat(from: Json, that: Json): Json =
     (from.asObject, that.asObject) match {
       case (Some(lhs), Some(rhs)) =>
         fromJsonObject(
           lhs.toList.foldLeft(rhs) {
             case (acc, (key, value)) =>
-              val concatenatedOpt: Option[JsonObject ] = for {
-                leftArray <- value.asArray
+              val concatenatedOpt: Option[JsonObject] = for {
+                leftArray  <- value.asArray
                 rightArray <- rhs(key).flatMap(_.asArray)
               } yield {
                 val arr = Json.fromValues(leftArray ++ rightArray)
                 acc.add(key, arr)
               }
 
-              def fallback = rhs(key).fold(acc.add(key, value)) { r => acc.add(key, value.deepMerge(r)) }
+              def fallback = rhs(key).fold(acc.add(key, value)) { r =>
+                acc.add(key, value.deepMerge(r))
+              }
 
               concatenatedOpt.getOrElse(fallback)
           }
-
         )
       case _ => that
     }
+
   /**
     * TODO - move the typesafe config as part of the jvn dependency so that we can pull the worker config
     * in here. As it currently stands, we have to duplicate these fields in this weird way instead of
-    * using the typical init cdde produced by the workerconfig
+    * using the typical init code produced by the workerconfig
     */
   private case class DefaultDetails(runUser: String, location: HostLocation, name: String, id: String, path: String)
 
@@ -127,7 +128,7 @@ object WorkerDetails {
             id: SubscriptionKey = "",
             runUser: String = Properties.userName,
             path: String = "handler",
-            location: HostLocation = HostLocation(1234)): WorkerDetails = {
+            location: HostLocation = HostLocation(-1)): WorkerDetails = {
     val json = DefaultDetails(runUser, location, name, id, path).asJson
     WorkerDetails(json)
   }

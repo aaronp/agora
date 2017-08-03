@@ -11,9 +11,9 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
     "not create directories unless files have been actually uploaded" in {
       withDir { containerDir =>
         val client = WorkspaceClient(containerDir, system)
-        client.await("mustBeEmpty", Set("meh"))
+        client.await("mustBeEmpty", Set("meh"), testTimeout.toMillis)
         containerDir.children.size shouldBe 0
-        client.close("mustBeEmpty").futureValue shouldBe true
+        client.close("mustBeEmpty").futureValue shouldBe false
         containerDir.children.size shouldBe 0
       }
     }
@@ -28,9 +28,9 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
   "WorkspaceClient.close" should {
     "fail any pending await calls" in {
       withDir { containerDir =>
-        val client      = WorkspaceClient(containerDir, system)
-        val awaitFuture = client.await("some id", Set("won't ever arrive"))
-        client.close("some id").futureValue shouldBe true
+        val client = WorkspaceClient(containerDir, system)
+        val awaitFuture = client.await("some id", Set("won't ever arrive"), testTimeout.toMillis)
+        client.close("some id").futureValue shouldBe false
 
         val err = intercept[IllegalStateException] {
           Await.result(awaitFuture, testTimeout)
@@ -59,10 +59,24 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
     }
   }
   "WorkspaceClient.await" should {
+    "return in error when not all uploads appear within a timeout" in {
+      withDir { containerDir =>
+        val client = WorkspaceClient(containerDir, system)
+        client.upload("some id", Upload.forText("i.wasUploaded", "123")).futureValue shouldBe true
+        val awaitFuture = client.await("some id", Set("i.wasUploaded", "i.wasnt"), 1)
+        val err = intercept[Exception] {
+          Await.result(awaitFuture, testTimeout)
+        }
+
+        containerDir.children.foreach(println)
+
+        err.getMessage shouldBe "Still waiting for 1 files [i.wasnt] in workspace 'some id' after 1 millisecond"
+      }
+    }
     "block until files are all available in a workspace" in {
       withDir { containerDir =>
-        val client    = WorkspaceClient(containerDir, system)
-        val dirFuture = client.await("some id", Set("file.one", "file.two"))
+        val client = WorkspaceClient(containerDir, system)
+        val dirFuture = client.await("some id", Set("file.one", "file.two"), testTimeout.toMillis)
         dirFuture.isCompleted shouldBe false
 
         // upload one of the files
@@ -80,7 +94,7 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
         // finally upload the file we expect in our 'some id' session.
         client.upload("some id", Upload.forText("file.two", "finally ready!")).futureValue shouldBe true
         val sessionDir = dirFuture.futureValue
-        sessionDir.children.map(_.fileName) should contain only ("file.one", "file.two", "file.three")
+        sessionDir.children.map(_.fileName) should contain only("file.one", "file.two", "file.three")
 
         sessionDir.resolve("file.two").text shouldBe "finally ready!"
 

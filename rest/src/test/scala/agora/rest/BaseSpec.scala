@@ -21,7 +21,7 @@ class BaseSpec extends WordSpec with Matchers with FailFastCirceSupport with Sca
   /**
     * All the timeouts!
     */
-  implicit def testTimeout: FiniteDuration = 10.seconds
+  implicit def testTimeout: FiniteDuration = 4.seconds
 
   implicit def default(implicit system: ActorSystem) = RouteTestTimeout(testTimeout)
 

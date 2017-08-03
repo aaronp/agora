@@ -32,7 +32,7 @@ object ExecutionHandler extends StrictLogging {
     * @param files
     * @return
     */
-  def newWorkspaceSubscription(referencedConf : SubscriptionKey, workspace: WorkspaceId, files: Set[String]): WorkSubscription = {
+  def newWorkspaceSubscription(referencedConf: SubscriptionKey, workspace: WorkspaceId, files: Set[String]): WorkSubscription = {
     WorkSubscription(jobMatcher = hasCommand).withSubscriptionKey(workspace).append("files", files).append("workspace", workspace).referencing(referencedConf)
   }
 
@@ -55,7 +55,7 @@ object ExecutionHandler extends StrictLogging {
         asErrorResponse(pr)
       case NonFatal(other) =>
         logger.error(s"translating error $other as a process exception")
-        asErrorResponse(ProcessException(RunProcess(Nil), Failure(other), matchDetails, Nil))
+        asErrorResponse(ProcessException(runProc, Failure(other), matchDetails, Nil))
     }
   }
 

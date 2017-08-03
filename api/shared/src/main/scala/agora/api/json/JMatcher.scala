@@ -25,6 +25,10 @@ object JMatcher {
   def matchAll: JMatcher = MatchAll
   def matchNone: JMatcher = MatchNone
 
+
+  implicit def filterAsMatcher(filter: JFilter): JMatcher = filter.asMatcher
+  implicit def pathAsMatcher(jpath: JPath): JMatcher = jpath.asMatcher
+
   implicit object JMatcherJson extends Encoder[JMatcher] with Decoder[JMatcher] {
     override def apply(jsonMatcher: JMatcher): Json = {
       jsonMatcher match {
