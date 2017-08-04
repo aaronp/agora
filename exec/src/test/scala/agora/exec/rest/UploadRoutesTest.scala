@@ -3,7 +3,7 @@ package agora.exec.rest
 import agora.exec.run.UploadClient
 import agora.exec.workspace.WorkspaceClient
 import agora.rest.BaseRoutesSpec
-import akka.http.scaladsl.model.ContentTypes
+import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.server.Route
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
@@ -19,7 +19,8 @@ class UploadRoutesTest extends BaseRoutesSpec {
 
         dir.children shouldBe empty
 
-        val req = UploadClient.asRequest("some workspace", "foo.bar", content("hello world"), ContentTypes.`text/plain(UTF-8)`).futureValue
+        val contentBytes = ByteString("hello world")
+        val req          = UploadClient.asRequest("some workspace", "foo.bar", contentBytes.length, Source.single(contentBytes), `text/plain(UTF-8)`).futureValue
 
         req ~> routesUnderTest ~> check {
           responseAs[Boolean] shouldBe true
@@ -35,5 +36,4 @@ class UploadRoutesTest extends BaseRoutesSpec {
     }
   }
 
-  def content(str: String): Source[ByteString, Any] = Source.single(ByteString("hello world"))
 }

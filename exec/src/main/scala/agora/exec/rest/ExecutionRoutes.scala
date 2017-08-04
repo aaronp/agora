@@ -10,7 +10,7 @@ import agora.exec.ExecConfig
 import agora.exec.model.RunProcess
 import agora.exec.workspace.{UploadDependencies, WorkspaceClient}
 import agora.rest.MatchDetailsExtractor
-import agora.rest.worker.{DynamicWorkerRoutes, RouteSubscriptionSupport, WorkerConfig}
+import agora.rest.worker.{RouteSubscriptionSupport, WorkerConfig}
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.http.scaladsl.server.Directives.{entity, path, _}
 import akka.http.scaladsl.server.Route
@@ -71,8 +71,8 @@ object ExecutionRoutes {
   */
 case class ExecutionRoutes(execConfig: ExecConfig, exchange: Exchange, workspaces: WorkspaceClient) extends RouteSubscriptionSupport with FailFastCirceSupport {
 
-  def routes(workerRoutes: DynamicWorkerRoutes, exchangeRoutes: Option[Route]): Route = {
-    execConfig.routes(workerRoutes, exchangeRoutes) ~ executeRoute
+  def routes(exchangeRoutes: Option[Route]): Route = {
+    execConfig.routes(exchangeRoutes) ~ executeRoute
   }
 
   private def execute(runProcess: RunProcess, httpRequest: HttpRequest, workingDir: Option[Path])(implicit ec: ExecutionContext): Future[HttpResponse] = {

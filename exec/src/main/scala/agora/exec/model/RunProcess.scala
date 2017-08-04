@@ -1,11 +1,13 @@
 package agora.exec.model
 
-import agora.exec.workspace.UploadDependencies
+import agora.exec.workspace.{UploadDependencies, WorkspaceId}
+
+import scala.concurrent.duration.FiniteDuration
 
 /**
   *
-  * @param command
-  * @param env
+  * @param command          the command string to execute
+  * @param env              the system environment
   * @param successExitCodes the set of exit codes which are attribute to success
   * @param frameLength      the frame length to use (if set) for delimiting output lines
   * @param dependencies     if specified, the any file dependencies this request has
@@ -22,6 +24,17 @@ case class RunProcess(command: List[String],
                       errorMarker: String = RunProcess.DefaultErrorMarker) {
 
   def withEnv(key: String, value: String): RunProcess = copy(env = env.updated(key, value))
+
+  def withDependencies(dep: UploadDependencies): RunProcess = copy(dependencies = Option(dep))
+
+  def withDependencies(workspace: WorkspaceId, dependsOnFiles: Set[String], timeout: FiniteDuration): RunProcess = {
+    withDependencies(UploadDependencies(workspace, dependsOnFiles, timeout.toMillis))
+  }
+
+  def withWorkspace(workspace: WorkspaceId): RunProcess = {
+    import concurrent.duration._
+    withDependencies(workspace, Set.empty, 0.millis)
+  }
 
   /**
     * Filters the iterator produced using this RunProcess for errors

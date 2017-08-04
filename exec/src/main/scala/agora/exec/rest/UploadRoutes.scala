@@ -2,7 +2,7 @@ package agora.exec.rest
 
 import agora.exec.workspace.{WorkspaceClient, WorkspaceId}
 import akka.http.scaladsl.model.Multipart
-import akka.http.scaladsl.server.Directives.{as, complete, entity, parameter, path, post, _}
+import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source}

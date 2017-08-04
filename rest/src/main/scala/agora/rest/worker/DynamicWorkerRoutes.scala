@@ -89,10 +89,9 @@ case class DynamicWorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubs
             extractRequest { req =>
               complete(
                 (StatusCodes.NotFound,
-                 HttpEntity(s""" Invalid path: ${req.uri}
-                       |
-                   |Known handlers include:
-                       |  ${workerPaths.toList.sorted.mkString("\n")}""".stripMargin)))
+                 HttpEntity(s""" Invalid path: '${req.uri}'
+                       |Known handlers include:
+                       |${workerPaths.toList.sorted.mkString("\n")}""".stripMargin)))
             }
           case Some(worker) =>
             extractRequestContext { ctxt =>

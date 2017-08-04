@@ -48,7 +48,7 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
 
   override def withFallback(fallback: Config): ExecConfig = new ExecConfig(config.withFallback(fallback))
 
-  override def withOverrides(overrides: Config): ExecConfig = new ExecConfig(overrides).withFallback(config)
+  override def withOverrides(overrides: Config): ExecConfig = new ExecConfig(overrides.withFallback(execConfig))
 
   /** @return a process runner to execute the given request
     */

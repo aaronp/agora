@@ -45,14 +45,16 @@ class JMatcherTest extends WordSpec with Matchers {
           |    "parts" : [
           |      { "name" : "rute" },
           |      {
-          |        "field" : {
-          |           "eq" : 4
+          |        "field" : "someField",
+          |        "predicate" : {
+          |          "eq" : 4
           |        }
           |      }
           |    ]
           |  }
           |}""".asJson
-      json.as[JMatcher].right.get shouldBe JPath(JPart("rute"), ("field" === 4)).asMatcher
+      val expected = JPath(JPart("rute"), ("someField" === 4))
+      json.as[JMatcher].right.get shouldBe expected.asMatcher
     }
   }
 

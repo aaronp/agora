@@ -1,12 +1,13 @@
 package agora.exec
 
 import agora.api.exchange.Exchange
-import agora.exec.rest.ExecutionRoutes
+import agora.exec.rest.{ExecutionRoutes, UploadRoutes}
 import agora.exec.workspace.WorkspaceClient
 import agora.rest.RunningService
 import agora.rest.exchange.ExchangeRoutes
-import agora.rest.worker.DynamicWorkerRoutes
+import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
+import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 
 import scala.concurrent.Future
@@ -33,29 +34,27 @@ object ExecBoot {
 /**
   * Provides functions for setting up the exec service functions
   */
-case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes: Option[Route]) extends FailFastCirceSupport {
+case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes: Option[Route]) extends FailFastCirceSupport with StrictLogging {
 
-  import conf._
-  import conf.serverImplicits._
-
-  // create a worker to subscribe to the exchange
-  def workerRoutes: DynamicWorkerRoutes = newWorkerRoutes(exchange)
-
-  def workspaceClient: WorkspaceClient = WorkspaceClient(conf.uploadsDir, conf.serverImplicits.system)
+  lazy val workspaceClient: WorkspaceClient = WorkspaceClient(conf.uploadsDir, conf.serverImplicits.system)
 
   /** @return a future of the ExecutionRoutes once the exec subscription completes
     */
   def executionRoutes = new ExecutionRoutes(conf, exchange, workspaceClient)
 
+  def uploadRoutes: Route = UploadRoutes(workspaceClient).uploadRoute
+
   /**
     * Start the service, subscribe for upload and exec routes, then requests work items
     */
   def start(): Future[RunningService[ExecConfig, ExecutionRoutes]] = {
+    import conf.serverImplicits._
     val execRoutes = executionRoutes
-    val restRoutes = execRoutes.routes(workerRoutes, optionalExchangeRoutes)
+    val restRoutes = execRoutes.routes(optionalExchangeRoutes) ~ uploadRoutes
 
     val execSubscription = conf.subscription
 
+    logger.info(s"Starting Execution Server in ${conf.location}")
     for {
       rs           <- RunningService.start[ExecConfig, ExecutionRoutes](conf, restRoutes, execRoutes)
       subscribeAck <- exchange.subscribe(execSubscription)

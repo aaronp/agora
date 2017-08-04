@@ -67,10 +67,7 @@ trait RichConfigOps extends RichConfig.LowPriorityImplicits {
     * Note : writing a 'diff' using this would be pretty straight forward
     */
   def uniquePaths: List[String] = unique.paths.toList.sorted
-  def uniqueEntries = uniquePaths.map { key =>
-    (key, config.getString(key))
-  }
-  def unique = withoutSystem.filterNot(_.startsWith("akka"))
+  def unique                    = withoutSystem.filterNot(_.startsWith("akka"))
 
   /** this config w/o the system props and stuff */
   def withoutSystem: Config                                                                           = without(systemEnvironment.or(systemProperties).paths)

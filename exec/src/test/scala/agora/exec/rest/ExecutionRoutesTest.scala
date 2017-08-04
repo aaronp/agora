@@ -24,20 +24,10 @@ class ExecutionRoutesTest extends BaseRoutesSpec {
         append("topic", "execute").
         matchingJob(JPath("command").asMatcher)
       // format: on
-      val x = JPath("command")
-      println(x.json.spaces2)
-
-      println()
-      println(expectedSubscription.details)
-      println()
 
       val config = ExecConfig()
 
       val actualSubscription = config.subscription
-
-      println()
-      println(actualSubscription.details)
-      println()
 
       //      val execSubscription = ExecutionRoutes.execSubscription()
       val job = RemoteRunner.execAsJob(RunProcess("hello"))

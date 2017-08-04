@@ -11,8 +11,8 @@ import com.typesafe.scalalogging.LazyLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.generic.auto._
 
-import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.{Future, Promise}
 import scala.language.{implicitConversions, reflectiveCalls}
 import scala.util.Try
 
@@ -31,8 +31,7 @@ case class RemoteRunner(exchange: ExchangeClient, defaultFrameLength: Int, allow
     with FailFastCirceSupport
     with LazyLogging {
 
-  import exchange.execContext
-  import exchange.materializer
+  import exchange.{execContext, materializer}
 
   override def run(proc: RunProcess): ProcessOutput = {
     runAndSelect(proc).map(_._2)
@@ -71,12 +70,12 @@ case class RemoteRunner(exchange: ExchangeClient, defaultFrameLength: Int, allow
     }
 
     for {
-      executionClient <- clientPromise.future
-      httpResponses   <- workerResponses
+      executionClient: ExecutionClient <- clientPromise.future
+      httpResponses <- workerResponses
     } yield {
       val httpResp = httpResponses.onlyResponse
-      val iter     = IterableSubscriber.iterate(httpResp.entity.dataBytes, proc.frameLength.getOrElse(defaultFrameLength), allowTruncation)
-      val output   = proc.filterForErrors(iter)
+      val iter   = IterableSubscriber.iterate(httpResp.entity.dataBytes, proc.frameLength.getOrElse(defaultFrameLength), allowTruncation)
+      val output = proc.filterForErrors(iter)
       (executionClient, output)
     }
   }

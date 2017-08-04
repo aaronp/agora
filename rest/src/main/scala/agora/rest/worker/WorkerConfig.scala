@@ -34,7 +34,7 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
     }
 
     val workerRoutes: DynamicWorkerRoutes = newWorkerRoutes(exchange)
-    val restRoutes: Route                 = routes(workerRoutes, optionalExchangeRoutes)
+    val restRoutes: Route                 = workerRoutes.routes ~ routes(optionalExchangeRoutes)
 
     RunningService.start(this, restRoutes, workerRoutes)
   }
@@ -45,7 +45,7 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
 
   def landingPage = "ui/test.html"
 
-  def routes(workerRoutes: DynamicWorkerRoutes, exchangeRoutes: Option[Route]): Route = {
+  def routes(exchangeRoutes: Option[Route]): Route = {
     def when(include: Boolean)(r: => Route): Stream[Route] = {
       if (include) Stream(r) else Stream.empty
     }
@@ -53,7 +53,7 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
     val support = when(enableSupportRoutes)(SupportRoutes(config).routes)
     val ui      = when(includeUIRoutes)(UIRoutes(landingPage).routes)
 
-    val all = Stream(workerRoutes.routes) ++ exchangeRoutes.toStream ++ support ++ ui
+    val all = exchangeRoutes.toStream ++ support ++ ui
     all.reduce(_ ~ _)
   }
 
