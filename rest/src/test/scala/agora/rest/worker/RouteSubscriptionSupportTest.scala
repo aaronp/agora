@@ -117,7 +117,7 @@ class RouteSubscriptionSupportTest extends BaseRoutesSpec {
 
   trait TestScenario extends RouteSubscriptionSupport {
     val exchange             = Exchange.instance()
-    val key: SubscriptionKey = exchange.subscribe(WorkSubscription()).futureValue.id
+    val key: SubscriptionKey = exchange.subscribe(WorkSubscription.localhost(1234)).futureValue.id
 
     /** @return the current subscription state from the exchange.
       */

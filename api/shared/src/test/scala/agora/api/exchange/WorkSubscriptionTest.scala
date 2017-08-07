@@ -1,5 +1,6 @@
 package agora.api.exchange
 
+import agora.api.worker.HostLocation
 import org.scalatest.{Matchers, WordSpec}
 
 import scala.language.reflectiveCalls
@@ -8,7 +9,7 @@ class WorkSubscriptionTest extends WordSpec with Matchers {
 
   "WorkSubscription.withPath" should {
     "use the given path" in {
-      val original       = WorkSubscription()
+      val original       = WorkSubscription(HostLocation.localhost(1234))
       val beforeLocation = original.details.location
 
       val ws = original.withPath("foo")
@@ -18,7 +19,7 @@ class WorkSubscriptionTest extends WordSpec with Matchers {
   }
   "WorkSubscription.path" should {
     "have a default path" in {
-      WorkSubscription().details.path shouldBe "handler"
+      WorkSubscription(HostLocation.localhost(1234)).details.path shouldBe "handler"
     }
   }
   "WorkSubscription.matches" should {
@@ -26,7 +27,7 @@ class WorkSubscriptionTest extends WordSpec with Matchers {
     import agora.api.Implicits._
 
     val jobPath = (("value" gt 7) and ("value" lt 17)) or ("value" === 123)
-    val sub     = WorkSubscription(jobMatcher = jobPath, submissionMatcher = ("topic" === "foo").asMatcher)
+    val sub     = WorkSubscription(HostLocation.localhost(1234), jobMatcher = jobPath, submissionMatcher = ("topic" === "foo").asMatcher)
 
     "match jobs with work subscriptions" in {
       val details = SubmissionDetails().add("topic" -> "foo")

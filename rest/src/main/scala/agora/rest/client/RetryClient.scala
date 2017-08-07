@@ -19,7 +19,7 @@ class RetryClient(mkClient: () => RestClient, onError: RetryStrategy) extends Re
   private var crashHistory                  = new Crashes(Nil)
 
   override def toString = {
-    s"RetryClient($onError, client: ${clientOpt})"
+    s"RetryClient(current=${clientOpt}, strategy=$onError)"
   }
 
   private object Lock

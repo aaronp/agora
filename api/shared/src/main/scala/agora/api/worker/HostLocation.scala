@@ -2,14 +2,13 @@ package agora.api.worker
 
 case class HostLocation(host: String, port: Int) {
   def asURL = s"http://$host:$port"
-  if (port == 1234) {
-    println(port)
-  }
 }
 
 object HostLocation {
 
-  private lazy val host = "localhost" //java.net.InetAddress.getLocalHost.getHostName
+  // doing this is very slow, but obviously all workers can just say 'localhost' to a central exchange
+  //java.net.InetAddress.getLocalHost.getHostName
+  private lazy val host = "localhost"
 
-  def apply(port: Int): HostLocation = HostLocation(host, port)
+  def localhost(port: Int): HostLocation = HostLocation(host, port)
 }

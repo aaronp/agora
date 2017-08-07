@@ -85,7 +85,7 @@ case class ExecutionRoutes(execConfig: ExecConfig, exchange: Exchange, workspace
   def executeRoute = {
     (post & path("rest" / "exec" / "run")) {
       entity(as[RunProcess]) { runProcess =>
-        logger.info(s"Running ${runProcess.commandsString}")
+        logger.info(s"Running ${runProcess.commandString}")
         extractRequestContext { ctxt =>
           import ctxt.executionContext
 

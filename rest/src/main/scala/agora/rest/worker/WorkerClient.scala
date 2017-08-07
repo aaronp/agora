@@ -1,7 +1,7 @@
 package agora.rest.worker
 
 import agora.api.`match`.MatchDetails
-import agora.api.worker.WorkerDetails
+import agora.api.worker.{HostLocation, WorkerDetails}
 import agora.health.HealthDto
 import agora.rest.MatchDetailsExtractor
 import agora.rest.client.RestClient

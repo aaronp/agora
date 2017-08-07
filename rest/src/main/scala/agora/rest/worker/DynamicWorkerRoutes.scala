@@ -16,10 +16,10 @@ import scala.concurrent.Future
 import scala.language.reflectiveCalls
 
 object DynamicWorkerRoutes {
-  def apply()(implicit mat: Materializer): DynamicWorkerRoutes = {
+  def apply(subscription: WorkSubscription)(implicit mat: Materializer): DynamicWorkerRoutes = {
     implicit val predicate = JobPredicate()
     val exchange           = Exchange(MatchObserver())
-    DynamicWorkerRoutes(exchange, WorkSubscription(), 1)
+    DynamicWorkerRoutes(exchange, subscription, 1)
   }
 }
 

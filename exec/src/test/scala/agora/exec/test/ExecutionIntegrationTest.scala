@@ -6,8 +6,8 @@ import agora.api.exchange.PendingSubscription
 import agora.exec.ExecConfig
 import agora.exec.model.{RunProcess, Upload}
 import agora.exec.rest.ExecutionRoutes
-import agora.exec.run.{ExecutionClient, RemoteRunner}
-import agora.rest.client.{AkkaClient, RetryClient}
+import agora.exec.run.RemoteRunner
+import agora.rest.client.{AkkaClient, RestClient, RetryClient}
 import agora.rest.{BaseSpec, HasMaterializer, RunningService}
 import org.scalatest.concurrent.Eventually
 
@@ -20,9 +20,8 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
   var server: RunningService[ExecConfig, ExecutionRoutes] = null
   var client: RemoteRunner                                = null
 
-  "RemoteRunners" ignore {
-    "run on different servers" in {
-
+  "RemoteRunner" should {
+    "execute requests on different servers" in {
       withDir { dir =>
         val anotherConf: ExecConfig = ExecConfig("port=8888", s"uploads.dir=${dir.toAbsolutePath.toString}", "initialExecutionSubscription=1")
         val anotherServerConnectedToServer1Exchange = {
@@ -35,85 +34,6 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
         }
       }
     }
-
-    /**
-      * In this test, we want to check we can run two different jobs which get routed to the 2 different servers.
-      *
-      * To do this we:
-      * 1) submit a job with a dependency on file 1
-      * 2) submit a job with a dependency on file 2. this should get routed to a different worker from #1
-      * 3) upload file 1
-      * 4) upload file 2
-      * 5) verify jobs 1 and 2 complete on different servers
-      *
-      * This works because we set up each server to only ask for one work item at a time. The jobs take a work item
-      * from the exchange, but can't complete as they're blocking on their upload file dependencies. This way
-      * when job 2 is submitted it will get directed to the 2nd worker
-      */
-    def verifyConcurrentServices(anotherConf: ExecConfig) = {
-
-      // verify we have 2 subscriptions
-      def subscriptionsByServerPort() = {
-        val queue = client.exchange.queueState().futureValue
-        queue.subscriptions.map {
-          case PendingSubscription(_, sub, requested) =>
-            sub.details.location.port -> requested
-        }.toMap
-      }
-
-      subscriptionsByServerPort() shouldBe Map(7770 -> 1, 8888 -> 1)
-
-      // 1) execute req 1
-      val workspace1    = UUID.randomUUID().toString
-      val workspace2    = UUID.randomUUID().toString
-      val resultFuture1 = client.runAndSelect(RunProcess("cat", "file1.txt").withDependencies(workspace1, Set("file1.txt"), testTimeout))
-
-      val portWhichFirstJobTakenByService: Int = eventually {
-        val queueAfterOneJobSubmitted = subscriptionsByServerPort
-        if (queueAfterOneJobSubmitted == Map(7770 -> 1, 8888 -> 0)) {
-          8888
-        } else if (queueAfterOneJobSubmitted == Map(7770 -> 0, 8888 -> 1)) {
-          //
-          7770
-        } else {
-          fail(s"queue after submitted one job was $queueAfterOneJobSubmitted")
-        }
-      }
-
-      // 2) execute req 2. Note we use the same exchange client for both requests ... one will be routed to our first
-      // worker, the second request to the other (anotherServer...)
-      val resultFuture2 = client.runAndSelect(RunProcess("cat", "file2.txt").withDependencies(workspace2, Set("file2.txt"), testTimeout))
-
-      resultFuture1.isCompleted shouldBe false
-      resultFuture2.isCompleted shouldBe false
-
-      // 3) upload file1.txt dependency. Normally we would get one of these after routing a 'selection' job via the
-      // exchange, but here we just target the workers directly to ensure 'resultFuture1' can now complete
-      val directClient1 = conf.executionClient()
-      val directClient2 = anotherConf.executionClient()
-      val (firstClient, theOtherClient) = portWhichFirstJobTakenByService match {
-        case 7770 => directClient1 -> directClient2
-        case 8888 => directClient2 -> directClient1
-      }
-      val file1 = Upload.forText("file1.txt", "I'm file one")
-      firstClient.upload(workspace1, file1).futureValue shouldBe true
-
-      // request 1 should now complete, as we've made sure both workers have file1.txt in workspace x
-      val (execClient1, output1) = resultFuture1.futureValue
-      output1.mkString("") shouldBe "I'm file one"
-
-      // 4) upload file2.
-      val file2 = Upload.forText("file2.txt", "I'm file two")
-      theOtherClient.upload(workspace2, file2).futureValue shouldBe true
-      val (execClient2, output2) = resultFuture2.futureValue
-      output2.mkString("") shouldBe "I'm file two"
-
-      withClue("each worker just subscribed to one work item at a time, so each request should've gone to a different worker") {
-        locationForClient(execClient1).port should not be locationForClient(execClient2).port
-      }
-    }
-  }
-  "RemoteRunner" should {
     "be able to execute simple commands against a running server" in {
       val result = client.run("echo", "this", "is", "a", "test").futureValue
       result.mkString("") shouldBe "this is a test"
@@ -121,11 +41,11 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
     "be able to target an execution service after submitting a job to the exchange" in {
 
       // determine summat which can run our request
-      val (execClient, output) = client.runAndSelect("whoami").futureValue
-      output.mkString("") shouldBe Properties.userName
+      val selection = client.runAndSelect("whoami").futureValue
+      selection.output.mkString("") shouldBe Properties.userName
 
       // upload something to that client
-      execClient.upload("someTestDir", Upload.forText("hello.txt", "there")).futureValue shouldBe true
+      selection.upload("someTestDir", Upload.forText("hello.txt", "there")).futureValue shouldBe true
 
       // execute something which uses needs that upload
       val result: Iterator[String] = client.run(RunProcess("cat", "hello.txt").withDependencies("someTestDir", Set("hello.txt"), testTimeout)).futureValue
@@ -133,6 +53,83 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
     }
   }
 
+  /**
+    * In this test, we want to check we can run two different jobs which get routed to the 2 different servers.
+    *
+    * To do this we:
+    * 1) submit a job with a dependency on file 1
+    * 2) submit a job with a dependency on file 2. this should get routed to a different worker from #1
+    * 3) upload file 1
+    * 4) upload file 2
+    * 5) verify jobs 1 and 2 complete on different servers
+    *
+    * This works because we set up each server to only ask for one work item at a time. The jobs take a work item
+    * from the exchange, but can't complete as they're blocking on their upload file dependencies. This way
+    * when job 2 is submitted it will get directed to the 2nd worker
+    */
+  def verifyConcurrentServices(anotherConf: ExecConfig) = {
+
+    // verify we have 2 subscriptions
+    def subscriptionsByServerPort() = {
+      val queue = client.exchange.queueState().futureValue
+      queue.subscriptions.map {
+        case PendingSubscription(_, sub, requested) =>
+          sub.details.location.port -> requested
+      }.toMap
+    }
+
+    subscriptionsByServerPort() shouldBe Map(7770 -> 1, 8888 -> 1)
+
+    // 1) execute req 1
+    val workspace1       = UUID.randomUUID().toString
+    val workspace2       = UUID.randomUUID().toString
+    val selectionFuture1 = client.runAndSelect(RunProcess("cat", "file1.txt").withDependencies(workspace1, Set("file1.txt"), testTimeout))
+
+    val portWhichFirstJobTakenByService: Int = eventually {
+      val queueAfterOneJobSubmitted = subscriptionsByServerPort
+      if (queueAfterOneJobSubmitted == Map(7770 -> 1, 8888 -> 0)) {
+        8888
+      } else if (queueAfterOneJobSubmitted == Map(7770 -> 0, 8888 -> 1)) {
+        //
+        7770
+      } else {
+        fail(s"queue after submitted one job was $queueAfterOneJobSubmitted")
+      }
+    }
+
+    // 2) execute req 2. Note we use the same exchange client for both requests ... one will be routed to our first
+    // worker, the second request to the other (anotherServer...)
+    val selectionFuture2 = client.runAndSelect(RunProcess("cat", "file2.txt").withDependencies(workspace2, Set("file2.txt"), testTimeout))
+
+    selectionFuture1.isCompleted shouldBe false
+    selectionFuture2.isCompleted shouldBe false
+
+    // 3) upload file1.txt dependency. Normally we would get one of these after routing a 'selection' job via the
+    // exchange, but here we just target the workers directly to ensure 'resultFuture1' can now complete
+    val directClient1 = conf.executionClient()
+    val directClient2 = anotherConf.executionClient()
+    val (firstClient, theOtherClient) = portWhichFirstJobTakenByService match {
+      case 7770 => directClient1 -> directClient2
+      case 8888 => directClient2 -> directClient1
+    }
+    val file1 = Upload.forText("file1.txt", "I'm file one")
+    firstClient.upload(workspace1, file1).futureValue shouldBe true
+
+    // request 1 should now complete, as we've made sure both workers have file1.txt in workspace x
+    val result1 = selectionFuture1.futureValue
+    result1.output.mkString("") shouldBe "I'm file one"
+
+    // 4) upload file2.
+    val file2 = Upload.forText("file2.txt", "I'm file two")
+    theOtherClient.upload(workspace2, file2).futureValue shouldBe true
+    val result2 = selectionFuture2.futureValue
+    result2.output.mkString("") shouldBe "I'm file two"
+
+    withClue("each worker just subscribed to one work item at a time, so each request should've gone to a different worker") {
+      result1.subscription should not be (result2.subscription)
+      locationForClient(result1.client) should not be locationForClient(result2.client)
+    }
+  }
   override def beforeAll(): Unit = {
     super.beforeAll()
     server = conf.start().futureValue
@@ -147,8 +144,8 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
     client = null
   }
 
-  def locationForClient(exec: ExecutionClient) = {
-    exec.client match {
+  def locationForClient(client: RestClient) = {
+    client match {
       case retry: RetryClient =>
         retry.client match {
           case ac: AkkaClient => ac.location

@@ -1,7 +1,8 @@
 package agora.rest.worker
 
 import agora.api.`match`.MatchDetails
-import agora.api.worker.WorkerDetails
+import agora.api.exchange.WorkSubscription
+import agora.api.worker.{HostLocation, WorkerDetails}
 import agora.rest.BaseRoutesSpec
 
 class WorkerClientTest extends BaseRoutesSpec {
@@ -13,9 +14,9 @@ class WorkerClientTest extends BaseRoutesSpec {
   }
 
   lazy val workerClient = {
-    val worker        = DynamicWorkerRoutes()
+    val workerDetails = WorkerDetails(HostLocation.localhost(1234))
+    val worker        = DynamicWorkerRoutes(WorkSubscription.forDetails(workerDetails))
     val restClient    = DirectRestClient(worker.routes)
-    val workerDetails = WorkerDetails()
     val matchDetails  = MatchDetails.empty
     WorkerClient(restClient, "multipart", matchDetails, workerDetails)
   }

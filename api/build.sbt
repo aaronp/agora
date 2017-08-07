@@ -7,4 +7,6 @@ assemblyMergeStrategy in assembly := {
     oldStrategy(x)
 }
 
+scalaJSLinkerConfig ~= { _.withOptimizer(false) }
+
 scalaJSOptimizerOptions ~= { _.withDisableOptimizer(true) }

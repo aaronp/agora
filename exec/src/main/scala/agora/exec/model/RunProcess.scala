@@ -23,7 +23,7 @@ case class RunProcess(command: List[String],
                       // if we exit w/ a non-success code, then we need to indicate the start of the error response
                       errorMarker: String = RunProcess.DefaultErrorMarker) {
 
-  def commandsString                                  = command.mkString(" ")
+  def commandString                                   = command.mkString(" ")
   def withEnv(key: String, value: String): RunProcess = copy(env = env.updated(key, value))
 
   def withDependencies(dep: UploadDependencies): RunProcess = copy(dependencies = Option(dep))

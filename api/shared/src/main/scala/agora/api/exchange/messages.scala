@@ -1,7 +1,7 @@
 package agora.api.exchange
 
-import agora.api.json.{JFilter, JMatcher}
-import agora.api.worker.{SubscriptionKey, WorkerDetails, WorkerRedirectCoords}
+import agora.api.json.JMatcher
+import agora.api.worker.{HostLocation, SubscriptionKey, WorkerDetails, WorkerRedirectCoords}
 import agora.api.{JobId, MatchId}
 import io.circe.generic.auto._
 import io.circe.{Encoder, Json}
@@ -25,7 +25,7 @@ sealed trait ClientResponse
 case class QueueState(workerSubscriptionMatcher: JMatcher = JMatcher.matchAll,
                       submitJobMatcher: JMatcher = JMatcher.matchAll,
                       submitJobSubmissionDetailsMatcher: JMatcher = JMatcher.matchAll)
-    extends ClientRequest {
+  extends ClientRequest {
   def matchesSubscription(aboutMe: Json) = workerSubscriptionMatcher.matches(aboutMe)
 
   def matchesJob(job: SubmitJob) = {
@@ -129,7 +129,7 @@ object SubmitJobResponse {
 }
 
 case class BlockingSubmitJobResponse(matchId: MatchId, jobId: JobId, matchEpochUTC: Long, workerCoords: List[WorkerRedirectCoords], workers: List[WorkerDetails])
-    extends ClientResponse {
+  extends ClientResponse {
   def firstWorkerUrl: Option[String] = workers.collectFirst {
     case w if w.url.isDefined => w.url.get
   }
@@ -164,15 +164,15 @@ sealed trait SubscriptionResponse
   * Once a WorkSubscription is sent
   *
   * @param details
-  * @param jobMatcher        the json matcher used against the 'job' portion of SubmitJob
-  * @param submissionMatcher the json matcher used against the additional 'details' part of SubmitJob
+  * @param jobMatcher             the json matcher used against the 'job' portion of SubmitJob
+  * @param submissionMatcher      the json matcher used against the additional 'details' part of SubmitJob
   * @param subscriptionReferences If non-empty, changes to the number of work items requested for this subscription will be performed on the referenced subscriptions
   */
-case class WorkSubscription(details: WorkerDetails = WorkerDetails(),
-                            jobMatcher: JMatcher = JMatcher.matchAll,
-                            submissionMatcher: JMatcher = JMatcher.matchAll,
-                            subscriptionReferences: Set[SubscriptionKey] = Set.empty)
-    extends SubscriptionRequest {
+case class WorkSubscription(details: WorkerDetails,
+                            jobMatcher: JMatcher,
+                            submissionMatcher: JMatcher,
+                            subscriptionReferences: Set[SubscriptionKey])
+  extends SubscriptionRequest {
   def matches(job: SubmitJob)(implicit m: JobPredicate): Boolean = m.matches(job, this)
 
   def key = details.subscriptionKey
@@ -183,7 +183,8 @@ case class WorkSubscription(details: WorkerDetails = WorkerDetails(),
     */
   def matchingJob(matcher: JMatcher): WorkSubscription = copy(jobMatcher = matcher)
 
-  def withReferences(references: Set[SubscriptionKey])                   = copy(subscriptionReferences = references)
+  def withReferences(references: Set[SubscriptionKey]) = copy(subscriptionReferences = references)
+
   def referencing(reference: SubscriptionKey, theRest: SubscriptionKey*) = withReferences(theRest.toSet + reference)
 
   def matchingSubmission[T](matcher: T)(implicit ev: T => JMatcher): WorkSubscription = {
@@ -206,6 +207,27 @@ case class WorkSubscription(details: WorkerDetails = WorkerDetails(),
 }
 
 object WorkSubscription {
+
+  def localhost(port : Int) = apply(HostLocation.localhost(port))
+
+  /**
+    * Creates a work subscription for a worker running on the given location
+    * @param location - the HostLocation where this worker is running
+    * @return a work subscription
+    */
+  def apply(location: HostLocation,
+            jobMatcher: JMatcher = JMatcher.matchAll,
+            submissionMatcher: JMatcher = JMatcher.matchAll,
+            subscriptionReferences: Set[SubscriptionKey] = Set.empty): WorkSubscription = {
+    forDetails(WorkerDetails(location), jobMatcher, submissionMatcher, subscriptionReferences)
+  }
+
+  def forDetails(details: WorkerDetails,
+            jobMatcher: JMatcher = JMatcher.matchAll,
+            submissionMatcher: JMatcher = JMatcher.matchAll,
+            subscriptionReferences: Set[SubscriptionKey] = Set.empty): WorkSubscription = {
+    new WorkSubscription(details, jobMatcher, submissionMatcher, subscriptionReferences)
+  }
 
   implicit val encoder = exportEncoder[WorkSubscription].instance
   implicit val decoder = exportDecoder[WorkSubscription].instance

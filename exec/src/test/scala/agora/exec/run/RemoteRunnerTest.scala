@@ -13,7 +13,7 @@ class RemoteRunnerTest extends BaseSpec with BeforeAndAfterAll with AppendedClue
 
   def runner: ProcessRunner = remoteRunner
 
-  "manually enabled load test" ignore {
+  "manually enabled load test" should {
 
     "stream a whole lot of results" in {
       val firstResults = remoteRunner.run("bigOutput.sh".executable, srcDir.toAbsolutePath.toString, "1").futureValue

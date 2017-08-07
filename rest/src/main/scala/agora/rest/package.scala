@@ -14,7 +14,9 @@ package object rest {
       def asHeader(value: String): HttpHeader = {
         HttpHeader.parse(key, value) match {
           case ParsingResult.Ok(h, Nil) => h
-          case res                      => throw new Exception(res.errors.mkString(";"))
+          case res =>
+            val msg = s"Couldn't create header '$key'=>$value<  -->\n" + res.errors.mkString(";")
+            throw new Exception(msg)
         }
       }
     }

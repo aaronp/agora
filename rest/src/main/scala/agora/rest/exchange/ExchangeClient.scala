@@ -56,8 +56,8 @@ class ExchangeClient(val rest: RestClient, mkWorker: HostLocation => Dispatch)
       case client: RetryClient =>
         handlerErr: HandlerError =>
           val (bodyOpt, resp, err) = handlerErr
+          logger.error(s"$client retrying after getting response w/ '${resp.status}' $err ($bodyOpt). Checking the queue...", err)
           client.reset()
-          logger.error(s"Client retrying after getting response w/ '${resp.status}' $err ($bodyOpt). Checking the queue...", err)
           queueState().flatMap { state =>
             logger.error(state.description, err)
             retry

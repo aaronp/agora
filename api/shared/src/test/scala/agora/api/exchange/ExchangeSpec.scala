@@ -2,7 +2,7 @@ package agora.api.exchange
 
 import io.circe.generic.auto._
 import agora.api.Implicits._
-import agora.api.worker.SubscriptionKey
+import agora.api.worker.{HostLocation, SubscriptionKey}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.{Matchers, WordSpec}
 
@@ -24,7 +24,7 @@ trait ExchangeSpec extends WordSpec with Matchers with ScalaFutures with Eventua
       val obs = MatchObserver()
       val ex: Exchange = newExchange(obs)
 
-      val subscription: WorkSubscriptionAck = ex.subscribe(WorkSubscription()).futureValue
+      val subscription: WorkSubscriptionAck = ex.subscribe(WorkSubscription(HostLocation.localhost(1234))).futureValue
 
       // check out queue
       val subscriptions = ex.queueState().futureValue.subscriptions.map(_.key)
@@ -71,7 +71,7 @@ trait ExchangeSpec extends WordSpec with Matchers with ScalaFutures with Eventua
         val jobId = ex.submit(DoubleMe(11).asJob.withAwaitMatch(false)).futureValue.asInstanceOf[SubmitJobResponse].id
         val jobPath = ("value" gt 7) and ("value" lt 17)
 
-        val sub = WorkSubscription(jobMatcher = jobPath)
+        val sub = WorkSubscription(HostLocation.localhost(1234), jobMatcher = jobPath)
 
         val subscriptionId = ex.subscribe(sub).futureValue.id
         ex.take(subscriptionId, 1).futureValue shouldBe RequestWorkAck(subscriptionId, 0, 0)

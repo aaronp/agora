@@ -4,6 +4,7 @@ package worker
 import agora.api._
 import agora.api.`match`.MatchDetails
 import agora.api.exchange.WorkSubscription
+import agora.api.worker.HostLocation
 import agora.domain.IterableSubscriber
 import agora.health.HealthDto
 import agora.io.Sources
@@ -25,7 +26,7 @@ class DynamicWorkerRoutesTest extends BaseRoutesSpec with Eventually {
   "WorkerRoutes.health" should {
     "reply w/ the worker health" in {
 
-      WorkerHttp.healthRequest ~> DynamicWorkerRoutes().routes ~> check {
+      WorkerHttp.healthRequest ~> DynamicWorkerRoutes(WorkSubscription.localhost(1234)).routes ~> check {
         status shouldEqual StatusCodes.OK
         val dto = responseAs[HealthDto]
         dto.objectPendingFinalizationCount should be >= 0
@@ -36,7 +37,7 @@ class DynamicWorkerRoutesTest extends BaseRoutesSpec with Eventually {
   "WorkerRoutes.updateSubscription" should {
     "replace the subscription details" in {
       // start out with a single route, but whose handler replaces (updates) the subscription
-      val wr = DynamicWorkerRoutes()
+      val wr = DynamicWorkerRoutes(WorkSubscription.localhost(1234))
 
       def invocations(ctxt: WorkContext[_]) = JsonPath.root.invoked.int.getOption(ctxt.details.aboutMe).getOrElse(0)
 
@@ -62,7 +63,6 @@ class DynamicWorkerRoutesTest extends BaseRoutesSpec with Eventually {
         val List(originalSubscription) = initialState.subscriptions
         if (originalSubscription.requested != 1) {
           val str = wr.exchange
-          println(str)
         }
         originalSubscription.requested shouldBe 1
         originalSubscription
@@ -101,7 +101,6 @@ class DynamicWorkerRoutesTest extends BaseRoutesSpec with Eventually {
       }
 
       val a = httpRequest("original")
-      println(a)
       a ~> wr.routes ~> check {
         status shouldEqual StatusCodes.OK
         responseAs[Int] shouldBe 1
@@ -126,7 +125,7 @@ class DynamicWorkerRoutesTest extends BaseRoutesSpec with Eventually {
   }
   "WorkerRoutes.become" should {
     "replace existing routes" in {
-      val wr = DynamicWorkerRoutes()
+      val wr = DynamicWorkerRoutes(WorkSubscription.localhost(1234))
 
       var oldCount = 0
       var newCount = 0
@@ -164,7 +163,7 @@ class DynamicWorkerRoutesTest extends BaseRoutesSpec with Eventually {
   "WorkerRoutes" should {
 
     "be able to upload from strict multipart requests" in {
-      val wr = DynamicWorkerRoutes()
+      val wr = DynamicWorkerRoutes(WorkSubscription.localhost(1234))
 
       wr.usingSubscription(_.withPath("uploadTest")).addHandler[Multipart.FormData] { workContext =>
         val respFuture: Future[HttpResponse] = workContext.mapFirstMultipart {
@@ -195,7 +194,7 @@ class DynamicWorkerRoutesTest extends BaseRoutesSpec with Eventually {
     }
 
     "be able to upload from indefinite multipart requests" in {
-      val wr = DynamicWorkerRoutes()
+      val wr = DynamicWorkerRoutes(WorkSubscription.localhost(1234))
 
       wr.usingSubscription(_.withPath("uploadTest")).addHandler { (ctxt: WorkContext[Multipart.FormData]) =>
         ctxt.foreachMultipart {
@@ -244,7 +243,7 @@ class DynamicWorkerRoutesTest extends BaseRoutesSpec with Eventually {
 
       val httpReq: HttpRequest = WorkerClient.multipartRequest("doit", matchDetails, request)
 
-      val wr = DynamicWorkerRoutes()
+      val wr = DynamicWorkerRoutes(WorkSubscription.localhost(1234))
 
       // add a handler for 'doit'
       wr.usingSubscription(_.withPath("doit")).addHandler[Multipart.FormData] { ctxt =>
@@ -272,7 +271,7 @@ class DynamicWorkerRoutesTest extends BaseRoutesSpec with Eventually {
     }
 
     "handle routes with paths of varying length" in {
-      val wr = DynamicWorkerRoutes()
+      val wr = DynamicWorkerRoutes(WorkSubscription.localhost(1234))
 
       // add an echo handler for 'a/b/c'
       wr.usingSubscription(_.withPath("some/nested/route/echo")).addHandler[String] { ctxt =>

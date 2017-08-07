@@ -1,20 +1,33 @@
 package agora.rest.test
 
+import java.io.Closeable
+
 import agora.api.exchange._
-import agora.rest.client.RestClient
+import agora.api.worker.SubscriptionKey
 import agora.rest.exchange.ExchangeConfig._
 import agora.rest.exchange.{ExchangeClient, ExchangeConfig}
-import agora.rest.worker.{WorkerClient, WorkerConfig}
 import agora.rest.worker.WorkerConfig._
-
-import scala.concurrent.ExecutionContext.Implicits._
-import scala.concurrent.Future
+import agora.rest.worker.{WorkerClient, WorkerConfig}
+import com.typesafe.scalalogging.StrictLogging
 
 case class ExchangeTestState(server: Option[RunningExchange] = None,
                              exchangeClient: Option[Exchange] = None,
                              submittedJobs: List[(SubmitJob, ClientResponse)] = Nil,
-                             workers: List[RunningWorker] = Nil)
-    extends ExchangeValidation {
+                             workersByName: Map[String, RunningWorker] = Map.empty,
+                             lastTakeAck: Option[RequestWorkAck] = None)
+    extends ExchangeValidation
+    with StrictLogging {
+  def verifyTakeAck(subscriptionKey: String, expectedPreviousPending: Int, expectedTotal: Int) = {
+    lastTakeAck shouldBe Option(RequestWorkAck(subscriptionKey, expectedPreviousPending, expectedTotal))
+    copy(lastTakeAck = None)
+  }
+
+  def take(workerName: String, subscriptionKey: SubscriptionKey, items: Int) = {
+    val worker: RunningWorker = workersByName(workerName)
+    val ack: RequestWorkAck   = worker.service.exchange.take(subscriptionKey, items).futureValue
+    copy(lastTakeAck = Option(ack))
+  }
+
   def submitJob(job: SubmitJob): ExchangeTestState = {
     val (state, client) = stateWithClient
     val fut             = client.submit(job)
@@ -25,10 +38,13 @@ case class ExchangeTestState(server: Option[RunningExchange] = None,
   private def stateWithClient: (ExchangeTestState, Exchange) = {
     exchangeClient match {
       case None =>
-        val config: ExchangeConfig = server.get.conf
-        val rest                   = config.clientFor(config.location)
+        val running  = server.get
+        val location = running.location
+        logger.info(s"Connecting exchange client to $location")
+        val rest = running.conf.clientFor(location)
         val client = ExchangeClient(rest) { workerLocation =>
-          val rest = config.clientFor(workerLocation)
+          logger.info(s"Creating working client at $workerLocation for exchange on $location")
+          val rest = running.conf.clientFor(workerLocation)
           WorkerClient(rest)
         }
         copy(exchangeClient = Option(client)).stateWithClient
@@ -53,35 +69,36 @@ case class ExchangeTestState(server: Option[RunningExchange] = None,
   }
 
   def close() = {
-    workers.foreach(_.stop())
+    workersByName.keySet.foreach(stopWorker)
     closeExchange()
     ExchangeTestState()
   }
 
-  def startWorker(workerConfig: WorkerConfig): ExchangeTestState = {
-    stopWorkers(workerConfig)
-    copy(workers = workerConfig.startWorker().futureValue :: workers)
-  }
-
-  def workerForName(name: String): RunningWorker = {
-    val found: Option[RunningWorker] = workers.find(_.conf.workerDetails.name.exists(_ == name))
-    found.get
+  def startWorker(name: String, workerConfig: WorkerConfig): ExchangeTestState = {
+    stopWorker(name).copy(workersByName = workersByName.updated(name, workerConfig.startWorker().futureValue))
   }
 
   def startExchangeServer(exchangeConfig: ExchangeConfig): ExchangeTestState = {
+    logger.info(s"Starting exchange on ${exchangeConfig.port}")
     closeExchange()
-    copy(server = Option(exchangeConfig.start().futureValue))
+    val running = exchangeConfig.start().futureValue
+    running.localAddress.getPort shouldBe exchangeConfig.port
+    logger.info(s"Exchange started on ${running.localAddress.getHostString}")
+    copy(server = Option(running))
   }
 
-  def stopWorkers(workerConfig: WorkerConfig): ExchangeTestState = {
-    val stopFutures = workers.filter(_.conf.location.port == workerConfig.location.port).map { running =>
-      running.stop()
+  def stopWorker(name: String): ExchangeTestState = {
+    workersByName.get(name).fold(this) { w =>
+      w.stop.futureValue
+      copy(workersByName = workersByName - name)
     }
-    Future.sequence(stopFutures).futureValue
-    this
   }
 
   def closeExchange() = {
-    server.foreach(_.stop)
+    server.foreach(_.stop.futureValue)
+    exchangeClient.foreach {
+      case c: AutoCloseable => c.close()
+      case _                =>
+    }
   }
 }

@@ -26,19 +26,23 @@ import scala.util.Try
   * @param requestWorkOnFailure
   * @param uploadTimeout
   */
-case class RemoteRunner(exchange: ExchangeClient, defaultFrameLength: Int, allowTruncation: Boolean, requestWorkOnFailure: Boolean)(implicit uploadTimeout: FiniteDuration)
+case class RemoteRunner(exchange: ExchangeClient, defaultFrameLength: Int, allowTruncation: Boolean, requestWorkOnFailure: Boolean, keyOpt: Option[SubscriptionKey] = None)(
+    implicit uploadTimeout: FiniteDuration)
     extends ProcessRunner
     with AutoCloseable
     with FailFastCirceSupport
     with LazyLogging {
 
-  import exchange.{execContext, materializer}
+  import exchange.materializer
+  import exchange.execContext
 
   override def run(proc: RunProcess): ProcessOutput = {
-    runAndSelect(proc).map(_._2)
+    runAndSelect(proc).map(_.output)
   }
 
-  final def runAndSelect(cmd: String, theRest: String*): Future[(ExecutionClient, Iterator[String])] = {
+  def withSubscription(key: SubscriptionKey): RemoteRunner = copy(keyOpt = Option(key))
+
+  final def runAndSelect(cmd: String, theRest: String*): Future[SelectionOutput] = {
     runAndSelect(RunProcess(cmd :: theRest.toList, Map[String, String]()))
   }
 
@@ -50,56 +54,42 @@ case class RemoteRunner(exchange: ExchangeClient, defaultFrameLength: Int, allow
     * the same workspace is used on the same server.
     *
     * @param proc the job to execute
-    * @return both the direct execution client and the job output
+    * @return both the subscription key client and the job output
     */
-  def runAndSelect(proc: RunProcess): Future[(ExecutionClient, Iterator[String])] = {
-    val job = RemoteRunner.execAsJob(proc)
+  def runAndSelect(proc: RunProcess): Future[SelectionOutput] = {
+    val job = RemoteRunner.execAsJob(proc, keyOpt)
 
     // TODO - don't just reuse the direct client in the ExecutionClient, but rather continue to go via
     // the exchange to ensure we don't overload our worker
-    val clientPromise = Promise[SubscriptionKey]()
+    val subscriptionPromise = Promise[SelectionOutput]()
     val (_, workerResponses) = exchange.enqueueAndDispatch(job) { workerClient =>
-      val executionClient = ExecutionClient(workerClient.rest, defaultFrameLength, allowTruncation)
-      clientPromise.tryComplete(Try(workerClient.matchDetails.subscriptionKey))
+      val key = workerClient.matchDetails.subscriptionKey
+
+      //
+      // Execute directly using an ExecutionClient
+      //
+      val executionClient: ExecutionClient = ExecutionClient(workerClient.rest, defaultFrameLength, allowTruncation)
+      val newRunner                        = withSubscription(key)
+      val selection                        = SelectionOutput(key, workerClient.workerDetails.location, newRunner, executionClient, Iterator.empty)
+      subscriptionPromise.tryComplete(Try(selection))
       executionClient.execute(proc)
     }
 
     for {
-      executionClient: ExecutionClient <- clientPromise.future
-      httpResponses                    <- workerResponses
+      selection     <- subscriptionPromise.future
+      httpResponses <- workerResponses
+
+      // NOTE: we don't strictly have to flagMap on this ack, but doing exposes us to failure cases,
+      // which we want
+      takeAck <- exchange.take(selection.subscription, 1)
     } yield {
+      require(takeAck.id == selection.subscription)
+      logger.debug(s"Took another work item for ${selection.subscription}: $takeAck")
+
       val httpResp = httpResponses.onlyResponse
       val iter     = IterableSubscriber.iterate(httpResp.entity.dataBytes, proc.frameLength.getOrElse(defaultFrameLength), allowTruncation)
       val output   = proc.filterForErrors(iter)
-      (executionClient, output)
-    }
-  }
-  def runAndSelectDirect(proc: RunProcess): Future[(ExecutionClient, Iterator[String])] = {
-    val job = RemoteRunner.execAsJob(proc)
-
-    // TODO - don't just reuse the direct client in the ExecutionClient, but rather continue to go via
-    // the exchange to ensure we don't overload our worker
-    val clientPromise = Promise[ExecutionClient]()
-    val (_, workerResponses) = exchange.enqueueAndDispatch(job) { workerClient =>
-      val executionClient = ExecutionClient(workerClient.rest, defaultFrameLength, allowTruncation)
-      clientPromise.tryComplete(Try(executionClient))
-      val future = executionClient.execute(proc)
-
-      future.onComplete {
-        case result =>
-          exchange.take(workerClient.matchDetails.subscriptionKey, 1)
-      }
-      future
-    }
-
-    for {
-      executionClient: ExecutionClient <- clientPromise.future
-      httpResponses                    <- workerResponses
-    } yield {
-      val httpResp = httpResponses.onlyResponse
-      val iter     = IterableSubscriber.iterate(httpResp.entity.dataBytes, proc.frameLength.getOrElse(defaultFrameLength), allowTruncation)
-      val output   = proc.filterForErrors(iter)
-      (executionClient, output)
+      selection.copy(output = output)
     }
   }
 
@@ -115,8 +105,11 @@ object RemoteRunner extends RequestBuilding {
     * @param runProcess
     * @return
     */
-  def execAsJob(runProcess: RunProcess): SubmitJob = {
+  def execAsJob(runProcess: RunProcess, subscriptionOpt: Option[SubscriptionKey]): SubmitJob = {
     import agora.api.Implicits._
-    runProcess.asJob.matching(ExecutionRoutes.execCriteria)
+    val criteria = subscriptionOpt.fold(ExecutionRoutes.execCriteria) { key =>
+      ExecutionRoutes.execCriteria.and("id" === key)
+    }
+    runProcess.asJob.matching(criteria)
   }
 }

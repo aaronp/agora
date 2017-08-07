@@ -9,7 +9,7 @@ import org.scalatest.{Matchers, WordSpec}
 class WorkerConfigTest extends WordSpec with Matchers {
   "WorkerConfig(args)" should {
     "produce a worker config from user args" in {
-      val wc: WorkerConfig = WorkerConfig("details.path=foo", "port=1122", "exchange.port=567")
+      val wc: WorkerConfig = WorkerConfig("subscription.details.path=foo", "port=1122", "exchange.port=567")
       wc.location.port shouldBe 1122
       wc.exchangeConfig.location.port shouldBe 567
 
@@ -27,7 +27,7 @@ class WorkerConfigTest extends WordSpec with Matchers {
     }
     "use the given details" in {
 
-      val default = asConf(""" details : {
+      val default = asConf("""subscription.details : {
           |    foo : {
           |      bar : 123
           |    }
@@ -39,19 +39,20 @@ class WorkerConfigTest extends WordSpec with Matchers {
       JsonPath.root.topic.string.getOption(details.aboutMe) shouldBe Option("meh")
     }
     "create a subscription from the config" in {
-      val default = asConf(""" jobMatcher : {
+      val default = asConf("""subscription {
+          |  jobMatcher : {
           |      and : {
           |       lhs : match-all
           |       rhs : match-all
           |      }
-          |}
-          |submissionMatcher : {
+          |  }
+          |  submissionMatcher : {
           |    or : {
           |       lhs : match-all
           |       rhs : match-all
           |      }
-          |}
-          |""".stripMargin)
+          |  }
+          |}""".stripMargin)
       val sub     = default.subscription
       sub.jobMatcher shouldBe JMatcher.matchAll.and(JMatcher.matchAll)
       sub.submissionMatcher shouldBe JMatcher.matchAll.or(JMatcher.matchAll)

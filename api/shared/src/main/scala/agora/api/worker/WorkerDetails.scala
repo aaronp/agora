@@ -71,7 +71,8 @@ case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
   /** @return the relative path for the endpoint under which this worker will receive work
     */
   def pathOpt: Option[String] = pathPath.getOption(aboutMe).map(_.trim).filterNot(_.isEmpty)
-  def path: String            = pathOpt.getOrElse(sys.error(s"No 'path' set on $this"))
+
+  def path: String = pathOpt.getOrElse(sys.error(s"No 'path' set on $this"))
 
   def runUser: User = runUserPath.getOption(aboutMe).getOrElse {
     sys.error(s"invalid json: 'runUser' not set: ${aboutMe}")
@@ -84,14 +85,14 @@ object WorkerDetails {
   import io.circe.generic.auto._
   import io.circe.syntax._
 
-  val locationPath   = root.location
-  val hostPath       = locationPath.host.string
-  val portPath       = locationPath.port.int
+  val locationPath = root.location
+  val hostPath = locationPath.host.string
+  val portPath = locationPath.port.int
   val portStringPath = locationPath.port.string
-  val pathPath       = root.path.string
-  val namePath       = root.name.string
-  val keyPath        = root.id.string
-  val runUserPath    = root.runUser.string
+  val pathPath = root.path.string
+  val namePath = root.name.string
+  val keyPath = root.id.string
+  val runUserPath = root.runUser.string
 
   def deepMergeWithArrayConcat(from: Json, that: Json): Json =
     (from.asObject, that.asObject) match {
@@ -100,7 +101,7 @@ object WorkerDetails {
           lhs.toList.foldLeft(rhs) {
             case (acc, (key, value)) =>
               val concatenatedOpt: Option[JsonObject] = for {
-                leftArray  <- value.asArray
+                leftArray <- value.asArray
                 rightArray <- rhs(key).flatMap(_.asArray)
               } yield {
                 val arr = Json.fromValues(leftArray ++ rightArray)
@@ -124,11 +125,11 @@ object WorkerDetails {
     */
   private case class DefaultDetails(runUser: String, location: HostLocation, name: String, id: String, path: String)
 
-  def apply(name: String = "worker",
-            id: SubscriptionKey = "",
-            runUser: String = Properties.userName,
-            path: String = "handler",
-            location: HostLocation = HostLocation(-1)): WorkerDetails = {
+  def apply(location: HostLocation,
+             path: String = "handler",
+             name: String = "worker",
+             id: SubscriptionKey = "",
+             runUser: String = Properties.userName): WorkerDetails = {
     val json = DefaultDetails(runUser, location, name, id, path).asJson
     WorkerDetails(json)
   }

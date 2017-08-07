@@ -28,7 +28,7 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
   "WorkspaceClient.close" should {
     "fail any pending await calls" in {
       withDir { containerDir =>
-        val client = WorkspaceClient(containerDir, system)
+        val client      = WorkspaceClient(containerDir, system)
         val awaitFuture = client.await("some id", Set("won't ever arrive"), testTimeout.toMillis)
         client.close("some id").futureValue shouldBe false
 
@@ -75,7 +75,7 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
     }
     "block until files are all available in a workspace" in {
       withDir { containerDir =>
-        val client = WorkspaceClient(containerDir, system)
+        val client    = WorkspaceClient(containerDir, system)
         val dirFuture = client.await("some id", Set("file.one", "file.two"), testTimeout.toMillis)
         dirFuture.isCompleted shouldBe false
 
@@ -94,7 +94,7 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
         // finally upload the file we expect in our 'some id' session.
         client.upload("some id", Upload.forText("file.two", "finally ready!")).futureValue shouldBe true
         val sessionDir = dirFuture.futureValue
-        sessionDir.children.map(_.fileName) should contain only("file.one", "file.two", "file.three")
+        sessionDir.children.map(_.fileName) should contain only ("file.one", "file.two", "file.three")
 
         sessionDir.resolve("file.two").text shouldBe "finally ready!"
 

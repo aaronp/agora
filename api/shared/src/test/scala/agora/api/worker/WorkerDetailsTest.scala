@@ -11,19 +11,19 @@ class WorkerDetailsTest extends WordSpec with Matchers {
 
   "WorkerDetails()" should {
     "include a path" in {
-      WorkerDetails().path shouldBe "handler"
+      WorkerDetails(HostLocation.localhost(1234)).path shouldBe "handler"
     }
   }
   "WorkerDetails.append" should {
     "append array values" in {
-      val original = WorkerDetails().append("list", List(1, 2, 3))
+      val original = WorkerDetails(HostLocation.localhost(1234)).append("list", List(1, 2, 3))
       val appended = original.append("list", List(4, 5, 6))
       val listPath = JsonPath.root.list.arr
       val items = listPath.getOption(appended.aboutMe).get.map(_.asNumber.get.toInt.get)
       items shouldBe List(1, 2, 3, 4, 5, 6)
     }
     "append heterogeneous array values" in {
-      val original = WorkerDetails().append("list", List(1, 2, 3))
+      val original = WorkerDetails(HostLocation.localhost(1234)).append("list", List(1, 2, 3))
       val appended = original.append("list", List(Map("four" -> 4)))
       val listPath = JsonPath.root.list.arr
       val items = listPath.getOption(appended.aboutMe).get.map { json =>

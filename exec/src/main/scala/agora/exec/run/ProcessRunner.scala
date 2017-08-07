@@ -1,6 +1,6 @@
 package agora.exec.run
 
-import java.nio.file.Path
+import java.nio.file.{Path, Paths}
 
 import agora.exec.model.RunProcess
 import agora.exec.workspace.{UploadDependencies, WorkspaceId}
@@ -34,6 +34,11 @@ object ProcessRunner {
     */
   def apply(workDir: Option[Path] = None, defaultEnv: Map[String, String] = Map.empty)(implicit ec: ExecutionContext): LocalRunner = {
     new LocalRunner(workDir, defaultEnv)
+  }
+
+  def local(workPath: String)(implicit ec: ExecutionContext): LocalRunner = {
+    import agora.io.implicits._
+    apply(Option(workPath).map(_.asPath))
   }
 
   /**

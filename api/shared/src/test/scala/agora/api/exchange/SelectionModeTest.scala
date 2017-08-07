@@ -39,7 +39,7 @@ class SelectionModeTest extends WordSpec with Matchers {
       val mode: SelectionMode = SelectionMode.max(path)
       val input = List(a, b, c, d).zipWithIndex.map {
         case (bean, i) =>
-          Candidate(nextSubscriptionKey, WorkSubscription(WorkerDetails(bean.asJson)), i)
+          Candidate(nextSubscriptionKey, WorkSubscription.forDetails(WorkerDetails(bean.asJson)), i)
       }
       mode.select[List[Candidate]](input).map(_.remaining) shouldBe List(3)
       mode.select[List[Candidate]](input.init).map(_.remaining) shouldBe List(0)

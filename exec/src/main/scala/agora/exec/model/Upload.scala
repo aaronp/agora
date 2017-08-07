@@ -14,7 +14,9 @@ object Upload {
   }
 
   def forText(name: String, text: String) = {
-    val bytes = ByteString(text)
-    new Upload(name, Source.single(bytes), Option(bytes.size))
+    val bytes: ByteString = ByteString(text)
+    forBytes(name, bytes)
   }
+
+  def forBytes(name: String, bytes: ByteString) = new Upload(name, Source.single(bytes), Option(bytes.size))
 }

@@ -77,20 +77,21 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
   }
 
   def workerDetails: WorkerDetails = {
-    val detailsConf = config.getConfig("details")
+    val detailsConf = subscriptionConfig.getConfig("details")
     val name        = detailsConf.getString("name")
     val id          = detailsConf.getString("id")
     val path        = detailsConf.getString("path")
-    WorkerDetails(name, id, runUser, path, location).append(asJson(detailsConf))
+    WorkerDetails(location, path, name, id, runUser).append(asJson(detailsConf))
   }
 
+  lazy val subscriptionConfig = config.getConfig("subscription")
   def asMatcher(at: String): Either[circe.Error, JMatcher] = {
-    val fromConfig: Option[Either[circe.Error, JMatcher]] = Try(config.getConfig(at)).toOption.map { subConf =>
+    val fromConfig: Option[Either[circe.Error, JMatcher]] = Try(subscriptionConfig.getConfig(at)).toOption.map { subConf =>
       val json = asJson(subConf)
       json.as[JMatcher]
     }
 
-    val fromString = asJson(config).hcursor.downField(at).as[JMatcher]
+    val fromString = asJson(subscriptionConfig).hcursor.downField(at).as[JMatcher]
 
     fromConfig.getOrElse(fromString)
   }
@@ -105,7 +106,8 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
       jm <- asMatcher("jobMatcher").right
       sm <- asMatcher("submissionMatcher").right
     } yield {
-      WorkSubscription(workerDetails, jm, sm)
+      val subscriptionReferences = subscriptionConfig.asList("subscriptionReferences")
+      WorkSubscription.forDetails(workerDetails, jm, sm, subscriptionReferences.toSet)
     }
   }
 

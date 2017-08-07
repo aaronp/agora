@@ -7,6 +7,7 @@ import agora.api.worker.SubscriptionKey
 import agora.exec.model.{ProcessException, RunProcess}
 import agora.exec.run.LocalRunner
 import agora.exec.workspace.WorkspaceId
+import agora.rest.MatchDetailsExtractor
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model.ContentTypes.{`application/json`, `text/plain(UTF-8)`}
 import akka.http.scaladsl.model.StatusCodes.InternalServerError
@@ -33,13 +34,23 @@ object ExecutionHandler extends StrictLogging {
     * @return
     */
   def newWorkspaceSubscription(referencedConf: SubscriptionKey, workspace: WorkspaceId, files: Set[String]): WorkSubscription = {
-    WorkSubscription(jobMatcher = hasCommand).withSubscriptionKey(workspace).append("files", files).append("workspace", workspace).referencing(referencedConf)
+    WorkSubscription.localhost(1234).copy(jobMatcher = hasCommand).withSubscriptionKey(workspace).append("files", files).append("workspace", workspace).referencing(referencedConf)
   }
 
   def asErrorResponse(exp: ProcessException) = {
     HttpResponse(status = InternalServerError, entity = HttpEntity(`application/json`, exp.json.noSpaces))
   }
 
+  /** Execute 'runProc' unmarshalled from the request using the given runner and match details.
+    *
+    * @param request the input http request
+    * @param runner the process runner
+    * @param runProc the unmarshalled job request
+    * @param matchDetails the match details if this request came via an exchange request
+    * @param outputContentType the content type
+    * @param ec an execution context used to map the response
+    * @return the response future
+    */
   def apply(request: HttpRequest,
             runner: LocalRunner,
             runProc: RunProcess,
@@ -49,7 +60,19 @@ object ExecutionHandler extends StrictLogging {
 
     val bytes                       = runner.asByteIterator(runProc)
     val chunked: HttpEntity.Chunked = HttpEntity(outputContentType, bytes)
-    val future                      = Marshal(chunked).toResponseFor(request)
+
+    val future: Future[HttpResponse] = {
+      val basic = Marshal(chunked).toResponseFor(request)
+      matchDetails.fold(basic) { details =>
+        /*
+         * Put the match details back on the response for client consumption
+         */
+        basic.map { r =>
+          r.withHeaders(MatchDetailsExtractor.headersFor(details))
+        }
+      }
+    }
+
     future.recover {
       case pr: ProcessException =>
         asErrorResponse(pr)

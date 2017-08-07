@@ -4,7 +4,7 @@ import akka.http.scaladsl.server.Route
 import agora.api.Implicits._
 import agora.api._
 import agora.api.exchange._
-import agora.api.worker.SubscriptionKey
+import agora.api.worker.{HostLocation, SubscriptionKey}
 import agora.rest.{BaseRoutesSpec, BaseSpec}
 
 import scala.concurrent.Future
@@ -40,7 +40,7 @@ class ExchangeRoutesTest extends BaseRoutesSpec {
   }
   "PUT /rest/exchange/subscribe" should {
     "subscribe for work" in {
-      ExchangeHttp(WorkSubscription()) ~> routes() ~> check {
+      ExchangeHttp(WorkSubscription.localhost(1234)) ~> routes() ~> check {
         val resp = responseAs[WorkSubscriptionAck]
         resp.id should not be (null)
       }
@@ -61,7 +61,7 @@ class ExchangeRoutesTest extends BaseRoutesSpec {
       val matchFuture: Future[BlockingSubmitJobResponse] = obs.onJob(job)
 
       // subscribe to work
-      val ws = WorkSubscription().withSubscriptionKey("i'll tell you the key, thank you very much!")
+      val ws = WorkSubscription(HostLocation.localhost(1234)).withSubscriptionKey("i'll tell you the key, thank you very much!")
       //ws.details.id should not be(None)
       ExchangeHttp(ws) ~> route.routes ~> check {
         val resp = responseAs[WorkSubscriptionAck]

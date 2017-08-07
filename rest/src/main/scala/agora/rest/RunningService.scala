@@ -1,7 +1,8 @@
 package agora.rest
 
-import java.net.URI
+import java.net.{InetSocketAddress, URI}
 
+import agora.api.worker.HostLocation
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
 import com.typesafe.scalalogging.LazyLogging
@@ -14,7 +15,10 @@ import scala.io.StdIn
   * the binding and the config/service which was started
   */
 case class RunningService[C <: ServerConfig, Service](conf: C, service: Service, binding: Http.ServerBinding) extends AutoCloseable {
-  private val shutdownPromise = Promise[Unit]()
+
+  def location                        = HostLocation(localAddress.getHostName, localAddress.getPort).ensuring(_ == conf.location)
+  def localAddress: InetSocketAddress = binding.localAddress
+  private val shutdownPromise         = Promise[Unit]()
   lazy val shutdown = {
     val future: Future[Unit] = binding.unbind()
     shutdownPromise.tryCompleteWith(future)

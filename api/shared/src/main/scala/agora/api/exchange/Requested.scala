@@ -25,8 +25,4 @@ private[exchange] case class LinkedRequested(subscriptions : Set[SubscriptionKey
   override def remaining(state : ExchangeState) = {
     subscriptions.map(state.pending).min
   }
-
-//  def pending(state : ExchangeState, seen: Set[SubscriptionKey]) = {
-//      subscriptions.map(state.pending)
-//  }
 }

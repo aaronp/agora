@@ -73,6 +73,8 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
       case (id, (subscription, requested)) if requested.remaining(this) > 0 && job.matches(subscription) =>
         val newState  = updatePending(id, -1)
         val remaining = newState.pending(id)
+        def check = requested.remaining(this)
+        assert(remaining == (check - 1), s"${remaining} != $check - 1 for $id in $this")
         Candidate(id, subscription, remaining)
     }.toSeq
   }
