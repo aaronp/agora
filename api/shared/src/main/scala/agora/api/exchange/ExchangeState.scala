@@ -8,7 +8,7 @@ import scala.util.{Failure, Success, Try}
 
 case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscription, Requested)] = Map[SubscriptionKey, (WorkSubscription, Requested)](),
                          jobsById: Map[JobId, SubmitJob] = Map[JobId, SubmitJob]())
-  extends StrictLogging {
+    extends StrictLogging {
 
   /** @param key the subscription key
     * @return the number of work items pending for the given subscription, or 0 if the subscription is unknown
@@ -37,7 +37,6 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
     newStateOpt.getOrElse(this)
   }
 
-
   /**
     * Creates matches based on the given predicate.
     *
@@ -52,9 +51,9 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
     logger.trace(s"Checking for matches between ${jobsById.size} jobs and ${subscriptionsById.size} subscriptions")
 
     jobsById.foldLeft(List[MatchNotification]() -> this) {
-      case (accumulator@(matches, oldState), (jobId, job)) =>
+      case (accumulator @ (matches, oldState), (jobId, job)) =>
         val candidates: Seq[Candidate] = oldState.workCandidatesForJob(jobId, job)
-        val chosen: Seq[Candidate] = job.submissionDetails.selection.select(candidates)
+        val chosen: Seq[Candidate]     = job.submissionDetails.selection.select(candidates)
 
         if (chosen.isEmpty) {
           accumulator
@@ -65,8 +64,6 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
     }
   }
 
-
-
   /** @param jobId the job id belonging to the job to match
     * @param job   the job to match
     * @return a collection of subscription keys, subscriptions and the remaining items which would match the given job
@@ -74,7 +71,7 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
   private def workCandidatesForJob(jobId: JobId, job: SubmitJob)(implicit matcher: JobPredicate): CandidateSelection = {
     subscriptionsById.collect {
       case (id, (subscription, requested)) if requested.remaining(this) > 0 && job.matches(subscription) =>
-        val newState = updatePending(id, -1)
+        val newState  = updatePending(id, -1)
         val remaining = newState.pending(id)
         Candidate(id, subscription, remaining)
     }.toSeq
@@ -109,7 +106,7 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
     */
   def cancelSubscriptions(ids: Set[SubscriptionKey]): (CancelSubscriptionsResponse, ExchangeState) = {
     val newSubscriptionsById = subscriptionsById -- ids
-    val newState = copy(subscriptionsById = newSubscriptionsById)
+    val newState             = copy(subscriptionsById = newSubscriptionsById)
 
     val cancelled = ids.map { id =>
       val usedToContain = containsSubscription(id)
@@ -137,8 +134,8 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
     val (id, subscription) = inputSubscription.key match {
       case Some(key) => (key, inputSubscription)
       case None =>
-        val key = nextSubscriptionKey()
-        val newSubscription = inputSubscription.withDetails(_.withSubscriptionKey(key))
+        val key             = nextSubscriptionKey()
+        val newSubscription = inputSubscription.withSubscriptionKey(key)
 
         logger.debug(s"Created new subscription [${key}] $newSubscription")
         key -> newSubscription
@@ -147,7 +144,7 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
     val newState = subscriptionsById.get(id).map(_._2) match {
       case Some(_) => updateSubscription(id, inputSubscription.details)
       case None =>
-        val requested = Requested(inputSubscription.subscriptionReferences)
+        val requested            = Requested(inputSubscription.subscriptionReferences)
         val newSubscriptionsById = subscriptionsById.updated(id, subscription -> requested)
         copy(subscriptionsById = newSubscriptionsById)
     }

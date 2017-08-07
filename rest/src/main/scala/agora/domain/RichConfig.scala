@@ -4,7 +4,9 @@ import java.nio.file.{Files, Paths}
 
 import com.typesafe.config._
 
+import ConfigRenderOptions._
 import scala.language.implicitConversions
+import scala.util.Try
 
 trait RichConfigOps extends RichConfig.LowPriorityImplicits {
 
@@ -70,24 +72,28 @@ trait RichConfigOps extends RichConfig.LowPriorityImplicits {
   def unique                    = withoutSystem.filterNot(_.startsWith("akka"))
 
   /** this config w/o the system props and stuff */
-  def withoutSystem: Config                                                                           = without(systemEnvironment.or(systemProperties).paths)
-  def or(other: Config)                                                                               = config.withFallback(other)
-  def without(other: Config): Config                                                                  = without(asRichConfig(other).paths)
-  def without(firstPath: String, theRest: String*): Config                                            = without(firstPath +: theRest)
-  def without(paths: TraversableOnce[String]): Config                                                 = paths.foldLeft(config)(_ withoutPath _)
-  def filterNot(path: String => Boolean)                                                              = without(paths.filter(path))
-  def describe(implicit opts: ConfigRenderOptions = ConfigRenderOptions.concise().setFormatted(true)) = config.root.render(opts)
-  def json                                                                                            = config.root.render(ConfigRenderOptions.concise().setJson(true))
-  def paths: Set[String]                                                                              = config.entrySet().asScala.map(_.getKey).toSet
+  def withoutSystem: Config                                                       = without(systemEnvironment.or(systemProperties).paths)
+  def or(other: Config)                                                           = config.withFallback(other)
+  def without(other: Config): Config                                              = without(asRichConfig(other).paths)
+  def without(firstPath: String, theRest: String*): Config                        = without(firstPath +: theRest)
+  def without(paths: TraversableOnce[String]): Config                             = paths.foldLeft(config)(_ withoutPath _)
+  def filterNot(path: String => Boolean)                                          = without(paths.filter(path))
+  def describe(implicit opts: ConfigRenderOptions = concise().setFormatted(true)) = config.root.render(opts)
+  def json                                                                        = config.root.render(ConfigRenderOptions.concise().setJson(true))
+  def paths: List[String]                                                         = config.entrySet().asScala.map(_.getKey).toList
   def pathRoots = paths.map { p =>
     ConfigUtil.splitPath(p).get(0)
   }
+  def collectAsStrings: List[(String, String)] = paths.flatMap { key =>
+    Try(config.getString(key)).toOption.map(key ->)
+  }
+  def collectAsMap = collectAsStrings.toMap
 
   def intersect(other: Config): Config = {
     withPaths(other.paths)
   }
-  def withPaths(first: String, theRest: String*): Config = withPaths(theRest.toSet + first)
-  def withPaths(paths: Set[String]): Config = {
+  def withPaths(first: String, theRest: String*): Config = withPaths(first :: theRest.toList)
+  def withPaths(paths: List[String]): Config = {
     paths.map(config.withOnlyPath).reduce(_ withFallback _)
   }
 }

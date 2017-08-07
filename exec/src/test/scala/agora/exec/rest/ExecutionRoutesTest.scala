@@ -25,8 +25,7 @@ class ExecutionRoutesTest extends BaseRoutesSpec {
         matchingJob(JPath("command").asMatcher)
       // format: on
 
-      val config = ExecConfig()
-
+      val config             = ExecConfig()
       val actualSubscription = config.subscription
 
       //      val execSubscription = ExecutionRoutes.execSubscription()

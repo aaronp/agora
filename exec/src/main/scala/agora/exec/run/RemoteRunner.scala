@@ -1,5 +1,6 @@
 package agora.exec.run
 
+import agora.api.SubscriptionKey
 import agora.api.exchange.SubmitJob
 import agora.domain.IterableSubscriber
 import agora.exec.model.RunProcess
@@ -37,24 +38,16 @@ case class RemoteRunner(exchange: ExchangeClient, defaultFrameLength: Int, allow
     runAndSelect(proc).map(_._2)
   }
 
-  @deprecated("delete", "me")
-  def execute(proc: RunProcess): ProcessOutput = {
-
-    val job = RemoteRunner.execAsJob(proc)
-
-    exchange.enqueue(job).map { completedWork =>
-      val resp = completedWork.onlyResponse
-      val iter = IterableSubscriber.iterate(resp.entity.dataBytes, proc.frameLength.getOrElse(defaultFrameLength), allowTruncation)
-      proc.filterForErrors(iter)
-    }
-  }
-
   final def runAndSelect(cmd: String, theRest: String*): Future[(ExecutionClient, Iterator[String])] = {
     runAndSelect(RunProcess(cmd :: theRest.toList, Map[String, String]()))
   }
 
   /**
-    * Executes the job via the exchange
+    * Executes the job via the exchange, returning an [[ExecutionClient]] which can be used to upload/execute
+    * jobs to the worker which produced the output.
+    *
+    * It's called 'runAndSelect' because it can be used to select a worker which can then be used to ensure
+    * the same workspace is used on the same server.
     *
     * @param proc the job to execute
     * @return both the direct execution client and the job output
@@ -62,20 +55,50 @@ case class RemoteRunner(exchange: ExchangeClient, defaultFrameLength: Int, allow
   def runAndSelect(proc: RunProcess): Future[(ExecutionClient, Iterator[String])] = {
     val job = RemoteRunner.execAsJob(proc)
 
-    val clientPromise = Promise[ExecutionClient]()
+    // TODO - don't just reuse the direct client in the ExecutionClient, but rather continue to go via
+    // the exchange to ensure we don't overload our worker
+    val clientPromise = Promise[SubscriptionKey]()
     val (_, workerResponses) = exchange.enqueueAndDispatch(job) { workerClient =>
       val executionClient = ExecutionClient(workerClient.rest, defaultFrameLength, allowTruncation)
-      clientPromise.tryComplete(Try(executionClient))
+      clientPromise.tryComplete(Try(workerClient.matchDetails.subscriptionKey))
       executionClient.execute(proc)
     }
 
     for {
       executionClient: ExecutionClient <- clientPromise.future
-      httpResponses <- workerResponses
+      httpResponses                    <- workerResponses
     } yield {
       val httpResp = httpResponses.onlyResponse
-      val iter   = IterableSubscriber.iterate(httpResp.entity.dataBytes, proc.frameLength.getOrElse(defaultFrameLength), allowTruncation)
-      val output = proc.filterForErrors(iter)
+      val iter     = IterableSubscriber.iterate(httpResp.entity.dataBytes, proc.frameLength.getOrElse(defaultFrameLength), allowTruncation)
+      val output   = proc.filterForErrors(iter)
+      (executionClient, output)
+    }
+  }
+  def runAndSelectDirect(proc: RunProcess): Future[(ExecutionClient, Iterator[String])] = {
+    val job = RemoteRunner.execAsJob(proc)
+
+    // TODO - don't just reuse the direct client in the ExecutionClient, but rather continue to go via
+    // the exchange to ensure we don't overload our worker
+    val clientPromise = Promise[ExecutionClient]()
+    val (_, workerResponses) = exchange.enqueueAndDispatch(job) { workerClient =>
+      val executionClient = ExecutionClient(workerClient.rest, defaultFrameLength, allowTruncation)
+      clientPromise.tryComplete(Try(executionClient))
+      val future = executionClient.execute(proc)
+
+      future.onComplete {
+        case result =>
+          exchange.take(workerClient.matchDetails.subscriptionKey, 1)
+      }
+      future
+    }
+
+    for {
+      executionClient: ExecutionClient <- clientPromise.future
+      httpResponses                    <- workerResponses
+    } yield {
+      val httpResp = httpResponses.onlyResponse
+      val iter     = IterableSubscriber.iterate(httpResp.entity.dataBytes, proc.frameLength.getOrElse(defaultFrameLength), allowTruncation)
+      val output   = proc.filterForErrors(iter)
       (executionClient, output)
     }
   }

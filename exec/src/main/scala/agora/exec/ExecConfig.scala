@@ -8,11 +8,10 @@ import agora.api.`match`.MatchDetails
 import agora.exec.log._
 import agora.exec.model.RunProcess
 import agora.exec.rest.ExecutionRoutes
-import agora.exec.run.{LocalRunner, ProcessRunner}
-import agora.exec.workspace.WorkspaceId
+import agora.exec.run.{ExecutionClient, LocalRunner, ProcessRunner, RemoteRunner}
+import agora.rest.exchange.ExchangeClient
 import agora.rest.worker.WorkerConfig
 import agora.rest.{RunningService, configForArgs}
-import akka.http.scaladsl.server.Route
 import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.concurrent.Future
@@ -44,7 +43,7 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
     *
     * @return a Future of a [[RunningService]]
     */
-  def start(): Future[RunningService[ExecConfig, ExecutionRoutes]] = ExecBoot(this).start
+  def start(): Future[RunningService[ExecConfig, ExecutionRoutes]] = ExecBoot(this).start()
 
   override def withFallback(fallback: Config): ExecConfig = new ExecConfig(config.withFallback(fallback))
 
@@ -76,12 +75,14 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
   def newRunner(proc: RunProcess, matchDetails: Option[MatchDetails], workingDirectory: Option[Path], jobId: JobId): LocalRunner = {
     import serverImplicits._
     require(system.whenTerminated.isCompleted == false, "Actor system is terminated")
-    new LocalRunner(workDir = workingDirectory) {
+    new LocalRunner(workDir = workingDirectory, defaultEnv) {
       override def mkLogger(proc: RunProcess) = {
         newLogger(proc, jobId, matchDetails)
       }
     }
   }
+
+  def defaultEnv = execConfig.getConfig("runnerEnv").collectAsMap
 
   override def landingPage = "ui/run.html"
 
@@ -105,8 +106,17 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
 
   implicit def uploadTimeout: FiniteDuration = execConfig.getDuration("uploadTimeout", TimeUnit.MILLISECONDS).millis
 
-  def remoteRunner() = {
+  /** @return a client which will execute commands via the [[agora.api.exchange.Exchange]]
+    */
+  def remoteRunner(): RemoteRunner = {
     ProcessRunner(exchangeClient, defaultFrameLength, allowTruncation, replaceWorkOnFailure)
+  }
+
+  /**
+    * @return a client directly to the worker
+    */
+  def executionClient() = {
+    ExecutionClient(restClient, defaultFrameLength, allowTruncation)
   }
 
   override def toString = execConfig.root.render()

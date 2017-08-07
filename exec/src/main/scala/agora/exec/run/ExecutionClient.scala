@@ -26,7 +26,6 @@ case class ExecutionClient(override val client: RestClient, defaultFrameLength: 
     */
   def execute(proc: RunProcess): Future[HttpResponse] = {
     import client.executionContext
-    import client.materializer
     client.send(ExecutionClient.asRequest(proc))
   }
 
@@ -36,8 +35,8 @@ case class ExecutionClient(override val client: RestClient, defaultFrameLength: 
     * @return the future of the process output
     */
   def run(proc: RunProcess): Future[Iterator[String]] = {
-    import client.executionContext
     import client.materializer
+    import client.executionContext
     execute(proc).map { httpResp =>
       val iter: Iterator[String] = IterableSubscriber.iterate(httpResp.entity.dataBytes, proc.frameLength.getOrElse(defaultFrameLength), allowTruncation)
       proc.filterForErrors(iter)

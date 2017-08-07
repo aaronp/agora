@@ -14,14 +14,23 @@ import scala.concurrent.Future
 
 object ExecBoot {
 
-  def apply(conf: ExecConfig) = {
+  def apply(conf: ExecConfig): ExecBoot = {
     import conf._
 
     // either attach to or create a new exchange
     val (exchange: Exchange, optionalExchangeRoutes: Option[Route]) = if (includeExchangeRoutes) {
-      val localExchange            = exchangeConfig.newExchange
+
+      /**
+        * Should we connect to another exchange or this one?
+        */
+      val localExchange = exchangeConfig.newExchange
+      val exchange: Exchange = if (exchangeConfig.location == location) {
+        localExchange
+      } else {
+        exchangeClient
+      }
       val exRoutes: ExchangeRoutes = exchangeConfig.newExchangeRoutes(localExchange)
-      (localExchange, Option(exRoutes.routes))
+      (exchange, Option(exRoutes.routes))
     } else {
       (exchangeClient, None)
     }

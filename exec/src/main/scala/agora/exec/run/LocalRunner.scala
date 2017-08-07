@@ -18,10 +18,10 @@ import scala.util.{Failure, Success, Try}
 /**
   * Something which can execute [[RunProcess]]
   */
-class LocalRunner(workDir: Option[Path] = None)(implicit ec: ExecutionContext) extends ProcessRunner with StrictLogging {
+class LocalRunner(workDir: Option[Path] = None, defaultEnv: Map[String, String])(implicit ec: ExecutionContext) extends ProcessRunner with StrictLogging {
   def withLogger(newLogger: IterableLogger => IterableLogger): LocalRunner = {
     val parent = this
-    new LocalRunner(workDir) {
+    new LocalRunner(workDir, defaultEnv) {
       override def mkLogger(proc: RunProcess): IterableLogger = {
         newLogger(parent.mkLogger(proc))
       }
@@ -66,7 +66,8 @@ class LocalRunner(workDir: Option[Path] = None)(implicit ec: ExecutionContext) e
   }
 
   def execute(preparedProcess: RunProcess): IterableLogger = {
-    val builder: ProcessBuilder = Process(preparedProcess.command, workDir.map(_.toFile), preparedProcess.env.toSeq: _*)
+    val env                     = (defaultEnv ++ preparedProcess.env).toSeq
+    val builder: ProcessBuilder = Process(preparedProcess.command, workDir.map(_.toFile), env: _*)
     execute(builder, preparedProcess)
   }
 

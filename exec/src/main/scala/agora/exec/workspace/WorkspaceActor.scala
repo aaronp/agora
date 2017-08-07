@@ -33,7 +33,9 @@ private[workspace] class WorkspaceActor(val id: WorkspaceId, initialDir: Path) e
 
   def onUpload(msg: UploadFile, pendingRequests: List[AwaitUploads]): Unit = {
     val UploadFile(_, file, src, promise) = msg
-    val tri                               = Try(UploadDao(workspaceDir))
+
+    logger.info(s"Uploading ${file} to $id")
+    val tri = Try(UploadDao(workspaceDir))
     val res = Future.fromTry(tri).flatMap { dao =>
       dao.writeDown(Upload(file, src) :: Nil)
     }
@@ -73,8 +75,8 @@ private[workspace] class WorkspaceActor(val id: WorkspaceId, initialDir: Path) e
         }
         promise.tryComplete(Failure(new Exception(errMsg)))
       case msg @ AwaitUploads(UploadDependencies(`id`, _, _), _) if canRun(msg, files) => notifyWorkspaceReady(msg)
-      case msg @ AwaitUploads(UploadDependencies(`id`, _, timeout), _) =>
-        logger.debug(s"waiting on $id")
+      case msg @ AwaitUploads(UploadDependencies(`id`, dependencyFiles, timeout), _) =>
+        logger.info(s"waiting on $dependencyFiles in workspace '$id' for ${timeout}ms")
         context.become(handle(msg :: pendingRequests))
         context.system.scheduler.scheduleOnce(timeout.millis, self, AwaitUploadsTimeout(msg))
       case msg @ UploadFile(`id`, _, _, _) => onUpload(msg, pendingRequests)

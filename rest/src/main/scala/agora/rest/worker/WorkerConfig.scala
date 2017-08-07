@@ -73,14 +73,7 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
   def exchangeClient: ExchangeClient = defaultExchangeClient
 
   protected lazy val defaultExchangeClient: ExchangeClient = {
-
-    if (includeExchangeRoutes) {
-      ExchangeClient(restClient) { (workerLocation: HostLocation) =>
-        WorkerClient(clientFor(workerLocation))
-      }
-    } else {
-      exchangeConfig.client
-    }
+    exchangeConfig.client
   }
 
   def workerDetails: WorkerDetails = {
