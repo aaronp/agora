@@ -5,17 +5,18 @@ import java.util.concurrent.TimeUnit
 
 import agora.api._
 import agora.api.`match`.MatchDetails
-import agora.exec.log._
+import agora.exec.log.{IterableLogger, _}
 import agora.exec.model.RunProcess
 import agora.exec.rest.ExecutionRoutes
 import agora.exec.run.{ExecutionClient, LocalRunner, ProcessRunner, RemoteRunner}
-import agora.rest.exchange.ExchangeClient
 import agora.rest.worker.WorkerConfig
 import agora.rest.{RunningService, configForArgs}
 import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.sys.process.ProcessLogger
+import scala.util.Properties
 
 /**
   * Represents a worker configuration which can execute requests

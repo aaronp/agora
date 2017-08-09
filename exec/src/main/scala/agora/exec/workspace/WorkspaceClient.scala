@@ -40,6 +40,12 @@ trait WorkspaceClient {
     */
   def upload(workspaceId: WorkspaceId, fileName: String, src: Source[ByteString, Any]): Future[Boolean]
 
+
+  /**
+    * triggers a check for uploads, should another process/event have updated the directory we're watching
+    */
+  def triggerUploadCheck(workspaceId: WorkspaceId) : Unit
+
   /**
     * convenience method for uploading to the workspace
     *
@@ -86,6 +92,8 @@ object WorkspaceClient {
       endpointActor ! ListWorkspaces(promise)
       promise.future
     }
+
+    override def triggerUploadCheck(workspaceId: WorkspaceId) = endpointActor ! TriggerUploadCheck(workspaceId)
     override def upload(workspaceId: WorkspaceId, fileName: String, src: Source[ByteString, Any]): Future[Boolean] = {
       val promise = Promise[Boolean]()
       endpointActor ! UploadFile(workspaceId, fileName, src, promise)

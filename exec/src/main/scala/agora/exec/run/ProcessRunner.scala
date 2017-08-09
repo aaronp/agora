@@ -2,7 +2,7 @@ package agora.exec.run
 
 import java.nio.file.{Path, Paths}
 
-import agora.exec.model.RunProcess
+import agora.exec.model.{RunProcess, RunProcessAndSave, RunProcessAndSaveResponse}
 import agora.exec.workspace.{UploadDependencies, WorkspaceId}
 import agora.rest.exchange.ExchangeClient
 
@@ -16,7 +16,20 @@ import scala.language.reflectiveCalls
   */
 trait ProcessRunner {
 
+  /**
+    * Execute the [[RunProcess]], returning a future of the std out
+    * @param proc the job to execute
+    * @return the stdout as an iterator of lines in a Future which completes when the job does
+    */
   def run(proc: RunProcess): ProcessRunner.ProcessOutput
+
+  /**
+    * Execute the [[RunProcessAndSave]], writing the results to disk
+    *
+    * @param proc
+    * @return a future of the response
+    */
+  def runAndSave(proc: RunProcessAndSave): Future[RunProcessAndSaveResponse]
 
   final def run(cmd: String, theRest: String*): ProcessRunner.ProcessOutput = {
     run(RunProcess(cmd :: theRest.toList, Map[String, String]()))

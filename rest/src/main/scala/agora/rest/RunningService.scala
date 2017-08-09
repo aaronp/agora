@@ -19,7 +19,7 @@ case class RunningService[C <: ServerConfig, Service](conf: C, service: Service,
   def location                        = HostLocation(localAddress.getHostName, localAddress.getPort).ensuring(_ == conf.location)
   def localAddress: InetSocketAddress = binding.localAddress
   private val shutdownPromise         = Promise[Unit]()
-  lazy val shutdown = {
+  private lazy val shutdown = {
     val future: Future[Unit] = binding.unbind()
     shutdownPromise.tryCompleteWith(future)
     future

@@ -3,7 +3,7 @@ package agora.exec.run
 import agora.api.SubscriptionKey
 import agora.api.exchange.SubmitJob
 import agora.domain.IterableSubscriber
-import agora.exec.model.RunProcess
+import agora.exec.model.{RunProcess, RunProcessAndSave}
 import agora.exec.rest.ExecutionRoutes
 import agora.exec.run.ProcessRunner.ProcessOutput
 import agora.rest.exchange.ExchangeClient
@@ -39,7 +39,9 @@ case class RemoteRunner(exchange: ExchangeClient, defaultFrameLength: Int, allow
   override def run(proc: RunProcess): ProcessOutput = {
     runAndSelect(proc).map(_.output)
   }
-
+  override def runAndSave(proc: RunProcessAndSave) = {
+    runAndSelect(proc).map(_.output)
+  }
   def withSubscription(key: SubscriptionKey): RemoteRunner = copy(keyOpt = Option(key))
 
   final def runAndSelect(cmd: String, theRest: String*): Future[SelectionOutput] = {

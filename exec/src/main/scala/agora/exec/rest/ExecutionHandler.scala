@@ -19,23 +19,6 @@ import scala.util.Failure
 import scala.util.control.NonFatal
 
 object ExecutionHandler extends StrictLogging {
-  private val hasCommand = JPath("command").asMatcher
-
-  /**
-    * Creates a new WorkSubscription with:
-    * {{{
-    *   "workspace" : <xyz>
-    *     "files: [...]
-    * }}}
-    * that also matches jobs with a 'command' in its json
-    *
-    * @param workspace
-    * @param files
-    * @return
-    */
-  def newWorkspaceSubscription(referencedConf: SubscriptionKey, workspace: WorkspaceId, files: Set[String]): WorkSubscription = {
-    WorkSubscription.localhost(1234).copy(jobMatcher = hasCommand).withSubscriptionKey(workspace).append("files", files).append("workspace", workspace).referencing(referencedConf)
-  }
 
   def asErrorResponse(exp: ProcessException) = {
     HttpResponse(status = InternalServerError, entity = HttpEntity(`application/json`, exp.json.noSpaces))
@@ -62,7 +45,7 @@ object ExecutionHandler extends StrictLogging {
     val chunked: HttpEntity.Chunked = HttpEntity(outputContentType, bytes)
 
     val future: Future[HttpResponse] = {
-      val basic = Marshal(chunked).toResponseFor(request)
+      val basic: Future[HttpResponse] = Marshal(chunked).toResponseFor(request)
       matchDetails.fold(basic) { details =>
         /*
          * Put the match details back on the response for client consumption

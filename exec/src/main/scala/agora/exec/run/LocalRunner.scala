@@ -3,7 +3,7 @@ package agora.exec.run
 import java.nio.file.Path
 
 import agora.exec.log._
-import agora.exec.model.RunProcess
+import agora.exec.model.{RunProcess, RunProcessAndSave, RunProcessAndSaveResponse}
 import agora.exec.run.ProcessRunner.ProcessOutput
 import akka.NotUsed
 import akka.stream.scaladsl.Source
@@ -19,6 +19,13 @@ import scala.util.{Failure, Success, Try}
   * Something which can execute [[RunProcess]]
   */
 class LocalRunner(val workDir: Option[Path] = None, val defaultEnv: Map[String, String])(implicit ec: ExecutionContext) extends ProcessRunner with StrictLogging {
+
+  override def toString = s"LocalRunner($workDir, $defaultEnv)"
+
+  /**
+    * @param newLogger
+    * @return a new LocalRunner which will use the logger produced by this function
+    */
   def withLogger(newLogger: IterableLogger => IterableLogger): LocalRunner = {
     val parent = this
     new LocalRunner(workDir, defaultEnv) {
@@ -47,9 +54,17 @@ class LocalRunner(val workDir: Option[Path] = None, val defaultEnv: Map[String, 
     Future.successful(iter)
   }
 
+  override def runAndSave(proc: RunProcessAndSave): Future[RunProcessAndSaveResponse] = {
+    val logger = execute(proc.process)
+    logger.exitCodeFuture.map { exitCode =>
+      RunProcessAndSaveResponse(exitCode, proc.workspaceId, proc.stdOutFileName, None)
+    }
+  }
+
   private var additionalLoggers = List[ProcessLogger]()
 
   /** Adds the given logger to be notified when processes are run
+    *
     * @param logger the logger to add for all processes used by this runner
     * @return the local runner instance (builder pattern)
     */
@@ -57,6 +72,7 @@ class LocalRunner(val workDir: Option[Path] = None, val defaultEnv: Map[String, 
     additionalLoggers = logger :: additionalLoggers
     this
   }
+
   def remove(logger: ProcessLogger) = additionalLoggers = additionalLoggers diff List(logger)
 
   def mkLogger(proc: RunProcess): IterableLogger = {
@@ -72,9 +88,13 @@ class LocalRunner(val workDir: Option[Path] = None, val defaultEnv: Map[String, 
   }
 
   def execute(builder: ProcessBuilder, proc: RunProcess): IterableLogger = {
-
     val iterableLogger: IterableLogger = mkLogger(proc)
-    val future: Future[Int] = {
+    execute(builder, proc, iterableLogger)
+    iterableLogger
+  }
+
+  def execute(builder: ProcessBuilder, proc: RunProcess, iterableLogger: IterableLogger): Future[Int] = {
+    val future = {
       val startedTry: Try[Process] = Try {
         builder.run(iterableLogger)
       }
@@ -91,7 +111,6 @@ class LocalRunner(val workDir: Option[Path] = None, val defaultEnv: Map[String, 
         logger.error(s"$proc failed with $err", err)
         iterableLogger.complete(err)
     }
-
-    iterableLogger
+    future
   }
 }

@@ -25,7 +25,7 @@ class RemoteRunnerTest extends BaseSpec with BeforeAndAfterAll with AppendedClue
 
   override def afterAll = stopAll
 
-  val conf = ExecConfig()
+  val conf = ExecConfig("port=6666", "exchange.port=6666")
 
   def startAll = {
     runningWorker = conf.start().futureValue

@@ -23,7 +23,7 @@ private[workspace] class WorkspaceEndpointActor(uploadDir: Path) extends BaseAct
       workspaceById.get(id) match {
         case Some(actor) => actor
         case None =>
-          import agora.io.implicits._
+
           val workspaceDir = uploadDir.resolve(id)
           logger.debug(s"Creating new workspace '$id' under '$workspaceDir'")
           val newHandler = context.actorOf(Props(new WorkspaceActor(id, workspaceDir)))
@@ -34,20 +34,19 @@ private[workspace] class WorkspaceEndpointActor(uploadDir: Path) extends BaseAct
 
     // handler
     {
-      case msg @ AwaitUploads(UploadDependencies(id, _, _), _) => handlerForId(id) ! msg
-      case msg @ UploadFile(id, _, _, _)                       => handlerForId(id) ! msg
-      case ListWorkspaces(promise) =>
-        promise.tryComplete(Try {
-          val children = uploadDir.toFile.toScala.children.map(_.name)
-          children.toList
-        })
-      case msg @ Close(id, promise) =>
+      case msg@Close(id, promise) =>
         workspaceById.get(id) match {
           case Some(handler) =>
             handler ! msg
             context.become(handle(workspaceById - id))
           case None => promise.tryComplete(Success(false))
         }
+      case ListWorkspaces(promise) =>
+        promise.tryComplete(Try {
+          val children = uploadDir.toFile.toScala.children.map(_.name)
+          children.toList
+        })
+      case msg: WorkspaceMsg => handlerForId(msg.workspaceId) ! msg
     }
   }
 }

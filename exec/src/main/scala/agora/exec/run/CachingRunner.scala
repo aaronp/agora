@@ -3,7 +3,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{Path, StandardOpenOption}
 
 import agora.domain.{CloseableIterator, MD5}
-import agora.exec.model.RunProcess
+import agora.exec.model.{RunProcess, RunProcessAndSave, RunProcessAndSaveResponse}
 import agora.exec.run.ProcessRunner.ProcessOutput
 import agora.io.implicits._
 import com.typesafe.scalalogging.StrictLogging
@@ -126,6 +126,10 @@ object CachingRunner {
 }
 
 abstract class CachingRunner(val underlying: ProcessRunner) extends ProcessRunner with StrictLogging {
+  override def runAndSave(proc: RunProcessAndSave) = {
+    underlying.runAndSave(proc)
+  }
+
   override def run(proc: RunProcess): ProcessOutput = {
     val key = keyForProc(proc)
     getFromCache(key, proc) match {

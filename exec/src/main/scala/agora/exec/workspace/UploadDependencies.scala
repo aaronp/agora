@@ -17,6 +17,7 @@ import scala.concurrent.duration._
 case class UploadDependencies(workspace: WorkspaceId, dependsOnFiles: Set[String], timeoutInMillis: Long) {
   require(dependsOnFiles.nonEmpty, s"A dependency for $workspace was created without any file dependencies")
 
+  def addFile(file : String) = copy(dependsOnFiles = dependsOnFiles + file)
   def timeout = timeoutInMillis.millis
 
 }
