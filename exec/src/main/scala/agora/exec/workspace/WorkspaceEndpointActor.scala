@@ -23,7 +23,6 @@ private[workspace] class WorkspaceEndpointActor(uploadDir: Path) extends BaseAct
       workspaceById.get(id) match {
         case Some(actor) => actor
         case None =>
-
           val workspaceDir = uploadDir.resolve(id)
           logger.debug(s"Creating new workspace '$id' under '$workspaceDir'")
           val newHandler = context.actorOf(Props(new WorkspaceActor(id, workspaceDir)))
@@ -34,7 +33,7 @@ private[workspace] class WorkspaceEndpointActor(uploadDir: Path) extends BaseAct
 
     // handler
     {
-      case msg@Close(id, promise) =>
+      case msg @ Close(id, promise) =>
         workspaceById.get(id) match {
           case Some(handler) =>
             handler ! msg

@@ -56,6 +56,68 @@ class JMatcherTest extends WordSpec with Matchers {
       val expected = JPath(JPart("rute"), ("someField" === 4))
       json.as[JMatcher].right.get shouldBe expected.asMatcher
     }
+    "unmarshal paths with conjunctions" in {
+
+      val json =
+        """{
+          |  "or" : [
+          |    {
+          |      "and" : [
+          |        {
+          |          "exists" : {
+          |            "parts" : [
+          |              {
+          |                "field" : "array",
+          |                "predicate" : {
+          |                  "elements" : [
+          |                    9,
+          |                    8
+          |                  ]
+          |                }
+          |              }
+          |            ]
+          |          }
+          |        },
+          |        {
+          |          "exists" : {
+          |            "parts" : [
+          |              {
+          |                "field" : "foo",
+          |                "predicate" : {
+          |                  "gte" : 3
+          |                }
+          |              }
+          |            ]
+          |          }
+          |        }
+          |      ]
+          |    },
+          |    {
+          |      "exists" : {
+          |        "parts" : [
+          |          {
+          |            "name" : "x"
+          |          },
+          |          {
+          |            "name" : "y"
+          |          },
+          |          {
+          |            "field" : "values",
+          |            "predicate" : {
+          |              "regex" : "subtext"
+          |            }
+          |          }
+          |        ]
+          |      }
+          |    }
+          |  ]
+          |}""".asJson
+
+      import agora.api.Implicits._
+
+      val expected: JMatcher = ("array" includes (8, 9)).and("foo" gte 3).or(JPath("x", "y") :+ ("values" ~= ("subtext")))
+      json.as[JMatcher].right.get shouldBe expected
+    }
   }
 
   "JMatcher.or" should {

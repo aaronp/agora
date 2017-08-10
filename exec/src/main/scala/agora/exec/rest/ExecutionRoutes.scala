@@ -4,23 +4,21 @@ import java.nio.file.Path
 
 import agora.api.Implicits._
 import agora.api._
-import agora.api.`match`.MatchDetails
-import agora.api.exchange.{Exchange, WorkSubscription}
-import agora.api.json.{JMatcher, JPath}
+import agora.api.exchange.Exchange
+import agora.api.json.JMatcher
 import agora.exec.ExecConfig
-import agora.exec.model.{RunProcess, RunProcessAndSaveResponse}
-import agora.exec.workspace.{UploadDependencies, WorkspaceClient, WorkspaceId}
+import agora.exec.model.{RunProcess, RunProcessAndSave, RunProcessAndSaveResponse}
+import agora.exec.workspace.{UploadDependencies, WorkspaceClient}
 import agora.rest.MatchDetailsExtractor
-import agora.rest.worker.{RouteSubscriptionSupport, WorkerConfig}
-import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
+import agora.rest.worker.RouteSubscriptionSupport
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpRequest, HttpResponse}
 import akka.http.scaladsl.server.Directives.{entity, path, _}
 import akka.http.scaladsl.server.Route
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.generic.auto._
+import io.circe.syntax._
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.sys.process.ProcessLogger
-import scala.util.Properties
 
 /**
   * The execution routes can execute commands on the machine, as well as upload files to workspaces.
@@ -44,23 +42,8 @@ import scala.util.Properties
   *
   */
 object ExecutionRoutes {
-  val execCriteria: JMatcher = ("topic" === "execute").asMatcher
-
-  /** It will match requests made with a 'command' key, asking for them to be
-    * sent to /rest/exec/run
-    *
-    * @return a [[WorkSubscription]] for the given key (if provided)
-    */
-  def execSubscription(config: WorkerConfig): WorkSubscription = {
-    // format: off
-    val sub = config.subscription.
-      withPath("/rest/exec/run").
-      append("topic", "execute").
-      matchingJob(JPath("command").asMatcher)
-    // format: on
-    assert(execCriteria.matches(sub.details.aboutMe))
-    sub
-  }
+  val execCriteria: JMatcher        = ("topic" === "execute").asMatcher
+  val execAndSaveCriteria: JMatcher = ("topic" === "executeAndSave").asMatcher
 
 }
 
@@ -75,68 +58,16 @@ object ExecutionRoutes {
 case class ExecutionRoutes(execConfig: ExecConfig, exchange: Exchange, workspaces: WorkspaceClient) extends RouteSubscriptionSupport with FailFastCirceSupport {
 
   def routes(exchangeRoutes: Option[Route]): Route = {
-    execConfig.routes(exchangeRoutes) ~ executeRoute
+    execConfig.routes(exchangeRoutes) ~ executeRoute ~ executeAndSaveRoute
   }
 
   private def execute(runProcess: RunProcess, httpRequest: HttpRequest, workingDir: Option[Path])(implicit ec: ExecutionContext): Future[HttpResponse] = {
     val detailsOpt = MatchDetailsExtractor.unapply(httpRequest)
-    val jobId = detailsOpt.map(_.jobId).getOrElse(nextJobId)
-
-
-    val stdOutFileOpt: Option[(WorkspaceId, Path)] = runProcess.saveOutputToRelativeDir.map {
-      case (workspace, relative) =>
-        import agora.io.implicits._
-        val baseDir = workingDir.getOrElse(Properties.userDir.asPath)
-        workspace -> baseDir.resolve(relative)
-    }
+    val jobId      = detailsOpt.map(_.jobId).getOrElse(nextJobId)
 
     val runner = execConfig.newRunner(runProcess, detailsOpt, workingDir, jobId)
-    val future: Future[HttpResponse] = ExecutionHandler(httpRequest, runner, runProcess, detailsOpt)
+    ExecutionHandler(httpRequest, runner, runProcess, detailsOpt)
 
-    stdOutFileOpt.foreach {
-      case (workspace, stdOut) =>
-        future.onSuccess {
-          case resp =>
-            import agora.io.Sources._
-            resp.entity.dataBytes.onComplete {
-              logger.debug(s"Triggering check for $stdOut under $workspace")
-              workspaces.triggerUploadCheck(workspace)
-            }
-        }
-    }
-
-    future
-  }
-
-  private def executeToFile(runProcess: RunProcess,
-                            httpRequest: HttpRequest,
-                            workingDir: Option[Path],
-                            workspace: WorkspaceId,
-                            outputFileName: String)(implicit ec: ExecutionContext): Future[HttpResponse] = {
-    val detailsOpt: Option[MatchDetails] = MatchDetailsExtractor.unapply(httpRequest)
-    val jobId = detailsOpt.map(_.jobId).getOrElse(nextJobId)
-
-    import agora.io.implicits._
-    val baseDir = workingDir.getOrElse(Properties.userDir.asPath)
-    val outputFile = baseDir.resolve(outputFileName)
-
-    val runner = execConfig.newRunner(runProcess, detailsOpt, workingDir, jobId).withLogger { jobLog =>
-      val stdOutLogger = ProcessLogger(outputFile.toFile)
-      jobLog.add(stdOutLogger)
-    }
-    val procLogger = runner.execute(runProcess)
-
-    val future = procLogger.exitCodeFuture
-    future.map {
-      case exitCode =>
-        logger.info(s"Triggering check for $outputFile after $jobId finished w/ exitCode $exitCode")
-        workspaces.triggerUploadCheck(workspace)
-        // TODO - make a save to disk response
-        import io.circe.generic.auto._
-        import io.circe.syntax._
-        val resp = RunProcessAndSaveResponse(exitCode, workspace, outputFileName, detailsOpt)
-        HttpResponse().withEntity(resp.asJson.noSpaces)
-    }
   }
 
   def executeRoute = {
@@ -148,12 +79,34 @@ case class ExecutionRoutes(execConfig: ExecConfig, exchange: Exchange, workspace
 
           takeNextOnComplete(exchange) {
             val future = runProcess.dependencies match {
-              case None => execute(runProcess, ctxt.request, None)
+              case None                                                           => execute(runProcess, ctxt.request, None)
               case Some(UploadDependencies(workspace, fileDependencies, timeout)) =>
                 // ensure we wait for all files to arrive
                 workspaces.await(workspace, fileDependencies, timeout).flatMap { path =>
                   execute(runProcess, ctxt.request, Option(path))
                 }
+            }
+            complete(future)
+          }
+        }
+      }
+    }
+  }
+
+  def executeAndSaveRoute = {
+    (post & path("rest" / "exec" / "save")) {
+      entity(as[RunProcessAndSave]) { runProcess =>
+        logger.info(s"Running ${runProcess.asRunProcess.commandString}")
+        extractRequestContext { ctxt =>
+          import ctxt.executionContext
+
+          takeNextOnComplete(exchange) {
+
+            val matchDetails   = MatchDetailsExtractor.unapply(ctxt.request)
+            val responseFuture = ExecutionHandler.executeAndSave(execConfig, workspaces, runProcess, matchDetails)
+
+            val future = responseFuture.map { resp =>
+              HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, resp.asJson.noSpaces))
             }
             complete(future)
           }

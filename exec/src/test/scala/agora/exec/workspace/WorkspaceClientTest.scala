@@ -25,6 +25,28 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
       }
     }
   }
+  "WorkspaceClient.triggerUploadCheck" should {
+    "reevaluate a workspace" in {
+      withDir { containerDir =>
+        val client      = WorkspaceClient(containerDir, system)
+        val awaitFuture = client.await("ws", Set("some.file"), testTimeout.toMillis)
+
+        // manually create some.file (e.g. no via workspaces.upload)
+        //
+        // our 'await' future shouldn't be completed yet though (as it may
+        // be using a file watcher)... we have to manually kick it via
+        // triggerUploadCheck
+        val expectedFile = containerDir.resolve("some.file").text = "hi"
+
+        awaitFuture.isCompleted shouldBe false
+
+        // call the method under test -- await should now complete
+        client.triggerUploadCheck("ws")
+
+        awaitFuture.futureValue shouldBe expectedFile
+      }
+    }
+  }
   "WorkspaceClient.close" should {
     "fail any pending await calls" in {
       withDir { containerDir =>

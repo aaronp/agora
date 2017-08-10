@@ -1,8 +1,6 @@
 package agora.exec.run
 
-import akka.stream.scaladsl.Source
-import akka.util.ByteString
-import agora.exec.model.{ProcessException, RunProcess, Upload}
+import agora.exec.model.{ProcessException, RunProcess}
 import agora.rest.BaseSpec
 import agora.rest.test.TestUtils._
 
@@ -13,7 +11,7 @@ trait ProcessRunnerTCK { self: BaseSpec =>
 
   def runner: ProcessRunner
 
-  "A ProcessRunner" should {
+  "ProcessRunner" should {
 
     "stream results" in {
       val firstResults = runner.run("bigOutput.sh".executable, srcDir.toString, "10").futureValue

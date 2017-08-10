@@ -13,7 +13,7 @@ class WorkerConfigTest extends WordSpec with Matchers {
       wc.location.port shouldBe 1122
       wc.exchangeConfig.location.port shouldBe 567
 
-      wc.subscription.details shouldBe wc.workerDetails
+      wc.subscription.details shouldBe wc.subscription.details
 
       wc.subscription.details.location.port shouldBe 1122
       wc.subscription.details.path shouldBe "foo"
@@ -33,7 +33,7 @@ class WorkerConfigTest extends WordSpec with Matchers {
           |    }
           |    topic : meh
           |}""".stripMargin)
-      val details = default.workerDetails
+      val details = default.subscription.details
 
       JsonPath.root.foo.bar.int.getOption(details.aboutMe) shouldBe Option(123)
       JsonPath.root.topic.string.getOption(details.aboutMe) shouldBe Option("meh")

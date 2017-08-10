@@ -55,7 +55,7 @@ class LocalRunner(val workDir: Option[Path] = None, val defaultEnv: Map[String, 
   }
 
   override def runAndSave(proc: RunProcessAndSave): Future[RunProcessAndSaveResponse] = {
-    val logger = execute(proc.process)
+    val logger = execute(proc.asRunProcess)
     logger.exitCodeFuture.map { exitCode =>
       RunProcessAndSaveResponse(exitCode, proc.workspaceId, proc.stdOutFileName, None)
     }

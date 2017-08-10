@@ -69,7 +69,8 @@ object JPredicate {
         * @param items
         * @return
         */
-      def includes[J](items: Set[J])(implicit ev: J => Json): JFilter = JIncludes(items.map(ev))
+      def includes[J](items: Set[J])(implicit ev: J => Json): JFilter         = JIncludes(items.map(ev))
+      def includes[J](first: J, theRest: J*)(implicit ev: J => Json): JFilter = includes(theRest.toSet + first)
     }
 
   }
@@ -95,11 +96,11 @@ object JPredicate {
     }
 
     override def apply(a: JPredicate): Json = a match {
-      case p: And    => p.asJson
-      case p: Or     => p.asJson
-      case p: Not    => p.asJson
-      case p: Eq     => p.asJson
-      case p: JRegex => p.asJson
+      case p: And       => p.asJson
+      case p: Or        => p.asJson
+      case p: Not       => p.asJson
+      case p: Eq        => p.asJson
+      case p: JRegex    => p.asJson
       case p: JIncludes => p.asJson
 
       case p: Gt  => p.asJson
@@ -150,7 +151,7 @@ case class JRegex(regex: String) extends JPredicate {
 }
 case class JIncludes(elements: Set[Json]) extends JPredicate {
 
-  def contains(array : Vector[Json]) : Boolean = elements.forall(array.contains)
+  def contains(array: Vector[Json]): Boolean = elements.forall(array.contains)
 
   override def matches(json: Json) = json.asArray.exists(contains)
 

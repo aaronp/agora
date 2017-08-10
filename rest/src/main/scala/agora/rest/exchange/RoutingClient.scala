@@ -8,6 +8,7 @@ import agora.api.exchange.{BlockingSubmitJobResponse, _}
 import agora.api.worker.{WorkerDetails, WorkerRedirectCoords}
 import agora.rest.client.RestClient
 import agora.rest.worker.WorkerClient
+import akka.http.scaladsl.unmarshalling.{FromResponseUnmarshaller, Unmarshal, Unmarshaller}
 
 import scala.concurrent.Future
 
@@ -40,6 +41,18 @@ trait RoutingClient { self: ExchangeClient =>
     * @return the worker response
     */
   def enqueue(submit: SubmitJob): WorkerResponses = enqueueAndDispatch(submit)(_.sendRequest(submit.job))._2
+
+  /**
+    * Convenience method for enqueueing the request, awaiting for a single worker and then returning the unmarshalled response
+    * @param submit the job to submit
+    * @tparam T the response type
+    * @return the single unmarshalled response
+    */
+  def enqueueAs[T: FromResponseUnmarshaller](submit: SubmitJob): Future[T] = {
+    enqueue(submit).flatMap { responses =>
+      Unmarshal(responses.onlyResponse).to[T]
+    }
+  }
 
   protected def onSubmitResponse(resp: BlockingSubmitJobResponse)(sendToWorker: WorkerClient => Future[HttpResponse]): WorkerResponses = {
     val pears: List[(WorkerRedirectCoords, WorkerDetails)] = resp.workerCoords.zip(resp.workers)

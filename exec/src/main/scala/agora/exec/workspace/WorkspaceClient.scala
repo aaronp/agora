@@ -40,11 +40,10 @@ trait WorkspaceClient {
     */
   def upload(workspaceId: WorkspaceId, fileName: String, src: Source[ByteString, Any]): Future[Boolean]
 
-
   /**
     * triggers a check for uploads, should another process/event have updated the directory we're watching
     */
-  def triggerUploadCheck(workspaceId: WorkspaceId) : Unit
+  def triggerUploadCheck(workspaceId: WorkspaceId): Unit
 
   /**
     * convenience method for uploading to the workspace

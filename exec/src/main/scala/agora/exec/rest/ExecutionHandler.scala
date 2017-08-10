@@ -1,21 +1,26 @@
 package agora.exec.rest
 
+import java.nio.file.Path
+
 import agora.api.`match`.MatchDetails
 import agora.api.exchange.WorkSubscription
 import agora.api.json.JPath
+import agora.api.nextJobId
 import agora.api.worker.SubscriptionKey
-import agora.exec.model.{ProcessException, RunProcess}
+import agora.exec.ExecConfig
+import agora.exec.model.{ProcessException, RunProcess, RunProcessAndSave, RunProcessAndSaveResponse}
 import agora.exec.run.LocalRunner
-import agora.exec.workspace.WorkspaceId
+import agora.exec.workspace.{UploadDependencies, WorkspaceClient, WorkspaceId}
 import agora.rest.MatchDetailsExtractor
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model.ContentTypes.{`application/json`, `text/plain(UTF-8)`}
 import akka.http.scaladsl.model.StatusCodes.InternalServerError
-import akka.http.scaladsl.model.{ContentType, HttpEntity, HttpRequest, HttpResponse}
+import akka.http.scaladsl.model._
 import com.typesafe.scalalogging.StrictLogging
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Failure
+import scala.sys.process.ProcessLogger
+import scala.util.{Failure, Properties}
 import scala.util.control.NonFatal
 
 object ExecutionHandler extends StrictLogging {
@@ -62,6 +67,47 @@ object ExecutionHandler extends StrictLogging {
       case NonFatal(other) =>
         logger.error(s"translating error $other as a process exception")
         asErrorResponse(ProcessException(runProc, Failure(other), matchDetails, Nil))
+    }
+  }
+
+  def executeAndSave(execConfig: ExecConfig, workspaces: WorkspaceClient, runProcess: RunProcessAndSave, detailsOpt: Option[MatchDetails]) = {
+
+    /**
+      * If the user hasn't explicitly specified a file dependency, we create one based on our workspaceId
+      * in order to get a workDir
+      */
+    val uploadDependencies: UploadDependencies = runProcess.uploadDependencies
+
+    val pathFuture = workspaces.await(uploadDependencies.workspace, uploadDependencies.dependsOnFiles, uploadDependencies.timeoutInMillis)
+
+    pathFuture.flatMap { path =>
+      executeToFile(execConfig, workspaces, runProcess, detailsOpt, Option(path))
+    }
+  }
+
+  private def executeToFile(execConfig: ExecConfig, workspaces: WorkspaceClient, runProcess: RunProcessAndSave, detailsOpt: Option[MatchDetails], workingDir: Option[Path])(
+      implicit ec: ExecutionContext): Future[RunProcessAndSaveResponse] = {
+
+    val workspace: WorkspaceId = runProcess.workspaceId
+    val outputFileName: String = runProcess.stdOutFileName
+    val jobId                  = detailsOpt.map(_.jobId).getOrElse(nextJobId)
+
+    import agora.io.implicits._
+    val baseDir    = workingDir.getOrElse(Properties.userDir.asPath)
+    val outputFile = baseDir.resolve(outputFileName)
+
+    val runner = execConfig.newRunner(runProcess.asRunProcess, detailsOpt, workingDir, jobId).withLogger { jobLog =>
+      val stdOutLogger = ProcessLogger(outputFile.toFile)
+      jobLog.add(stdOutLogger)
+    }
+
+    runner.runAndSave(runProcess).map {
+      case resultOhneMatchDetails =>
+        val resp = resultOhneMatchDetails.copy(matchDetails = detailsOpt)
+
+        logger.info(s"Triggering check for $outputFile after $jobId finished w/ exitCode ${resp.exitCode}")
+        workspaces.triggerUploadCheck(workspace)
+        resp
     }
   }
 

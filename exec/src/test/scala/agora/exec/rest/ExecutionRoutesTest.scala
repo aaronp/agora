@@ -15,41 +15,50 @@ import agora.rest.BaseRoutesSpec
 import agora.rest.worker.WorkerConfig
 
 class ExecutionRoutesTest extends BaseRoutesSpec {
-
-  "ExecutionRoutes.execSubscription" should {
-    "match jobs produced from RemoteRunner.execAsJob" in {
-
-      // format: off
-      val expectedSubscription = WorkSubscription.localhost(7770).
-        withPath("/rest/exec/run").
-        append("topic", "execute").
-        matchingJob(JPath("command").asMatcher)
-      // format: on
-
-      val config             = ExecConfig()
-      val actualSubscription = config.subscription
-
-      //      val execSubscription = ExecutionRoutes.execSubscription()
-      val job = RemoteRunner.execAsJob(RunProcess("hello"), None)
-      JobPredicate().matches(job, actualSubscription) shouldBe true
-
-      execCriteria.matches(expectedSubscription.details.aboutMe) shouldBe true
-    }
-    "match jobs against a worker with a specific subscription" in {
-
-      val sub1 = execSubscription(WorkerConfig()).withSubscriptionKey("specificKey")
-      val sub2 = execSubscription(WorkerConfig()).withSubscriptionKey("anotherKey")
-
-      //      val execSubscription = ExecutionRoutes.execSubscription()
-      val job = RemoteRunner.execAsJob(RunProcess("hello"), Some("specificKey"))
-      JobPredicate().matches(job, sub1) shouldBe true
-      JobPredicate().matches(job, sub2) shouldBe false
-
-      val job2 = RemoteRunner.execAsJob(RunProcess("hello"), Some("anotherKey"))
-      JobPredicate().matches(job2, sub1) shouldBe false
-      JobPredicate().matches(job2, sub2) shouldBe true
-    }
-  }
+//  -  def execSubscription(config: WorkerConfig): WorkSubscription = {
+//    -    // format: off
+//      -    val sub = config.subscription.
+//      -      withPath("/rest/exec/run").
+//      -      append("topic", "execute").
+//      -      matchingJob(JPath("command").asMatcher)
+//    -    // format: on
+//      -    assert(execCriteria.matches(sub.details.aboutMe))
+//    -    sub
+//    -  }
+//  "ExecutionRoutes.execSubscription" should {
+//    "match jobs produced from RemoteRunner.execAsJob" in {
+//
+//      // format: off
+//      val expectedSubscription = WorkSubscription.localhost(7770).
+//        withPath("/rest/exec/run").
+//        append("topic", "execute").
+//        matchingJob(JPath("command").asMatcher)
+//      // format: on
+//
+//      val config             = ExecConfig()
+//      val actualSubscription = config.subscription
+//
+//      //      val execSubscription = ExecutionRoutes.execSubscription()
+//      val job = RemoteRunner.execAsJob(RunProcess("hello"), None)
+//      JobPredicate().matches(job, actualSubscription) shouldBe true
+//
+//      execCriteria.matches(expectedSubscription.details.aboutMe) shouldBe true
+//    }
+//    "match jobs against a worker with a specific subscription" in {
+//
+//      val sub1 = execSubscription(WorkerConfig()).withSubscriptionKey("specificKey")
+//      val sub2 = execSubscription(WorkerConfig()).withSubscriptionKey("anotherKey")
+//
+//      //      val execSubscription = ExecutionRoutes.execSubscription()
+//      val job = RemoteRunner.execAsJob(RunProcess("hello"), Some("specificKey"))
+//      JobPredicate().matches(job, sub1) shouldBe true
+//      JobPredicate().matches(job, sub2) shouldBe false
+//
+//      val job2 = RemoteRunner.execAsJob(RunProcess("hello"), Some("anotherKey"))
+//      JobPredicate().matches(job2, sub1) shouldBe false
+//      JobPredicate().matches(job2, sub2) shouldBe true
+//    }
+//  }
   "POST /rest/exec/run" should {
     "execute commands" in {
       withDir { dir =>

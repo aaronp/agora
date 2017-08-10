@@ -23,12 +23,9 @@ import scala.concurrent.Future
   *
   * @param rest
   */
-class ExchangeClient(val rest: RestClient, mkWorker: HostLocation => Dispatch)
-    extends Exchange
-    with RoutingClient
-    with FailFastCirceSupport
-    with AutoCloseable
-    with StrictLogging {
+class ExchangeClient(val rest: RestClient, mkWorker: HostLocation => Dispatch) extends Exchange with RoutingClient with FailFastCirceSupport with AutoCloseable with StrictLogging {
+
+  override def toString = s"ExchangeClient($rest)"
 
   import RestClient.implicits._
 

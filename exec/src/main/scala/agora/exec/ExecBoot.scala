@@ -54,20 +54,25 @@ case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes
   def uploadRoutes: Route = UploadRoutes(workspaceClient).uploadRoute
 
   /**
-    * Start the service, subscribe for upload and exec routes, then requests work items
+    * Start the service.
+    *
+    * It creates two subscriptions -- one for just running and executing, and another for executing and jobs
+    * which just return the exit code.
     */
   def start(): Future[RunningService[ExecConfig, ExecutionRoutes]] = {
     import conf.serverImplicits._
     val execRoutes = executionRoutes
     val restRoutes = execRoutes.routes(optionalExchangeRoutes) ~ uploadRoutes
 
-    val execSubscription = conf.subscription
-
     logger.info(s"Starting Execution Server in ${conf.location}")
+    val startFuture         = RunningService.start[ExecConfig, ExecutionRoutes](conf, restRoutes, execRoutes)
+    val execSubscribeFuture = exchange.subscribe(conf.execSubscription)
     for {
-      rs           <- RunningService.start[ExecConfig, ExecutionRoutes](conf, restRoutes, execRoutes)
-      subscribeAck <- exchange.subscribe(execSubscription)
-      _            <- exchange.take(subscribeAck.id, conf.initialExecutionSubscription)
+      rs   <- startFuture
+      ack1 <- execSubscribeFuture
+      execAndSaveSubscription = conf.execAndSaveSubscription.referencing(ack1.id)
+      ack2 <- exchange.subscribe(execAndSaveSubscription)
+      _    <- exchange.take(ack2.id, conf.initialExecutionSubscription)
     } yield {
       rs
     }

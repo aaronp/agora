@@ -5,18 +5,17 @@ import java.util.concurrent.TimeUnit
 
 import agora.api._
 import agora.api.`match`.MatchDetails
+import agora.api.exchange.WorkSubscription
 import agora.exec.log.{IterableLogger, _}
 import agora.exec.model.RunProcess
 import agora.exec.rest.ExecutionRoutes
 import agora.exec.run.{ExecutionClient, LocalRunner, ProcessRunner, RemoteRunner}
-import agora.rest.worker.WorkerConfig
+import agora.rest.worker.{SubscriptionConfig, WorkerConfig}
 import agora.rest.{RunningService, configForArgs}
 import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.sys.process.ProcessLogger
-import scala.util.Properties
 
 /**
   * Represents a worker configuration which can execute requests
@@ -45,6 +44,10 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
     * @return a Future of a [[RunningService]]
     */
   def start(): Future[RunningService[ExecConfig, ExecutionRoutes]] = ExecBoot(this).start()
+
+  lazy val execSubscription = SubscriptionConfig(config.getConfig("execSubscription")).subscription(location)
+
+  lazy val execAndSaveSubscription: WorkSubscription = SubscriptionConfig(config.getConfig("execAndSaveSubscription")).subscription(location)
 
   override def withFallback(fallback: Config): ExecConfig = new ExecConfig(config.withFallback(fallback))
 

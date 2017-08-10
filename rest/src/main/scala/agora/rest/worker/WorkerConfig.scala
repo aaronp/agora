@@ -76,40 +76,9 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
     exchangeConfig.client
   }
 
-  def workerDetails: WorkerDetails = {
-    val detailsConf = subscriptionConfig.getConfig("details")
-    val name        = detailsConf.getString("name")
-    val id          = detailsConf.getString("id")
-    val path        = detailsConf.getString("path")
-    WorkerDetails(location, path, name, id, runUser).append(asJson(detailsConf))
-  }
+  lazy val subscriptionConfig = SubscriptionConfig(config.getConfig("subscription"))
 
-  lazy val subscriptionConfig = config.getConfig("subscription")
-  def asMatcher(at: String): Either[circe.Error, JMatcher] = {
-    val fromConfig: Option[Either[circe.Error, JMatcher]] = Try(subscriptionConfig.getConfig(at)).toOption.map { subConf =>
-      val json = asJson(subConf)
-      json.as[JMatcher]
-    }
-
-    val fromString = asJson(subscriptionConfig).hcursor.downField(at).as[JMatcher]
-
-    fromConfig.getOrElse(fromString)
-  }
-
-  def subscription: WorkSubscription = subscriptionEither match {
-    case Left(err) => sys.error(s"Couldn't parse the config as a subscription: $err")
-    case Right(s)  => s
-  }
-
-  def subscriptionEither: Either[circe.Error, WorkSubscription] = {
-    for {
-      jm <- asMatcher("jobMatcher").right
-      sm <- asMatcher("submissionMatcher").right
-    } yield {
-      val subscriptionReferences = subscriptionConfig.asList("subscriptionReferences")
-      WorkSubscription.forDetails(workerDetails, jm, sm, subscriptionReferences.toSet)
-    }
-  }
+  def subscription = subscriptionConfig.subscription(location)
 
   def unmarshalTimeout = config.getDuration("unmarshalTimeout", TimeUnit.MILLISECONDS).millis
 }

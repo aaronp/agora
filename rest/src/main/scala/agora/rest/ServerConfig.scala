@@ -27,8 +27,6 @@ class ServerConfig(val config: Config) extends RichConfigOps {
 
   def waitOnUserInput = config.getBoolean("waitOnUserInput")
 
-  def runUser = config.getString("runUser")
-
   def includeUIRoutes = config.getBoolean("includeUIRoutes")
 
   def enableSupportRoutes = config.getBoolean("enableSupportRoutes")
