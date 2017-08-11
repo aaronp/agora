@@ -1,16 +1,11 @@
 package agora.exec.rest
 
-import java.nio.file.Path
-
 import agora.api.`match`.MatchDetails
-import agora.api.exchange.WorkSubscription
-import agora.api.json.JPath
 import agora.api.nextJobId
-import agora.api.worker.SubscriptionKey
 import agora.exec.ExecConfig
 import agora.exec.model.{ProcessException, RunProcess, RunProcessAndSave, RunProcessAndSaveResponse}
 import agora.exec.run.LocalRunner
-import agora.exec.workspace.{UploadDependencies, WorkspaceClient, WorkspaceId}
+import agora.exec.workspace.WorkspaceClient
 import agora.rest.MatchDetailsExtractor
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model.ContentTypes.{`application/json`, `text/plain(UTF-8)`}
@@ -20,7 +15,7 @@ import com.typesafe.scalalogging.StrictLogging
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.sys.process.ProcessLogger
-import scala.util.{Failure, Properties}
+import scala.util.Failure
 import scala.util.control.NonFatal
 
 object ExecutionHandler extends StrictLogging {
@@ -31,12 +26,12 @@ object ExecutionHandler extends StrictLogging {
 
   /** Execute 'runProc' unmarshalled from the request using the given runner and match details.
     *
-    * @param request the input http request
-    * @param runner the process runner
-    * @param runProc the unmarshalled job request
-    * @param matchDetails the match details if this request came via an exchange request
+    * @param request           the input http request
+    * @param runner            the process runner
+    * @param runProc           the unmarshalled job request
+    * @param matchDetails      the match details if this request came via an exchange request
     * @param outputContentType the content type
-    * @param ec an execution context used to map the response
+    * @param ec                an execution context used to map the response
     * @return the response future
     */
   def apply(request: HttpRequest,
@@ -70,44 +65,38 @@ object ExecutionHandler extends StrictLogging {
     }
   }
 
-  def executeAndSave(execConfig: ExecConfig, workspaces: WorkspaceClient, runProcess: RunProcessAndSave, detailsOpt: Option[MatchDetails]) = {
+  /**
+    * Execute the process using the stuff you give to this function. I'd like to thank you for taking the time to
+    * read that informative comment.
+    *
+    */
+  def executeAndSave(execConfig: ExecConfig, workspaces: WorkspaceClient, runProcess: RunProcessAndSave, detailsOpt: Option[MatchDetails])(
+      implicit ec: ExecutionContext): Future[RunProcessAndSaveResponse] = {
 
     /**
       * If the user hasn't explicitly specified a file dependency, we create one based on our workspaceId
       * in order to get a workDir
       */
-    val uploadDependencies: UploadDependencies = runProcess.uploadDependencies
+    val pathFuture = workspaces.await(runProcess.uploadDependencies)
 
-    val pathFuture = workspaces.await(uploadDependencies.workspace, uploadDependencies.dependsOnFiles, uploadDependencies.timeoutInMillis)
+    pathFuture.flatMap { workingDir =>
+      val jobId = detailsOpt.map(_.jobId).getOrElse(nextJobId)
 
-    pathFuture.flatMap { path =>
-      executeToFile(execConfig, workspaces, runProcess, detailsOpt, Option(path))
-    }
-  }
+      val runner = execConfig.newRunner(runProcess.asRunProcess, detailsOpt, Option(workingDir), jobId).withLogger { jobLog =>
+        val stdOutLogger = ProcessLogger(workingDir.resolve(runProcess.stdOutFileName).toFile)
+        jobLog.addStdOut(stdOutLogger)
 
-  private def executeToFile(execConfig: ExecConfig, workspaces: WorkspaceClient, runProcess: RunProcessAndSave, detailsOpt: Option[MatchDetails], workingDir: Option[Path])(
-      implicit ec: ExecutionContext): Future[RunProcessAndSaveResponse] = {
+        val stdErrLogger = ProcessLogger(workingDir.resolve(runProcess.stdErrFileName).toFile)
+        jobLog.addStdErr(stdErrLogger)
+      }
 
-    val workspace: WorkspaceId = runProcess.workspaceId
-    val outputFileName: String = runProcess.stdOutFileName
-    val jobId                  = detailsOpt.map(_.jobId).getOrElse(nextJobId)
-
-    import agora.io.implicits._
-    val baseDir    = workingDir.getOrElse(Properties.userDir.asPath)
-    val outputFile = baseDir.resolve(outputFileName)
-
-    val runner = execConfig.newRunner(runProcess.asRunProcess, detailsOpt, workingDir, jobId).withLogger { jobLog =>
-      val stdOutLogger = ProcessLogger(outputFile.toFile)
-      jobLog.add(stdOutLogger)
-    }
-
-    runner.runAndSave(runProcess).map {
-      case resultOhneMatchDetails =>
+      runner.runAndSave(runProcess).map { resultOhneMatchDetails =>
         val resp = resultOhneMatchDetails.copy(matchDetails = detailsOpt)
 
-        logger.info(s"Triggering check for $outputFile after $jobId finished w/ exitCode ${resp.exitCode}")
-        workspaces.triggerUploadCheck(workspace)
+        logger.info(s"Triggering check for $workingDir after $jobId finished w/ exitCode ${resp.exitCode}")
+        workspaces.triggerUploadCheck(runProcess.workspaceId)
         resp
+      }
     }
   }
 

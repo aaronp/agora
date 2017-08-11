@@ -176,7 +176,11 @@ case class WorkContext[T: FromRequestUnmarshaller](exchange: Exchange,
       case n => request(n)
     }
     respFuture.onComplete { _ =>
-      takeNext
+      takeNext.foreach { ackFuture =>
+        ackFuture.onComplete { ack =>
+          log.debug(s"${subscriptionKey} taking $numberToRequest completed w/ $ack")
+        }
+      }
     }
     val httpResp: Future[HttpResponse] = Marshal(respFuture).to[HttpResponse]
     resultPromise.completeWith(httpResp)

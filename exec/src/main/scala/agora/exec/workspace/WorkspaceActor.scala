@@ -57,7 +57,7 @@ private[workspace] class WorkspaceActor(val id: WorkspaceId, initialDir: Path) e
           logger.debug(s"Upload to ${workspaceDir}/$file completed w/ ${uploadResult}, workspace now contains ${kids.mkString(",")}")
         }
 
-        self ! TriggerUploadCheck
+        self ! TriggerUploadCheck(id)
     }
     val uploadFuture = res.map(_ => true)
     promise.tryCompleteWith(uploadFuture)

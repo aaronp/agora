@@ -41,21 +41,15 @@ class WorkerConfigTest extends WordSpec with Matchers {
     "create a subscription from the config" in {
       val default = asConf("""subscription {
           |  jobMatcher : {
-          |      and : {
-          |       lhs : match-all
-          |       rhs : match-all
-          |      }
+          |    and : [ "match-all", "match-none" ]
           |  }
           |  submissionMatcher : {
-          |    or : {
-          |       lhs : match-all
-          |       rhs : match-all
-          |      }
+          |    or : [ "match-none", "match-all" ]
           |  }
           |}""".stripMargin)
       val sub     = default.subscription
-      sub.jobMatcher shouldBe JMatcher.matchAll.and(JMatcher.matchAll)
-      sub.submissionMatcher shouldBe JMatcher.matchAll.or(JMatcher.matchAll)
+      sub.jobMatcher shouldBe JMatcher.matchAll.and(JMatcher.matchNone)
+      sub.submissionMatcher shouldBe JMatcher.matchNone.or(JMatcher.matchAll)
     }
   }
 

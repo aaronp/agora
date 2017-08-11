@@ -1,8 +1,10 @@
 package agora.exec.run
 
-import agora.exec.model.{ProcessException, RunProcess}
+import agora.exec.model.{ProcessException, RunProcess, RunProcessAndSave}
 import agora.rest.BaseSpec
 import agora.rest.test.TestUtils._
+
+import scala.util.Properties
 
 /**
   * Any runner should adhere to these tests
@@ -14,7 +16,7 @@ trait ProcessRunnerTCK { self: BaseSpec =>
   "ProcessRunner" should {
 
     "stream results" in {
-      val firstResults = runner.run("bigOutput.sh".executable, srcDir.toString, "10").futureValue
+      val firstResults = runner.run("bigOutput.sh".executable, srcDir.toString, "2").futureValue
       val all          = firstResults.toList
       all.size should be > 10
     }

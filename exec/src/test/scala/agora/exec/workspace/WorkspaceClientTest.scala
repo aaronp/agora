@@ -1,5 +1,7 @@
 package agora.exec.workspace
 
+import java.util.UUID
+
 import agora.exec.model.Upload
 import agora.rest.{BaseSpec, HasMaterializer}
 
@@ -28,22 +30,23 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
   "WorkspaceClient.triggerUploadCheck" should {
     "reevaluate a workspace" in {
       withDir { containerDir =>
+        val workspace   = UUID.randomUUID().toString
         val client      = WorkspaceClient(containerDir, system)
-        val awaitFuture = client.await("ws", Set("some.file"), testTimeout.toMillis)
+        val awaitFuture = client.await(workspace, Set("some.file"), testTimeout.toMillis)
 
         // manually create some.file (e.g. no via workspaces.upload)
         //
         // our 'await' future shouldn't be completed yet though (as it may
         // be using a file watcher)... we have to manually kick it via
         // triggerUploadCheck
-        val expectedFile = containerDir.resolve("some.file").text = "hi"
+        val expectedFile = containerDir.resolve(workspace).resolve("some.file").text = "hi"
 
         awaitFuture.isCompleted shouldBe false
 
         // call the method under test -- await should now complete
-        client.triggerUploadCheck("ws")
+        client.triggerUploadCheck(workspace)
 
-        awaitFuture.futureValue shouldBe expectedFile
+        awaitFuture.futureValue shouldBe expectedFile.parent.get
       }
     }
   }

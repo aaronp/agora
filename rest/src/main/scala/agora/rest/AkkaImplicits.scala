@@ -14,7 +14,7 @@ class AkkaImplicits(val actorSystemName: String) extends AutoCloseable with Stri
     val sys = ActorSystem(actorSystemName)
     import sys.dispatcher
     sys.whenTerminated.onComplete {
-      case Success(_)   => logger.warn(s"$actorSystemName terminated")
+      case Success(_)   => logger.debug(s"$actorSystemName terminated")
       case Failure(err) => logger.warn(s"$actorSystemName terminated w/ $err")
     }
     sys

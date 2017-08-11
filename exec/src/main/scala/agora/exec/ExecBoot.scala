@@ -45,7 +45,7 @@ object ExecBoot {
   */
 case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes: Option[Route]) extends FailFastCirceSupport with StrictLogging {
 
-  lazy val workspaceClient: WorkspaceClient = WorkspaceClient(conf.uploadsDir, conf.serverImplicits.system)
+  lazy val workspaceClient: WorkspaceClient = conf.workspaceClient
 
   /** @return a future of the ExecutionRoutes once the exec subscription completes
     */

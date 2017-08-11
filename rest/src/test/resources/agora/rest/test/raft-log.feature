@@ -1,7 +1,6 @@
 @Raft
 Feature: Raft Append Entries
 
-  @debug
   Scenario: Initial Append Entries
     Given Node A with state
       | current term | state         | voted for | append index | last applied |

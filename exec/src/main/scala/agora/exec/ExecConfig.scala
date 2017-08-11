@@ -10,6 +10,7 @@ import agora.exec.log.{IterableLogger, _}
 import agora.exec.model.RunProcess
 import agora.exec.rest.ExecutionRoutes
 import agora.exec.run.{ExecutionClient, LocalRunner, ProcessRunner, RemoteRunner}
+import agora.exec.workspace.WorkspaceClient
 import agora.rest.worker.{SubscriptionConfig, WorkerConfig}
 import agora.rest.{RunningService, configForArgs}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -122,6 +123,7 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
   def executionClient() = {
     ExecutionClient(restClient, defaultFrameLength, allowTruncation)
   }
+  def workspaceClient: WorkspaceClient = WorkspaceClient(uploadsDir, serverImplicits.system)
 
   override def toString = execConfig.root.render()
 }
