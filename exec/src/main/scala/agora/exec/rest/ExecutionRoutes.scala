@@ -58,7 +58,9 @@ object ExecutionRoutes {
 case class ExecutionRoutes(execConfig: ExecConfig, exchange: Exchange, workspaces: WorkspaceClient) extends RouteSubscriptionSupport with FailFastCirceSupport {
 
   def routes(exchangeRoutes: Option[Route]): Route = {
-    execConfig.routes(exchangeRoutes) ~ executeRoute ~ executeAndSaveRoute
+    val workerRoutes = execConfig.newWorkerRoutes(exchange)
+
+    workerRoutes.routes ~ execConfig.routes(exchangeRoutes) ~ executeRoute ~ executeAndSaveRoute
   }
 
   private def execute(runProcess: RunProcess, httpRequest: HttpRequest, workingDir: Option[Path])(implicit ec: ExecutionContext): Future[HttpResponse] = {

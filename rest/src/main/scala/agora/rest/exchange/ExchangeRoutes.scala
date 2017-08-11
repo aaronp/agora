@@ -1,6 +1,8 @@
 package agora.rest
 package exchange
 
+import javax.ws.rs.Path
+
 import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.model.{HttpEntity, HttpResponse, StatusCodes, Uri}
 import akka.http.scaladsl.server.Directives.{entity, pathPrefix, _}
@@ -14,6 +16,7 @@ import io.circe.{Decoder, Encoder}
 import agora.api._
 import agora.api.exchange._
 import agora.health.HealthDto
+import io.swagger.annotations.{ApiOperation, ApiResponse, ApiResponses}
 
 import scala.concurrent.Future
 import scala.language.reflectiveCalls
@@ -152,6 +155,12 @@ case class ExchangeRoutes(exchange: ServerSideExchange)(implicit mat: Materializ
   object worker {
     def routes: Route = subscribe ~ takeNext ~ cancel
 
+    @Path("/rest/exchange/subscribe")
+    @ApiOperation(value = "Subscribe for work", notes = "", httpMethod = "PUT")
+    @ApiResponses(
+      Array(
+        new ApiResponse(code = 200, message = "Return Health", response = classOf[HealthDto])
+      ))
     def subscribe = put {
       jsonRouteFor[WorkSubscription, WorkSubscriptionAck]("subscribe")(exchange.onSubscriptionRequest)
     }

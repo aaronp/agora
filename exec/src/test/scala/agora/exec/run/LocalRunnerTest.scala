@@ -1,6 +1,6 @@
 package agora.exec.run
 
-import agora.exec.model.RunProcessAndSave
+import agora.exec.model.{RunProcess, RunProcessAndSave}
 import agora.rest.BaseSpec
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
@@ -12,6 +12,14 @@ import scala.sys.process.ProcessLogger
 
 class LocalRunnerTest extends BaseSpec with ProcessRunnerTCK with BeforeAndAfter with BeforeAndAfterAll {
 
+  "LocalRunner.run" should {
+    "replace environment variables in the command argument" in {
+      val rp = RunProcess(List("$TEST_COMMAND", "$VALUE world"), Map("TEST_COMMAND" -> "echo", "VALUE" -> "hello"))
+      val runner = new LocalRunner(None)
+      val output = runner.run(rp).futureValue.mkString(" ").trim
+      output shouldBe "hello world"
+    }
+  }
   "LocalRunner.withLogger" should {
     "create a runner w/ the new runner 1" in {
 

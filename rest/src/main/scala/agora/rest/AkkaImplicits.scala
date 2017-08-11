@@ -3,15 +3,16 @@ package agora.rest
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
+import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 import scala.util.{Failure, Success}
 
-class AkkaImplicits(val actorSystemName: String) extends AutoCloseable with StrictLogging {
+class AkkaImplicits(val actorSystemName: String, actorConfig : Config) extends AutoCloseable with StrictLogging {
   logger.debug(s"Creating actor system $actorSystemName")
   implicit val system = {
-    val sys = ActorSystem(actorSystemName)
+    val sys = ActorSystem(actorSystemName, actorConfig)
     import sys.dispatcher
     sys.whenTerminated.onComplete {
       case Success(_)   => logger.debug(s"$actorSystemName terminated")

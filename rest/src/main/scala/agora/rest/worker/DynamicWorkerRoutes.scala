@@ -1,5 +1,7 @@
 package agora.rest.worker
 
+import javax.ws.rs.Path
+
 import agora.api.exchange._
 import agora.api.worker.SubscriptionKey
 import agora.health.HealthDto
@@ -11,6 +13,7 @@ import akka.http.scaladsl.server.{RequestContext, Route}
 import akka.http.scaladsl.unmarshalling.FromRequestUnmarshaller
 import akka.stream.Materializer
 import io.circe.Json
+import io.swagger.annotations._
 
 import scala.concurrent.Future
 import scala.language.reflectiveCalls
@@ -24,6 +27,8 @@ object DynamicWorkerRoutes {
 }
 
 // see http://doc.akka.io/docs/akka-stream-and-http-experimental/1.0/scala/http/routing-dsl/index.html
+@Api(value = "Dynamic Worker", produces = "application/json")
+@Path("/")
 case class DynamicWorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscription, defaultInitialRequest: Int)(implicit mat: Materializer) { self =>
   implicit val ec = mat.executionContext
 
@@ -61,6 +66,13 @@ case class DynamicWorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubs
 
   }
 
+  @Path("/rest/health")
+  @ApiOperation(value = "Return a health response", notes = "", nickname = "health", httpMethod = "GET")
+  @ApiResponses(
+    Array(
+      new ApiResponse(code = 200, message = "Return Health", response = classOf[HealthDto]),
+      new ApiResponse(code = 500, message = "Internal server error")
+    ))
   def health = (get & path("rest" / "health") & pathEnd) {
     import io.circe.syntax._
     complete {

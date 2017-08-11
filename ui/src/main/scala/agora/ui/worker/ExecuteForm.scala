@@ -14,7 +14,7 @@ import scalatags.JsDom.all._
 object ExecuteForm {
 
   def websocket(): WebSocket = {
-    val url = Services.baseWebsocketUri + s"/rest/exec/run"
+    val url = s"${Services.baseWebsocketUri}/rest/exec/run"
 
     new WebSocket(url)
   }

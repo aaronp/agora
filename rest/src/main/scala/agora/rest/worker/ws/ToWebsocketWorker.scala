@@ -1,6 +1,8 @@
 package agora.rest.worker.ws
 
-import agora.api.exchange.{QueueStateResponse, SubmitJob}
+import agora.api.`match`.MatchDetails
+import agora.api.exchange.{SubmitJob, WorkSubscription}
+import agora.api.worker.SubscriptionKey
 import io.circe.generic.auto._
 import io.circe.{Decoder, Encoder, Json}
 
@@ -12,16 +14,16 @@ sealed trait ToWebsocketWorker
 object ToWebsocketWorker {
 
   implicit val JsonDecoder: Decoder[ToWebsocketWorker] = {
-    (implicitly[Decoder[WSQueueState]]
+    (implicitly[Decoder[OnJob]]
       .map(x => x: ToWebsocketWorker))
-      .or(implicitly[Decoder[OnJob]].map(x => x: ToWebsocketWorker))
       .or(implicitly[Decoder[OnResubmitResponse]].map(x => x: ToWebsocketWorker))
+      .or(implicitly[Decoder[OnSubscribe]].map(x => x: ToWebsocketWorker))
   }
 
   implicit object JsonEncoder extends Encoder[ToWebsocketWorker] {
     override def apply(a: ToWebsocketWorker): Json = a match {
-      case msg: WSQueueState       => implicitly[Encoder[WSQueueState]].apply(msg)
       case msg: OnJob              => implicitly[Encoder[OnJob]].apply(msg)
+      case msg: OnSubscribe        => implicitly[Encoder[OnSubscribe]].apply(msg)
       case msg: OnResubmitResponse => implicitly[Encoder[OnResubmitResponse]].apply(msg)
     }
   }
@@ -32,8 +34,8 @@ object ToWebsocketWorker {
   }
 }
 
-case class WSQueueState(queueState: QueueStateResponse) extends ToWebsocketWorker
+case class OnJob(job: SubmitJob, matchDetails: MatchDetails) extends ToWebsocketWorker
 
-case class OnJob(job: SubmitJob) extends ToWebsocketWorker
+case class OnSubscribe(subscription: WorkSubscription, id: SubscriptionKey) extends ToWebsocketWorker
 
 case class OnResubmitResponse(response: String) extends ToWebsocketWorker

@@ -81,9 +81,10 @@ class LocalRunner(val workDir: Option[Path] = None, val defaultEnv: Map[String, 
     }
   }
 
-  def execute(preparedProcess: RunProcess): IterableLogger = {
-    val env                     = (defaultEnv ++ preparedProcess.env).toSeq
-    val builder: ProcessBuilder = Process(preparedProcess.command, workDir.map(_.toFile), env: _*)
+  def execute(inputProcess: RunProcess): IterableLogger = {
+    val newEnv                  = (defaultEnv ++ inputProcess.env)
+    val preparedProcess         = inputProcess.copy(env = newEnv).resolveEnv
+    val builder: ProcessBuilder = Process(preparedProcess.command, workDir.map(_.toFile), newEnv.toSeq: _*)
     execute(builder, preparedProcess)
   }
 

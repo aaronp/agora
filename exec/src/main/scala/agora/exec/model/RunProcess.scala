@@ -26,6 +26,17 @@ case class RunProcess(command: List[String],
   def commandString                                   = command.mkString(" ")
   def withEnv(key: String, value: String): RunProcess = copy(env = env.updated(key, value))
 
+  /** @return a new 'RunProcess' with the command line having replaced '$<key>' with '<value>' from the environment
+    */
+  def resolveEnv = {
+    val newCommand = env.foldLeft(command) {
+      case (commandLine, (k, value)) =>
+        val regex = "\\$" + k + "\\b"
+        commandLine.map(_.replaceAll(regex, value))
+    }
+    copy(command = newCommand)
+  }
+
   def withDependencies(dep: UploadDependencies): RunProcess = copy(dependencies = Option(dep))
 
   def withDependencies(workspace: WorkspaceId, dependsOnFiles: Set[String], timeout: FiniteDuration): RunProcess = {

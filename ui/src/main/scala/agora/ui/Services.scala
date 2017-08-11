@@ -3,6 +3,7 @@ package agora.ui
 import agora.api.exchange._
 import agora.ui.worker.AjaxExecute
 import org.scalajs.dom
+import org.scalajs.dom.raw.Location
 
 class Services(val user: String, val exchange: Exchange) {
   def onError(err: Throwable) = Services.Alert(err.toString)
@@ -12,7 +13,7 @@ class Services(val user: String, val exchange: Exchange) {
 
 object Services {
 
-  def loc = dom.document.location
+  def loc: Location = dom.document.location
 
   def host = loc.host
 

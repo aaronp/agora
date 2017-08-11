@@ -42,7 +42,6 @@ class ServerConfig(val config: Config) extends RichConfigOps {
   object clientFailover {
 
     val strategyConfig = config.getConfig("clientFailover")
-    // ThrottleStrategy
 
     def strategy = {
       strategyConfig.getString("strategy") match {
@@ -65,9 +64,14 @@ class ServerConfig(val config: Config) extends RichConfigOps {
     case n => s"$actorSystemName-$n"
   }
 
-  lazy val serverImplicits = newSystem(s"${actorSystemName}-server")
+  lazy val serverImplicits = newSystem("serverSystem", s"${actorSystemName}-server")
 
-  def newSystem(name: String = nextActorSystemName) = new AkkaImplicits(name)
+  def newClientSystem: AkkaImplicits = newSystem("clientSystem")
+
+  def newSystem(name: String, akkaConfig: Config): AkkaImplicits = new AkkaImplicits(name, akkaConfig)
+  def newSystem(configPath: String, name: String = nextActorSystemName): AkkaImplicits = {
+    newSystem(name, config.getConfig(configPath))
+  }
 
   /** A means of accessing reusable clients. */
   lazy val clientFor = CachedClient { loc: HostLocation =>
@@ -79,7 +83,6 @@ class ServerConfig(val config: Config) extends RichConfigOps {
   def restClient: RestClient = clientFor(location)
 
   def asLocation(uri: Uri): HostLocation = {
-    val p         = uri.path
     val addresses = uri.authority.host.inetAddresses.toList
     val hostName  = addresses.head.getHostName
     HostLocation(hostName, uri.authority.port)
@@ -90,7 +93,7 @@ class ServerConfig(val config: Config) extends RichConfigOps {
   }
 
   private def newRestClient(loc: HostLocation): RestClient = {
-    RestClient(loc, () => (newSystem()).materializer)
+    RestClient(loc, () => newClientSystem.materializer)
   }
 
   def runWithRoutes[T](routes: Route, svc: T): Future[RunningService[ServerConfig, T]] = {
@@ -107,8 +110,4 @@ class ServerConfig(val config: Config) extends RichConfigOps {
   def withFallback(fallback: Config): ServerConfig = new ServerConfig(config.withFallback(fallback))
 
   def withOverrides(overrides: Config): ServerConfig = new ServerConfig(overrides).withFallback(config)
-}
-
-object ServerConfig {
-  def apply(config: Config = ConfigFactory.load()) = new ServerConfig(config)
 }
