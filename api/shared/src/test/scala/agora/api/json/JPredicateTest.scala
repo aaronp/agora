@@ -34,7 +34,6 @@ class JPredicateTest extends WordSpec with Matchers {
     "match nested lists" in {
 
       val path = "nested".asJPath :+ "array".includes(Set("first", "last"))
-      println(path)
       path.asMatcher.matches(Map("nested" -> Map("array" -> List("first", "middle", "last"))).asJson) shouldBe true
       path.asMatcher.matches(Map("nested" -> Map("array" -> List("middle", "last"))).asJson) shouldBe false
       path.asMatcher.matches(Map("differentRoot" -> Map("array" -> List("first", "middle", "last"))).asJson) shouldBe false

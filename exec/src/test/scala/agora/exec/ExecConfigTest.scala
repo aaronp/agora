@@ -2,6 +2,7 @@ package agora.exec
 
 import agora.api.exchange.JobPredicate
 import agora.api.json.{JMatcher, JPath}
+import agora.api.worker.HostLocation
 import agora.exec.model.{RunProcess, RunProcessAndSave}
 import agora.exec.run.RemoteRunner
 import agora.exec.workspace.WorkspaceId
@@ -20,6 +21,19 @@ class ExecConfigTest extends BaseSpec {
     "ExecConfig(strings...)" should {
       "resolve local config strings" in {
         ExecConfig("subscription.details.runUser=foo").subscription.details.runUser shouldBe "foo"
+      }
+      "resolve client host and port values from the server host and port" in {
+        val conf = ExecConfig("port=6666", "exchange.port=6666", "host=meh")
+        conf.host shouldBe "meh"
+        conf.port shouldBe 6666
+        conf.exchangeConfig.port shouldBe 6666
+
+        conf.clientConfig.host shouldBe "meh"
+        conf.clientConfig.port shouldBe 6666
+        conf.exchangeConfig.clientConfig.port shouldBe 6666
+
+        val actual = conf.subscription.details.location
+        actual shouldBe HostLocation("meh", 6666)
       }
     }
   }

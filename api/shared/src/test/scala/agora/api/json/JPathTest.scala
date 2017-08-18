@@ -10,40 +10,6 @@ class JPathTest extends WordSpec with Matchers {
 
   import JPathTest._
 
-  //  "JPath.json" should {
-  //
-  //    // TODO ... it does
-  //    "not look shit" in {
-  //
-  //      import agora.api.Implicits._
-  //
-  //      val filter: JPart = "x" lte 1
-  //      val path = filter +: JPath("foo", "bar", "3")
-//
-  //  {
-  //    "parts" : [
-  //    {
-  //      "field" : "x",
-  //      "predicate" : {
-  //        "lte" : 1
-  //      }
-  //    },
-  //    {
-  //      "name" : "foo"
-  //    },
-  //    {
-  //      "name" : "bar"
-  //    },
-  //    {
-  //      "i" : 3
-  //    }
-  //    ]
-  //  }
-  //
-  //      println(path.json.spaces2)
-  //      println(path.json.noSpaces)
-  //    }
-  //  }
   "JPath.select" should {
     "match JFields" in {
       val json: Json =

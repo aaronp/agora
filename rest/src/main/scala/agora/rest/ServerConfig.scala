@@ -35,13 +35,26 @@ class ServerConfig(val config: Config) extends RichConfigOps {
 
   def location = HostLocation(host, port)
 
+  /**
+    * We have server settings like this:
+    * {{{
+    *   host : abc
+    *   port : 123
+    *
+    *   client : {
+    *     host : abc
+    *     port : 123
+    *   }
+    * }}}
+    * To allow the user to override run-time client and server settings in light of the two-step typesafe config
+    * resolution, we allow the client to take on 'default' host and port values (empty string and 0, respectively)
+    * so that we can fall-back to (resolved) server host/port values.
+    */
   lazy val clientConfig = {
     val clientConf: Config = config.getConfig("client")
-    val sanitized = if (clientConf.getInt("port") <= 0) {
-      clientConf.withUserArgs(Array(s"port=${port}"))
-    } else {
-      clientConf
-    }
+    val fixedPort = Array(s"port=${port}").filter(_ => clientConf.getInt("port") <= 0)
+    val fixedHost = Array(s"host=${host}").filter(_ => clientConf.getString("host").isEmpty)
+    val sanitized = clientConf.withUserArgs(fixedHost ++ fixedPort)
     new ClientConfig(sanitized)
   }
 

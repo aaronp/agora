@@ -14,7 +14,7 @@ import scala.util.control.NonFatal
 
 class AkkaClient(val location: HostLocation, system: ActorSystem, override implicit val materializer: Materializer) extends RestClient with StrictLogging {
 
-  private val hostPort = s"http://${location.host}:${location.port}"
+  private val hostPort = location.asURL
 
   override def toString = s"AkkaClient($hostPort)"
 
