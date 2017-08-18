@@ -1,7 +1,7 @@
 package agora
 
 import agora.api.worker.HostLocation
-import akka.http.scaladsl.model.HttpHeader
+import akka.http.scaladsl.model.{HttpHeader, Uri}
 import akka.http.scaladsl.model.HttpHeader.ParsingResult
 import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions}
 import _root_.io.circe.Json
@@ -35,5 +35,11 @@ package object rest {
 
   def asHostLocation(conf: Config) = {
     HostLocation(host = conf.getString("host"), port = conf.getInt("port"))
+  }
+
+  def asLocation(uri: Uri): HostLocation = {
+    val addresses = uri.authority.host.inetAddresses.toList
+    val hostName  = addresses.head.getHostName
+    HostLocation(hostName, uri.authority.port)
   }
 }

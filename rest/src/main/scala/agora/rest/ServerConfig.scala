@@ -6,7 +6,7 @@ import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.server.Route
 import com.typesafe.config.{Config, ConfigFactory}
 import agora.api.worker.HostLocation
-import agora.domain.RichConfigOps
+import agora.domain.{RichConfig, RichConfigOps}
 import agora.rest.client.{CachedClient, RestClient, RetryClient, RetryStrategy}
 
 import scala.concurrent.Future
@@ -35,26 +35,18 @@ class ServerConfig(val config: Config) extends RichConfigOps {
 
   def location = HostLocation(host, port)
 
-  def hostLocationForConfig(c: Config) = {
-    HostLocation(c.getString("host"), c.getInt("port"))
+  lazy val clientConfig = {
+    val clientConf: Config = config.getConfig("client")
+    val sanitized = if (clientConf.getInt("port") <= 0) {
+      clientConf.withUserArgs(Array(s"port=${port}"))
+    } else {
+      clientConf
+    }
+    new ClientConfig(sanitized)
   }
 
-  object clientFailover {
-
-    val strategyConfig = config.getConfig("clientFailover")
-
-    def strategy = {
-      strategyConfig.getString("strategy") match {
-        case "limiting" =>
-          val nTimes = strategyConfig.getInt("nTimes")
-          val within = strategyConfig.getDuration("within").toMillis.millis
-          RetryStrategy.tolerate(nTimes).failuresWithin(within)
-        case "throttled" =>
-          val delay = strategyConfig.getDuration("throttle-delay").toMillis.millis
-          RetryStrategy.throttle(delay)
-        case other => sys.error(s"Unknown strategy failover strategy '$other'")
-      }
-    }
+  def hostLocationForConfig(c: Config) = {
+    HostLocation(c.getString("host"), c.getInt("port"))
   }
 
   private[this] val uniqueActorNameCounter = new AtomicInteger(0)
@@ -64,37 +56,9 @@ class ServerConfig(val config: Config) extends RichConfigOps {
     case n => s"$actorSystemName-$n"
   }
 
-  lazy val serverImplicits = newSystem("serverSystem", s"${actorSystemName}-server")
+  lazy val serverImplicits = newSystem(s"${actorSystemName}-server")
 
-  def newClientSystem: AkkaImplicits = newSystem("clientSystem")
-
-  def newSystem(name: String, akkaConfig: Config): AkkaImplicits = new AkkaImplicits(name, akkaConfig)
-  def newSystem(configPath: String, name: String = nextActorSystemName): AkkaImplicits = {
-    newSystem(name, config.getConfig(configPath))
-  }
-
-  /** A means of accessing reusable clients. */
-  lazy val clientFor = CachedClient { loc: HostLocation =>
-    retryClient(loc)
-  }
-
-  def clientForUri(uri: Uri): RestClient = clientFor(asLocation(uri))
-
-  def restClient: RestClient = clientFor(location)
-
-  def asLocation(uri: Uri): HostLocation = {
-    val addresses = uri.authority.host.inetAddresses.toList
-    val hostName  = addresses.head.getHostName
-    HostLocation(hostName, uri.authority.port)
-  }
-
-  protected def retryClient(loc: HostLocation = location): RetryClient = {
-    RetryClient(clientFailover.strategy)(() => newRestClient(loc))
-  }
-
-  private def newRestClient(loc: HostLocation): RestClient = {
-    RestClient(loc, () => newClientSystem.materializer)
-  }
+  def newSystem(name: String = nextActorSystemName): AkkaImplicits = new AkkaImplicits(name, config)
 
   def runWithRoutes[T](routes: Route, svc: T): Future[RunningService[ServerConfig, T]] = {
     RunningService.start(this, routes, svc)

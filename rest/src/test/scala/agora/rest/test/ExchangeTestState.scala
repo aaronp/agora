@@ -41,10 +41,10 @@ case class ExchangeTestState(server: Option[RunningExchange] = None,
         val running  = server.get
         val location = running.location
         logger.info(s"Connecting exchange client to $location")
-        val rest = running.conf.clientFor(location)
+        val rest = running.conf.clientConfig.clientFor(location)
         val client = ExchangeClient(rest) { workerLocation =>
           logger.info(s"Creating working client at $workerLocation for exchange on $location")
-          val rest = running.conf.clientFor(workerLocation)
+          val rest = running.conf.clientConfig.clientFor(workerLocation)
           WorkerClient(rest)
         }
         copy(exchangeClient = Option(client)).stateWithClient

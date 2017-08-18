@@ -39,8 +39,8 @@ class ExchangeConfig(c: Config) extends ServerConfig(c) {
   def withFallback(fallback: ExchangeConfig) = new ExchangeConfig(config.withFallback(fallback.config))
 
   def client: ExchangeClient = {
-    ExchangeClient(restClient) { (workerLocation: HostLocation) =>
-      val restClient = clientFor(workerLocation)
+    ExchangeClient(clientConfig.restClient) { (workerLocation: HostLocation) =>
+      val restClient = clientConfig.clientFor(workerLocation)
       WorkerClient(restClient)
     }
   }

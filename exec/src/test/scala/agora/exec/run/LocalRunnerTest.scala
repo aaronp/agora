@@ -14,7 +14,7 @@ class LocalRunnerTest extends BaseSpec with ProcessRunnerTCK with BeforeAndAfter
 
   "LocalRunner.run" should {
     "replace environment variables in the command argument" in {
-      val rp = RunProcess(List("$TEST_COMMAND", "$VALUE world"), Map("TEST_COMMAND" -> "echo", "VALUE" -> "hello"))
+      val rp     = RunProcess(List("$TEST_COMMAND", "$VALUE world"), Map("TEST_COMMAND" -> "echo", "VALUE" -> "hello"))
       val runner = new LocalRunner(None)
       val output = runner.run(rp).futureValue.mkString(" ").trim
       output shouldBe "hello world"

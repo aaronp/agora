@@ -38,7 +38,7 @@ case class ExecState(server: Option[RunningService[ExecConfig, ExecutionRoutes]]
         c.close()
       case _ =>
     }
-    conf.restClient.close
+    conf.clientConfig.restClient.close
 
     this
   }

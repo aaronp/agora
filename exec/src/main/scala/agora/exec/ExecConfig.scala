@@ -121,7 +121,7 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
     * @return a client directly to the worker
     */
   def executionClient() = {
-    ExecutionClient(restClient, defaultFrameLength, allowTruncation)
+    ExecutionClient(clientConfig.restClient, defaultFrameLength, allowTruncation)
   }
   def workspaceClient: WorkspaceClient = WorkspaceClient(uploadsDir, serverImplicits.system)
 

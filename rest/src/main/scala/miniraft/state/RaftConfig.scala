@@ -74,7 +74,7 @@ class RaftConfig(c: Config) extends ServerConfig(c) {
 
   def newRaftClientById[T: Encoder](c: Config): (String, RaftEndpoint.Rest[T]) = {
     val loc        = hostLocationForConfig(c)
-    val restClient = clientFor(loc)
+    val restClient = clientConfig.clientFor(loc)
     val endpoint   = RaftEndpoint[T](restClient)
     raftId(loc) -> endpoint
   }
@@ -89,11 +89,11 @@ class RaftConfig(c: Config) extends ServerConfig(c) {
 
   def leaderClient[T: Encoder: Decoder]: LeaderClient[T] = leaderClientFor(location)
 
-  def leaderClientFor[T: Encoder: Decoder](loc: HostLocation): LeaderClient[T] = LeaderClient[T](clientFor(loc), clientForUri)
+  def leaderClientFor[T: Encoder: Decoder](loc: HostLocation): LeaderClient[T] = LeaderClient[T](clientConfig.clientFor(loc), clientConfig.clientForUri)
 
   def supportClient[T: Encoder: Decoder]: RaftSupportClient[T] = supportClientFor(location)
 
-  def supportClientFor[T: Encoder: Decoder](loc: HostLocation): RaftSupportClient[T] = new RaftSupportClient[T](clientFor(loc))
+  def supportClientFor[T: Encoder: Decoder](loc: HostLocation): RaftSupportClient[T] = new RaftSupportClient[T](clientConfig.clientFor(loc))
 
   def heartbeat = new TimerConfig("heartbeat")
 

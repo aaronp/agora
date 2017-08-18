@@ -16,7 +16,7 @@ object RaftSystemTest {
     val support                      = service.conf.supportClient[String]
 
     service.onShutdown {
-      service.conf.clientFor.close()
+      service.conf.clientConfig.clientFor.close()
       service.conf.serverImplicits.close()
     }
 

@@ -92,7 +92,7 @@ class RaftSystem[T: Encoder: Decoder] private (config: RaftConfig,
       protocol.electionTimer.close()
       protocol.heartbeatTimer.cancel()
       protocol.heartbeatTimer.close()
-      config.clientFor.close()
+      config.clientConfig.clientFor.close()
     })
     service
   }

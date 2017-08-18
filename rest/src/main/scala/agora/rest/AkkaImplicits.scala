@@ -9,7 +9,7 @@ import com.typesafe.scalalogging.StrictLogging
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 import scala.util.{Failure, Success}
 
-class AkkaImplicits(val actorSystemName: String, actorConfig : Config) extends AutoCloseable with StrictLogging {
+class AkkaImplicits(val actorSystemName: String, actorConfig: Config) extends AutoCloseable with StrictLogging {
   logger.debug(s"Creating actor system $actorSystemName")
   implicit val system = {
     val sys = ActorSystem(actorSystemName, actorConfig)
