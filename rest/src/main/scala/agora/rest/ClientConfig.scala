@@ -13,7 +13,10 @@ class ClientConfig(config: Config) {
 
   def actorSystemName: String = config.getString("actorSystemName")
 
-  def host = config.getString("host")
+  def host = config.getString("host") match {
+    case "0.0.0.0" => "localhost"
+    case h         => h
+  }
 
   def port = config.getInt("port")
 
@@ -39,7 +42,11 @@ class ClientConfig(config: Config) {
     RetryClient(clientFailover.strategy)(() => newRestClient(loc))
   }
 
-  private def newRestClient(loc: HostLocation, name: String = nextActorSystemName()): RestClient = {
+  private def newRestClient(inputLoc: HostLocation, name: String = nextActorSystemName()): RestClient = {
+    val loc = inputLoc.host match {
+      case "0.0.0.0" => inputLoc.copy(host = "localhost")
+      case _         => inputLoc
+    }
     RestClient(loc, () => newSystem(name).materializer)
   }
 

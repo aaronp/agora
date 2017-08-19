@@ -1,5 +1,4 @@
 import sbt._
-import Keys._
 
 object Dependencies {
 
@@ -25,8 +24,9 @@ object Dependencies {
   val streamsTck  = "org.reactivestreams"          % "reactive-streams-tck" % "1.0.0" % "test"
   val betterFiles = "com.github.pathikrit"         %% "better-files"        % "2.17.1"
   val swagger     = "com.github.swagger-akka-http" %% "swagger-akka-http"   % "0.10.0"
+  val cors        = "ch.megard"                    %% "akka-http-cors"      % "0.2.1"
 
   val Api  = logging ++ testDependencies ++ circe
-  val Rest = Api ++ akkaHttp ++ cucumber ++ List(streamsTck, pprint, betterFiles, swagger)
+  val Rest = Api ++ akkaHttp ++ cucumber ++ List(streamsTck, pprint, betterFiles, swagger, cors)
   val UI   = Api
 }

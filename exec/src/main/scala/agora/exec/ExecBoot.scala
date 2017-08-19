@@ -9,6 +9,7 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
+import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 
 import scala.concurrent.Future
 
@@ -62,7 +63,11 @@ case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes
   def start(): Future[RunningService[ExecConfig, ExecutionRoutes]] = {
     import conf.serverImplicits._
     val execRoutes = executionRoutes
-    val restRoutes = execRoutes.routes(optionalExchangeRoutes) ~ uploadRoutes
+    val restRoutes = {
+      cors()(
+        uploadRoutes ~ execRoutes.routes(optionalExchangeRoutes)
+      )
+    }
 
     logger.info(s"Starting Execution Server in ${conf.location}")
     val startFuture         = RunningService.start[ExecConfig, ExecutionRoutes](conf, restRoutes, execRoutes)

@@ -2,15 +2,12 @@ package agora.rest
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import akka.http.scaladsl.model.Uri
+import agora.api.worker.HostLocation
+import agora.domain.RichConfigOps
 import akka.http.scaladsl.server.Route
 import com.typesafe.config.{Config, ConfigFactory}
-import agora.api.worker.HostLocation
-import agora.domain.{RichConfig, RichConfigOps}
-import agora.rest.client.{CachedClient, RestClient, RetryClient, RetryStrategy}
 
 import scala.concurrent.Future
-import scala.concurrent.duration._
 
 /**
   * A parsed configuration for our agora app
@@ -52,7 +49,8 @@ class ServerConfig(val config: Config) extends RichConfigOps {
     */
   lazy val clientConfig = {
     val clientConf: Config = config.getConfig("client")
-    val fixedPort = Array(s"port=${port}").filter(_ => clientConf.getInt("port") <= 0)
+    val fixedPort          = Array(s"port=${port}").filter(_ => clientConf.getInt("port") <= 0)
+
     val fixedHost = Array(s"host=${host}").filter(_ => clientConf.getString("host").isEmpty)
     val sanitized = clientConf.withUserArgs(fixedHost ++ fixedPort)
     new ClientConfig(sanitized)

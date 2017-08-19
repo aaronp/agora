@@ -3,8 +3,11 @@ package exchange
 
 import javax.ws.rs.Path
 
+import agora.api._
+import agora.api.exchange._
+import agora.health.HealthDto
 import akka.http.scaladsl.model.ContentTypes._
-import akka.http.scaladsl.model.{HttpEntity, HttpResponse, StatusCodes, Uri}
+import akka.http.scaladsl.model.{HttpEntity, HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives.{entity, pathPrefix, _}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.unmarshalling.{FromEntityUnmarshaller, FromRequestUnmarshaller}
@@ -13,9 +16,6 @@ import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.generic.auto.exportEncoder
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder}
-import agora.api._
-import agora.api.exchange._
-import agora.health.HealthDto
 import io.swagger.annotations.{ApiOperation, ApiResponse, ApiResponses}
 
 import scala.concurrent.Future
@@ -56,7 +56,15 @@ case class ExchangeRoutes(exchange: ServerSideExchange)(implicit mat: Materializ
     * Support routes to query the state of the exchange (queues)
     */
   object query {
-    def routes: Route = queueState ~ subscriptionsGet ~ jobsGet
+    def routes: Route = queueState ~ queueStateGet ~ subscriptionsGet ~ jobsGet
+
+    def queueStateGet = get {
+      (path("queue") & pathEnd) {
+        complete {
+          exchange.queueState(QueueState())
+        }
+      }
+    }
 
     def queueState = post {
       (path("queue") & pathEnd) {
@@ -73,8 +81,7 @@ case class ExchangeRoutes(exchange: ServerSideExchange)(implicit mat: Materializ
     def subscriptionsGet = get {
       (path("subscriptions") & pathEnd) {
         complete {
-
-          exchange.queueState().map(_.subscriptions)
+          exchange.queueState().map(_.subscriptions.toVector)
         }
       }
     }
@@ -82,7 +89,7 @@ case class ExchangeRoutes(exchange: ServerSideExchange)(implicit mat: Materializ
     def jobsGet = get {
       (path("jobs") & pathEnd) {
         complete {
-          exchange.queueState().map(_.jobs)
+          exchange.queueState().map(_.jobs.toVector)
         }
       }
     }

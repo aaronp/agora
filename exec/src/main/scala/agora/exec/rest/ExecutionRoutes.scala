@@ -60,7 +60,7 @@ case class ExecutionRoutes(execConfig: ExecConfig, exchange: Exchange, workspace
   def routes(exchangeRoutes: Option[Route]): Route = {
     val workerRoutes = execConfig.newWorkerRoutes(exchange)
 
-    workerRoutes.routes ~ execConfig.routes(exchangeRoutes) ~ executeRoute ~ executeAndSaveRoute
+    executeRoute ~ executeAndSaveRoute ~ execConfig.routes(exchangeRoutes) ~ workerRoutes.routes
   }
 
   private def execute(runProcess: RunProcess, httpRequest: HttpRequest, workingDir: Option[Path])(implicit ec: ExecutionContext): Future[HttpResponse] = {
