@@ -80,6 +80,12 @@ case class DynamicWorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubs
     }
   }
 
+  @Path("/rest/subscriptions")
+  @ApiOperation(value = "Returns the current worker subscriptions available for this worker", httpMethod = "GET")
+  @ApiResponses(
+    Array(
+      new ApiResponse(code = 200, message = "Return a list of subscription details", response = classOf[Json])
+    ))
   def listSubscriptions = (get & path("rest" / "subscriptions") & pathEnd) {
     complete {
       val paths = workerByPath.map {
@@ -91,8 +97,12 @@ case class DynamicWorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubs
   }
 
   def workerRoutes: Route = handleWorkRoute ~ listSubscriptions
-
-  //  def handleWorkRoute: Route = pathPrefix("rest" / "worker") {
+  @Path("/{workerPath}")
+  @ApiOperation(value = "Executes a dynamically added worker endpoint", httpMethod = "POST")
+  @ApiResponses(
+    Array(
+      new ApiResponse(code = 200, message = "Return the result of a dynamically added worker", response = classOf[Json])
+    ))
   def handleWorkRoute: Route = {
     post {
       path(Remaining) { remaining =>

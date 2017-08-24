@@ -16,7 +16,7 @@ class RaftConfigTest extends BaseSpec with Eventually {
   }
   "RaftConfig.seedNodes" should {
     "be a list of host locations" in {
-      RaftConfig.load().seedNodeLocations shouldBe List(HostLocation("localhost", 1234))
+      RaftConfig.load().seedNodeLocations shouldBe List(HostLocation("0.0.0.0", 8080))
     }
   }
   "RaftConfig.election.timer" should {

@@ -16,7 +16,7 @@ import scala.io.StdIn
   */
 case class RunningService[C <: ServerConfig, Service](conf: C, service: Service, binding: Http.ServerBinding) extends AutoCloseable {
 
-  def location                        = HostLocation(localAddress.getHostName, localAddress.getPort).ensuring(_ == conf.location)
+  def location                        = HostLocation(localAddress.getHostName, localAddress.getPort) //.ensuring(_ == conf.location)
   def localAddress: InetSocketAddress = binding.localAddress
   private val shutdownPromise         = Promise[Unit]()
   private lazy val shutdown = {

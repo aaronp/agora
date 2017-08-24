@@ -16,7 +16,7 @@ import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.generic.auto.exportEncoder
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder}
-import io.swagger.annotations.{ApiOperation, ApiResponse, ApiResponses}
+import io.swagger.annotations._
 
 import scala.concurrent.Future
 import scala.language.reflectiveCalls
@@ -35,13 +35,11 @@ import scala.language.reflectiveCalls
   *
   * @see http://doc.akka.io/docs/akka-stream-and-http-experimental/1.0/scala/http/routing-dsl/index.html
   */
+@Api(value = "Exchange", consumes = "application/json", produces = "application/json")
+@Path("/")
 case class ExchangeRoutes(exchange: ServerSideExchange)(implicit mat: Materializer) extends FailFastCirceSupport with RouteLoggingSupport {
 
   import mat.executionContext
-
-  // allow things to watch for matches
-  //  val observer: MatchObserver = MatchObserver()
-  //  lazy val exchange: Exchange = exchangeForHandler(observer)
 
   def routes: Route = {
     //encodeResponse
@@ -101,6 +99,16 @@ case class ExchangeRoutes(exchange: ServerSideExchange)(implicit mat: Materializ
   object submission {
     def routes: Route = submit ~ cancel
 
+    @Path("/rest/exchange/submit")
+    @ApiOperation(value = "Submits work to be matched with a work subscription", notes = "???", httpMethod = "POST")
+    @ApiImplicitParams(
+      Array(
+        new ApiImplicitParam(name = "body", value = "???", required = true, dataTypeClass = classOf[WorkSubscription], paramType = "body")
+      ))
+    @ApiResponses(
+      Array(
+        new ApiResponse(code = 200, message = "???", response = classOf[WorkSubscriptionAck])
+      ))
     def submit = put {
       (path("submit") & pathEnd) {
         entity(as[SubmitJob]) {
@@ -150,6 +158,15 @@ case class ExchangeRoutes(exchange: ServerSideExchange)(implicit mat: Materializ
     }
   }
 
+  @Path("/rest/exchange/health")
+  @ApiOperation(
+    value = "A health check endpoint, 'cause you can never have too many of them",
+    httpMethod = "GET"
+  )
+  @ApiResponses(
+    Array(
+      new ApiResponse(code = 200, message = "Some health statistics", response = classOf[HealthDto])
+    ))
   def health = (get & path("health") & pathEnd) {
     complete {
       HttpResponse(entity = HttpEntity(`application/json`, HealthDto().asJson.noSpaces))
@@ -164,24 +181,56 @@ case class ExchangeRoutes(exchange: ServerSideExchange)(implicit mat: Materializ
 
     @Path("/rest/exchange/subscribe")
     @ApiOperation(value = "Subscribe for work", notes = "", httpMethod = "PUT")
+    @ApiImplicitParams(
+      Array(
+        new ApiImplicitParam(name = "body", value = "the subscription to create", required = true, dataTypeClass = classOf[WorkSubscription], paramType = "body")
+      ))
     @ApiResponses(
       Array(
-        new ApiResponse(code = 200, message = "Return Health", response = classOf[HealthDto])
+        new ApiResponse(code = 200, message = "An ack for the new subscription", response = classOf[WorkSubscriptionAck])
       ))
     def subscribe = put {
       jsonRouteFor[WorkSubscription, WorkSubscriptionAck]("subscribe")(exchange.onSubscriptionRequest)
     }
 
+    @Path("/rest/exchange/take")
+    @ApiOperation(
+      value = "Requests (i.e. pulls, takes) more work for the given subscription",
+      notes = "If the subscription designated by the request key depends on other subscriptions, it is those subscriptions whose request count will be incremented",
+      httpMethod = "POST"
+    )
+    @ApiImplicitParams(
+      Array(
+        new ApiImplicitParam(name = "body", value = "the subscription from which to request work", required = true, dataTypeClass = classOf[RequestWork], paramType = "body")
+      ))
+    @ApiResponses(
+      Array(
+        new ApiResponse(code = 200, message = "Return an ack which details the previous and current number of pending work items", response = classOf[RequestWorkAck])
+      ))
     def takeNext = post {
       jsonRouteFor[RequestWork, RequestWorkAck]("take")(exchange.onSubscriptionRequest)
     }
 
+    @Path("/rest/exchange/subscriptions")
+    @ApiOperation(
+      value = "Cancels the subscriptions",
+      notes = "If the subscription designated by the request key depends on other subscriptions, it is those subscriptions whose request count will be incremented",
+      httpMethod = "DELETE"
+    )
+    @ApiImplicitParams(
+      Array(
+        new ApiImplicitParam(name = "body", value = "the subscriptions to cancel", required = true, dataTypeClass = classOf[CancelSubscriptions], paramType = "body")
+      ))
+    @ApiResponses(
+      Array(
+        new ApiResponse(code = 200, message = "Return an ack which details the previous and current number of pending work items", response = classOf[CancelSubscriptionsResponse])
+      ))
     def cancel = delete {
       (path("subscriptions") & pathEnd) {
         import io.circe.generic.auto._
 
-        val dec: Decoder[CancelSubscriptions]                 = implicitly[Decoder[CancelSubscriptions]]
-        val feu: FromEntityUnmarshaller[CancelSubscriptions]  = implicitly[FromEntityUnmarshaller[CancelSubscriptions]]
+//        val dec: Decoder[CancelSubscriptions]                 = implicitly[Decoder[CancelSubscriptions]]
+//        val feu: FromEntityUnmarshaller[CancelSubscriptions]  = implicitly[FromEntityUnmarshaller[CancelSubscriptions]]
         val fru: FromRequestUnmarshaller[CancelSubscriptions] = implicitly[FromRequestUnmarshaller[CancelSubscriptions]]
         entity(as[CancelSubscriptions](fru)) { request =>
           complete {
