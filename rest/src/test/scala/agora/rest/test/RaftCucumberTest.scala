@@ -11,4 +11,4 @@ import org.junit.runner.RunWith
   plugin = Array("pretty", "html:target/cucumber/raft-report.html")
   //, "json:target/cucumber/raft-report.json", "junit:target/cucumber/raft-report.xml"
 )
-class RaftTest
+class RaftCucumberTest
