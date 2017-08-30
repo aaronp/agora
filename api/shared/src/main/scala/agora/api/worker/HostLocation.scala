@@ -2,7 +2,8 @@ package agora.api.worker
 
 case class HostLocation(host: String, port: Int) {
   def asHostPort = s"$host:$port"
-  def asURL      = s"http://$asHostPort"
+
+  def asURL = s"http://$asHostPort"
 }
 
 object HostLocation {

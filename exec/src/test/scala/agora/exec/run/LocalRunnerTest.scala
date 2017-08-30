@@ -1,6 +1,6 @@
 package agora.exec.run
 
-import agora.exec.model.{RunProcess, RunProcessAndSave}
+import agora.exec.model.{ExecuteProcess, RunProcess}
 import agora.rest.BaseSpec
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
@@ -42,7 +42,7 @@ class LocalRunnerTest extends BaseSpec with ProcessRunnerTCK with BeforeAndAfter
         }
 
         val file   = dir.resolve("someFile").text = "hello world"
-        val output = runner.run("cat", file.fileName).futureValue.mkString(" ").trim
+        val output = runner.run(RunProcess("cat", file.fileName)).futureValue.mkString(" ").trim
         output shouldBe "hello world"
         stdOutFile.text.lines.mkString(" ").trim shouldBe "hello world"
         outputList.toList shouldBe List("hello world")
@@ -71,7 +71,7 @@ class LocalRunnerTest extends BaseSpec with ProcessRunnerTCK with BeforeAndAfter
         val file = dir.resolve("from").text = "hello world"
 
         // call the method under test
-        val resp = runner.runAndSave(RunProcessAndSave(List("cp", file.fileName, "newFile"), dir.fileName)).futureValue
+        val resp = runner.runAndSave(ExecuteProcess(List("cp", file.fileName, "newFile"), dir.fileName)).futureValue
 
         // verify it worked
         resp.exitCode shouldBe 0

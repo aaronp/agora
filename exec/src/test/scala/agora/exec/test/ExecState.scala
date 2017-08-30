@@ -3,13 +3,15 @@ package agora.exec.test
 import java.io.Closeable
 
 import agora.exec.ExecConfig
-import agora.exec.model.RunProcess
+import agora.exec.model.{RunProcess, StreamingProcess}
 import agora.exec.rest.ExecutionRoutes
-import agora.exec.run.ProcessRunner.ProcessOutput
+import agora.exec.run.CachingRunner.ProcessOutput
 import agora.exec.run.RemoteRunner
 import agora.rest.{BaseSpec, RunningService}
 import miniraft.state.NodeId
 import org.scalatest.concurrent.Eventually
+
+import scala.concurrent.Future
 
 object ExecState {
 
@@ -20,7 +22,7 @@ case class ExecState(
                      //                      server: Option[ExecState.Service] = None,
                      serviceByName: Map[String, ExecState.Service] = Map.empty,
                      clientsByName: Map[String, (ExecConfig, RemoteRunner)] = Map.empty,
-                     resultsByClient: Map[String, ProcessOutput] = Map.empty,
+                     resultsByClient: Map[String, Future[Iterator[String]]] = Map.empty,
                      latestSearch: Option[(String, String)] = None)
     extends BaseSpec
     with Eventually {
@@ -30,7 +32,7 @@ case class ExecState(
     copy(latestSearch = Option(key -> value))
   }
 
-  def executeRunProcess(clientName: String, jobId: String, proc: RunProcess): ExecState = {
+  def executeRunProcess(clientName: String, jobId: String, proc: StreamingProcess): ExecState = {
 
     resultsByClient.contains(clientName) shouldBe false
 

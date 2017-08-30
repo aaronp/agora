@@ -31,22 +31,4 @@ case class SupportRoutes(config: Config) {
       HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, config.json))
     }
   }
-
-  //  @ApiOperation(value = "Return a resource at the given path", nickname = "debugPath", httpMethod = "GET", response = classOf[String])
-  //  @ApiResponses(
-  //    Array(
-  //      new ApiResponse(code = 200, message = "Return the server configuration", response = classOf[String]),
-  //      new ApiResponse(code = 404, message = "Not Found"),
-  //      new ApiResponse(code = 500, message = "Internal server error")
-  //    ))
-  //  @Path("/rest/debug/{path}")
-  //  @ApiImplicitParams(
-  //    Array(
-  //      new ApiImplicitParam(name = "path", value = "The resource to return", required = true, dataType = "string", paramType = "path")
-  //    ))
-  //  val debugRoute = (get & pathPrefix("debug")) {
-  //    encodeResponse {
-  //      getFromBrowseableDirectory(".")
-  //    }
-  //  }
 }

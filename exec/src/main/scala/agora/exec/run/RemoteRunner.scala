@@ -3,9 +3,8 @@ package agora.exec.run
 import agora.api.SubscriptionKey
 import agora.api.exchange.SubmitJob
 import agora.domain.IterableSubscriber
-import agora.exec.model.{RunProcess, RunProcessAndSave, RunProcessAndSaveResponse}
+import agora.exec.model.{ExecuteProcess, RunProcess, ResultSavingRunProcessResponse, StreamingProcess}
 import agora.exec.rest.ExecutionRoutes
-import agora.exec.run.ProcessRunner.ProcessOutput
 import agora.rest.exchange.ExchangeClient
 import akka.http.scaladsl.client.RequestBuilding
 import com.typesafe.scalalogging.LazyLogging
@@ -35,13 +34,21 @@ case class RemoteRunner(exchange: ExchangeClient, defaultFrameLength: Int, allow
 
   import exchange.{execContext, materializer}
 
-  override def run(proc: RunProcess): ProcessOutput = {
-    runAndSelect(proc).map(_.output)
+  override def run(input: RunProcess): input.Result = {
+    input match {
+      case save: ExecuteProcess =>
+        val future = runAndSave(save)
+        future.asInstanceOf[input.Result]
+      case stream: StreamingProcess =>
+        val future: Future[Iterator[String]] = runAndSelect(stream).map(_.output)
+        future.asInstanceOf[input.Result]
+    }
+
   }
 
-  override def runAndSave(proc: RunProcessAndSave) = {
+  def runAndSave(proc: ExecuteProcess): Future[ResultSavingRunProcessResponse] = {
     val job = RemoteRunner.execAsJob(proc, keyOpt)
-    exchange.enqueueAs[RunProcessAndSaveResponse](job)
+    exchange.enqueueAs[ResultSavingRunProcessResponse](job)
   }
 
   def withSubscription(key: SubscriptionKey): RemoteRunner = copy(keyOpt = Option(key))
@@ -60,7 +67,7 @@ case class RemoteRunner(exchange: ExchangeClient, defaultFrameLength: Int, allow
     * @param proc the job to execute
     * @return both the subscription key client and the job output
     */
-  def runAndSelect(proc: RunProcess): Future[SelectionOutput] = {
+  def runAndSelect(proc: StreamingProcess): Future[SelectionOutput] = {
 
     val job = RemoteRunner.execAsJob(proc, keyOpt)
 
@@ -118,7 +125,7 @@ object RemoteRunner extends RequestBuilding {
     runProcess.asJob.matching(criteria)
   }
 
-  def execAsJob(runProcess: RunProcessAndSave, subscriptionOpt: Option[SubscriptionKey]): SubmitJob = {
+  def execAsJob(runProcess: ExecuteProcess, subscriptionOpt: Option[SubscriptionKey]): SubmitJob = {
     import agora.api.Implicits._
     val criteria = subscriptionOpt.fold(ExecutionRoutes.execAndSaveCriteria) { key =>
       ExecutionRoutes.execAndSaveCriteria.and("id" === key)

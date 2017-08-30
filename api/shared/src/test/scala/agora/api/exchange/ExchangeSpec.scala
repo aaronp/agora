@@ -4,6 +4,7 @@ import io.circe.generic.auto._
 import agora.api.Implicits._
 import agora.api.worker.{HostLocation, SubscriptionKey}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
+import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{Matchers, WordSpec}
 
 import scala.language.{postfixOps, reflectiveCalls}
@@ -21,7 +22,7 @@ trait ExchangeSpec extends WordSpec with Matchers with ScalaFutures with Eventua
 
   getClass.getSimpleName.filter(_.isLetter).replaceAllLiterally("Test", "") should {
     "be able to cancel subscriptions" in {
-      val obs = MatchObserver()
+      val obs          = MatchObserver()
       val ex: Exchange = newExchange(obs)
 
       val subscription: WorkSubscriptionAck = ex.subscribe(WorkSubscription(HostLocation.localhost(1234))).futureValue
@@ -38,7 +39,7 @@ trait ExchangeSpec extends WordSpec with Matchers with ScalaFutures with Eventua
       afterCancel should be(empty)
     }
     "be able to cancel jobs" in {
-      val obs = MatchObserver()
+      val obs          = MatchObserver()
       val ex: Exchange = newExchange(obs)
 
       val input = DoubleMe(11).asJob.withAwaitMatch(false)
@@ -68,7 +69,7 @@ trait ExchangeSpec extends WordSpec with Matchers with ScalaFutures with Eventua
         }
         val ex: Exchange = newExchange(obs)
 
-        val jobId = ex.submit(DoubleMe(11).asJob.withAwaitMatch(false)).futureValue.asInstanceOf[SubmitJobResponse].id
+        val jobId   = ex.submit(DoubleMe(11).asJob.withAwaitMatch(false)).futureValue.asInstanceOf[SubmitJobResponse].id
         val jobPath = ("value" gt 7) and ("value" lt 17)
 
         val sub = WorkSubscription(HostLocation.localhost(1234), jobMatcher = jobPath)
@@ -80,6 +81,10 @@ trait ExchangeSpec extends WordSpec with Matchers with ScalaFutures with Eventua
       }
     }
   }
+
+  implicit override def patienceConfig =
+    PatienceConfig(timeout = scaled(Span(3, Seconds)), interval = scaled(Span(150, Millis)))
+
 }
 
 object ExchangeSpec {

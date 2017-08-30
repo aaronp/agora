@@ -1,17 +1,24 @@
 package agora.rest.client
 
+import agora.api.worker.HostLocation
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import com.typesafe.scalalogging.StrictLogging
-import agora.api.worker.HostLocation
 
+import scala.compat.Platform
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
 import scala.util.control.NonFatal
+import scala.util.{Failure, Success}
 
+/**
+  * A [[RestClient]] based on akka [[Http]]
+  * @param location
+  * @param system
+  * @param materializer
+  */
 class AkkaClient(val location: HostLocation, system: ActorSystem, override implicit val materializer: Materializer) extends RestClient with StrictLogging {
 
   private val hostPort = location.asURL
@@ -32,16 +39,21 @@ class AkkaClient(val location: HostLocation, system: ActorSystem, override impli
   }
 
   def send(request: HttpRequest): Future[HttpResponse] = {
-    logger.debug(s"Sending $hostPort ==> ${pprint.apply(request)}")
+    logger.trace(s"Sending $hostPort ==> ${pprint.apply(request)}")
+    val started = Platform.currentTime
     val future = try {
       Source.single(request).via(remoteServiceConnectionFlow).runWith(Sink.head)
     } catch {
       case NonFatal(e) =>
         Future.failed(e)
     }
+
+    def took = s"${Platform.currentTime - started}ms"
+
     future.onComplete {
-      case Success(resp) => logger.debug(s"$hostPort w/ $request returned w/ status ${resp.status}")
-      case Failure(err)  => logger.error(s"$hostPort w/ $request threw ${err}")
+      case Success(resp) if resp.status.intValue() == 200 => logger.debug(s"$hostPort/${request.uri} took ${took}")
+      case Success(resp)                                  => logger.debug(s"$hostPort/${request.uri} took ${took} (status ${resp.status})")
+      case Failure(err)                                   => logger.error(s"$hostPort/${request.uri} took ${took} and threw ${err}")
     }
     future
   }

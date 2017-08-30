@@ -3,7 +3,7 @@ package agora.exec.rest
 import agora.api.`match`.MatchDetails
 import agora.api.nextJobId
 import agora.exec.ExecConfig
-import agora.exec.model.{ProcessException, RunProcess, RunProcessAndSave, RunProcessAndSaveResponse}
+import agora.exec.model._
 import agora.exec.run.LocalRunner
 import agora.exec.workspace.WorkspaceClient
 import agora.rest.MatchDetailsExtractor
@@ -36,7 +36,7 @@ object ExecutionHandler extends StrictLogging {
     */
   def apply(request: HttpRequest,
             runner: LocalRunner,
-            runProc: RunProcess,
+            runProc: StreamingProcess,
             matchDetails: Option[MatchDetails],
             // TODO - this should be determined from the content-type of the request, which we have
             outputContentType: ContentType = `text/plain(UTF-8)`)(implicit ec: ExecutionContext): Future[HttpResponse] = {
@@ -70,8 +70,8 @@ object ExecutionHandler extends StrictLogging {
     * read that informative comment.
     *
     */
-  def executeAndSave(execConfig: ExecConfig, workspaces: WorkspaceClient, runProcess: RunProcessAndSave, detailsOpt: Option[MatchDetails])(
-      implicit ec: ExecutionContext): Future[RunProcessAndSaveResponse] = {
+  def executeAndSave(execConfig: ExecConfig, workspaces: WorkspaceClient, runProcess: ExecuteProcess, detailsOpt: Option[MatchDetails])(
+      implicit ec: ExecutionContext): Future[ResultSavingRunProcessResponse] = {
 
     /**
       * If the user hasn't explicitly specified a file dependency, we create one based on our workspaceId
@@ -82,7 +82,7 @@ object ExecutionHandler extends StrictLogging {
     pathFuture.flatMap { workingDir =>
       val jobId = detailsOpt.map(_.jobId).getOrElse(nextJobId)
 
-      val runner = execConfig.newRunner(runProcess.asRunProcess, detailsOpt, Option(workingDir), jobId).withLogger { jobLog =>
+      val runner = execConfig.newRunner(runProcess.asStreamingProcess, detailsOpt, Option(workingDir), jobId).withLogger { jobLog =>
         val stdOutLogger = ProcessLogger(workingDir.resolve(runProcess.stdOutFileName).toFile)
         jobLog.addStdOut(stdOutLogger)
 

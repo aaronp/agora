@@ -1,10 +1,10 @@
 package agora.exec.run
+
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Path, StandardOpenOption}
 
 import agora.domain.{CloseableIterator, MD5}
-import agora.exec.model.{RunProcess, RunProcessAndSave, RunProcessAndSaveResponse}
-import agora.exec.run.ProcessRunner.ProcessOutput
+import agora.exec.model._
 import agora.io.implicits._
 import com.typesafe.scalalogging.StrictLogging
 
@@ -15,6 +15,8 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
 object CachingRunner {
+  type ProcessOutput = Future[Iterator[String]]
+
   def apply(underlying: ProcessRunner, computationThreshold: FiniteDuration, sizeThreshold: Int)(implicit ec: ExecutionContext) = {
     new InMemory(underlying, computationThreshold, sizeThreshold)
   }
@@ -23,7 +25,7 @@ object CachingRunner {
 
   class ToDisk(dir: Path, underlying: ProcessRunner)(implicit ec: ExecutionContext) extends CachingRunner(underlying) {
 
-    override def getFromCache(key: String, proc: RunProcess): Option[ProcessOutput] = {
+    override def getFromCache(key: String, proc: StreamingProcess): Option[ProcessOutput] = {
       Option(dir.resolve(key).resolve("output")).filter(_.exists).map { path =>
         Future(path.lines)
       }
@@ -31,7 +33,7 @@ object CachingRunner {
 
     private object Lock
 
-    override def writeToCache(key: String, proc: RunProcess, output: ProcessOutput): ProcessOutput = {
+    override def writeToCache(key: String, proc: StreamingProcess, output: ProcessOutput): ProcessOutput = {
       val saveMe = Lock.synchronized {
         val file = dir.resolve(key)
         if (file.exists) {
@@ -75,7 +77,7 @@ object CachingRunner {
 
     private val outputByKey = mutable.HashMap[String, List[String]]()
 
-    override def getFromCache(key: String, proc: RunProcess): Option[ProcessOutput] = {
+    override def getFromCache(key: String, proc: StreamingProcess): Option[ProcessOutput] = {
       Lock.synchronized {
         outputByKey.get(key).map(list => Future.successful(list.iterator))
       }
@@ -87,7 +89,7 @@ object CachingRunner {
       }
     }
 
-    private[run] def cache(key: String, proc: RunProcess, started: Long, output: ProcessOutput): ProcessOutput = {
+    private[run] def cache(key: String, proc: StreamingProcess, started: Long, output: ProcessOutput): ProcessOutput = {
       val listBuffer = ListBuffer[String]()
       output.map { iter =>
         val writingIter = iter.zipWithIndex.map {
@@ -110,7 +112,7 @@ object CachingRunner {
       }
     }
 
-    override def writeToCache(key: String, proc: RunProcess, output: ProcessOutput): ProcessOutput = {
+    override def writeToCache(key: String, proc: StreamingProcess, output: ProcessOutput): ProcessOutput = {
       if (!isCached(key)) {
         val started = System.currentTimeMillis()
         cache(key, proc, started, output)
@@ -126,25 +128,30 @@ object CachingRunner {
 }
 
 abstract class CachingRunner(val underlying: ProcessRunner) extends ProcessRunner with StrictLogging {
-  override def runAndSave(proc: RunProcessAndSave) = {
-    underlying.runAndSave(proc)
-  }
 
-  override def run(proc: RunProcess): ProcessOutput = {
-    val key = keyForProc(proc)
-    getFromCache(key, proc) match {
-      case Some(res) =>
-        logger.debug(s"using cached result $key")
-        res
-      case None =>
-        logger.debug(s"caching result as $key")
-        writeToCache(key, proc, underlying.run(proc))
+  import CachingRunner._
+
+  override def run(input: RunProcess): input.Result = {
+    input match {
+      case proc: StreamingProcess =>
+        val key = keyForProc(proc)
+        getFromCache(key, proc) match {
+          case Some(res) =>
+            logger.debug(s"using cached result $key")
+            res.asInstanceOf[input.Result]
+          case None =>
+            logger.debug(s"caching result as $key")
+            val res = writeToCache(key, proc, underlying.run(proc))
+            res.asInstanceOf[input.Result]
+        }
+      case _ => underlying.run(input)
     }
+
   }
 
-  def getFromCache(key: String, proc: RunProcess): Option[ProcessOutput]
+  def getFromCache(key: String, proc: StreamingProcess): Option[ProcessOutput]
 
-  def writeToCache(key: String, proc: RunProcess, output: ProcessOutput): ProcessOutput
+  def writeToCache(key: String, proc: StreamingProcess, output: ProcessOutput): ProcessOutput
 
   protected def keyForProc(proc: RunProcess) = CachingRunner.keyForProc(proc)
 

@@ -1,9 +1,9 @@
 package agora.exec.run
 
-import java.nio.file.{Path, Paths}
+import java.nio.file.Path
 
-import agora.exec.model.{RunProcess, RunProcessAndSave, RunProcessAndSaveResponse}
-import agora.exec.workspace.{UploadDependencies, WorkspaceId}
+import agora.exec.model.{ExecuteProcess, ResultSavingRunProcessResponse, RunProcess, StreamingProcess}
+import agora.exec.workspace.WorkspaceId
 import agora.rest.exchange.ExchangeClient
 
 import scala.concurrent.duration.FiniteDuration
@@ -18,31 +18,62 @@ trait ProcessRunner {
 
   /**
     * Execute the [[RunProcess]], returning a future of the std out
+    *
     * @param proc the job to execute
     * @return the stdout as an iterator of lines in a Future which completes when the job does
     */
-  def run(proc: RunProcess): ProcessRunner.ProcessOutput
+  def run(proc: RunProcess): proc.Result
 
   /**
-    * Execute the [[RunProcessAndSave]], writing the results to disk
+    * Executes the command in the provided workspace
     *
-    * @param proc
-    * @return a future of the response
+    * @param command     the command to execute
+    * @param workspaceId the workspace under which the command is run
+    * @return the execution response
     */
-  def runAndSave(proc: RunProcessAndSave): Future[RunProcessAndSaveResponse]
+  final def execute(command: List[String], workspaceId: WorkspaceId): Future[ResultSavingRunProcessResponse] = {
+    execute(ExecuteProcess(command, workspaceId))
+  }
 
-  final def run(cmd: String, theRest: String*): ProcessRunner.ProcessOutput = {
-    run(RunProcess(cmd :: theRest.toList, Map[String, String]()))
+  /**
+    * Executes the command in the provided workspace
+    *
+    * @param input the command to execute
+    * @return the execution response
+    */
+  final def execute(input: ExecuteProcess): Future[ResultSavingRunProcessResponse] = run(input)
+
+  /**
+    * Execute the command and stream the output
+    *
+    * @param cmd     the command to execute
+    * @param theRest the rest of the command line
+    * @return a future of the iterator of results
+    */
+  final def stream(cmd: String, theRest: String*): Future[Iterator[String]] = {
+    val input: StreamingProcess = RunProcess(cmd :: theRest.toList)
+    stream(input)
+  }
+
+  /**
+    * Execute the command and stream the output
+    *
+    * @param input the command to execute
+    * @return a future of the iterator of results
+    */
+  final def stream(input: StreamingProcess): Future[Iterator[String]] = {
+    val result: input.Result = run(input)
+    result.asInstanceOf[Future[Iterator[String]]]
   }
 }
 
 object ProcessRunner {
-  type ProcessOutput = Future[Iterator[String]]
+  //type ProcessOutput = Future[Iterator[String]]
 
   /**
     * Creates a local runner.
     *
-    * @param workDir the working directory to run the process under
+    * @param workDir    the working directory to run the process under
     * @param defaultEnv environment variables to be made available to all processes run
     */
   def apply(workDir: Option[Path] = None, defaultEnv: Map[String, String] = Map.empty)(implicit ec: ExecutionContext): LocalRunner = {

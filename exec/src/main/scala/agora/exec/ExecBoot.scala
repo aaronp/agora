@@ -5,11 +5,13 @@ import agora.exec.rest.{ExecutionRoutes, UploadRoutes}
 import agora.exec.workspace.WorkspaceClient
 import agora.rest.RunningService
 import agora.rest.exchange.ExchangeRoutes
+import akka.http.scaladsl.model.HttpMethods
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
+import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
+import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
-import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 
 import scala.concurrent.Future
 
@@ -50,27 +52,34 @@ case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes
 
   /** @return a future of the ExecutionRoutes once the exec subscription completes
     */
-  def executionRoutes = new ExecutionRoutes(conf, exchange, workspaceClient)
+  lazy val executionRoutes = new ExecutionRoutes(conf, exchange, workspaceClient)
 
   def uploadRoutes: Route = UploadRoutes(workspaceClient).uploadRoute
 
+  def restRoutes = {
+
+    val corsSettings = {
+      val default = CorsSettings.defaultSettings
+      default.copy(allowedMethods = default.allowedMethods ++ List(HttpMethods.PUT, HttpMethods.DELETE))
+    }
+    cors(corsSettings)(
+      uploadRoutes ~ executionRoutes.routes(optionalExchangeRoutes)
+    )
+  }
+
   /**
-    * Start the service.
+    * Starts the REST service and subscribes to/requests work
     *
     * It creates two subscriptions -- one for just running and executing, and another for executing and jobs
     * which just return the exit code.
     */
   def start(): Future[RunningService[ExecConfig, ExecutionRoutes]] = {
     import conf.serverImplicits._
-    val execRoutes = executionRoutes
-    val restRoutes = {
-      cors()(
-        uploadRoutes ~ execRoutes.routes(optionalExchangeRoutes)
-      )
-    }
 
     logger.info(s"Starting Execution Server in ${conf.location}")
-    val startFuture         = RunningService.start[ExecConfig, ExecutionRoutes](conf, restRoutes, execRoutes)
+    val startFuture = RunningService.start[ExecConfig, ExecutionRoutes](conf, restRoutes, executionRoutes)
+
+    // create our initial subscriptions to execute processes and request work
     val execSubscribeFuture = exchange.subscribe(conf.execSubscription)
     for {
       rs   <- startFuture

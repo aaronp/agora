@@ -3,8 +3,7 @@ package agora.exec.run
 import java.nio.file.Path
 
 import agora.exec.log._
-import agora.exec.model.{RunProcess, RunProcessAndSave, RunProcessAndSaveResponse}
-import agora.exec.run.ProcessRunner.ProcessOutput
+import agora.exec.model._
 import akka.NotUsed
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
@@ -29,13 +28,13 @@ class LocalRunner(val workDir: Option[Path] = None, val defaultEnv: Map[String, 
   def withLogger(newLogger: IterableLogger => IterableLogger): LocalRunner = {
     val parent = this
     new LocalRunner(workDir, defaultEnv) {
-      override def mkLogger(proc: RunProcess): IterableLogger = {
+      override def mkLogger(proc: StreamingProcess): IterableLogger = {
         newLogger(parent.mkLogger(proc))
       }
     }
   }
 
-  def asByteIterator(runProc: RunProcess): Source[ByteString, NotUsed] = {
+  def asByteIterator(runProc: StreamingProcess): Source[ByteString, NotUsed] = {
     def run = {
       try {
         execute(runProc).iterator
@@ -48,16 +47,28 @@ class LocalRunner(val workDir: Option[Path] = None, val defaultEnv: Map[String, 
 
     Source.fromIterator(() => run).map(line => ByteString(s"$line\n"))
   }
+//
+//  def stream(command: List[String], env: Map[String, String] = Map.empty, streamingSettings: StreamingSettings = StreamingSettings()): Future[Iterator[String]] = {
+//    run(StreamingOutputRunProcess(command, env, streamingSettings))
+//  }
+//  final def stream(command: String, theRest: String*): Future[Iterator[String]] = {
+//    run(StreamingOutputRunProcess(command :: theRest.toList))
+//  }
 
-  override def run(proc: RunProcess): ProcessOutput = {
-    val iter = proc.filterForErrors(execute(proc).iterator)
-    Future.successful(iter)
+  override def run(input: RunProcess): input.Result = {
+    input match {
+      case proc: ExecuteProcess =>
+        runAndSave(proc).asInstanceOf[input.Result]
+      case proc: StreamingProcess =>
+        val iter: Iterator[String] = proc.filterForErrors(execute(proc).iterator)
+        Future.successful(iter).asInstanceOf[input.Result]
+    }
   }
 
-  override def runAndSave(proc: RunProcessAndSave): Future[RunProcessAndSaveResponse] = {
-    val logger = execute(proc.asRunProcess)
+  def runAndSave(proc: ExecuteProcess): Future[ResultSavingRunProcessResponse] = {
+    val logger = execute(proc.asStreamingProcess)
     logger.exitCodeFuture.map { exitCode =>
-      RunProcessAndSaveResponse(exitCode, proc.workspaceId, proc.stdOutFileName, None)
+      ResultSavingRunProcessResponse(exitCode, proc.workspaceId, proc.stdOutFileName, None)
     }
   }
 
@@ -75,20 +86,20 @@ class LocalRunner(val workDir: Option[Path] = None, val defaultEnv: Map[String, 
 
   def remove(logger: ProcessLogger) = additionalLoggers = additionalLoggers diff List(logger)
 
-  def mkLogger(proc: RunProcess): IterableLogger = {
+  def mkLogger(proc: StreamingProcess): IterableLogger = {
     additionalLoggers.foldLeft(IterableLogger.forProcess(proc)) {
       case (lgr, next) => lgr.add(next)
     }
   }
 
-  def execute(inputProcess: RunProcess): IterableLogger = {
+  def execute(inputProcess: StreamingProcess): IterableLogger = {
     val newEnv                  = (defaultEnv ++ inputProcess.env)
-    val preparedProcess         = inputProcess.copy(env = newEnv).resolveEnv
+    val preparedProcess         = inputProcess.withEnv(newEnv).resolveEnv
     val builder: ProcessBuilder = Process(preparedProcess.command, workDir.map(_.toFile), newEnv.toSeq: _*)
     execute(builder, preparedProcess)
   }
 
-  def execute(builder: ProcessBuilder, proc: RunProcess): IterableLogger = {
+  def execute(builder: ProcessBuilder, proc: StreamingProcess): IterableLogger = {
     val iterableLogger: IterableLogger = mkLogger(proc)
     execute(builder, proc, iterableLogger)
     iterableLogger

@@ -1,10 +1,12 @@
 package agora.exec.log
 
 import java.nio.file.Path
+
 import agora.io.implicits._
 import agora.api.JobId
 import agora.api.`match`.MatchDetails
-import agora.exec.model.RunProcess
+import agora.exec.model.{RunProcess, StreamingProcess}
+
 import scala.concurrent.Future
 import scala.sys.process.{FileProcessLogger, ProcessLogger}
 
@@ -68,9 +70,9 @@ trait IterableLogger extends ProcessLogger {
 
 object IterableLogger {
 
-  def forProcess(proc: RunProcess): ProcessLoggers = apply(proc, None, None)
+  def forProcess(proc: StreamingProcess): ProcessLoggers = apply(proc, None, None)
 
-  def apply(proc: RunProcess, matchDetails: Option[MatchDetails] = None, errorLimit: Option[Int] = None) = {
+  def apply(proc: StreamingProcess, matchDetails: Option[MatchDetails] = None, errorLimit: Option[Int] = None) = {
     new ProcessLoggers(proc, matchDetails, errorLimit)
   }
 

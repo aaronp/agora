@@ -51,9 +51,7 @@ class ExchangeConfig(c: Config) extends ServerConfig(c) {
     new ServerSideExchange(safeExchange, obs)
   }
 
-  def newExchangeRoutes(exchange: ServerSideExchange): ExchangeRoutes = {
-    ExchangeRoutes(exchange)(serverImplicits.materializer)
-  }
+  def newExchangeRoutes(exchange: ServerSideExchange): ExchangeRoutes = ExchangeRoutes(exchange)
 
   def routes(exchangeRoutes: ExchangeRoutes): Route = {
     if (includeUIRoutes) {

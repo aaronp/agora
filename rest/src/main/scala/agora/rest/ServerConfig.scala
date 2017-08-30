@@ -26,6 +26,8 @@ class ServerConfig(val config: Config) extends RichConfigOps {
 
   def includeUIRoutes = config.getBoolean("includeUIRoutes")
 
+  def includeSwaggerRoutes = config.getBoolean("includeSwaggerRoutes")
+
   def enableSupportRoutes = config.getBoolean("enableSupportRoutes")
 
   def chunkSize = config.getInt("chunkSize")

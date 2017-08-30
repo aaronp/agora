@@ -2,7 +2,7 @@ package agora.exec.ws
 
 import agora.exec.ExecConfig
 import agora.exec.log.StreamLogger
-import agora.exec.model.RunProcess
+import agora.exec.model.{RunProcess, StreamingProcess}
 import agora.exec.run.ProcessRunner
 import akka.NotUsed
 import akka.http.scaladsl.model.ws.BinaryMessage
@@ -47,14 +47,14 @@ object ExecuteOverWS extends LazyLogging {
               * socket.onopen = { (event: Event) =>
               *   socket.send(jobId)
               * }
-              */
+              * */
             jobId <- inputMessage.textStream.runWith(Sink.head)
 
             /**
               * load up our saved job/uploads based on the job ID
               */
-            runProcess: RunProcess <- Future.successful[RunProcess](???)
-            runner                 <- Future.successful[ProcessRunner](???) //(workDir = execConfig.uploadsDir.resolve(jobId)).add(output)
+            runProcess: StreamingProcess <- Future.successful[StreamingProcess](???)
+            runner                       <- Future.successful[ProcessRunner](???) //(workDir = execConfig.uploadsDir.resolve(jobId)).add(output)
 
             output <- runner.run(runProcess)
           } yield {

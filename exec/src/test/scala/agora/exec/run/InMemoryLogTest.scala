@@ -1,8 +1,7 @@
 package agora.exec.run
 
 import agora.domain.CloseableIterator
-import agora.exec.model.{RunProcess, RunProcessAndSave}
-import agora.exec.run.ProcessRunner.ProcessOutput
+import agora.exec.model.{ExecuteProcess, RunProcess}
 import agora.rest.{BaseSpec, HasMaterializer}
 
 import scala.collection.mutable.ListBuffer
@@ -61,10 +60,9 @@ object InMemoryLogTest {
     def complete(lines: Iterator[String]) = {
       fixedResult.tryComplete(Try(lines))
     }
-    override def runAndSave(proc: RunProcessAndSave) = ???
-    override def run(proc: RunProcess): ProcessOutput = {
+    override def run(proc: RunProcess): proc.Result = {
       processes += proc
-      fixedResult.future
+      fixedResult.future.asInstanceOf[proc.Result]
     }
   }
 

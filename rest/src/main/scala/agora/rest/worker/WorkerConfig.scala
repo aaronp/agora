@@ -50,13 +50,19 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
     val support = when(enableSupportRoutes)(SupportRoutes(config).routes)
     val ui      = when(includeUIRoutes)(UIRoutes(landingPage).routes)
 
-    val swagger = {
-      val svc = SwaggerDocRoutes(location.asHostPort)
-      svc.routes ~ svc.site
+    val swaggerRoutes = if (includeSwaggerRoutes) {
+      val svc = SwaggerDocRoutes(location.asHostPort, swaggerApiClasses)
+      List(svc.routes ~ svc.site)
+    } else {
+      Nil
     }
 
-    val all = exchangeRoutes.toStream ++ support ++ ui ++ List(swagger)
+    val all = ui ++ exchangeRoutes.toStream ++ support ++ swaggerRoutes
     all.reduce(_ ~ _)
+  }
+
+  protected def swaggerApiClasses: Set[Class[_]] = {
+    Set[Class[_]](classOf[SupportRoutes], classOf[DynamicWorkerRoutes], classOf[ExchangeRoutes])
   }
 
   def includeExchangeRoutes = config.getBoolean("includeExchangeRoutes")

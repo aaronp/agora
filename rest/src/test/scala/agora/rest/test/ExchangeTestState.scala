@@ -4,6 +4,7 @@ import java.io.Closeable
 
 import agora.api.exchange._
 import agora.api.worker.SubscriptionKey
+import agora.rest.client.RestClient
 import agora.rest.exchange.ExchangeConfig._
 import agora.rest.exchange.{ExchangeClient, ExchangeConfig}
 import agora.rest.worker.WorkerConfig._
@@ -38,12 +39,11 @@ case class ExchangeTestState(server: Option[RunningExchange] = None,
   private def stateWithClient: (ExchangeTestState, Exchange) = {
     exchangeClient match {
       case None =>
-        val running  = server.get
-        val location = running.location
-        logger.info(s"Connecting exchange client to $location")
-        val rest = running.conf.clientConfig.clientFor(location)
+        val running = server.get
+        logger.info(s"Connecting exchange client ${running.conf.clientConfig.location} to ${running.conf.location} (w/ local address ${running.localAddress})")
+        val rest: RestClient = running.conf.clientConfig.restClient
         val client = ExchangeClient(rest) { workerLocation =>
-          logger.info(s"Creating working client at $workerLocation for exchange on $location")
+          logger.info(s"Creating working client at $workerLocation for exchange on ${running.conf.clientConfig.location}")
           val rest = running.conf.clientConfig.clientFor(workerLocation)
           WorkerClient(rest)
         }

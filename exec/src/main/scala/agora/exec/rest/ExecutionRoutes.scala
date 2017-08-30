@@ -4,10 +4,10 @@ import java.nio.file.Path
 
 import agora.api.Implicits._
 import agora.api._
-import agora.api.exchange.Exchange
+import agora.api.exchange.{Exchange, WorkSubscription, WorkSubscriptionAck}
 import agora.api.json.JMatcher
 import agora.exec.ExecConfig
-import agora.exec.model.{RunProcess, RunProcessAndSave, RunProcessAndSaveResponse}
+import agora.exec.model._
 import agora.exec.workspace.{UploadDependencies, WorkspaceClient}
 import agora.rest.MatchDetailsExtractor
 import agora.rest.worker.RouteSubscriptionSupport
@@ -17,6 +17,7 @@ import akka.http.scaladsl.server.Route
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.generic.auto._
 import io.circe.syntax._
+import io.swagger.annotations._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -55,6 +56,9 @@ object ExecutionRoutes {
   *
   * @param execConfig
   */
+
+@Api(value = "Execute", produces = "application/json")
+@javax.ws.rs.Path("/")
 case class ExecutionRoutes(execConfig: ExecConfig, exchange: Exchange, workspaces: WorkspaceClient) extends RouteSubscriptionSupport with FailFastCirceSupport {
 
   def routes(exchangeRoutes: Option[Route]): Route = {
@@ -63,7 +67,7 @@ case class ExecutionRoutes(execConfig: ExecConfig, exchange: Exchange, workspace
     executeRoute ~ executeAndSaveRoute ~ execConfig.routes(exchangeRoutes) ~ workerRoutes.routes
   }
 
-  private def execute(runProcess: RunProcess, httpRequest: HttpRequest, workingDir: Option[Path])(implicit ec: ExecutionContext): Future[HttpResponse] = {
+  private def execute(runProcess: StreamingProcess, httpRequest: HttpRequest, workingDir: Option[Path])(implicit ec: ExecutionContext): Future[HttpResponse] = {
     val detailsOpt = MatchDetailsExtractor.unapply(httpRequest)
     val jobId      = detailsOpt.map(_.jobId).getOrElse(nextJobId)
 
@@ -72,9 +76,19 @@ case class ExecutionRoutes(execConfig: ExecConfig, exchange: Exchange, workspace
 
   }
 
+  @javax.ws.rs.Path("/rest/exec/run")
+  @ApiOperation(value = "Execute a job and stream the output", httpMethod = "POST", produces = "text/plain(UTF-8)", consumes = "application/json")
+  @ApiImplicitParams(
+    Array(
+      new ApiImplicitParam(name = "body", required = true, dataTypeClass = classOf[StreamingProcess], paramType = "body")
+    ))
+  @ApiResponses(
+    Array(
+      new ApiResponse(code = 200, message = "the output of the command is returned w/ UTF-8 text encoding")
+    ))
   def executeRoute = {
     (post & path("rest" / "exec" / "run")) {
-      entity(as[RunProcess]) { runProcess =>
+      entity(as[StreamingProcess]) { runProcess =>
         logger.info(s"Running ${runProcess.commandString}")
         extractRequestContext { ctxt =>
           import ctxt.executionContext
@@ -95,10 +109,21 @@ case class ExecutionRoutes(execConfig: ExecConfig, exchange: Exchange, workspace
     }
   }
 
+  // TODO - consider making this part of the same route as 'run' and just unmarshal the body differently
+  @javax.ws.rs.Path("/rest/exec/save")
+  @ApiOperation(value = "Execute a job for its side-effects, saving the results to a specified workspace", httpMethod = "POST")
+  @ApiImplicitParams(
+    Array(
+      new ApiImplicitParam(name = "body", required = true, dataTypeClass = classOf[ExecuteProcess], paramType = "body")
+    ))
+  @ApiResponses(
+    Array(
+      new ApiResponse(code = 200, message = "???", response = classOf[ResultSavingRunProcessResponse])
+    ))
   def executeAndSaveRoute = {
     (post & path("rest" / "exec" / "save")) {
-      entity(as[RunProcessAndSave]) { runProcess =>
-        logger.info(s"Running ${runProcess.asRunProcess.commandString}")
+      entity(as[ExecuteProcess]) { runProcess =>
+        logger.info(s"Running ${runProcess.asStreamingProcess.commandString}")
         extractRequestContext { ctxt =>
           import ctxt.executionContext
 

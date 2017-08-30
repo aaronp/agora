@@ -1,3 +1,4 @@
+@Exchange
 Feature: Exchange should match work with offers
 
   Scenario: Queueing a job

@@ -1,6 +1,8 @@
 package agora.exec.run
 
-import agora.exec.model.{ProcessException, RunProcess, RunProcessAndSave}
+import java.util.UUID
+
+import agora.exec.model.{ProcessException, ExecuteProcess, RunProcess}
 import agora.rest.BaseSpec
 import agora.rest.test.TestUtils._
 
@@ -16,13 +18,13 @@ trait ProcessRunnerTCK { self: BaseSpec =>
   "ProcessRunner" should {
 
     "stream results" in {
-      val firstResults = runner.run("bigOutput.sh".executable, srcDir.toString, "2").futureValue
+      val firstResults = runner.stream("bigOutput.sh".executable, srcDir.toString, "2").futureValue
       val all          = firstResults.toList
       all.size should be > 10
     }
     "return the error output when the worker returns a specified error code" in {
       val exp = intercept[ProcessException] {
-        val firstResults = runner.run("throwError.sh".executable, "123").futureValue
+        val firstResults = runner.stream("throwError.sh".executable, "123").futureValue
 
         // try and consume the streamed output
         firstResults.toList
@@ -39,7 +41,7 @@ trait ProcessRunnerTCK { self: BaseSpec =>
     }
 
     "run simple commands remotely" in {
-      val res: Iterator[String] = runner.run("echo", "testing 123").futureValue
+      val res: Iterator[String] = runner.stream("echo", "testing 123").futureValue
       res.mkString(" ") shouldBe "testing 123"
     }
     "run commands which operate on environment variables" in {

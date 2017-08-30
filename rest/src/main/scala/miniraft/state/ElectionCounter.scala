@@ -39,7 +39,7 @@ class ElectionCounter(val clusterSize: Int, initialFor: Set[NodeId] = Set.empty,
         None
       }
     } else {
-      require(!votesAgainst.contains(nodeId), s"We already had a vote from $nodeId")
+      require(!votesAgainst.contains(nodeId), s"We already had a vote against from $nodeId")
       require(!votesFor.contains(nodeId), s"We already had a vote from $nodeId")
       votesAgainst = votesAgainst + nodeId
       if (isMajority(votesAgainst.size, clusterSize)) {

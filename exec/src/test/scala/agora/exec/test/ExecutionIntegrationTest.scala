@@ -35,7 +35,7 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
       }
     }
     "be able to execute simple commands against a running server" in {
-      val result = client.run("echo", "this", "is", "a", "test").futureValue
+      val result = client.stream("echo", "this", "is", "a", "test").futureValue
       result.mkString("") shouldBe "this is a test"
     }
     "be able to target an execution service after submitting a job to the exchange" in {

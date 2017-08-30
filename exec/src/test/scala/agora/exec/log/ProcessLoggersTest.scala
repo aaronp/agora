@@ -1,6 +1,6 @@
 package agora.exec.log
 
-import agora.exec.model.{ProcessError, RunProcess}
+import agora.exec.model.{ProcessError, RunProcess, StreamingSettings}
 import agora.rest.BaseSpec
 
 import scala.concurrent.ExecutionContext.Implicits._
@@ -22,7 +22,7 @@ class ProcessLoggersTest extends BaseSpec {
     }
     "propagate exceptions when given failure return codes" in {
 
-      val proc   = RunProcess("hi").copy(successExitCodes = Set(3), errorMarker = "Bang!")
+      val proc   = RunProcess("hi").withSettings(StreamingSettings(successExitCodes = Set(3), errorMarker = "Bang!"))
       val logger = IterableLogger(proc)
       logger.err("std err 1")
       logger.out("std out")

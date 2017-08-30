@@ -4,7 +4,7 @@ import java.util.UUID
 
 import agora.api.exchange.Exchange
 import agora.exec.ExecConfig
-import agora.exec.model.{RunProcess, RunProcessAndSave, RunProcessAndSaveResponse, Upload}
+import agora.exec.model.{ExecuteProcess, ResultSavingRunProcessResponse, RunProcess, Upload}
 import agora.exec.run.ExecutionClient
 import agora.exec.workspace.WorkspaceClient
 import agora.io.Sources
@@ -32,12 +32,12 @@ class ExecutionRoutesTest extends BaseRoutesSpec {
         val workspaces = WorkspaceClient(dir, system)
         val er         = ExecutionRoutes(ExecConfig(), Exchange.instance(), workspaces)
 
-        val request = ExecutionClient.asRequest(RunProcessAndSave(List("cp", "x", "y"), "ws"))
+        val request = ExecutionClient.asRequest(ExecuteProcess(List("cp", "x", "y"), "ws"))
         // upload file 'x'
         workspaces.upload("ws", Upload.forText("x", "text")).futureValue shouldBe true
 
         request ~> er.executeAndSaveRoute ~> check {
-          val resp = responseAs[RunProcessAndSaveResponse]
+          val resp = responseAs[ResultSavingRunProcessResponse]
           resp.exitCode shouldBe 0
           dir.resolve("ws").resolve("y").text shouldBe "text"
         }

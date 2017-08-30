@@ -1,11 +1,9 @@
 package agora.exec
 
 import agora.api.exchange.JobPredicate
-import agora.api.json.{JMatcher, JPath}
 import agora.api.worker.HostLocation
-import agora.exec.model.{RunProcess, RunProcessAndSave}
+import agora.exec.model.{ExecuteProcess, RunProcess}
 import agora.exec.run.RemoteRunner
-import agora.exec.workspace.WorkspaceId
 import agora.rest.BaseSpec
 import com.typesafe.config.ConfigFactory
 
@@ -43,8 +41,8 @@ class ExecConfigTest extends BaseSpec {
 
       val sub1 = ExecConfig().execAndSaveSubscription.withSubscriptionKey("123")
       val sub2 = ExecConfig().execAndSaveSubscription.withSubscriptionKey("456")
-      val job1 = RemoteRunner.execAsJob(RunProcessAndSave(List("hello"), "somedir"), Option("123"))
-      val job2 = RemoteRunner.execAsJob(RunProcessAndSave(List("hello"), "somedir"), Option("456"))
+      val job1 = RemoteRunner.execAsJob(ExecuteProcess(List("hello"), "somedir"), Option("123"))
+      val job2 = RemoteRunner.execAsJob(ExecuteProcess(List("hello"), "somedir"), Option("456"))
 
       JobPredicate().matches(job1, sub1) shouldBe true
       JobPredicate().matches(job1, sub2) shouldBe false
@@ -57,7 +55,7 @@ class ExecConfigTest extends BaseSpec {
     }
     "match RunProcessAndSave jobs without a subscription ID" in {
       val sub = ExecConfig().execAndSaveSubscription.withSubscriptionKey("foo")
-      val job = RemoteRunner.execAsJob(RunProcessAndSave(List("hello"), "somedir"), None)
+      val job = RemoteRunner.execAsJob(ExecuteProcess(List("hello"), "somedir"), None)
       JobPredicate().matches(job, sub) shouldBe true
     }
   }

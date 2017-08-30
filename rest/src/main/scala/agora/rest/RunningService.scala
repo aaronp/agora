@@ -2,7 +2,6 @@ package agora.rest
 
 import java.net.{InetSocketAddress, URI}
 
-import agora.api.worker.HostLocation
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
 import com.typesafe.scalalogging.LazyLogging
@@ -14,12 +13,13 @@ import scala.io.StdIn
   * Represents a running service - something which can be returning from starting a service that contains both
   * the binding and the config/service which was started
   */
-case class RunningService[C <: ServerConfig, Service](conf: C, service: Service, binding: Http.ServerBinding) extends AutoCloseable {
+case class RunningService[C <: ServerConfig, Service](conf: C, service: Service, binding: Http.ServerBinding) extends AutoCloseable with LazyLogging {
 
-  def location                        = HostLocation(localAddress.getHostName, localAddress.getPort) //.ensuring(_ == conf.location)
   def localAddress: InetSocketAddress = binding.localAddress
-  private val shutdownPromise         = Promise[Unit]()
+
+  private val shutdownPromise = Promise[Unit]()
   private lazy val shutdown = {
+    logger.info(s"Unbinding RunningService '${conf.actorSystemName}-server' on ${conf.location} (running on ${localAddress})")
     val future: Future[Unit] = binding.unbind()
     shutdownPromise.tryCompleteWith(future)
     future
@@ -40,12 +40,8 @@ case class RunningService[C <: ServerConfig, Service](conf: C, service: Service,
 object RunningService extends LazyLogging {
 
   def start[C <: ServerConfig, T](serverConfig: C, inputRoutes: Route, svc: T): Future[RunningService[C, T]] = {
-    import serverConfig.host
-    import serverConfig.port
-    import serverConfig.launchBrowser
-    import serverConfig.waitOnUserInput
-    //    import serverConfig.actorSystemName
     import serverConfig.serverImplicits._
+    import serverConfig.{host, launchBrowser, port, waitOnUserInput}
 
     logger.debug(s"Starting ${actorSystemName} at http://${host}:${port}")
 

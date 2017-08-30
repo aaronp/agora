@@ -7,11 +7,13 @@ import agora.api._
 import agora.api.`match`.MatchDetails
 import agora.api.exchange.WorkSubscription
 import agora.exec.log.{IterableLogger, _}
-import agora.exec.model.RunProcess
+import agora.exec.model.{RunProcess, StreamingProcess}
 import agora.exec.rest.ExecutionRoutes
 import agora.exec.run.{ExecutionClient, LocalRunner, ProcessRunner, RemoteRunner}
 import agora.exec.workspace.WorkspaceClient
-import agora.rest.worker.{SubscriptionConfig, WorkerConfig}
+import agora.rest.exchange.ExchangeRoutes
+import agora.rest.support.SupportRoutes
+import agora.rest.worker.{DynamicWorkerRoutes, SubscriptionConfig, WorkerConfig}
 import agora.rest.{RunningService, configForArgs}
 import com.typesafe.config.{Config, ConfigFactory}
 
@@ -54,9 +56,13 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
 
   override def withOverrides(overrides: Config): ExecConfig = new ExecConfig(overrides.withFallback(execConfig))
 
+  override protected def swaggerApiClasses: Set[Class[_]] = {
+    super.swaggerApiClasses + classOf[ExecutionRoutes]
+  }
+
   /** @return a process runner to execute the given request
     */
-  def newLogger(proc: RunProcess, jobId: JobId, matchDetails: Option[MatchDetails]): IterableLogger = {
+  def newLogger(proc: StreamingProcess, jobId: JobId, matchDetails: Option[MatchDetails]): IterableLogger = {
 
     val iterLogger = IterableLogger(proc, matchDetails, errorLimit)
     if (includeConsoleAppender) {
@@ -77,11 +83,11 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
     * @param jobId
     * @return
     */
-  def newRunner(proc: RunProcess, matchDetails: Option[MatchDetails], workingDirectory: Option[Path], jobId: JobId): LocalRunner = {
+  def newRunner(proc: StreamingProcess, matchDetails: Option[MatchDetails], workingDirectory: Option[Path], jobId: JobId): LocalRunner = {
     import serverImplicits._
     require(system.whenTerminated.isCompleted == false, "Actor system is terminated")
     new LocalRunner(workDir = workingDirectory, defaultEnv) {
-      override def mkLogger(proc: RunProcess) = {
+      override def mkLogger(proc: StreamingProcess) = {
         newLogger(proc, jobId, matchDetails)
       }
     }

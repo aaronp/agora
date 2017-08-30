@@ -2,7 +2,7 @@ package agora.exec.log
 
 import agora.api.`match`.MatchDetails
 import agora.domain.TryIterator
-import agora.exec.model.{ProcessException, RunProcess}
+import agora.exec.model.{ProcessException, RunProcess, StreamingProcess}
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.Future
@@ -14,7 +14,7 @@ import scala.util.{Failure, Success, Try}
   *
   * At a minimum it adds loggers, and can add/remote process loggers, as well as be 'completed' by the process
   */
-class ProcessLoggers(val proc: RunProcess, override val matchDetails: Option[MatchDetails], val errorLimit: Option[Int] = None) extends IterableLogger with LazyLogging {
+class ProcessLoggers(val proc: StreamingProcess, override val matchDetails: Option[MatchDetails], val errorLimit: Option[Int] = None) extends IterableLogger with LazyLogging {
 
   override def toString = s"""ProcessLoggers($matchDetails,\n$proc,\n$errorLimit)""".stripMargin
 
@@ -26,8 +26,8 @@ class ProcessLoggers(val proc: RunProcess, override val matchDetails: Option[Mat
   private object Lock
 
   private val stdOutLog = StreamLogger.forProcess {
-    case Success(n) if proc.successExitCodes.contains(n) => Stream.empty
-    case failure                                         => onIterError(failure)
+    case Success(n) if proc.isSuccessfulExitCode(n) => Stream.empty
+    case failure                                    => onIterError(failure)
   }
 
   private var splitLogger: SplitLogger = SplitLogger(JustStdOut(stdOutLog), JustStdErr(limitedErrorLog))

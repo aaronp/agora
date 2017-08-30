@@ -10,6 +10,6 @@ object ExecDebugClient extends App {
     def block = Await.result(f, 20.seconds)
   }
   val client = ExecConfig().remoteRunner()
-  val pwd    = client.run("pwd").block.mkString("")
+  val pwd    = client.stream("pwd").block.mkString("")
   println(pwd)
 }

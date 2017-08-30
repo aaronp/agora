@@ -13,7 +13,7 @@ class ProcessRunnerTest extends BaseSpec with HasMaterializer {
 
       withDir { dir =>
         val runner = ProcessRunner().withLogger(_.addUnderDir(dir))
-        val res    = runner.run("echo", "hello world").futureValue
+        val res    = runner.stream("echo", "hello world").futureValue
         res.toList shouldBe List("hello world")
         dir.resolve("std.out").text shouldBe "hello world\n"
       }
