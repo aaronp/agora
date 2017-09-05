@@ -1,6 +1,6 @@
 package agora.exec
 
-import agora.api.exchange.Exchange
+import agora.api.exchange.{Exchange, RequestWorkAck, WorkSubscriptionAck}
 import agora.exec.rest.{ExecutionRoutes, UploadRoutes}
 import agora.exec.workspace.WorkspaceClient
 import agora.rest.RunningService
@@ -8,8 +8,8 @@ import agora.rest.exchange.ExchangeRoutes
 import akka.http.scaladsl.model.HttpMethods
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
+import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 
@@ -54,7 +54,7 @@ case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes
     */
   lazy val executionRoutes = new ExecutionRoutes(conf, exchange, workspaceClient)
 
-  def uploadRoutes: Route = UploadRoutes(workspaceClient).uploadRoute
+  def uploadRoutes: Route = UploadRoutes(workspaceClient).routes
 
   def restRoutes = {
 
@@ -79,16 +79,34 @@ case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes
     logger.info(s"Starting Execution Server in ${conf.location}")
     val startFuture = RunningService.start[ExecConfig, ExecutionRoutes](conf, restRoutes, executionRoutes)
 
-    // create our initial subscriptions to execute processes and request work
-    val execSubscribeFuture = exchange.subscribe(conf.execSubscription)
     for {
-      rs   <- startFuture
-      ack1 <- execSubscribeFuture
-      execAndSaveSubscription = conf.execAndSaveSubscription.referencing(ack1.id)
-      ack2 <- exchange.subscribe(execAndSaveSubscription)
-      _    <- exchange.take(ack2.id, conf.initialExecutionSubscription)
+      rs <- startFuture
+      // only subscribe once the service has started
+      _ <- createSubscriptions()
     } yield {
       rs
+    }
+  }
+
+  /**
+    * Creates two subscriptions to the exchange -- one for /rest/exec/run and one for /rest/exec/stream.
+    *
+    * The second subscription references the other, so any requests sent to one will decrement the 'take' count
+    * for the other.
+    *
+    * @return the subscription acks and the 'take' ack
+    */
+  def createSubscriptions(): Future[(WorkSubscriptionAck, WorkSubscriptionAck, RequestWorkAck)] = {
+    import conf.serverImplicits._
+
+    // create our initial subscriptions to execute processes and request work
+    for {
+      firstSubscription <- exchange.subscribe(conf.execSubscription)
+      execAndSaveSubscription = conf.execAndSaveSubscription.referencing(firstSubscription.id)
+      subscribeAck <- exchange.subscribe(execAndSaveSubscription)
+      takeAck      <- exchange.take(subscribeAck.id, conf.initialExecutionSubscription)
+    } yield {
+      (firstSubscription, subscribeAck, takeAck)
     }
   }
 }

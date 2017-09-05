@@ -8,9 +8,12 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.generic.auto._
+import io.swagger.annotations._
 
 import scala.concurrent.Future
 
+@Api(value = "Workspace", produces = "application/json")
+@javax.ws.rs.Path("/")
 case class UploadRoutes(workspaces: WorkspaceClient) extends FailFastCirceSupport {
 
   def routes = uploadRoute ~ deleteWorkspace
@@ -26,6 +29,17 @@ case class UploadRoutes(workspaces: WorkspaceClient) extends FailFastCirceSuppor
     *
     * @return a Route used to update
     */
+  @javax.ws.rs.Path("/rest/exec/upload")
+  @ApiOperation(value = "Uploads the multipart file to the specified workspace", httpMethod = "POST", produces = "application/json", consumes = "multipart/form-data")
+  @ApiImplicitParams(
+    Array(
+      new ApiImplicitParam(name = "body", required = true, paramType = "body", value = "The upload contents"),
+      new ApiImplicitParam(name = "workspace", required = true, paramType = "query", value = "The workspace name")
+    ))
+  @ApiResponses(
+    Array(
+      new ApiResponse(code = 200, message = "Returns true on success")
+    ))
   def uploadRoute: Route = {
     (post & path("rest" / "exec" / "upload")) {
       extractMaterializer { implicit mat =>
@@ -39,6 +53,16 @@ case class UploadRoutes(workspaces: WorkspaceClient) extends FailFastCirceSuppor
     }
   }
 
+  @javax.ws.rs.Path("/rest/exec/upload")
+  @ApiOperation(value = "Deletes the specified workspace and all files in it", httpMethod = "DELETE", produces = "application/json")
+  @ApiImplicitParams(
+    Array(
+      new ApiImplicitParam(name = "workspace", required = true, paramType = "query", value = "The workspace name to delete")
+    ))
+  @ApiResponses(
+    Array(
+      new ApiResponse(code = 200, message = "Returns true if the workspace was deleted as a result of this call")
+    ))
   def deleteWorkspace: Route = {
     (delete & path("rest" / "exec" / "upload")) {
       parameter('workspace) { workspace =>

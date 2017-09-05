@@ -8,7 +8,7 @@ import agora.api.`match`.MatchDetails
 import agora.api.exchange.WorkSubscription
 import agora.exec.log.{IterableLogger, _}
 import agora.exec.model.{RunProcess, StreamingProcess}
-import agora.exec.rest.ExecutionRoutes
+import agora.exec.rest.{ExecutionRoutes, UploadRoutes}
 import agora.exec.run.{ExecutionClient, LocalRunner, ProcessRunner, RemoteRunner}
 import agora.exec.workspace.WorkspaceClient
 import agora.rest.exchange.ExchangeRoutes
@@ -57,7 +57,7 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
   override def withOverrides(overrides: Config): ExecConfig = new ExecConfig(overrides.withFallback(execConfig))
 
   override protected def swaggerApiClasses: Set[Class[_]] = {
-    super.swaggerApiClasses + classOf[ExecutionRoutes]
+    super.swaggerApiClasses + classOf[ExecutionRoutes] + classOf[UploadRoutes]
   }
 
   /** @return a process runner to execute the given request
