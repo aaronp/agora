@@ -1,6 +1,6 @@
 package miniraft.state
 
-import agora.rest.BaseSpec
+import agora.api.BaseSpec
 
 class MajorityTest extends BaseSpec {
 

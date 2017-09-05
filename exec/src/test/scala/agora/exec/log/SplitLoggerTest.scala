@@ -1,6 +1,6 @@
 package agora.exec.log
 
-import agora.rest.BaseSpec
+import agora.api.BaseSpec
 
 import scala.concurrent.Future
 

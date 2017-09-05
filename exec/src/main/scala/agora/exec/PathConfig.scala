@@ -4,7 +4,7 @@ import java.nio.file.Path
 
 import com.typesafe.config.Config
 import agora.api.JobId
-import agora.io.implicits._
+import agora.api.io.implicits._
 import scala.util.{Properties, Try}
 
 case class PathConfig(config: Config) {

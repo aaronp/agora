@@ -5,7 +5,7 @@ import agora.api.Implicits._
 import agora.api._
 import agora.api.exchange._
 import agora.api.worker.{HostLocation, SubscriptionKey}
-import agora.rest.{BaseRoutesSpec, BaseSpec}
+import agora.rest.{BaseRoutesSpec}
 
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration

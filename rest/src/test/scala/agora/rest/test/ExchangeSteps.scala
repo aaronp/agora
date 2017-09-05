@@ -1,7 +1,7 @@
 package agora.rest.test
 
 import agora.api.exchange.SubmitJob
-import agora.rest.exchange.ExchangeConfig
+import agora.rest.exchange.{ExchangeConfig, ExchangeServerConfig}
 import agora.rest.worker.{WorkContext, WorkerConfig}
 import com.typesafe.config.ConfigFactory
 import cucumber.api.DataTable
@@ -17,11 +17,11 @@ class ExchangeSteps extends ScalaDsl with EN with Matchers with TestData {
   var pendingRequestsForWorker = Map[String, List[WorkContext[String]]]()
 
   Given("""^an exchange is started with command line (.*)$""") { (commandLine: String) =>
-    val config = ExchangeConfig(commandLine.split("\\s+", -1))
+    val config = ExchangeServerConfig(commandLine.split("\\s+", -1))
     state = state.startExchangeServer(config)
   }
   Given("""^an exchange is started$""") { () =>
-    state = state.startExchangeServer(ExchangeConfig())
+    state = state.startExchangeServer(ExchangeServerConfig())
   }
   Given("""^worker (.*) is started$""") { (name: String) =>
     val config = WorkerConfig(s"subscription.details.name=$name")

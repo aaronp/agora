@@ -9,7 +9,7 @@ import agora.api.exchange.WorkSubscription
 import agora.exec.log.{IterableLogger, _}
 import agora.exec.model.{RunProcess, StreamingProcess}
 import agora.exec.rest.{ExecutionRoutes, UploadRoutes}
-import agora.exec.run.{ExecutionClient, LocalRunner, ProcessRunner, RemoteRunner}
+import agora.exec.client.{ExecutionClient, LocalRunner, ProcessRunner, RemoteRunner}
 import agora.exec.workspace.WorkspaceClient
 import agora.rest.exchange.ExchangeRoutes
 import agora.rest.support.SupportRoutes

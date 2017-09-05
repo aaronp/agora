@@ -7,7 +7,7 @@ import com.typesafe.scalalogging.StrictLogging
 import io.circe.{Decoder, Encoder}
 import miniraft._
 
-import agora.io.implicits._
+import agora.api.io.implicits._
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
@@ -95,6 +95,7 @@ object ClusterProtocol {
                                  override val heartbeatTimer: RaftTimer)
       extends ClusterProtocol
       with StrictLogging {
+
     implicit protected def executionContext: ExecutionContext
 
     private[this] var endpointById: Map[NodeId, _ <: RaftEndpoint[T]] = initialNodes
@@ -109,10 +110,17 @@ object ClusterProtocol {
       */
     def onResponse(from: NodeId, endpoint: RaftEndpoint[T], raftRequest: RaftRequest, response: RaftResponse): Unit
 
-    def update(newMap: Map[NodeId, _ <: RaftEndpoint[T]]) = {
+    def setEndpoints(newMap: Map[NodeId, _ <: RaftEndpoint[T]]) = {
       endpointById = newMap
     }
-
+    def update(key: NodeId, endpoint: RaftEndpoint[T]) = {
+      endpointById = endpointById.updated(key, endpoint)
+    }
+    def removeEndpoint(id: NodeId): Boolean = {
+      val removed = endpointById.contains(id)
+      endpointById = endpointById - id
+      removed
+    }
     def clusterNodesById = endpointById
 
     override def tell(id: NodeId, raftRequest: RaftRequest): Unit = {

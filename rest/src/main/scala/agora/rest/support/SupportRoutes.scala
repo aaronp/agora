@@ -27,7 +27,7 @@ case class SupportRoutes(config: Config) {
     ))
   def getConfig = (get & pathPrefix("debug" / "config")) {
     complete {
-      import agora.domain.RichConfig.implicits._
+      import agora.api.io.RichConfig.implicits._
       HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, config.json))
     }
   }

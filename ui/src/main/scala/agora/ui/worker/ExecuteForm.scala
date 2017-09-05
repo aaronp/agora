@@ -42,7 +42,6 @@ object ExecuteForm {
       var nextOutIsError = false
       socket.onerror = { (msg: ErrorEvent) =>
         {
-
           Services.Alert(s"onErrror(${msg.message}, lineno is ${msg.lineno} )")
         }
       }
@@ -78,7 +77,6 @@ object ExecuteForm {
   def ameliorateForm(form: html.Form, formDiv: html.Div, resultsDiv: html.Div) = {
 
     def append(target: html.Div, c1ass: String, text: String) = {
-      //resultsDiv.innerHTML = resultsDiv.innerHTML + 'Extra stuff'
       target.insertBefore(div(`class` := c1ass)(text).render, target.firstChild)
     }
 

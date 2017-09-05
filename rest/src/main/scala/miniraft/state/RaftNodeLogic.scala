@@ -25,6 +25,14 @@ private[state] object RaftNodeLogic {
 
 }
 
+/**
+  * RaftNodeLogic is the mutable representation of a raft node. It is not by itself thread-safe.
+  * It will apply raft messages to its internal (immutable) [[RaftState]].
+  *
+  * @param id
+  * @param initialState
+  * @tparam T
+  */
 private[state] class RaftNodeLogic[T](val id: NodeId, initialState: RaftState[T]) extends StrictLogging {
 
   private var state: RaftState[T] = initialState

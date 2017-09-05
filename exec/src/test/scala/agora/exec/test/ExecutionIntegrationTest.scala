@@ -2,13 +2,14 @@ package agora.exec.test
 
 import java.util.UUID
 
+import agora.api.BaseSpec
 import agora.api.exchange.PendingSubscription
 import agora.exec.ExecConfig
 import agora.exec.model.{RunProcess, Upload}
 import agora.exec.rest.ExecutionRoutes
-import agora.exec.run.RemoteRunner
+import agora.exec.client.RemoteRunner
 import agora.rest.client.{AkkaClient, RestClient, RetryClient}
-import agora.rest.{BaseSpec, HasMaterializer, RunningService}
+import agora.rest.{HasMaterializer, RunningService}
 import org.scalatest.concurrent.Eventually
 
 import scala.util.Properties

@@ -3,7 +3,7 @@ package agora.exec.ws
 import agora.exec.ExecConfig
 import agora.exec.log.StreamLogger
 import agora.exec.model.{RunProcess, StreamingProcess}
-import agora.exec.run.ProcessRunner
+import agora.exec.client.ProcessRunner
 import akka.NotUsed
 import akka.http.scaladsl.model.ws.BinaryMessage
 import akka.stream.Materializer

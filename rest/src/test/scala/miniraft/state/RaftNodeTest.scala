@@ -1,6 +1,7 @@
 package miniraft.state
 
-import agora.rest.{BaseSpec, HasMaterializer}
+import agora.api.BaseSpec
+import agora.rest.HasMaterializer
 import miniraft.UpdateResponse
 import miniraft.state.RaftNode.async
 import miniraft.state.rest.NodeStateSummary.LeaderSnapshot

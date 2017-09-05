@@ -2,7 +2,6 @@ package agora.rest.worker
 
 import agora.api.`match`.MatchDetails
 import agora.api.exchange.Exchange
-import agora.io.OnComplete
 import agora.rest.MatchDetailsExtractor
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.RouteResult.Complete
@@ -105,7 +104,7 @@ trait RouteSubscriptionSupport extends LazyLogging {
   def requestOnComplete(matchDetails: MatchDetails, exchange: Exchange, action: TakeAction = ReplaceOne): Directive0 = {
     mapRouteResultPF {
       case Complete(resp) =>
-        val flow = OnComplete.onUpstreamComplete[ByteString, ByteString] { _ =>
+        val flow = agora.io.OnComplete.onUpstreamComplete[ByteString, ByteString] { _ =>
           takeNext(matchDetails, exchange, action)
         }
 

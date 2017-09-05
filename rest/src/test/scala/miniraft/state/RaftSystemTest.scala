@@ -1,7 +1,8 @@
 package miniraft.state
 
+import agora.api.BaseSpec
 import agora.api.worker.HostLocation
-import agora.rest.{BaseSpec, RunningService}
+import agora.rest.RunningService
 import miniraft.LeaderApi
 import miniraft.state.rest.{LeaderClient, NodeStateSummary}
 import org.scalatest.concurrent.Eventually
@@ -91,7 +92,7 @@ class RaftSystemTest extends BaseSpec with Eventually {
       }
 
       import config.serverImplicits.executionContext
-      val server: RunningService[RaftConfig, RaftNode[String] with LeaderApi[String]] = rs.flatMap(_.start()).futureValue
+      val server: RunningService[RaftConfig, RaftNode[String] with LeaderApi[String]] = rs.start().futureValue
       RunningNode(server)
     }
 

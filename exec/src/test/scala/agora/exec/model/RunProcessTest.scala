@@ -1,7 +1,7 @@
 package agora.exec.model
 
 import agora.exec.model.RunProcess.RunProcessFormat
-import agora.rest.BaseSpec
+import agora.api.BaseSpec
 import io.circe.parser._
 import io.circe.syntax._
 

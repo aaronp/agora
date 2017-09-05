@@ -2,12 +2,13 @@ package agora.exec.test
 
 import java.io.Closeable
 
+import agora.api.BaseSpec
 import agora.exec.ExecConfig
 import agora.exec.model.{RunProcess, StreamingProcess}
 import agora.exec.rest.ExecutionRoutes
-import agora.exec.run.CachingRunner.ProcessOutput
-import agora.exec.run.RemoteRunner
-import agora.rest.{BaseSpec, RunningService}
+import agora.exec.client.CachingRunner.ProcessOutput
+import agora.exec.client.RemoteRunner
+import agora.rest.RunningService
 import miniraft.state.NodeId
 import org.scalatest.concurrent.Eventually
 

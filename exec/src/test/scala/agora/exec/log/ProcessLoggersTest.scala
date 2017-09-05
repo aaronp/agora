@@ -1,7 +1,7 @@
 package agora.exec.log
 
 import agora.exec.model.{ProcessError, RunProcess, StreamingSettings}
-import agora.rest.BaseSpec
+import agora.api.BaseSpec
 
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.Future

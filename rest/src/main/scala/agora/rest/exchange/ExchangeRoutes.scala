@@ -11,6 +11,7 @@ import akka.http.scaladsl.server.Directives.{entity, pathPrefix, _}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.unmarshalling.FromRequestUnmarshaller
 import io.circe.syntax._
+import io.circe.generic.auto._
 import io.circe.{Decoder, Encoder}
 import io.swagger.annotations._
 
@@ -34,6 +35,8 @@ import scala.language.reflectiveCalls
 @Api(value = "Exchange", consumes = "application/json", produces = "application/json")
 @Path("/")
 case class ExchangeRoutes(exchange: ServerSideExchange) extends ExchangeSubmissionRoutes with ExchangeWorkerRoutes with ExchangeQueryRoutes with RouteLoggingSupport {
+
+  import ExchangeRoutes._
 
   def routes: Route = {
     //encodeResponse

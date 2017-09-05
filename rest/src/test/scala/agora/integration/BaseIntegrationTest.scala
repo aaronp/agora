@@ -2,28 +2,29 @@ package agora.integration
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
-import agora.rest.exchange.{ExchangeClient, ExchangeConfig, ExchangeRoutes}
+import agora.api.BaseSpec
+import agora.rest.exchange.{ExchangeClient, ExchangeServerConfig}
 import agora.rest.worker.WorkerConfig
 import agora.rest.worker.WorkerConfig.RunningWorker
-import agora.rest.{BaseSpec, RunningService}
+import akka.actor.ActorSystem
+import akka.stream.ActorMaterializer
+import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 
-abstract class BaseIntegrationTest extends BaseSpec with BeforeAndAfterAll with BeforeAndAfter {
+abstract class BaseIntegrationTest extends BaseSpec with FailFastCirceSupport with BeforeAndAfterAll with BeforeAndAfter {
 
   import BaseIntegrationTest._
 
-  implicit val testSystem                                             = ActorSystem("test")
-  implicit val mat                                                    = ActorMaterializer()
-  implicit val ec                                                     = mat.executionContext
-  private val exchangePort                                            = portCounter.incrementAndGet()
-  private val workerPort                                              = portCounter.incrementAndGet()
-  var workerConfig: WorkerConfig                                      = null
-  lazy val exchangeConfig                                             = ExchangeConfig(s"port=${exchangePort}")
-  var exchangeService: RunningService[ExchangeConfig, ExchangeRoutes] = null
-  var exchangeClient: ExchangeClient                                  = null
-  var worker: RunningWorker                                           = null
+  implicit val testSystem                                   = ActorSystem("test")
+  implicit val mat                                          = ActorMaterializer()
+  implicit val ec                                           = mat.executionContext
+  private val exchangePort                                  = portCounter.incrementAndGet()
+  private val workerPort                                    = portCounter.incrementAndGet()
+  var workerConfig: WorkerConfig                            = null
+  lazy val exchangeConfig                                   = ExchangeServerConfig(s"port=${exchangePort}")
+  var exchangeService: ExchangeServerConfig.RunningExchange = null
+  var exchangeClient: ExchangeClient                        = null
+  var worker: RunningWorker                                 = null
 
   before(startAll)
   after(stopAll)

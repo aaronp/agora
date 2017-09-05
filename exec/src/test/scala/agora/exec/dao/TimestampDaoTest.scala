@@ -1,6 +1,6 @@
 package agora.exec.dao
 
-import agora.rest.BaseSpec
+import agora.api.BaseSpec
 import io.circe.generic.auto._
 
 object TimestampDaoTest {

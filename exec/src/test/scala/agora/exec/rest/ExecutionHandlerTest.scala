@@ -5,7 +5,7 @@ import java.util.UUID
 import agora.exec.ExecConfig
 import agora.exec.model.{ExecuteProcess, ResultSavingRunProcessResponse}
 import agora.exec.workspace.WorkspaceClient
-import agora.rest.BaseSpec
+import agora.api.BaseSpec
 
 class ExecutionHandlerTest extends BaseSpec {
 

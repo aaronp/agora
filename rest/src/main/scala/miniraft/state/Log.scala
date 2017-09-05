@@ -7,7 +7,7 @@ import io.circe.{Decoder, Encoder, Json}
 
 import scala.util.control.NonFatal
 
-import agora.io.implicits._
+import agora.api.io.implicits._
 
 /**
   * Represents the commit log

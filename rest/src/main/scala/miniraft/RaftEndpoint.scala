@@ -1,7 +1,7 @@
 package miniraft
 
-import io.circe.Encoder
 import agora.rest.client.RestClient
+import io.circe.Encoder
 import miniraft.state.rest.{RaftHttp, RaftJson}
 
 import scala.concurrent.Future

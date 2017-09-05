@@ -5,7 +5,7 @@ import java.util.UUID
 import agora.api.exchange.Exchange
 import agora.exec.ExecConfig
 import agora.exec.model.{ExecuteProcess, ResultSavingRunProcessResponse, RunProcess, Upload}
-import agora.exec.run.ExecutionClient
+import agora.exec.client.ExecutionClient
 import agora.exec.workspace.WorkspaceClient
 import agora.io.Sources
 import agora.rest.BaseRoutesSpec

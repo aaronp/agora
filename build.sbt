@@ -32,7 +32,7 @@ scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-language:impli
 scalafmtOnCompile in ThisBuild := true
 scalafmtVersion in ThisBuild := "1.0.0"
 
-lazy val agora = (project in file(".")).enablePlugins(BuildInfoPlugin).aggregate(apiJVM, apiJS, rest, ui, exec)
+lazy val agora = (project in file(".")).enablePlugins(BuildInfoPlugin).aggregate(api, rest, restApi, exec, execApi)
 
 lazy val settings = scalafmtSettings
 
@@ -126,28 +126,19 @@ assemblyExcludedJars in assembly := {
 
 publishMavenStyle := true
 
-lazy val agoraApi = crossProject
+lazy val api = project
   .in(file("api"))
   .settings(name := s"${repo}-api")
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.Api)
-  .jvmSettings(
+  .settings(
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := s"${repo}.api.version",
     buildInfoOptions += BuildInfoOption.ToMap,
     buildInfoOptions += BuildInfoOption.ToJson,
     buildInfoOptions += BuildInfoOption.BuildTime
   )
-  .jsSettings(
-    // no JS-specific settings so far
-    scalaJSOptimizerOptions ~= {
-      _.withDisableOptimizer(true)
-    }
-  )
-
-lazy val apiJVM = agoraApi.jvm.enablePlugins(BuildInfoPlugin)
-
-lazy val apiJS = agoraApi.js
+  .enablePlugins(BuildInfoPlugin)
 
 //
 //val apiForIDE = (project in file("api/shared"))
@@ -156,18 +147,31 @@ lazy val apiJS = agoraApi.js
 //  settings(libraryDependencies ++= Dependencies.Api)
 
 lazy val rest = project
-  .dependsOn(apiJVM % "compile->compile;test->test", ui)
+  .dependsOn(api % "compile->compile;test->test", restApi % "compile->compile;test->test")
   .settings(commonSettings)
   .settings(mainClass in assembly := Some("agora.rest.exchange.ExchangeMain"))
   .settings(libraryDependencies ++= Dependencies.Rest)
 
+lazy val restApi = project
+  .in(file("rest-api"))
+  .settings(name := s"${repo}-rest-api")
+  .dependsOn(api % "compile->compile;test->test")
+  .settings(commonSettings)
+  .settings(libraryDependencies ++= Dependencies.RestApi)
+
 lazy val exec = project
-  .dependsOn(rest, rest % "test->test;compile->compile")
+  .settings(name := s"${repo}-exec")
+  .dependsOn(rest % "compile->compile;test->test", execApi % "test->test;compile->compile")
   .settings(commonSettings)
   .settings(mainClass in assembly := Some("agora.exec.ExecMain"))
   .settings(libraryDependencies ++= Dependencies.Rest)
 
-lazy val ui = project.dependsOn(apiJS).settings(commonSettings: _*).settings(libraryDependencies ++= Dependencies.UI).enablePlugins(ScalaJSPlugin)
+lazy val execApi = project
+  .settings(name := s"${repo}-exec-api")
+  .in(file("exec-api"))
+  .dependsOn(restApi % "compile->compile;test->test")
+  .settings(commonSettings)
+  .settings(libraryDependencies ++= Dependencies.RestApi)
 
 assemblyMergeStrategy in assembly := {
   case str if str.contains("JS_DEPENDENCIES") => MergeStrategy.discard

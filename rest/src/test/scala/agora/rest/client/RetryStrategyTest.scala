@@ -3,7 +3,7 @@ package agora.rest.client
 import java.time.LocalDateTime
 
 import akka.http.scaladsl.client.RequestBuilding
-import agora.rest.BaseSpec
+import agora.api.BaseSpec
 import agora.rest.client.RetryStrategy.CountingStrategy
 
 import scala.concurrent.duration.{FiniteDuration, _}

@@ -4,9 +4,9 @@ import javax.ws.rs.Path
 
 import agora.api.exchange._
 import agora.api.nextJobId
-import agora.rest.implicits
 import akka.http.scaladsl.model.ContentTypes.`application/json`
-import akka.http.scaladsl.model.{HttpEntity, HttpResponse, StatusCodes}
+import agora.rest.implicits._
+import akka.http.scaladsl.model.{HttpEntity, HttpHeader, HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives.{as, complete, delete, entity, path, put, _}
 import akka.http.scaladsl.server.Route
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
@@ -84,7 +84,6 @@ trait ExchangeSubmissionRoutes extends FailFastCirceSupport {
       matchFuture.map { r: BlockingSubmitJobResponse =>
         // TODO - check if the redirection is to US, as we can just process it outselves like
 
-        import implicits._
         HttpResponse(status = StatusCodes.TemporaryRedirect,
                      headers = r.firstWorkerUrl.map("Location".asHeader).toList,
                      entity = HttpEntity(`application/json`, r.asJson.noSpaces))

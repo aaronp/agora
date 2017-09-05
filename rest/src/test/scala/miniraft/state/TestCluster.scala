@@ -40,7 +40,7 @@ object TestCluster {
 
   case class under(dir: Path) {
 
-    import agora.io.implicits._
+    import agora.api.io.implicits._
     def of[T: ClassTag](firstNode: String, theRest: String*)(applyToStateMachine: (NodeId, LogEntry[T]) => Unit)(
         implicit fmt: Formatter[T, Array[Byte]]): Map[NodeId, async.RaftNodeActorClient[T]] = {
       instance(theRest.toSet + firstNode) { id =>
@@ -63,7 +63,7 @@ object TestCluster {
       case (n, p) => p.ourNodeId -> n
     }.toMap
 
-    nodesAndProtocols.map(_._2).foreach(_.update(testNodeById))
+    nodesAndProtocols.map(_._2).foreach(_.setEndpoints(testNodeById))
 
     testNodeById
   }

@@ -3,8 +3,8 @@ package agora.exec
 import agora.api.exchange.JobPredicate
 import agora.api.worker.HostLocation
 import agora.exec.model.{ExecuteProcess, RunProcess}
-import agora.exec.run.RemoteRunner
-import agora.rest.BaseSpec
+import agora.exec.client.RemoteRunner
+import agora.api.BaseSpec
 import com.typesafe.config.ConfigFactory
 
 import scala.concurrent.duration._

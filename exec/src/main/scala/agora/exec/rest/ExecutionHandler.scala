@@ -4,7 +4,7 @@ import agora.api.`match`.MatchDetails
 import agora.api.nextJobId
 import agora.exec.ExecConfig
 import agora.exec.model._
-import agora.exec.run.LocalRunner
+import agora.exec.client.LocalRunner
 import agora.exec.workspace.WorkspaceClient
 import agora.rest.MatchDetailsExtractor
 import akka.http.scaladsl.marshalling.Marshal

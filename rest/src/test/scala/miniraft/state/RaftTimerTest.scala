@@ -1,6 +1,7 @@
 package miniraft.state
 
-import agora.rest.{BaseSpec, HasMaterializer}
+import agora.api.BaseSpec
+import agora.rest.HasMaterializer
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 
 import scala.util.Try

@@ -4,10 +4,9 @@ package worker
 import java.util.concurrent.TimeUnit
 
 import agora.api.exchange.Exchange
-import agora.rest.exchange.{ExchangeClient, ExchangeConfig, ExchangeRoutes}
+import agora.rest.exchange.{ExchangeClient, ExchangeRoutes, ExchangeServerConfig}
 import agora.rest.support.SupportRoutes
 import agora.rest.swagger.SwaggerDocRoutes
-import agora.rest.ui.UIRoutes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import com.typesafe.config.{Config, ConfigFactory}
@@ -48,7 +47,6 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
     }
 
     val support = when(enableSupportRoutes)(SupportRoutes(config).routes)
-    val ui      = when(includeUIRoutes)(UIRoutes(landingPage).routes)
 
     val swaggerRoutes = if (includeSwaggerRoutes) {
       val svc = SwaggerDocRoutes(location.asHostPort, swaggerApiClasses)
@@ -57,7 +55,7 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
       Nil
     }
 
-    val all = ui ++ exchangeRoutes.toStream ++ support ++ swaggerRoutes
+    val all = exchangeRoutes.toStream ++ support ++ swaggerRoutes
     all.reduce(_ ~ _)
   }
 
@@ -69,8 +67,8 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
 
   /** @return exchange pointed at by this worker
     */
-  lazy val exchangeConfig: ExchangeConfig = {
-    new ExchangeConfig(config.getConfig("exchange"))
+  lazy val exchangeConfig: ExchangeServerConfig = {
+    new ExchangeServerConfig(config.getConfig("exchange"))
   }
 
   def newWorkerRoutes(exchange: Exchange): DynamicWorkerRoutes = {

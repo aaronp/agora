@@ -18,11 +18,11 @@ object NodeStateSummary {
   def apply(node: RaftNodeLogic[_], cluster: ClusterProtocol)(implicit ec: ExecutionContext): Future[NodeStateSummary] = {
     val role: NodeRole = node.raftState.role
 
-    val electTimerStateF     = cluster.electionTimer.status
+    val electTimerStateF = cluster.electionTimer.status
     val heartbeatTimerStateF = cluster.heartbeatTimer.status
 
     for {
-      electionState       <- electTimerStateF
+      electionState <- electTimerStateF
       heartbeatTimerState <- heartbeatTimerStateF
 
     } yield {
@@ -35,7 +35,7 @@ object NodeStateSummary {
 
         NodeSnapshot(
           id = node.id,
-          clusterSize = cluster.clusterSize,
+          clusterNodes = cluster.clusterNodeIds,
           term = node.currentTerm,
           role = role.name,
           votedFor = node.leaderId,
@@ -49,15 +49,15 @@ object NodeStateSummary {
       }
 
       role match {
-        case Leader(view)       => LeaderSnapshot(snapshot, view)
+        case Leader(view) => LeaderSnapshot(snapshot, view)
         case Candidate(counter) => CandidateSnapshot(snapshot, counter.votedFor, counter.votedAgainst, counter.clusterSize)
-        case Follower           => snapshot
+        case Follower => snapshot
       }
     }
   }
 
   case class NodeSnapshot(id: NodeId,
-                          clusterSize: Int,
+                          clusterNodes: Set[NodeId],
                           term: Term,
                           role: String,
                           votedFor: Option[NodeId],
@@ -67,7 +67,7 @@ object NodeStateSummary {
                           electionTimer: String,
                           heartbeatTimer: String,
                           state: Map[String, String])
-      extends NodeStateSummary {
+    extends NodeStateSummary {
     override def summary = this
 
     override def withState(updatedState: Map[String, String]): NodeStateSummary = {
@@ -112,8 +112,8 @@ object NodeStateSummary {
 
     override def apply(a: NodeStateSummary): Json = a match {
       case nss: CandidateSnapshot => nss.asJson
-      case nss: LeaderSnapshot    => nss.asJson
-      case nss: NodeSnapshot      => nss.asJson
+      case nss: LeaderSnapshot => nss.asJson
+      case nss: NodeSnapshot => nss.asJson
     }
   }
 

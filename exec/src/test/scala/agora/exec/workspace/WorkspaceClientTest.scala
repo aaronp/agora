@@ -2,8 +2,9 @@ package agora.exec.workspace
 
 import java.util.UUID
 
+import agora.api.BaseSpec
 import agora.exec.model.Upload
-import agora.rest.{BaseSpec, HasMaterializer}
+import agora.rest.HasMaterializer
 
 import scala.concurrent.Await
 

@@ -1,5 +1,6 @@
 package agora.rest
 
+import agora.api.BaseSpec
 import com.typesafe.config.ConfigFactory
 
 class ServerConfigTest extends BaseSpec {

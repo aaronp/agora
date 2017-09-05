@@ -1,7 +1,7 @@
 package agora.rest.exchange
 
 import agora.api.exchange.{Exchange, ExchangeSpec, MatchObserver}
-import agora.rest.exchange.ExchangeConfig.RunningExchange
+import agora.rest.exchange.ExchangeServerConfig.RunningExchange
 import org.scalatest.BeforeAndAfter
 import org.scalatest.time.{Millis, Seconds, Span}
 
@@ -12,13 +12,13 @@ class ExchangeClientTest extends ExchangeSpec with BeforeAndAfter {
 
   var runningServer: RunningExchange = null
 
-  var config = ExchangeConfig()
+  var config = ExchangeServerConfig()
 
   override val supportsObserverNotifications = false
 
   var client: ExchangeClient = null
   before {
-    config = ExchangeConfig()
+    config = ExchangeServerConfig()
     runningServer = Await.result(config.start(), 5.seconds)
   }
 

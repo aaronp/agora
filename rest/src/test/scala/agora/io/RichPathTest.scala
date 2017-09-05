@@ -2,7 +2,8 @@ package agora.io
 
 import java.nio.file.Path
 
-import agora.rest.BaseSpec
+import agora.api.BaseSpec
+import agora.api.io.LowPriorityIOImplicits
 import org.scalatest.{Matchers, WordSpec}
 
 class RichPathTest extends BaseSpec with LowPriorityIOImplicits {

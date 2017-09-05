@@ -2,7 +2,7 @@ package agora.exec.test
 
 import agora.exec.ExecConfig
 import agora.exec.model.RunProcess
-import agora.exec.run.RemoteRunner
+import agora.exec.client.RemoteRunner
 import agora.rest.test.TestData
 import akka.actor.ActorSystem
 import akka.http.scaladsl.testkit.RouteTestTimeout

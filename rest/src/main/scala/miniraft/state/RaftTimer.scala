@@ -118,6 +118,7 @@ object InitialisableTimer {
       isReset.future
     }
     override def close() = {
+      cancel()
       timerActor ! PoisonPill
     }
   }

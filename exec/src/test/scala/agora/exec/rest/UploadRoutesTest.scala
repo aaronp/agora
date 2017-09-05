@@ -1,6 +1,6 @@
 package agora.exec.rest
 
-import agora.exec.run.UploadClient
+import agora.exec.client.UploadClient
 import agora.exec.workspace.WorkspaceClient
 import agora.rest.BaseRoutesSpec
 import akka.http.scaladsl.model.ContentTypes._

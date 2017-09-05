@@ -14,7 +14,7 @@ object RaftMain extends StrictLogging {
       corpus = corpus + entry.command
     }
     import config.serverImplicits.executionContext
-    Await.result(systemFuture.flatMap(_.start(identity[String])), Duration.Inf)
+    Await.result(systemFuture.start(identity[String]), Duration.Inf)
   }
 
 }

@@ -2,7 +2,7 @@ package agora.exec.rest.ws
 
 import agora.api.exchange.WorkSubscription
 import agora.api.worker.HostLocation
-import agora.rest.{BaseRoutesSpec, BaseSpec}
+import agora.rest.{BaseRoutesSpec}
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpMethods}
 import akka.http.scaladsl.testkit.WSProbe
 import io.circe.syntax._

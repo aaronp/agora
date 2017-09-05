@@ -5,6 +5,6 @@ package agora.rest.exchange
   */
 object ExchangeMain {
   def main(args: Array[String]): Unit = {
-    ExchangeConfig(args).start()
+    ExchangeServerConfig(args).start()
   }
 }

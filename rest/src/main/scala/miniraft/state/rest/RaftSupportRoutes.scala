@@ -10,7 +10,7 @@ import io.circe.{Decoder, Encoder, Json, ParsingFailure}
 import miniraft.state.RaftNode.async.RaftNodeActorClient
 import miniraft.state._
 
-import agora.io.implicits._
+import agora.api.io.implicits._
 import scala.concurrent.ExecutionContext
 import scala.language.reflectiveCalls
 

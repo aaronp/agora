@@ -14,6 +14,7 @@ import akka.http.scaladsl.unmarshalling.FromRequestUnmarshaller
 import akka.stream.Materializer
 import io.circe.Json
 import io.swagger.annotations._
+import agora.health.HealthDto
 
 import scala.concurrent.Future
 import scala.language.reflectiveCalls

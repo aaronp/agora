@@ -5,16 +5,16 @@ import agora.api._
 import agora.api.`match`.MatchDetails
 import agora.api.exchange.WorkSubscription
 import agora.api.worker.HostLocation
-import agora.domain.IterableSubscriber
 import agora.health.HealthDto
+import agora.io.IterableSubscriber
 import agora.io.Sources
 import agora.rest.multipart.{MultipartBuilder, MultipartInfo}
 import akka.http.scaladsl.model._
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
-import io.circe.generic.auto._
-import io.circe.optics.JsonPath
-import io.circe.syntax._
+import _root_.io.circe.generic.auto._
+import _root_.io.circe.optics.JsonPath
+import _root_.io.circe.syntax._
 import org.scalatest.concurrent.Eventually
 
 import scala.concurrent.Future
