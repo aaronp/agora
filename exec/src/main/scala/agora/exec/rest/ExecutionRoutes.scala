@@ -77,7 +77,7 @@ case class ExecutionRoutes(execConfig: ExecConfig, exchange: Exchange, workspace
   }
 
   @javax.ws.rs.Path("/rest/exec/run")
-  @ApiOperation(value = "Execute a job and stream the output", httpMethod = "POST", produces = "text/plain(UTF-8)", consumes = "application/json")
+  @ApiOperation(value = "Execute a job and stream the output", httpMethod = "POST", produces = "text/plain; charset=UTF-8", consumes = "application/json")
   @ApiImplicitParams(
     Array(
       new ApiImplicitParam(name = "body", required = true, dataTypeClass = classOf[StreamingProcess], paramType = "body")
@@ -118,7 +118,7 @@ case class ExecutionRoutes(execConfig: ExecConfig, exchange: Exchange, workspace
     ))
   @ApiResponses(
     Array(
-      new ApiResponse(code = 200, message = "???", response = classOf[ResultSavingRunProcessResponse])
+      new ApiResponse(code = 200, message = "returns ok if the job is run and its output saved", response = classOf[ResultSavingRunProcessResponse])
     ))
   def executeAndSaveRoute = {
     (post & path("rest" / "exec" / "save")) {
