@@ -12,7 +12,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 object RaftSystemTest {
 
-  case class RunningNode(service: RunningService[RaftConfig, RaftNode[String] with LeaderApi[String]]) {
+  case class RunningNode(service: RunningService[RaftConfig, RaftSystem[String]]) {
     val leader: LeaderClient[String] = service.conf.leaderClient[String]
     val support                      = service.conf.supportClient[String]
 
@@ -92,7 +92,7 @@ class RaftSystemTest extends BaseSpec with Eventually {
       }
 
       import config.serverImplicits.executionContext
-      val server: RunningService[RaftConfig, RaftNode[String] with LeaderApi[String]] = rs.start().futureValue
+      val server: RunningService[RaftConfig, RaftSystem[String]] = rs.start().futureValue
       RunningNode(server)
     }
 

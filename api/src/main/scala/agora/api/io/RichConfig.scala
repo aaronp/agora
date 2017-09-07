@@ -47,12 +47,12 @@ trait RichConfigOps extends RichConfig.LowPriorityImplicits {
     }
 
     val configs: Array[Config] = args.map {
-      case KeyValue(k, v) if isSimpleList(k) => asConfig(k, java.util.Arrays.asList(v.split(",", -1):_*))
+      case KeyValue(k, v) if isSimpleList(k) => asConfig(k, java.util.Arrays.asList(v.split(",", -1): _*))
       case KeyValue(k, v) if isObjectList(k) => sys.error(s"Path '$k' tried to override an object list with '$v'")
-      case KeyValue(k, v) => asConfig(k, v)
-      case FilePathConfig(c) => c
-      case UrlPathConfig(c) => c
-      case other => unrecognizedArg(other)
+      case KeyValue(k, v)                    => asConfig(k, v)
+      case FilePathConfig(c)                 => c
+      case UrlPathConfig(c)                  => c
+      case other                             => unrecognizedArg(other)
     }
 
     (configs :+ config).reduce(_ withFallback _)
@@ -167,8 +167,8 @@ object RichConfig {
     * which doesn't match either a file path, resource or key=value pair
     */
   object ParseArg {
-    val Throw = (a: String) => sys.error(s"Unrecognized user arg '$a'")
-    val Ignore = (a: String) => ConfigFactory.empty()
+    val Throw         = (a: String) => sys.error(s"Unrecognized user arg '$a'")
+    val Ignore        = (a: String) => ConfigFactory.empty()
     val AsBooleanFlag = (a: String) => asConfig(ConfigUtil.quoteString(a), true.toString)
   }
 

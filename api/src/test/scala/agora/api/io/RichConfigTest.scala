@@ -6,12 +6,12 @@ import org.scalatest.{Matchers, WordSpec}
 class RichConfigTest extends WordSpec with Matchers {
 
   import RichConfig.implicits._
-      import scala.collection.JavaConverters._
+  import scala.collection.JavaConverters._
 
   "RichConfig.withUserArgs" should {
     "treat comma-separated values as lists when overriding string lists" in {
       val actual = listConfig.withUserArgs(Array("stringList=x,y,z"))
-      actual.getStringList("stringList").asScala.toList shouldBe List("x","y","z")
+      actual.getStringList("stringList").asScala.toList shouldBe List("x", "y", "z")
     }
     "treat comma-separated values as an error when overriding object lists" in {
       val error = intercept[Exception] {

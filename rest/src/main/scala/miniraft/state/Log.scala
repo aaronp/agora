@@ -49,7 +49,7 @@ trait Log[Command] {
     }
   }
 
-  override def toString = s"Log(unapplied:${lastUnappliedIndex}, committed:${lastCommittedIndex})"
+  override def toString = s"Log(lastTerm: ${lastTerm}, unapplied:${lastUnappliedIndex}, committed:${lastCommittedIndex})"
 
   def lastTerm = latestUnappliedEntry.map(_.term).getOrElse(Term(0))
 }

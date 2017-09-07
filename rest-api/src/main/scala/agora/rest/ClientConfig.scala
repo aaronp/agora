@@ -15,7 +15,7 @@ class ClientConfig(config: Config) {
 
   def host = config.getString("host") match {
     case "0.0.0.0" => "localhost"
-    case h => h
+    case h         => h
   }
 
   def port = config.getInt("port")
@@ -58,7 +58,7 @@ class ClientConfig(config: Config) {
   private def newRestClient(inputLoc: HostLocation, name: String = nextActorSystemName()): RestClient = {
     val loc = inputLoc.host match {
       case "0.0.0.0" => inputLoc.copy(host = "localhost")
-      case _ => inputLoc
+      case _         => inputLoc
     }
     RestClient(loc, () => newSystem(name).materializer)
   }

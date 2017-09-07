@@ -37,11 +37,25 @@ private[state] class RaftNodeLogic[T](val id: NodeId, initialState: RaftState[T]
 
   private var state: RaftState[T] = initialState
 
-  private var pendingAppendAcks: List[UpdateResponse.Appendable] = Nil
+  private object PendingAppendAcksLock
+
+  @volatile private var pendingAppendAcks: List[UpdateResponse.Appendable] = Nil
 
   def pendingLeaderAcks = pendingAppendAcks
 
-  private[state] def add(command: T, protocol: ClusterProtocol)(implicit ec: ExecutionContext): UpdateResponse.Appendable = {
+  private def addAck(clientAppendableResponse: UpdateResponse.Appendable) = {
+    PendingAppendAcksLock.synchronized {
+      pendingAppendAcks = clientAppendableResponse :: pendingAppendAcks
+    }
+  }
+
+  private def removeAck(clientAppendableResponse: UpdateResponse.Appendable) = {
+    PendingAppendAcksLock.synchronized {
+      pendingAppendAcks = pendingAppendAcks.filterNot(_ == clientAppendableResponse)
+    }
+  }
+
+  private[state] def onClientRequestToAdd(command: T, protocol: ClusterProtocol)(implicit ec: ExecutionContext): UpdateResponse.Appendable = {
     val matchIndex = lastUnappliedIndex
     val index      = matchIndex + 1
 
@@ -53,10 +67,16 @@ private[state] class RaftNodeLogic[T](val id: NodeId, initialState: RaftState[T]
     }
 
     val clientAppendableResponse: UpdateResponse.Appendable = UpdateResponse(protocol.clusterNodeIds, index)
-    // we can respond to our append immediately
-    clientAppendableResponse.onResponse(id, AppendEntriesResponse(appendEntries.term, true, index))
+    clientAppendableResponse.result.onComplete {
+      case _ => removeAck(clientAppendableResponse)
+    }
 
-    pendingAppendAcks = clientAppendableResponse :: pendingAppendAcks
+    addAck(clientAppendableResponse)
+
+    // we can respond to our append immediately
+    val ourResponse = AppendEntriesResponse(appendEntries.term, true, index)
+    onAppendEntriesResponse(id, ourResponse, protocol)
+
     protocol.tellOthers(appendEntries)
     clientAppendableResponse
   }
@@ -102,16 +122,18 @@ private[state] class RaftNodeLogic[T](val id: NodeId, initialState: RaftState[T]
       cluster.electionTimer.reset()
       cluster.tellOthers(mkRequestVote)
     }
+
     def expectedView = cluster.clusterNodeIds - id
+
     raftState.role match {
       case Leader(view) if view.keySet == expectedView =>
         logger.warn(s"ignoring election timeout while already the leader w/ ${cluster}")
       case Leader(view) =>
-        logger.info(s"Election timeout while leader w/ ${view} which doesn't match our current cluster view ${expectedView}")
         becomeCandidate()
+        logger.info(s"Election timeout while leader w/ ${view} which doesn't match our current cluster view ${expectedView}. we are now $raftState")
       case other =>
-        logger.debug(s"Election timeout while in state ${other.name}, starting election...")
         becomeCandidate()
+        logger.debug(s"Election timeout while in state ${other.name}, starting election... we are now $raftState")
 
     }
   }
@@ -144,11 +166,13 @@ private[state] class RaftNodeLogic[T](val id: NodeId, initialState: RaftState[T]
 
   def onVoteRequest(vote: RequestVote, cluster: ClusterProtocol): RequestVoteResponse = {
 
-    val ourTerm = currentTerm
+    val ourTerm              = currentTerm
+    val ourMostRecentLogTerm = lastLogTerm
+
     val granted = {
       val termOk = ourTerm <= vote.term
 
-      val indexOk = vote.lastLogIndex >= lastCommittedIndex && vote.lastLogTerm >= lastLogTerm
+      val indexOk = vote.lastLogIndex >= lastCommittedIndex && vote.lastLogTerm >= ourMostRecentLogTerm
 
       val weHaventVotedForAnyoneElseThisTerm = {
         val voteOk = raftState.persistentState.votedFor.fold(true) { otherId =>
@@ -159,12 +183,13 @@ private[state] class RaftNodeLogic[T](val id: NodeId, initialState: RaftState[T]
 
       logger.debug(s"""
         ${id} casting vote while in term ${ourTerm},
+        in response to $vote
         lastCommittedIndex=${lastCommittedIndex} and
-        lastLogTerm=${lastLogTerm}
-        valuating vote request w/
-        termOk ($termOk) &&
-        indexOk ($indexOk) &&
-        weHaventVotedForAnyoneElseThisTerm ($weHaventVotedForAnyoneElseThisTerm)
+        lastLogTerm=${ourMostRecentLogTerm}
+        evaluating vote request w/
+          termOk ($termOk) &&
+          indexOk ($indexOk) &&
+          weHaventVotedForAnyoneElseThisTerm ($weHaventVotedForAnyoneElseThisTerm)
         w/ log \n${recentLogReport()}\n""")
 
       termOk && indexOk && weHaventVotedForAnyoneElseThisTerm
@@ -174,6 +199,12 @@ private[state] class RaftNodeLogic[T](val id: NodeId, initialState: RaftState[T]
       val newNode = raftState.voteFor(vote.term, vote.candidateId)
       raftState = newNode
       cluster.electionTimer.reset()
+    } else if (vote.term > ourTerm) {
+      val newNode = raftState.becomeFollower(vote.term)
+      raftState = newNode
+      cluster.electionTimer.reset()
+    } else if (vote.term == ourTerm) {
+      logger.debug(s"Request vote received w/ same term '${vote.term}'")
     }
 
     RequestVoteResponse(currentTerm, granted)
@@ -198,12 +229,11 @@ private[state] class RaftNodeLogic[T](val id: NodeId, initialState: RaftState[T]
   }
 
   final def onRequest(req: RaftRequest, cluster: ClusterProtocol): RaftResponse = req match {
-    case vote: RequestVote => onVoteRequest(vote, cluster)
-
+    case vote: RequestVote    => onVoteRequest(vote, cluster)
     case ae: AppendEntries[T] => onAppendEntries(ae, cluster)
   }
 
-  private def commitLogOnMajority(from: NodeId, ourLatestIndex: LogIndex, newView: Map[NodeId, ClusterPeer], cluster: ClusterProtocol) = {
+  private def commitLogOnMajority(ourLatestIndex: LogIndex, newView: Map[NodeId, ClusterPeer], cluster: ClusterProtocol) = {
     val nodesWithMatchIndex = newView.collect {
       case (nodeId, view) if view.matchIndex == ourLatestIndex => nodeId
     }
@@ -236,16 +266,15 @@ private[state] class RaftNodeLogic[T](val id: NodeId, initialState: RaftState[T]
     */
   def onAppendEntriesResponse(from: NodeId, resp: AppendEntriesResponse, cluster: ClusterProtocol): Unit = {
 
-    if (pendingAppendAcks.nonEmpty) {
-      logger.info(s"Notifying ${pendingAppendAcks.size} of pending responses")
-      val remaining = pendingAppendAcks.filterNot { clientResp =>
-        val canRemove = clientResp.onResponse(from, resp)
-        if (canRemove) {
-          logger.debug(s"Removing pending ack ${clientResp}")
-        }
-        canRemove
+    val clientAcks = PendingAppendAcksLock.synchronized {
+      pendingAppendAcks
+    }
+
+    if (clientAcks.nonEmpty) {
+      logger.debug(s"Checking ${clientAcks.size} pending client requests against AppendEntityResponse from $from")
+      clientAcks.foreach { clientResp =>
+        clientResp.onResponse(from, resp)
       }
-      pendingAppendAcks = remaining
     }
 
     for {
@@ -268,21 +297,28 @@ private[state] class RaftNodeLogic[T](val id: NodeId, initialState: RaftState[T]
           }
         }
 
-        val newView = view.updated(from, ClusterPeer(resp.matchIndex, nextIndex))
+        val newView = {
+          // the view is only for our peers, so we shouldn't include ourselves
+          if (from == id) {
+            view
+          } else {
+            view.updated(from, ClusterPeer(resp.matchIndex, nextIndex))
+          }
+        }
 
-        commitLogOnMajority(from, ourLatestLogIndex, newView, cluster)
+        commitLogOnMajority(ourLatestLogIndex, newView, cluster)
 
         val updatedRole = Leader(newView)
         raftState.copy(role = updatedRole)
-      } else {
+      } else if (from != id) {
         val nextIndex = view.get(from).map(_.nextIndex).getOrElse(resp.matchIndex)
-        // the log index doesn't match .. we have to try with a lower 'next index'
-        //        val nextIndex = peerView.nextIndex - 1
 
         cluster.tell(from, mkHeartbeatAppendEntries(nextIndex))
 
         val updatedRole = Leader(view.updated(from, ClusterPeer(resp.matchIndex, nextIndex)))
         raftState.copy(role = updatedRole)
+      } else {
+        raftState
       }
 
       raftState = newNode
@@ -313,7 +349,7 @@ private[state] class RaftNodeLogic[T](val id: NodeId, initialState: RaftState[T]
             // hey ho ... let's just reset our timer and see how this all works out
             cluster.electionTimer.reset()
           case None =>
-            logger.debug(s"$id was granted vote from $from, still waiting for majority")
+            logger.debug(s"$id was granted vote from $from, still waiting for majority on $counter")
           // nowt to do ... we don't have a definite result yet
         }
       case _ =>

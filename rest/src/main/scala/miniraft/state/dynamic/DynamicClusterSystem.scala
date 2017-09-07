@@ -25,7 +25,7 @@ object DynamicClusterSystem extends FailFastCirceSupport with StrictLogging {
     import config.serverImplicits._
     val future = for {
       raftSystem <- apply(config)
-      running <- raftSystem.startWithRoutes(routes(raftSystem))
+      running    <- raftSystem.start(routes(raftSystem))
     } yield {
       running
     }
@@ -63,11 +63,10 @@ object DynamicClusterSystem extends FailFastCirceSupport with StrictLogging {
     }
   }
 
-
   def apply(config: RaftConfig): Future[RaftSystem[DynamicClusterMessage]] = {
 
     val clusterNodesFile: Path = config.logDir.resolve("cluster.nodes").createIfNotExists()
-    val svc = DynamicHostService(config, clusterNodesFile)
+    val svc                    = DynamicHostService(config, clusterNodesFile)
 
     val raftSystem: RaftSystem[DynamicClusterMessage] = RaftSystem[DynamicClusterMessage](config, svc.clusterNodes()) { (entry: LogEntry[DynamicClusterMessage]) =>
       svc.onDynamicClusterMessage(entry.command)
@@ -79,7 +78,10 @@ object DynamicClusterSystem extends FailFastCirceSupport with StrictLogging {
     import akka.http.scaladsl.util.FastFuture
     import FastFuture._
     canJoinFuture.fast.flatMap {
-      case true => FastFuture.successful(raftSystem)
+      case true =>
+        //
+        //
+        FastFuture.successful(raftSystem)
       case false => FastFuture.failed(new Exception("Couldn't join the cluster"))
     }
 

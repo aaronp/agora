@@ -5,10 +5,7 @@ import java.lang.management.{ManagementFactory, MemoryMXBean}
 import io.circe.generic.auto.{exportDecoder, exportEncoder}
 import io.circe.syntax._
 
-case class HealthDto(system : SystemDto,
-                     heapMemoryUsage: MemoryDto,
-                     nonHeapMemoryUsage: MemoryDto,
-                     objectPendingFinalizationCount: Int)
+case class HealthDto(system: SystemDto, heapMemoryUsage: MemoryDto, nonHeapMemoryUsage: MemoryDto, objectPendingFinalizationCount: Int)
 
 object HealthDto {
   private val memoryBean: MemoryMXBean = ManagementFactory.getMemoryMXBean

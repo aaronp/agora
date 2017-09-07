@@ -2,7 +2,6 @@ package miniraft.state
 
 import agora.api.BaseSpec
 import agora.rest.HasMaterializer
-import miniraft.UpdateResponse
 import miniraft.state.RaftNode.async
 import miniraft.state.rest.NodeStateSummary.LeaderSnapshot
 import org.scalatest.concurrent.Eventually
@@ -10,8 +9,6 @@ import org.scalatest.concurrent.Eventually
 import scala.concurrent.Future
 
 class RaftNodeTest extends BaseSpec with Eventually with HasMaterializer {
-
-  import materializer.executionContext
 
   "RaftNode election timeout" should {
     "appoint a single leader in a 3 node cluster" in {
@@ -64,9 +61,11 @@ class RaftNodeTest extends BaseSpec with Eventually with HasMaterializer {
   "RaftNode.leaderApi.append" should {
     "append entries" in {
 
+      import materializer.executionContext
+
       withDir { dir =>
         val clusterById = TestCluster.under(dir).of[String]("A", "B", "C") {
-          case (node, entry) => println(s"$node applying $entry")
+          case (node, entry) => println(s"\t\t>>>> $node applying $entry <<<<")
         }
         val a = clusterById("A")
 
@@ -75,8 +74,8 @@ class RaftNodeTest extends BaseSpec with Eventually with HasMaterializer {
           a.state.futureValue.summary.role shouldBe "leader"
         }
 
-        val result: UpdateResponse = a.append("First append").futureValue
-        val appended               = result.result.futureValue
+        val appendAck = a.append("First append").futureValue
+        val appended  = appendAck.result.futureValue
         appended shouldBe true
 
         val LeaderSnapshot(newLeaderSnapshot, newLeaderView) = a.state.futureValue

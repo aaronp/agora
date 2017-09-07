@@ -16,7 +16,7 @@ import scala.concurrent.duration._
 class RaftConfig(c: Config) extends ServerConfig(c) {
 
   def withNodes(otherNodes: Iterable[HostLocation]): RaftConfig = {
-    val otherNodesConfig = otherNodes.map(_.asHostPort)
+    val otherNodesConfig = otherNodes.map(_.asHostPort).map(_.quoted)
     withOverrides(parseString(otherNodesConfig.mkString("seedNodes : [", ",", "]")))
   }
 
@@ -43,7 +43,6 @@ class RaftConfig(c: Config) extends ServerConfig(c) {
     }
   }
 
-
   def nodeDirName = {
     id.map {
       case c if c.isLetterOrDigit => c
@@ -59,7 +58,7 @@ class RaftConfig(c: Config) extends ServerConfig(c) {
   def seedNodeLocations: List[HostLocation] = {
     config.asList("seedNodes").map {
       case HostLocation(loc) => loc
-      case other => sys.error(s"Couldn't parse $other as a <host>:<port>")
+      case other             => sys.error(s"Couldn't parse $other as a <host>:<port>")
     }
   }
 
@@ -81,8 +80,7 @@ class RaftConfig(c: Config) extends ServerConfig(c) {
     nodes.toMap.ensuring(_.size == nodes.size, "duplicate seed nodes listed")
   }
 
-
-  def newRaftClientById[T: Encoder](loc : HostLocation): (String, RaftEndpoint.Rest[T]) = {
+  def newRaftClientById[T: Encoder](loc: HostLocation): (String, RaftEndpoint.Rest[T]) = {
     val restClient = clientConfig.clientFor(loc)
     val endpoint   = RaftEndpoint[T](restClient)
     raftId(loc) -> endpoint
@@ -98,11 +96,11 @@ class RaftConfig(c: Config) extends ServerConfig(c) {
 
   def leaderClient[T: Encoder: Decoder]: LeaderClient[T] = leaderClientFor(clientConfig.clientFor(location))
 
-  def leaderClientFor[T: Encoder: Decoder](client : RestClient): LeaderClient[T] = LeaderClient[T](client, clientConfig.clientForUri)
+  def leaderClientFor[T: Encoder: Decoder](client: RestClient): LeaderClient[T] = LeaderClient[T](client, clientConfig.clientForUri)
 
   def supportClient[T: Encoder: Decoder]: RaftSupportClient[T] = supportClientFor(clientConfig.clientFor(location))
 
-  def supportClientFor[T: Encoder: Decoder](client : RestClient): RaftSupportClient[T] = new RaftSupportClient[T](client)
+  def supportClientFor[T: Encoder: Decoder](client: RestClient): RaftSupportClient[T] = new RaftSupportClient[T](client)
 
   def heartbeat = new TimerConfig("heartbeat")
 

@@ -16,7 +16,7 @@ import scala.util.control.NonFatal
 class RetryClient(mkClient: () => RestClient, onError: RetryStrategy) extends RestClient with StrictLogging {
 
   private var clientOpt: Option[RestClient] = None
-  private var crashHistory = new Crashes(Nil)
+  private var crashHistory                  = new Crashes(Nil)
 
   override def toString = {
     s"RetryClient(current=${clientOpt}, strategy=$onError)"

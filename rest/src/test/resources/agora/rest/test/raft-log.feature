@@ -1,6 +1,19 @@
 @Raft
 Feature: Raft Append Entries
 
+  Scenario: Append Entries with a single node cluster
+    Given Node A with state
+      | current term | state    | voted for | append index | last applied |
+      | 2            | Leader() | A         | 0            | 0            |
+    When Node A receives a client request to add foo
+    # there's no ack to send, so we can just kermit the append
+    Then Node A should be in state
+      | current term | state    | voted for | append index | last applied |
+      | 2            | Leader() | A         | 1            | 1            |
+    And The log for Node A should be
+      | value | term | index | committed |
+      | foo   | 2    | 1     | true      |
+
   Scenario: Initial Append Entries
     Given Node A with state
       | current term | state         | voted for | append index | last applied |

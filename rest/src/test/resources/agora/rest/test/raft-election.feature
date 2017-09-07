@@ -101,8 +101,8 @@ Feature: Raft Leader Election
       | to node | term | granted |
       | A       | 2    | false   |
     And Node B should be in state
-      | current term | state    | voted for | append index | last applied |
-      | 1            | Follower |           | 1            | 0            |
+      | current term | state    | voted for | append index | last applied | log term |
+      | 2            | Follower |           | 1            | 0            | 1        |
     When Node A receives its responses
     Then no messages should be pending
 

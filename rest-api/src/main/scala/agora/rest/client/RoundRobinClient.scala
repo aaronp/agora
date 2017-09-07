@@ -4,7 +4,7 @@ import akka.stream.Materializer
 
 import scala.concurrent.Future
 
-case class RoundRobinClient(pool : Iterable[RestClient], retryStrategy: RetryStrategy) extends RestClient {
+case class RoundRobinClient(pool: Iterable[RestClient], retryStrategy: RetryStrategy) extends RestClient {
   def reset(err: Option[Throwable]) = {
     underlying.reset(err)
     this
@@ -23,6 +23,4 @@ case class RoundRobinClient(pool : Iterable[RestClient], retryStrategy: RetryStr
   override implicit def materializer: Materializer = underlying.materializer
 }
 
-object RoundRobinClient {
-
-}
+object RoundRobinClient {}

@@ -1,12 +1,8 @@
 package agora.exec.client
 
-import java.util.UUID
-
-import agora.exec.model.{ProcessException, ExecuteProcess, RunProcess}
 import agora.api.BaseSpec
+import agora.exec.model.{ProcessException, RunProcess}
 import agora.rest.test.TestUtils._
-
-import scala.util.Properties
 
 /**
   * Any runner should adhere to these tests

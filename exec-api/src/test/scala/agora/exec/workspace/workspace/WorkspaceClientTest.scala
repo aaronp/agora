@@ -42,7 +42,9 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
         // triggerUploadCheck
         val expectedFile = containerDir.resolve(workspace).resolve("some.file").text = "hi"
 
-        awaitFuture.isCompleted shouldBe false
+        withClue("We should not yet have been notified of the file") {
+          awaitFuture.isCompleted shouldBe false
+        }
 
         // call the method under test -- await should now complete
         client.triggerUploadCheck(workspace)

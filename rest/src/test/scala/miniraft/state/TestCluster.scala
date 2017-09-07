@@ -19,7 +19,7 @@ object TestCluster {
   case class TestClusterNode[T](logic: RaftNodeLogic[T], asyncNode: async.RaftNodeActorClient[T], protocol: BufferedTransport) {
 
     def append(value: T)(implicit ec: ExecutionContext): UpdateResponse = {
-      val res: UpdateResponse.Appendable = logic.add(value, protocol)
+      val res: UpdateResponse.Appendable = logic.onClientRequestToAdd(value, protocol)
       res
     }
 

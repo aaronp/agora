@@ -44,7 +44,7 @@ object UpdateResponse {
     * @param results  the received results
     * @param ec
     */
-  private[miniraft] case class Appendable(logIndex: LogIndex, results: Map[String, Promise[AppendEntriesResponse]])(implicit ec: ExecutionContext)
+  private[miniraft] case class Appendable(logIndex: LogIndex, results: Map[NodeId, Promise[AppendEntriesResponse]])(implicit ec: ExecutionContext)
       extends UpdateResponse
       with StrictLogging {
 
@@ -61,19 +61,18 @@ object UpdateResponse {
     }
 
     override def toString = {
-      s"${completed.mkString(",")} received, ${pending.mkString(",")} pending for client append request to log index $logIndex"
+      s"${completed.mkString(",")} received, ${pending.mkString(s"${pending.size} [", ",", "]")} pending for client append request to log index $logIndex"
     }
 
-    /** @return true when done */
-    def onResponse(from: NodeId, resp: AppendEntriesResponse) = {
+    /** @return true if we can remove the ack */
+    def onResponse(from: NodeId, resp: AppendEntriesResponse): Boolean = {
       // is this the ack for the logIndex append we sent?
       // NOTE : we *could* do a comparison and allow matchIndices > logIndex, as
       // we can then just assume ours is ok
       if (resp.matchIndex == logIndex) {
         val completedOpt = results.get(from).map { promise =>
-          logger.info(s"Trying to complete client result for $from w/ $resp, given promise.isCompleted=${promise.isCompleted}\n\t$toString\n")
+          logger.info(s"Completing append ack from $from w/ $resp, given promise.isCompleted=${promise.isCompleted}\n\t$toString\n")
           promise.trySuccess(resp)
-          true
         }
         completedOpt.getOrElse(false)
       } else {

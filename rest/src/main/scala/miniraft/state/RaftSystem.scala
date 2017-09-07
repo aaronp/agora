@@ -12,7 +12,7 @@ import akka.http.scaladsl.server.Route
 import com.typesafe.scalalogging.StrictLogging
 import io.circe.{Decoder, Encoder}
 import miniraft.state.RaftNode.async
-import miniraft.state.rest.{LeaderClient, LeaderRoutes, RaftRoutes, RaftSupportRoutes}
+import miniraft.state.rest._
 import miniraft.{LeaderApi, RaftEndpoint}
 
 import scala.concurrent.Future
@@ -27,16 +27,21 @@ class RaftSystem[T: Encoder: Decoder] protected (config: RaftConfig,
                                                  val logic: RaftNodeLogic[T],
                                                  val protocol: ClusterProtocol.BaseProtocol[T],
                                                  locationForId: NodeId => HostLocation,
-                                                 savedMessagesDir: Option[Path]) {
+                                                 saveDirAndCounterOpt: Option[(Path, AtomicInteger)]) {
 
   import config.serverImplicits._
 
-  val node: RaftNode[T] with LeaderApi[T] = asyncClient
-  val leader: LeaderApi[T]                = asyncClient
+  def leader = asyncClient
 
-  def leaderClient(client : RestClient = config.clusterRestClient): LeaderClient[T] = config.leaderClientFor(client)
+  def leaderClient(client: RestClient = config.clusterRestClient): LeaderClient[T] = config.leaderClientFor(client)
 
-  def supportClient(client : RestClient = config.clusterRestClient) = config.supportClientFor(client)
+  def supportClient(client: RestClient = config.clusterRestClient) = config.supportClientFor(client)
+
+  def defaultEndpoint: RaftEndpoint[T] = saveDirAndCounterOpt match {
+    case None => asyncClient
+    case Some((path, counter)) =>
+      LoggingEndpoint[T](config.id, asyncClient, path, counter, config.numberOfMessageToKeep)
+  }
 
   /** Produces Akka HTTP routes based on the given config, raft node and protocol.
     *
@@ -46,11 +51,10 @@ class RaftSystem[T: Encoder: Decoder] protected (config: RaftConfig,
     *
     * If not provided, the default is to use the implicit json encoder.
     *
-    * @param supportValueFromText a function which converts user input into a 'T', used in support routes for client requests
     * @return the akka http routes
     */
-  def routes(supportValueFromText: String => T = RaftSystem.commandFromJsonText): Route = {
-    val all = raftRoutes.routes ~ leaderRoutes.routes
+  def routes(endpoint: RaftEndpoint[T] = defaultEndpoint, leader: LeaderApi[T] = asyncClient): Route = {
+    val all = raftRoutes(endpoint).routes ~ leaderRoutes(leader).routes
 
     if (config.includeRaftSupportRoutes) {
       all ~ supportRoutes.routes
@@ -61,36 +65,30 @@ class RaftSystem[T: Encoder: Decoder] protected (config: RaftConfig,
 
   /** @return /rest/raft/leader/... routes to act as an edge-node for client requests
     */
-  def leaderRoutes = {
-    LeaderRoutes[T](node, leader, locationForId)
+  def leaderRoutes(leader: LeaderApi[T]) = {
+    LeaderRoutes[T](leader, locationForId)
   }
 
   /** @return the /rest/raft/support/... routes for support/debugging/dev purposes
     */
   def supportRoutes = {
-    RaftSupportRoutes(logic, protocol, savedMessagesDir)
+    RaftSupportRoutes(logic, protocol, saveDirAndCounterOpt.map(_._1))
   }
 
   /** @return The /rest/raft/vote and /rest/raft/append routes required to exist for this endpoint to participate w/ other cluster nodes
     */
-  def raftRoutes: RaftRoutes[T] = {
-    RaftRoutes[T](node)
+  def raftRoutes(endpoint: RaftEndpoint[T]): RaftRoutes[T] = {
+    RaftRoutes[T](endpoint)
   }
 
   /**
-    * @param valueFromString a means to creates a T from the user's input field (for support routes only)
     * @return the [[RunningService]] service. eventually. probably.
     */
-  def start(valueFromString: String => T = RaftSystem.commandFromJsonText): Future[RunningService[RaftConfig, RaftNode[T] with LeaderApi[T]]] = {
-    val restRoutes = routes(valueFromString)
-    startWithRoutes(restRoutes)
-  }
-
-  def startWithRoutes(restRoutes: Route): Future[RunningService[RaftConfig, RaftNode[T] with LeaderApi[T]]] = {
+  def start(restRoutes: Route = routes()): Future[RunningService[RaftConfig, RaftSystem[T]]] = {
 
     /** kick off our election timer on startup */
     protocol.electionTimer.reset(None)
-    val service = RunningService.start(config, restRoutes, node)
+    val service = RunningService.start(config, restRoutes, this)
     service.foreach(_.onShutdown {
       protocol.electionTimer.close()
       protocol.heartbeatTimer.close()
@@ -105,11 +103,6 @@ class RaftSystem[T: Encoder: Decoder] protected (config: RaftConfig,
   * Exposes functions for initialising raft systems from a configuration
   */
 object RaftSystem extends StrictLogging {
-
-  def commandFromJsonText[T: Decoder]: (String) => T = {
-    val textAsParseResult = io.circe.parser.decode[T](_: String)
-    textAsParseResult.andThen(_.right.get)
-  }
 
   /**
     * Creates a raft node and [[ClusterProtocol]] given the raft config and 'applyToStateMachine' function.
@@ -163,7 +156,7 @@ object RaftSystem extends StrictLogging {
     /**
       * Phew! put all this together in a Raft System
       */
-    new RaftSystem[T](config, node, logic, nodeProtocol, locationForId, saveDirAndCounterOpt.map(_._1))
+    new RaftSystem[T](config, node, logic, nodeProtocol, locationForId, saveDirAndCounterOpt)
   }
 
 }

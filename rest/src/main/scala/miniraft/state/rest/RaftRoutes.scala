@@ -21,7 +21,7 @@ import scala.language.reflectiveCalls
   * @param ec
   * @tparam T
   */
-case class RaftRoutes[T: Encoder : Decoder](endpoint: RaftEndpoint[T])(implicit ec: ExecutionContext) extends RaftJson with FailFastCirceSupport with StrictLogging {
+case class RaftRoutes[T: Encoder: Decoder](endpoint: RaftEndpoint[T])(implicit ec: ExecutionContext) extends RaftJson with FailFastCirceSupport with StrictLogging {
 
   def routes: Route = {
     pathPrefix("rest") {
@@ -41,7 +41,6 @@ case class RaftRoutes[T: Encoder : Decoder](endpoint: RaftEndpoint[T])(implicit 
 
   def appendEntities = (post & path("append") & pathEnd) {
     extractExecutionContext { implicit ec =>
-
       entity(as[AppendEntries[T]]) { ae =>
         complete {
           val future = endpoint.onAppend(ae)

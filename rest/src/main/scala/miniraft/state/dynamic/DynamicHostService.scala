@@ -24,13 +24,13 @@ case class DynamicHostService(config: RaftConfig, clusterNodesFile: Path) extend
 
   def onDynamicClusterMessage(msg: DynamicClusterMessage) = {
     msg match {
-      case AddHost(newHost) => addHost(newHost)
+      case AddHost(newHost)         => addHost(newHost)
       case RemoveHost(hostToRemove) => removeHost(hostToRemove)
     }
   }
 
   def clusterNodes(): Map[NodeId, RaftEndpoint[DynamicClusterMessage]] = {
-    val hosts = readNodes(clusterNodesFile).toList
+    val hosts                                                          = readNodes(clusterNodesFile).toList
     val initialNodes: Map[NodeId, RaftEndpoint[DynamicClusterMessage]] = config.clusterNodes[DynamicClusterMessage]
     val map = hosts.foldLeft(initialNodes) {
       case (map, host) =>
@@ -53,7 +53,6 @@ case class DynamicHostService(config: RaftConfig, clusterNodesFile: Path) extend
     joinIfNecessary()
   }
 
-
   /**
     * Sets the started Raft system. If this is from a server not mentioned in the seed nodes,
     *
@@ -69,8 +68,14 @@ case class DynamicHostService(config: RaftConfig, clusterNodesFile: Path) extend
 
     if (weAreNewToThisCluster) {
       // our cluster view is written to (directly) ... tell the rest of the cluster about us
-      val msg = AddHost(config.location)
+      val msg    = AddHost(config.location)
       val leader = raftSystem.leaderClient()
+
+      // clusterNodes
+      // raftSystem.supportClient().state()
+
+      // we aren't part of the cluster yet, so need towon't
+      addHost(config.location)
       leader.append(msg)
     } else {
       Future.successful(true)
@@ -84,16 +89,15 @@ case class DynamicHostService(config: RaftConfig, clusterNodesFile: Path) extend
 
   private def addHost(newHost: HostLocation) = {
     val (id, endpoint) = entryForHost(newHost)
-    val cluster = raftSystem.protocol
-    val newMap = cluster.update(id, endpoint)
-    println(newMap)
+    val cluster        = raftSystem.protocol
+    cluster.update(id, endpoint)
     persist()
   }
 
   private def entryForHost(hostLocation: HostLocation) = {
-    val client = config.clientConfig.clientFor(hostLocation)
+    val client   = config.clientConfig.clientFor(hostLocation)
     val endpoint = RaftEndpoint[DynamicClusterMessage](client)
-    val id = miniraft.state.raftId(hostLocation)
+    val id       = miniraft.state.raftId(hostLocation)
     (id, endpoint)
   }
 
@@ -103,7 +107,6 @@ case class DynamicHostService(config: RaftConfig, clusterNodesFile: Path) extend
     }
     writeNodes(clusterNodesFile, locations)
   }
-
 }
 
 object DynamicHostService {

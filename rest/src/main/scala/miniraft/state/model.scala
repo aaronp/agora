@@ -120,7 +120,7 @@ trait PersistentState[T] {
 
   def commit(at: LogIndex): PersistentState[T]
 
-  def voteFor(newTerm: Term, leader: NodeId): PersistentState[T]
+  def voteFor(newTerm: Term, leader: Option[NodeId]): PersistentState[T]
 
   def log: Log[T]
 
@@ -164,16 +164,16 @@ object PersistentState {
     * @tparam T
     */
   class NotReally[T](initialTerm: Term, initialVote: Option[NodeId], applyToStateMachine: LogEntry[T] => Unit) extends PersistentState[T] {
-    var vote: Option[NodeId] = initialVote
-    var term: Term           = initialTerm
-    private val inMemoryLog  = Log[T](applyToStateMachine)
+    @volatile var vote: Option[NodeId] = initialVote
+    @volatile var term: Term           = initialTerm
+    private val inMemoryLog            = Log[T](applyToStateMachine)
 
     override def log = inMemoryLog
 
     override def votedFor: Option[NodeId] = vote
 
-    override def voteFor(newTerm: Term, leader: NodeId) = {
-      vote = Option(leader)
+    override def voteFor(newTerm: Term, leader: Option[NodeId]) = {
+      vote = leader
       term = newTerm
       this
     }
@@ -220,9 +220,9 @@ object PersistentState {
     // TODO - read caching
     override def votedFor: Option[NodeId] = Option(votedForFile.text).map(_.trim).filter(_.nonEmpty)
 
-    override def voteFor(newTerm: Term, leader: NodeId) = {
+    override def voteFor(newTerm: Term, leader: Option[NodeId]) = {
       currentTermFile.text = newTerm.t.toString
-      votedForFile.text = leader
+      votedForFile.text = leader.getOrElse("")
       this
     }
 
@@ -253,12 +253,15 @@ case class RaftState[T](role: NodeRole, persistentState: PersistentState[T]) {
         candidateRole.counter.leaderRole(firstVote, lastUnappliedIndex)
       case _ => candidateRole
     }
-    copy(role = newRole, persistentState = persistentState.voteFor(currentTerm.inc, firstVote))
+    copy(role = newRole, persistentState = persistentState.voteFor(currentTerm.inc, Option(firstVote)))
   }
 
   def voteFor(term: Term, id: NodeId) = {
     require(id.nonEmpty)
-    copy(role = Follower, persistentState = persistentState.voteFor(term, id))
+    copy(role = Follower, persistentState = persistentState.voteFor(term, Option(id)))
+  }
+  def becomeFollower(term: Term) = {
+    copy(role = Follower, persistentState = persistentState.voteFor(term, None))
   }
 
   def currentTerm = persistentState.currentTerm
@@ -300,7 +303,7 @@ case class RaftState[T](role: NodeRole, persistentState: PersistentState[T]) {
       // track who the leader is
 
       val ok = ae.entry.isEmpty
-      ok -> copy(role = Follower, persistentState = persistentState.voteFor(ae.term, ae.leaderId))
+      ok -> copy(role = Follower, persistentState = persistentState.voteFor(ae.term, Option(ae.leaderId)))
     } else if (ae.term == currentTerm) {
       onMatchedTerm
     } else {

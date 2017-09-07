@@ -230,8 +230,10 @@ case class RaftTestState(nodes: List[TestNodeLogic], transportById: Map[NodeId, 
   }
 
   def verifyNodeState(nodeId: String, expected: RaftState[String]): Unit = {
-    withClue(s"\n===== EXPECTED ======\n\n${expected}\n\n===== ACTUAL ====\n${toString}\n\n=================\n\n") {
-      val actual = serverForId(nodeId).logic.raftState
+    val server                    = serverForId(nodeId)
+    val actual: RaftState[String] = server.logic.raftState
+
+    withClue(s"\n===== EXPECTED ======\n\n${expected}\n\n===== ACTUAL ====\n${actual}\n\n=================\n${toString}\n\n") {
       actual shouldBe expected
     }
   }

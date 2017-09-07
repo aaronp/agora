@@ -14,7 +14,6 @@ object HostLocation {
 
   def localhost(port: Int): HostLocation = HostLocation(host, port)
 
-
   private val HostPort = "(.*):(\\d+)".r
   def unapply(id: String): Option[HostLocation] = {
     id match {

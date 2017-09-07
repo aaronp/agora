@@ -69,7 +69,7 @@ object NodeStateSummary {
                           state: Map[String, String])
       extends NodeStateSummary {
     override def summary = this
-    def isLeader = role == "leader"
+    def isLeader         = role == "leader"
 
     override def withState(updatedState: Map[String, String]): NodeStateSummary = {
       summary.copy(state = updatedState)

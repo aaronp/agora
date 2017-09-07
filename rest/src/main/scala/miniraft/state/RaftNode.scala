@@ -138,7 +138,7 @@ object RaftNode {
             val exp = NotTheLeaderException(logic.leaderId, logic.id, logic.raftState.role.name, protocol.clusterSize)
             promise.trySuccess(UpdateResponse(Future.failed(exp)))
           } else {
-            val newAck: UpdateResponse.Appendable = logic.add(command, protocol)
+            val newAck: UpdateResponse.Appendable = logic.onClientRequestToAdd(command, protocol)
             promise.trySuccess(newAck)
           }
         case OnElectionTimeout          => logic.onElectionTimeout(protocol)

@@ -17,15 +17,13 @@ import scala.language.reflectiveCalls
 /**
   * Routes to allow client calls to append to the state machine
   *
-  * @param node
   * @param locationForId
   * @param ev$1
   * @param ev$2
   * @param ec
   * @tparam T
   */
-case class LeaderRoutes[T: Encoder: Decoder](node: RaftNode[T], leader: LeaderApi[T], locationForId: NodeId => HostLocation)(
-    implicit ec: ExecutionContext)
+case class LeaderRoutes[T: Encoder: Decoder](leader: LeaderApi[T], locationForId: NodeId => HostLocation)(implicit ec: ExecutionContext)
     extends RaftJson
     with FailFastCirceSupport {
 

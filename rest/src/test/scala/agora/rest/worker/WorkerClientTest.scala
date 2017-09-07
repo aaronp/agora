@@ -9,7 +9,10 @@ class WorkerClientTest extends BaseRoutesSpec {
 
   "WorkerClient" should {
     "be able to get health statistics" in {
-      workerClient.health.futureValue.objectPendingFinalizationCount should be >= 0
+      val health = workerClient.health.futureValue
+      health.objectPendingFinalizationCount should be >= 0
+      health.system.availableProcessors should be > 0
+      println(health.system)
     }
   }
 

@@ -8,7 +8,7 @@ import org.scalatest.Matchers
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.{Millis, Seconds, Span}
 
-import concurrent.duration._
+import scala.concurrent.duration._
 import scala.language.{implicitConversions, postfixOps}
 
 /**
@@ -20,6 +20,9 @@ class RaftSteps extends ScalaDsl with EN with Matchers with TestData with ScalaF
 
   var state = RaftTestState(Nil, Map.empty)
 
+  /**
+    * @see [[roleForString]] for role parsing
+    */
   Given("""^Node (.*) with state$""") { (nodeId: NodeId, stateTable: DataTable) =>
     val List(stateRow) = stateTable.toMap
     val node           = raftNodeForRow(stateRow)
@@ -128,7 +131,8 @@ object RaftSteps {
     val appendIndex = row("append index").toInt
     val lastApplied = row("last applied").toInt
     val unapplied = (1 to appendIndex).map { i =>
-      LogEntry(term, i, s"entry $i")
+      val logTerm = row.get("log term").map(t => Term(t.toInt)).getOrElse(term)
+      LogEntry(logTerm, i, s"entry $i")
     }
     var applied = List[LogEntry[String]]()
     val ps      = PersistentState[String](term, votedFor)(e => applied = e :: applied).append(unapplied.toList)
@@ -175,8 +179,10 @@ object RaftSteps {
     val ClusterViewR = """(.*):(.*),(.*)""".r
     val newRole = name match {
       case "Follower" => Follower
+      case LeaderR("") =>
+        Leader(Map.empty)
       case LeaderR(clusterView) =>
-        val viewByNodeId = clusterView.split("\\s*;\\s*", -1).map {
+        val viewByNodeId: Array[(String, ClusterPeer)] = clusterView.split("\\s*;\\s*", -1).map {
           case ClusterViewR(nodeId, matchIndex, nextIndex) => nodeId -> ClusterPeer(matchIndex.toInt, nextIndex.toInt)
         }
         Leader(viewByNodeId.toMap.ensuring(_.size == viewByNodeId.size))

@@ -164,7 +164,7 @@ class RaftNodeLogicTest extends BaseSpec with Eventually {
     def createFirstAppendToB(data: String): (AppendEntries[String], UpdateResponse.Appendable) = {
       import scala.concurrent.ExecutionContext.Implicits.global
       withCluster("A") { c =>
-        val clientResponse = a.add(data, c)
+        val clientResponse = a.onClientRequestToAdd(data, c)
         clientResponse.result.isCompleted shouldBe false
 
         a.lastUnappliedIndex shouldBe 1
@@ -187,7 +187,7 @@ class RaftNodeLogicTest extends BaseSpec with Eventually {
     def createSecondAppendToB(first: String, second: String): (AppendEntries[String], UpdateResponse.Appendable) = {
       import scala.concurrent.ExecutionContext.Implicits.global
       withCluster("A") { c =>
-        val clientResponse = a.add(second, c)
+        val clientResponse = a.onClientRequestToAdd(second, c)
         clientResponse.result.isCompleted shouldBe false
 
         a.lastUnappliedIndex shouldBe 2
