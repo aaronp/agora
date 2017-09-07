@@ -26,7 +26,7 @@ class RaftClient[T: Encoder: Decoder](val client: RestClient) extends RaftEndpoi
           logger.error(s"Sending $vote to $client returned ${resp.status} ${body.getOrElse("")}: $err")
           client match {
             case retry: RetryClient =>
-              retry.reset()
+              retry.reset(Option(err))
               onVote(vote)
             case _ => throw err
           }
@@ -41,7 +41,7 @@ class RaftClient[T: Encoder: Decoder](val client: RestClient) extends RaftEndpoi
           logger.error(s"Sending $append to $client returned ${resp.status} ${body.getOrElse("")}: $err")
           client match {
             case retry: RetryClient =>
-              retry.reset()
+              retry.reset(Option(err))
               onAppend(append)
             case _ => throw err
           }

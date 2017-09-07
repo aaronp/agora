@@ -16,7 +16,7 @@ import scala.util.control.NonFatal
 class RetryClient(mkClient: () => RestClient, onError: RetryStrategy) extends RestClient with StrictLogging {
 
   private var clientOpt: Option[RestClient] = None
-  private var crashHistory                  = new Crashes(Nil)
+  private var crashHistory = new Crashes(Nil)
 
   override def toString = {
     s"RetryClient(current=${clientOpt}, strategy=$onError)"
@@ -27,7 +27,15 @@ class RetryClient(mkClient: () => RestClient, onError: RetryStrategy) extends Re
   /**
     * Resets the client. This may be invoked externally in case of e.g. server 503 errors et al
     */
-  def reset() = close()
+  def reset(err: Option[Throwable]) = {
+    err.foreach { e =>
+      crashHistory = onError(crashHistory.add(Crashes.Crash(e)))
+    }
+
+    // if we get this far, our strategy hasn't propagated the exception
+    close()
+    this
+  }
 
   def client: RestClient = Lock.synchronized {
     clientOpt.getOrElse {
@@ -40,10 +48,7 @@ class RetryClient(mkClient: () => RestClient, onError: RetryStrategy) extends Re
   }
 
   private def handle(request: HttpRequest, e: Throwable): Future[HttpResponse] = {
-    crashHistory = onError(crashHistory.add(Crashes.Crash(e)))
-
-    // if we get this far, our strategy hasn't propagated the exception
-    reset()
+    reset(Option(e))
     send(request)
   }
 

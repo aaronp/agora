@@ -84,7 +84,8 @@ case class DynamicHostService(config: RaftConfig, clusterNodesFile: Path) extend
 
   private def addHost(newHost: HostLocation) = {
     val (id, endpoint) = entryForHost(newHost)
-    val newMap = raftSystem.protocol.update(id, endpoint)
+    val cluster = raftSystem.protocol
+    val newMap = cluster.update(id, endpoint)
     println(newMap)
     persist()
   }

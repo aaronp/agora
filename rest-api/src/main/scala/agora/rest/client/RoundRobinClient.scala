@@ -5,6 +5,11 @@ import akka.stream.Materializer
 import scala.concurrent.Future
 
 case class RoundRobinClient(pool : Iterable[RestClient], retryStrategy: RetryStrategy) extends RestClient {
+  def reset(err: Option[Throwable]) = {
+    underlying.reset(err)
+    this
+  }
+
   require(pool.nonEmpty, "No clients specified")
   private val cycle: Iterator[RestClient] = Iterator.continually(pool).flatMap(_.iterator)
 

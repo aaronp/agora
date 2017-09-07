@@ -6,6 +6,7 @@ import akka.http.scaladsl.server.Directives.{path, _}
 import akka.http.scaladsl.server.Route
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.{Decoder, Encoder}
+import io.circe.parser._
 import agora.api.worker.HostLocation
 import miniraft.LeaderApi
 import miniraft.state._
@@ -18,13 +19,12 @@ import scala.language.reflectiveCalls
   *
   * @param node
   * @param locationForId
-  * @param teaFromString
   * @param ev$1
   * @param ev$2
   * @param ec
   * @tparam T
   */
-case class LeaderRoutes[T: Encoder: Decoder](node: RaftNode[T], leader: LeaderApi[T], locationForId: NodeId => HostLocation, teaFromString: String => T)(
+case class LeaderRoutes[T: Encoder: Decoder](node: RaftNode[T], leader: LeaderApi[T], locationForId: NodeId => HostLocation)(
     implicit ec: ExecutionContext)
     extends RaftJson
     with FailFastCirceSupport {
@@ -40,23 +40,22 @@ case class LeaderRoutes[T: Encoder: Decoder](node: RaftNode[T], leader: LeaderAp
   }
 
   def appendGet = (get & path("append") & pathEnd) {
-    parameter('text) { text =>
+    parameter('value) { json =>
       complete {
-        doAppend(text)
+        decode[T](json).right.map(doAppend)
       }
     }
   }
 
   def appendPost: Route = (post & path("append") & pathEnd) {
-    entity(as[String]) { text =>
+    entity(as[T]) { command =>
       complete {
-        doAppend(text)
+        doAppend(command)
       }
     }
   }
 
-  private def doAppend(text: String): Future[HttpResponse] = {
-    val tea = teaFromString(text)
+  private def doAppend(tea: T): Future[HttpResponse] = {
     val response: Future[HttpResponse] = leader.append(tea).flatMap(_.result).map {
       case true  => HttpResponse(StatusCodes.Created)
       case false => HttpResponse(StatusCodes.InternalServerError)

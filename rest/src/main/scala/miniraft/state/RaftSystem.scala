@@ -50,7 +50,7 @@ class RaftSystem[T: Encoder: Decoder] protected (config: RaftConfig,
     * @return the akka http routes
     */
   def routes(supportValueFromText: String => T = RaftSystem.commandFromJsonText): Route = {
-    val all = raftRoutes.routes ~ leaderRoutes(supportValueFromText).routes
+    val all = raftRoutes.routes ~ leaderRoutes.routes
 
     if (config.includeRaftSupportRoutes) {
       all ~ supportRoutes.routes
@@ -59,11 +59,10 @@ class RaftSystem[T: Encoder: Decoder] protected (config: RaftConfig,
     }
   }
 
-  /** @param supportValueFromText the function used to create log entries of 'T' from user-specified text
-    * @return /rest/raft/leader/... routes to act as an edge-node for client requests
+  /** @return /rest/raft/leader/... routes to act as an edge-node for client requests
     */
-  def leaderRoutes(supportValueFromText: String => T) = {
-    LeaderRoutes[T](node, leader, locationForId, supportValueFromText)
+  def leaderRoutes = {
+    LeaderRoutes[T](node, leader, locationForId)
   }
 
   /** @return the /rest/raft/support/... routes for support/debugging/dev purposes
