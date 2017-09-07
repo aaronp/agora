@@ -6,8 +6,23 @@ import org.scalatest.{Matchers, WordSpec}
 class RichConfigTest extends WordSpec with Matchers {
 
   import RichConfig.implicits._
+      import scala.collection.JavaConverters._
 
   "RichConfig.withUserArgs" should {
+    "treat comma-separated values as lists when overriding string lists" in {
+      val actual = listConfig.withUserArgs(Array("stringList=x,y,z"))
+      actual.getStringList("stringList").asScala.toList shouldBe List("x","y","z")
+    }
+    "treat comma-separated values as an error when overriding object lists" in {
+      val error = intercept[Exception] {
+        listConfig.withUserArgs(Array("objectList=x,y,z"))
+      }
+      error.getMessage shouldBe "Path 'objectList' tried to override an object list with 'x,y,z'"
+    }
+    "treat comma-separated values as a string when overriding a string" in {
+      listConfig.withUserArgs(Array("justAString=x,y,z")).getString("justAString") shouldBe "x,y,z"
+    }
+
     "allow the config to set key/value pairs from user arguments" in {
       val conf   = ConfigFactory.parseString("""thing.value = original1
           | hyphenated-key = original2
@@ -51,4 +66,8 @@ class RichConfigTest extends WordSpec with Matchers {
       a.intersect(b).paths shouldBe List("thing.b")
     }
   }
+
+  def listConfig = ConfigFactory.parseString("""stringList = [a,b,c]
+                                               |objectList = [{value :1},{value :2}]
+                                               |justAString = original""".stripMargin)
 }

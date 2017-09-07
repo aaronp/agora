@@ -1,10 +1,12 @@
 package agora.api.io
 
 import java.nio.file.{Files, Paths}
+import java.util.Collections
 
+import com.typesafe.config.ConfigRenderOptions._
 import com.typesafe.config._
 
-import ConfigRenderOptions._
+import collection.JavaConverters._
 import scala.language.implicitConversions
 import scala.util.Try
 
@@ -14,8 +16,6 @@ trait RichConfigOps extends RichConfig.LowPriorityImplicits {
 
   import ConfigFactory._
   import RichConfig._
-
-  import scala.collection.JavaConverters._
 
   /**
     * If 'show' specified, either by just 'show' on its own or 'show=path.to.config.or.value', then this will return
@@ -37,11 +37,22 @@ trait RichConfigOps extends RichConfig.LowPriorityImplicits {
     * @return a configuration with the given user-argument overrides applied over top
     */
   def withUserArgs(args: Array[String], unrecognizedArg: String => Config = ParseArg.Throw): Config = {
+    def isSimpleList(key: String) = {
+      def isList = Try(config.getStringList(key)).isSuccess
+      config.hasPath(key) && isList
+    }
+    def isObjectList(key: String) = {
+      def isList = Try(config.getObjectList(key)).isSuccess
+      config.hasPath(key) && isList
+    }
+
     val configs: Array[Config] = args.map {
-      case KeyValue(k, v)    => asConfig(k, v)
+      case KeyValue(k, v) if isSimpleList(k) => asConfig(k, java.util.Arrays.asList(v.split(",", -1):_*))
+      case KeyValue(k, v) if isObjectList(k) => sys.error(s"Path '$k' tried to override an object list with '$v'")
+      case KeyValue(k, v) => asConfig(k, v)
       case FilePathConfig(c) => c
-      case UrlPathConfig(c)  => c
-      case other             => unrecognizedArg(other)
+      case UrlPathConfig(c) => c
+      case other => unrecognizedArg(other)
     }
 
     (configs :+ config).reduce(_ withFallback _)
@@ -53,7 +64,7 @@ trait RichConfigOps extends RichConfig.LowPriorityImplicits {
     * @param separator if specified, the value at the given path will be parsed if it is a string and not a stringlist
     * @param path      the config path
     */
-  def asList(path: String, separator: Option[String] = Option(",")) = {
+  def asList(path: String, separator: Option[String] = Option(",")): List[String] = {
     import collection.JavaConverters._
     try {
       config.getStringList(path).asScala.toList
@@ -69,30 +80,44 @@ trait RichConfigOps extends RichConfig.LowPriorityImplicits {
     * Note : writing a 'diff' using this would be pretty straight forward
     */
   def uniquePaths: List[String] = unique.paths.toList.sorted
-  def unique                    = withoutSystem.filterNot(_.startsWith("akka"))
+
+  def unique = withoutSystem.filterNot(_.startsWith("akka"))
 
   /** this config w/o the system props and stuff */
-  def withoutSystem: Config                                                       = without(systemEnvironment.or(systemProperties).paths)
-  def or(other: Config)                                                           = config.withFallback(other)
-  def without(other: Config): Config                                              = without(asRichConfig(other).paths)
-  def without(firstPath: String, theRest: String*): Config                        = without(firstPath +: theRest)
-  def without(paths: TraversableOnce[String]): Config                             = paths.foldLeft(config)(_ withoutPath _)
-  def filterNot(path: String => Boolean)                                          = without(paths.filter(path))
+  def withoutSystem: Config = without(systemEnvironment.or(systemProperties).paths)
+
+  def or(other: Config) = config.withFallback(other)
+
+  def without(other: Config): Config = without(asRichConfig(other).paths)
+
+  def without(firstPath: String, theRest: String*): Config = without(firstPath +: theRest)
+
+  def without(paths: TraversableOnce[String]): Config = paths.foldLeft(config)(_ withoutPath _)
+
+  def filterNot(path: String => Boolean) = without(paths.filter(path))
+
   def describe(implicit opts: ConfigRenderOptions = concise().setFormatted(true)) = config.root.render(opts)
-  def json                                                                        = config.root.render(ConfigRenderOptions.concise().setJson(true))
-  def paths: List[String]                                                         = config.entrySet().asScala.map(_.getKey).toList
+
+  def json = config.root.render(ConfigRenderOptions.concise().setJson(true))
+
+  def paths: List[String] = config.entrySet().asScala.map(_.getKey).toList.sorted
+
   def pathRoots = paths.map { p =>
     ConfigUtil.splitPath(p).get(0)
   }
+
   def collectAsStrings: List[(String, String)] = paths.flatMap { key =>
     Try(config.getString(key)).toOption.map(key ->)
   }
+
   def collectAsMap = collectAsStrings.toMap
 
   def intersect(other: Config): Config = {
     withPaths(other.paths)
   }
+
   def withPaths(first: String, theRest: String*): Config = withPaths(first :: theRest.toList)
+
   def withPaths(paths: List[String]): Config = {
     paths.map(config.withOnlyPath).reduce(_ withFallback _)
   }
@@ -127,6 +152,7 @@ object RichConfig {
         ConfigFactory.empty().withUserArgs(args, unrecognizedArg)
       }
     }
+
     implicit class RichMap(val map: Map[String, String]) {
       def asConfig: Config = {
         import scala.collection.JavaConverters._
@@ -141,13 +167,12 @@ object RichConfig {
     * which doesn't match either a file path, resource or key=value pair
     */
   object ParseArg {
-    val Throw         = (a: String) => sys.error(s"Unrecognized user arg '$a'")
-    val Ignore        = (a: String) => ConfigFactory.empty()
+    val Throw = (a: String) => sys.error(s"Unrecognized user arg '$a'")
+    val Ignore = (a: String) => ConfigFactory.empty()
     val AsBooleanFlag = (a: String) => asConfig(ConfigUtil.quoteString(a), true.toString)
   }
 
-  def asConfig(key: String, value: String) = {
-    import collection.JavaConverters._
+  def asConfig(key: String, value: Any): Config = {
     ConfigFactory.parseMap(Map(key -> value).asJava)
   }
 

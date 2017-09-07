@@ -3,7 +3,7 @@ package agora.rest
 import java.util.concurrent.atomic.AtomicInteger
 
 import agora.api.worker.HostLocation
-import agora.rest.client.{CachedClient, RestClient, RetryClient, RetryStrategy}
+import agora.rest.client._
 import akka.http.scaladsl.model.Uri
 import com.typesafe.config.Config
 
@@ -15,7 +15,7 @@ class ClientConfig(config: Config) {
 
   def host = config.getString("host") match {
     case "0.0.0.0" => "localhost"
-    case h         => h
+    case h => h
   }
 
   def port = config.getInt("port")
@@ -23,8 +23,21 @@ class ClientConfig(config: Config) {
   def location = HostLocation(host, port)
 
   /** A means of accessing reusable clients. */
-  lazy val clientFor = CachedClient { loc: HostLocation =>
+  lazy val cachedClients: CachedClient = CachedClient { loc: HostLocation =>
     retryClient(loc)
+  }
+
+  def clientFor(location: HostLocation, theRest: HostLocation*): RestClient = {
+    clientFor(location :: theRest.toList)
+  }
+
+  def clientFor(locations: Iterable[HostLocation]): RestClient = {
+    if (locations.size == 1) {
+      cachedClients(locations.head)
+    } else {
+      val clients = locations.map(cachedClients.apply)
+      RoundRobinClient(clients, clientFailover.strategy)
+    }
   }
 
   private[this] val uniqueActorNameCounter = new AtomicInteger(0)
@@ -45,7 +58,7 @@ class ClientConfig(config: Config) {
   private def newRestClient(inputLoc: HostLocation, name: String = nextActorSystemName()): RestClient = {
     val loc = inputLoc.host match {
       case "0.0.0.0" => inputLoc.copy(host = "localhost")
-      case _         => inputLoc
+      case _ => inputLoc
     }
     RestClient(loc, () => newSystem(name).materializer)
   }

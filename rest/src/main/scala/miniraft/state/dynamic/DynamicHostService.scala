@@ -4,17 +4,21 @@ import java.nio.file.Path
 
 import agora.api.io.implicits._
 import agora.api.worker.HostLocation
+import com.typesafe.scalalogging.StrictLogging
 import io.circe.generic.auto._
 import io.circe.parser._
 import io.circe.syntax._
 import miniraft.RaftEndpoint
 
+import scala.concurrent.Future
+
 /**
   * Provides a handler [[onDynamicClusterMessage]] for Raft [[DynamicClusterMessage]] append messages
+  *
   * @param config
   * @param clusterNodesFile
   */
-case class DynamicHostService(config: RaftConfig, clusterNodesFile: Path) {
+case class DynamicHostService(config: RaftConfig, clusterNodesFile: Path) extends StrictLogging {
 
   import DynamicHostService._
 
@@ -24,13 +28,16 @@ case class DynamicHostService(config: RaftConfig, clusterNodesFile: Path) {
       case RemoveHost(hostToRemove) => removeHost(hostToRemove)
     }
   }
+
   def clusterNodes(): Map[NodeId, RaftEndpoint[DynamicClusterMessage]] = {
-    val hosts: Iterator[HostLocation] = readNodes(clusterNodesFile)
-    hosts.foldLeft(config.clusterNodes[DynamicClusterMessage]) {
+    val hosts = readNodes(clusterNodesFile).toList
+    val initialNodes: Map[NodeId, RaftEndpoint[DynamicClusterMessage]] = config.clusterNodes[DynamicClusterMessage]
+    val map = hosts.foldLeft(initialNodes) {
       case (map, host) =>
         val (id, endpoint) = entryForHost(host)
         map.updated(id, endpoint)
     }
+    map
   }
 
   private[this] var raftSystem_ : RaftSystem[DynamicClusterMessage] = null
@@ -40,10 +47,34 @@ case class DynamicHostService(config: RaftConfig, clusterNodesFile: Path) {
     raftSystem_
   }
 
-  private[state] def raftSystem_=(sys: RaftSystem[DynamicClusterMessage]): Unit = {
+  private[state] def raftSystem_=(sys: RaftSystem[DynamicClusterMessage]) = {
     require(raftSystem_ == null, "already set")
     raftSystem_ = sys
-    readNodes(clusterNodesFile).foreach(addHost)
+    joinIfNecessary()
+  }
+
+
+  /**
+    * Sets the started Raft system. If this is from a server not mentioned in the seed nodes,
+    *
+    * Then we should first send an 'AddHost' message to a node in the seed node list.
+    *
+    * On success, we can then start our raft system and join the cluster
+    *
+    * @return a future of a flag which determines if we can join (e.g. start)
+    */
+  private def joinIfNecessary() = {
+
+    val weAreNewToThisCluster = !clusterNodes().contains(config.id)
+
+    if (weAreNewToThisCluster) {
+      // our cluster view is written to (directly) ... tell the rest of the cluster about us
+      val msg = AddHost(config.location)
+      val leader = raftSystem.leaderClient()
+      leader.append(msg)
+    } else {
+      Future.successful(true)
+    }
   }
 
   private def removeHost(hostLocation: HostLocation) = {
@@ -53,7 +84,8 @@ case class DynamicHostService(config: RaftConfig, clusterNodesFile: Path) {
 
   private def addHost(newHost: HostLocation) = {
     val (id, endpoint) = entryForHost(newHost)
-    raftSystem.protocol.update(id, endpoint)
+    val newMap = raftSystem.protocol.update(id, endpoint)
+    println(newMap)
     persist()
   }
 
@@ -66,7 +98,7 @@ case class DynamicHostService(config: RaftConfig, clusterNodesFile: Path) {
 
   private def persist() = {
     val locations = raftSystem.protocol.clusterNodesById.keySet.collect {
-      case AsLocation(location) => location
+      case HostLocation(location) => location
     }
     writeNodes(clusterNodesFile, locations)
   }

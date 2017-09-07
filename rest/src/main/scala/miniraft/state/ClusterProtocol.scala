@@ -115,6 +115,7 @@ object ClusterProtocol {
     }
     def update(key: NodeId, endpoint: RaftEndpoint[T]) = {
       endpointById = endpointById.updated(key, endpoint)
+      endpointById
     }
     def removeEndpoint(id: NodeId): Boolean = {
       val removed = endpointById.contains(id)

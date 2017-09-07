@@ -2,12 +2,12 @@ package miniraft.state
 
 import java.nio.file.Path
 
+import agora.api.worker.HostLocation
+import agora.rest.client.{RestClient, RoundRobinClient}
+import agora.rest.{ServerConfig, configForArgs}
+import com.typesafe.config.ConfigFactory.parseString
 import com.typesafe.config.{Config, ConfigFactory}
 import io.circe.{Decoder, Encoder}
-import agora.api.worker.HostLocation
-import agora.rest.{ServerConfig, configForArgs}
-import ConfigFactory.parseString
-import akka.http.scaladsl.model.Uri
 import miniraft.RaftEndpoint
 import miniraft.state.rest.{LeaderClient, RaftSupportClient}
 
@@ -16,13 +16,7 @@ import scala.concurrent.duration._
 class RaftConfig(c: Config) extends ServerConfig(c) {
 
   def withNodes(otherNodes: Iterable[HostLocation]): RaftConfig = {
-    val otherNodesConfig = otherNodes.map { loc =>
-      s"""{
-         |  host : ${loc.host}
-         |  port : ${loc.port}
-         |}
-      """.stripMargin
-    }
+    val otherNodesConfig = otherNodes.map(_.asHostPort)
     withOverrides(parseString(otherNodesConfig.mkString("seedNodes : [", ",", "]")))
   }
 
@@ -49,14 +43,29 @@ class RaftConfig(c: Config) extends ServerConfig(c) {
     }
   }
 
-  def seedNodeLocations: List[HostLocation] = seedNodeConfigs.map(hostLocationForConfig)
 
-  def seedNodeConfigs: List[Config] = {
-    import scala.collection.JavaConverters._
-    config
-      .getConfigList("seedNodes")
-      .asScala
-      .toList
+  def nodeDirName = {
+    id.map {
+      case c if c.isLetterOrDigit => c
+      case _                      => '_'
+    }
+  }
+
+  def logDir = {
+    import agora.api.io.implicits._
+    persistentDir.resolve(nodeDirName).mkDirs()
+  }
+
+  def seedNodeLocations: List[HostLocation] = {
+    config.asList("seedNodes").map {
+      case HostLocation(loc) => loc
+      case other => sys.error(s"Couldn't parse $other as a <host>:<port>")
+    }
+  }
+
+  def clusterRestClient = {
+    val list = seedNodeLocations
+    clientConfig.clientFor(list)
   }
 
   def numberOfMessageToKeep = config.getInt("numberOfMessageToKeep")
@@ -68,12 +77,12 @@ class RaftConfig(c: Config) extends ServerConfig(c) {
   }
 
   def clusterNodes[T: Encoder]: Map[NodeId, RaftEndpoint[T]] = {
-    val nodes = seedNodeConfigs.map(c => newRaftClientById[T](c))
+    val nodes = seedNodeLocations.map(c => newRaftClientById[T](c))
     nodes.toMap.ensuring(_.size == nodes.size, "duplicate seed nodes listed")
   }
 
-  def newRaftClientById[T: Encoder](c: Config): (String, RaftEndpoint.Rest[T]) = {
-    val loc        = hostLocationForConfig(c)
+
+  def newRaftClientById[T: Encoder](loc : HostLocation): (String, RaftEndpoint.Rest[T]) = {
     val restClient = clientConfig.clientFor(loc)
     val endpoint   = RaftEndpoint[T](restClient)
     raftId(loc) -> endpoint
@@ -87,13 +96,13 @@ class RaftConfig(c: Config) extends ServerConfig(c) {
     def timer = InitialisableTimer(name, min, max)(serverImplicits.system)
   }
 
-  def leaderClient[T: Encoder: Decoder]: LeaderClient[T] = leaderClientFor(location)
+  def leaderClient[T: Encoder: Decoder]: LeaderClient[T] = leaderClientFor(clientConfig.clientFor(location))
 
-  def leaderClientFor[T: Encoder: Decoder](loc: HostLocation): LeaderClient[T] = LeaderClient[T](clientConfig.clientFor(loc), clientConfig.clientForUri)
+  def leaderClientFor[T: Encoder: Decoder](client : RestClient): LeaderClient[T] = LeaderClient[T](client, clientConfig.clientForUri)
 
-  def supportClient[T: Encoder: Decoder]: RaftSupportClient[T] = supportClientFor(location)
+  def supportClient[T: Encoder: Decoder]: RaftSupportClient[T] = supportClientFor(clientConfig.clientFor(location))
 
-  def supportClientFor[T: Encoder: Decoder](loc: HostLocation): RaftSupportClient[T] = new RaftSupportClient[T](clientConfig.clientFor(loc))
+  def supportClientFor[T: Encoder: Decoder](client : RestClient): RaftSupportClient[T] = new RaftSupportClient[T](client)
 
   def heartbeat = new TimerConfig("heartbeat")
 

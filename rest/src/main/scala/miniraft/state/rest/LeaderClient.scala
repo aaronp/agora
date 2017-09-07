@@ -37,7 +37,12 @@ case class LeaderClient[T: Encoder: Decoder](client: RestClient, newClient: Uri 
           val redirectTo: Uri = Uri(newLocation)
           currentLeader = newClient(redirectTo)
           append(value)
-        case _ => Future.successful(resp.status.isSuccess())
+        case _ =>
+          if (!resp.status.isSuccess()) {
+            logger.error(s"Append returned ${resp.status} : ${resp.entity}")
+          }
+
+          Future.successful(resp.status.isSuccess())
       }
     }
   }

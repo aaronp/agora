@@ -185,9 +185,9 @@ object InitialisableTimer {
     private val logger = LoggerFactory.getLogger(getClass)
 
     def wrap(prefix: String)(handler: TimerReceive): Receive = {
-      if (logger.isDebugEnabled) {
+      if (logger.isTraceEnabled) {
         case msg: TimerMessage =>
-          logger.debug(s"$prefix : on($msg)")
+          logger.trace(s"$prefix : on($msg)")
           handler(msg)
       } else {
         case msg: TimerMessage => handler(msg)

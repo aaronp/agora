@@ -13,4 +13,13 @@ object HostLocation {
   private lazy val host = "localhost"
 
   def localhost(port: Int): HostLocation = HostLocation(host, port)
+
+
+  private val HostPort = "(.*):(\\d+)".r
+  def unapply(id: String): Option[HostLocation] = {
+    id match {
+      case HostPort(h, p) => Option(HostLocation(h, p.toInt))
+      case _              => None
+    }
+  }
 }

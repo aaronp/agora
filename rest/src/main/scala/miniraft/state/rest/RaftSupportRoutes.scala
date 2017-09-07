@@ -56,7 +56,7 @@ case class RaftSupportRoutes[T: Encoder: Decoder](logic: RaftNodeLogic[T], clust
     }
   }
 
-  def getLogs = (get & path("Logslogs") & pathEnd) {
+  def getLogs = (get & path("logs") & pathEnd) {
     parameter('from.?, 'to.?) { (fromOpt, toOpt) =>
       complete {
         val from  = fromOpt.map(_.toInt).getOrElse(0)

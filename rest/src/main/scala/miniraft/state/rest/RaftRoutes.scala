@@ -2,6 +2,7 @@ package miniraft.state.rest
 
 import akka.http.scaladsl.server.Directives.{path, _}
 import akka.http.scaladsl.server.Route
+import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.{Decoder, Encoder}
 import miniraft.{AppendEntries, RaftEndpoint, RequestVote}
@@ -20,7 +21,7 @@ import scala.language.reflectiveCalls
   * @param ec
   * @tparam T
   */
-case class RaftRoutes[T: Encoder: Decoder](endpoint: RaftEndpoint[T])(implicit ec: ExecutionContext) extends RaftJson with FailFastCirceSupport {
+case class RaftRoutes[T: Encoder : Decoder](endpoint: RaftEndpoint[T])(implicit ec: ExecutionContext) extends RaftJson with FailFastCirceSupport with StrictLogging {
 
   def routes: Route = {
     pathPrefix("rest") {
@@ -39,9 +40,19 @@ case class RaftRoutes[T: Encoder: Decoder](endpoint: RaftEndpoint[T])(implicit e
   }
 
   def appendEntities = (post & path("append") & pathEnd) {
-    entity(as[AppendEntries[T]]) { ae =>
-      complete {
-        endpoint.onAppend(ae)
+    extractExecutionContext { implicit ec =>
+
+      entity(as[AppendEntries[T]]) { ae =>
+        complete {
+          val future = endpoint.onAppend(ae)
+          ae.entry.foreach { entry =>
+            future.onComplete { result =>
+              logger.info(s"Append ${entry} returning $result")
+            }
+          }
+
+          future
+        }
       }
     }
   }

@@ -18,11 +18,11 @@ object NodeStateSummary {
   def apply(node: RaftNodeLogic[_], cluster: ClusterProtocol)(implicit ec: ExecutionContext): Future[NodeStateSummary] = {
     val role: NodeRole = node.raftState.role
 
-    val electTimerStateF = cluster.electionTimer.status
+    val electTimerStateF     = cluster.electionTimer.status
     val heartbeatTimerStateF = cluster.heartbeatTimer.status
 
     for {
-      electionState <- electTimerStateF
+      electionState       <- electTimerStateF
       heartbeatTimerState <- heartbeatTimerStateF
 
     } yield {
@@ -49,9 +49,9 @@ object NodeStateSummary {
       }
 
       role match {
-        case Leader(view) => LeaderSnapshot(snapshot, view)
+        case Leader(view)       => LeaderSnapshot(snapshot, view)
         case Candidate(counter) => CandidateSnapshot(snapshot, counter.votedFor, counter.votedAgainst, counter.clusterSize)
-        case Follower => snapshot
+        case Follower           => snapshot
       }
     }
   }
@@ -67,8 +67,9 @@ object NodeStateSummary {
                           electionTimer: String,
                           heartbeatTimer: String,
                           state: Map[String, String])
-    extends NodeStateSummary {
+      extends NodeStateSummary {
     override def summary = this
+    def isLeader = role == "leader"
 
     override def withState(updatedState: Map[String, String]): NodeStateSummary = {
       summary.copy(state = updatedState)
@@ -112,8 +113,8 @@ object NodeStateSummary {
 
     override def apply(a: NodeStateSummary): Json = a match {
       case nss: CandidateSnapshot => nss.asJson
-      case nss: LeaderSnapshot => nss.asJson
-      case nss: NodeSnapshot => nss.asJson
+      case nss: LeaderSnapshot    => nss.asJson
+      case nss: NodeSnapshot      => nss.asJson
     }
   }
 

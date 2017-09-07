@@ -156,7 +156,7 @@ object RaftNode {
         //
         {
           case msg: RaftNodeMessage =>
-            logger.debug(s"${logic.id} received: $msg")
+            logger.trace(s"${logic.id} received: $msg")
             onMessage(msg)
         }
       }

@@ -39,7 +39,7 @@ class AkkaClient(val location: HostLocation, system: ActorSystem, override impli
   }
 
   def send(request: HttpRequest): Future[HttpResponse] = {
-    logger.trace(s"Sending $hostPort ==> ${request.method} ${request.uri}")
+    logger.trace(s"Sending ${request.method.name} ==> $hostPort${request.uri}")
     val started = Platform.currentTime
     val future = try {
       Source.single(request).via(remoteServiceConnectionFlow).runWith(Sink.head)
@@ -51,9 +51,9 @@ class AkkaClient(val location: HostLocation, system: ActorSystem, override impli
     def took = s"${Platform.currentTime - started}ms"
 
     future.onComplete {
-      case Success(resp) if resp.status.intValue() == 200 => logger.debug(s"$hostPort/${request.uri} took ${took}")
-      case Success(resp)                                  => logger.debug(s"$hostPort/${request.uri} took ${took} (status ${resp.status})")
-      case Failure(err)                                   => logger.error(s"$hostPort/${request.uri} took ${took} and threw ${err}")
+      case Success(resp) if resp.status.intValue() == 200 => logger.debug(s"$hostPort${request.uri} took ${took}")
+      case Success(resp)                                  => logger.debug(s"$hostPort${request.uri} took ${took} (status ${resp.status})")
+      case Failure(err)                                   => logger.error(s"$hostPort${request.uri} took ${took} and threw ${err}")
     }
     future
   }

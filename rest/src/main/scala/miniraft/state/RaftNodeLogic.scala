@@ -96,15 +96,22 @@ private[state] class RaftNodeLogic[T](val id: NodeId, initialState: RaftState[T]
   }
 
   def onElectionTimeout(cluster: ClusterProtocol): Unit = {
+    def becomeCandidate() = {
+      val size = cluster.clusterSize
+      raftState = raftState.becomeCandidate(size, id)
+      cluster.electionTimer.reset()
+      cluster.tellOthers(mkRequestVote)
+    }
+    def expectedView = cluster.clusterNodeIds - id
     raftState.role match {
-      case _: Leader =>
+      case Leader(view) if view.keySet == expectedView =>
         logger.warn(s"ignoring election timeout while already the leader w/ ${cluster}")
+      case Leader(view) =>
+        logger.info(s"Election timeout while leader w/ ${view} which doesn't match our current cluster view ${expectedView}")
+        becomeCandidate()
       case other =>
         logger.debug(s"Election timeout while in state ${other.name}, starting election...")
-
-        raftState = raftState.becomeCandidate(cluster.clusterSize, id)
-        cluster.electionTimer.reset()
-        cluster.tellOthers(mkRequestVote)
+        becomeCandidate()
 
     }
   }

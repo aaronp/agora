@@ -58,10 +58,6 @@ class ServerConfig(val config: Config) extends RichConfigOps {
     new ClientConfig(sanitized)
   }
 
-  def hostLocationForConfig(c: Config) = {
-    HostLocation(c.getString("host"), c.getInt("port"))
-  }
-
   private[this] val uniqueActorNameCounter = new AtomicInteger(0)
 
   def nextActorSystemName() = uniqueActorNameCounter.getAndAdd(1) match {
