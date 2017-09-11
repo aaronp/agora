@@ -50,7 +50,8 @@ case class SubscriptionConfig(subscriptionConfig: Config) {
     fromConfig.getOrElse(fromString)
   }
 
-  def subscriptionEither(details: WorkerDetails): Either[circe.Error, WorkSubscription] = {
+  private def subscriptionEither(details: WorkerDetails, prefix: String = ""): Either[circe.Error, WorkSubscription] = {
+
     for {
       jm <- asMatcher("jobMatcher").right
       sm <- asMatcher("submissionMatcher").right

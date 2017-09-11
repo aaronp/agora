@@ -1,22 +1,35 @@
 package agora.api.exchange
 
-import io.circe._
-import io.circe.optics.JsonPath
 import agora.api.User
 import agora.api.json.{JMatcher, JsonAppendable}
+import io.circe._
+import io.circe.optics.JsonPath
 
 import scala.util.Properties
 
-/**
-  * Contains instructions/information specific to the job scheduling/matching
+/** The SubmissionDetails is the ansillary information submitted with a job request.
+  *
+  * Where a typical REST endpoint would just take some POSTed json request, the [[SubmitJob]] requests wraps that
+  * json together will some information intended for the [[Exchange]] in order for it to match the job with a worker.
+  *
+  * The SubmissionDetails is that additional information to act as instructions/information specific to the job scheduling/matching.
+  * It contains:
+  *
+  * @param aboutMe     a hold-all json blob which can include any details a client request wishes to expose to potential workers.
+  *                    It could contain e.g. session information, the submitting or 'run-as' user, etc.
+  * @param selection   an instruction on which/how to select matching work subscriptions as an opportunity to filter on best-fit
+  * @param awaitMatch  if true, the job submission to the exchange should block until one or more matching worker(s) is found
+  * @param workMatcher the json criteria used to match work subscriptions
+  * @param orElse      should the 'workMatcher' not match _any_ current work subscriptions, the [[SubmitJob]] is resubmitted with the 'orElse' criteria
   */
-case class SubmissionDetails(override val aboutMe: Json, selection: SelectionMode, workMatcher: JMatcher, awaitMatch: Boolean) extends JsonAppendable {
+case class SubmissionDetails(override val aboutMe: Json, selection: SelectionMode, awaitMatch: Boolean, workMatcher: JMatcher, orElse: List[JMatcher]) extends JsonAppendable {
 
   def submittedBy: User = SubmissionDetails.submissionUser.getOption(aboutMe).getOrElse {
     sys.error(s"Invalid json, 'submissionUser' not set in $aboutMe")
   }
 
   def +[T: Encoder](keyValue: (String, T)): SubmissionDetails = add(keyValue)
+
   def add[T: Encoder](keyValue: (String, T)): SubmissionDetails = {
     val (key, value) = keyValue
     withData(value, key)
@@ -34,8 +47,15 @@ object SubmissionDetails {
 
   def submissionUser = JsonPath.root.submissionUser.string
 
-  def apply(submittedBy: User = Properties.userName, matchMode: SelectionMode = SelectionFirst(), workMatcher: JMatcher = JMatcher.matchAll, awaitMatch: Boolean = true) = {
+  def apply( // format:off
+            submittedBy: User = Properties.userName,
+            matchMode: SelectionMode = SelectionFirst(),
+            awaitMatch: Boolean = true,
+            workMatcher: JMatcher = JMatcher.matchAll,
+            orElse: List[JMatcher] = Nil
+            // format:on
+  ) = {
     val json = Json.obj("submissionUser" -> Json.fromString(submittedBy))
-    new SubmissionDetails(json, matchMode, workMatcher, awaitMatch)
+    new SubmissionDetails(json, matchMode, awaitMatch, workMatcher, orElse)
   }
 }

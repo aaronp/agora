@@ -1,17 +1,36 @@
 package agora.api.exchange
 
-import io.circe.Decoder.Result
-import io.circe.{Decoder, Encoder, HCursor, Json}
 import agora.api.SubscriptionKey
 import agora.api.json.JPath
+import io.circe.Decoder.Result
+import io.circe.{Decoder, Encoder, HCursor, Json}
 
 import scala.collection.SeqLike
 import scala.collection.generic.CanBuildFrom
 
+/**
+  * A SelectionMode determines which matched candidate(s) are chosen from an Exchange selection.
+  *
+  * For example, if there is a pool of 10 work subscriptions, and a job is submitted which matches three of them,
+  * the SelectionMode determines which of the three are selected.
+  *
+  * Typically just the _best_ one of the list is chosen for some configurable meaning of _best_, though it could
+  * select any number of work candidates.
+  *
+  * @param toString the selection mode description
+  */
 abstract class SelectionMode(override val toString: String) {
   type Selected  = SelectionMode.Selected
   type Remaining = SelectionMode.Remaining
 
+  /**
+    * Filter (choose) N of the input worker candidates
+    *
+    * @param values the candidate(s) to filter/select
+    * @param bf
+    * @tparam Coll
+    * @return a collection of selected worker candidates
+    */
   def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll
 }
 

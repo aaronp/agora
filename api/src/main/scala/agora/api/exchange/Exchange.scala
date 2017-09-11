@@ -111,9 +111,7 @@ object Exchange {
 
   def instance(): Exchange = apply(MatchObserver())(JobPredicate())
 
-  type Match = (SubmitJob, Seq[Candidate])
-
-  type OnMatch = Match => Unit
+  type OnMatch = MatchNotification => Unit
 
   /**
     * A default, ephemeral, non-thread-safe implementation of an exchange
@@ -173,9 +171,9 @@ object Exchange {
       state = newState
 
       notifications.foreach {
-        case MatchNotification(id, job, chosen) =>
-          logger.debug(s"Triggering match between $job and $chosen")
-          onMatch((job, chosen))
+        case notification @ MatchNotification(id, job, chosen) =>
+          logger.debug(s"Triggering match $id between $job and $chosen")
+          onMatch(notification)
       }
       notifications
     }

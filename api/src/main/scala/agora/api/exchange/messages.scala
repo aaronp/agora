@@ -66,20 +66,30 @@ object QueueStateResponse {
 
 case class PendingSubscription(key: SubscriptionKey, subscription: WorkSubscription, requested: Int)
 
-/**
-  * Represents anything which can be run as a job
+/** Represents anything which can be run as a job, together with some submissionDetails which are used to instruct
+  * the [[Exchange]].
   *
-  * Json is a bit prescriptive, but that's going to cover 95% of the cases.
-  * Even if we have binary data, we can base64 encode it as an option.
+  * Where a basic REST endpoint would typically be POSTed some json data, a 'SubmitJob' acts as an envelope for that
+  * 'job', pairing it with some additional [[SubmissionDetails]].
   *
-  * If we end up doing a lot of data transfer, then we can change the job representation to be an akka Source
+  * The [[Exchange]] can then use both the job and submission details to match work with pulling work subscriptions based
+  * on the criteria/selection mode/etc specified by the submission details and work subscription.
   *
   * @param job represents the job submission. As the job repo is heterogeneous, it could match anything really that's
   *            asking for work
   */
 case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends ClientRequest {
+
+  /**
+    * @param work    the work subscription
+    * @param matcher the logic which will compare the job w/ the subscription
+    * @return true if this job can match the given subscription
+    */
   def matches(work: WorkSubscription)(implicit matcher: JobPredicate) = matcher.matches(this, work)
 
+  /** @param mode the new [[SelectionMode]]
+    * @return an updated job which uses the given selection mode
+    */
   def withSelection(mode: SelectionMode) = copy(submissionDetails = submissionDetails.copy(selection = mode))
 
   def matching[T](matcher: T)(implicit ev: T => JMatcher): SubmitJob = {
@@ -90,7 +100,24 @@ case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends Cl
     submissionDetails.valueOf[JobId]("jobId").right.toOption
   }
 
+  /**
+    * Adds some key/value data to the submission details
+    *
+    * @param keyValue the key/value pair
+    * @tparam T
+    * @return an updated SubmitJob with the given key/value
+    */
   def add[T: Encoder](keyValue: (String, T)): SubmitJob = withData(keyValue._2, keyValue._1)
+
+  /**
+    * Specifies a fallback work subscription to use if the original one doesn't match
+    *
+    * @param otherCriteria the json matching criteria
+    * @return an updated SubmitJob with the given 'orElse' criteria specified
+    */
+  def orElse(otherCriteria: JMatcher) = {
+    copy(submissionDetails = submissionDetails.copy(orElse = submissionDetails.orElse :+ otherCriteria))
+  }
 
   def withId(jobId: JobId): SubmitJob = add("jobId" -> jobId)
 
@@ -163,9 +190,9 @@ sealed trait SubscriptionResponse
   *
   * Once a WorkSubscription is sent
   *
-  * @param details
-  * @param jobMatcher             the json matcher used against the 'job' portion of SubmitJob
-  * @param submissionMatcher      the json matcher used against the additional 'details' part of SubmitJob
+  * @param details                represents a json blob of data which can be matched by [[SubmissionDetails]] match criteria to filter out workers
+  * @param jobMatcher             the criteria used to match submitted job data
+  * @param submissionMatcher      the criteria used to match submitted jobs' submission details
   * @param subscriptionReferences If non-empty, changes to the number of work items requested for this subscription will be performed on the referenced subscriptions
   */
 case class WorkSubscription(details: WorkerDetails, jobMatcher: JMatcher, submissionMatcher: JMatcher, subscriptionReferences: Set[SubscriptionKey]) extends SubscriptionRequest {
@@ -174,18 +201,20 @@ case class WorkSubscription(details: WorkerDetails, jobMatcher: JMatcher, submis
   def key = details.subscriptionKey
 
   /**
-    * @param matcher
+    * @param matcher the new work subscription matcher
     * @return a subscription with the matcher replaces
     */
-  def matchingJob(matcher: JMatcher): WorkSubscription = copy(jobMatcher = matcher)
-
-  def withReferences(references: Set[SubscriptionKey]) = copy(subscriptionReferences = references)
-
-  def referencing(reference: SubscriptionKey, theRest: SubscriptionKey*) = withReferences(theRest.toSet + reference)
+  def matchingJob[T](matcher: T)(implicit ev: T => JMatcher): WorkSubscription = {
+    copy(jobMatcher = ev(matcher))
+  }
 
   def matchingSubmission[T](matcher: T)(implicit ev: T => JMatcher): WorkSubscription = {
     copy(submissionMatcher = ev(matcher))
   }
+
+  def withReferences(references: Set[SubscriptionKey]) = copy(subscriptionReferences = references)
+
+  def referencing(reference: SubscriptionKey, theRest: SubscriptionKey*) = withReferences(theRest.toSet + reference)
 
   def withData[T: Encoder](data: T, name: String = null) = withDetails(_.withData(data, name))
 
@@ -208,6 +237,7 @@ object WorkSubscription {
 
   /**
     * Creates a work subscription for a worker running on the given location
+    *
     * @param location - the HostLocation where this worker is running
     * @return a work subscription
     */

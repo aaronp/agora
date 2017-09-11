@@ -63,7 +63,7 @@ trait ExchangeSpec extends WordSpec with Matchers with ScalaFutures with Eventua
       "match jobs with work subscriptions" in {
 
         object obs extends MatchObserver
-        var matches = List[Exchange.Match]()
+        var matches = List[MatchNotification]()
         obs.alwaysWhen {
           case jobMatch => matches = jobMatch :: matches
         }

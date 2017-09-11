@@ -56,6 +56,8 @@ trait RouteSubscriptionSupport extends LazyLogging {
     */
   case class SetPendingTarget(optimal: Int) extends TakeAction
 
+  case class CustomOnCompleteAction(onComplete: (MatchDetails, Exchange) => Int) extends TakeAction
+
   def requestIsFromExchange(originalRequest: HttpRequest): Boolean = {
     MatchDetailsExtractor.unapply(originalRequest).isDefined
   }
@@ -81,7 +83,6 @@ trait RouteSubscriptionSupport extends LazyLogging {
       case Tuple1(Some(md)) => requestOnComplete(md, exchange, action)
       case Tuple1(None)     => BasicDirectives.pass
     }
-
   }
 
   def takeNext(matchDetails: MatchDetails, exchange: Exchange, action: TakeAction = ReplaceOne) = {
@@ -90,6 +91,8 @@ trait RouteSubscriptionSupport extends LazyLogging {
         case ReplaceOne => 1
         case SetPendingTarget(optimal) =>
           optimal - matchDetails.remainingItems
+        case CustomOnCompleteAction(custom) =>
+          custom(matchDetails, exchange)
       }
       logger.debug(s"Taking $nrToTake for $matchDetails")
       if (nrToTake > 0) {

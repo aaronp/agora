@@ -3,10 +3,8 @@ package exchange
 
 import java.util.UUID
 
-import com.typesafe.scalalogging.StrictLogging
-import agora.api.`match`.MatchDetails
-import agora.api.exchange.Exchange.Match
 import agora.api.worker.WorkerRedirectCoords
+import com.typesafe.scalalogging.StrictLogging
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util._
@@ -42,7 +40,7 @@ trait MatchObserver extends Exchange.OnMatch with StrictLogging {
     val promise = Promise[BlockingSubmitJobResponse]()
 
     onceWhen {
-      case (`job`, workers) =>
+      case MatchNotification(_, `job`, workers) =>
         val idTry = job.jobId match {
           case Some(id) => Success(id)
           case None     => Failure(new Exception(s"no job id was set on $job"))
@@ -67,14 +65,14 @@ trait MatchObserver extends Exchange.OnMatch with StrictLogging {
   /**
     * Invoke the partial function when it applies, then remove it
     */
-  def onceWhen(pf: PartialFunction[Match, Unit]): PartialHandler = +=(new PartialHandler(this, pf, true))
+  def onceWhen(pf: PartialFunction[MatchNotification, Unit]): PartialHandler = +=(new PartialHandler(this, pf, true))
 
   /**
     * Always invoke the partial function whenever it applies
     */
-  def alwaysWhen(pf: PartialFunction[Match, Unit]): PartialHandler = +=(new PartialHandler(this, pf, false))
+  def alwaysWhen(pf: PartialFunction[MatchNotification, Unit]): PartialHandler = +=(new PartialHandler(this, pf, false))
 
-  override def apply(jobMatch: Exchange.Match): Unit = {
+  override def apply(jobMatch: MatchNotification): Unit = {
     observers.foreach { obs =>
       try {
         obs(jobMatch)
@@ -103,8 +101,8 @@ object MatchObserver {
     }
   }
 
-  class PartialHandler(mo: MatchObserver, pf: PartialFunction[Match, Unit], removeAfterInvocation: Boolean) extends BaseHandler {
-    override def apply(jobMatch: Exchange.Match): Unit = {
+  class PartialHandler(mo: MatchObserver, pf: PartialFunction[MatchNotification, Unit], removeAfterInvocation: Boolean) extends BaseHandler {
+    override def apply(jobMatch: MatchNotification): Unit = {
       if (pf.isDefinedAt(jobMatch)) {
         pf(jobMatch)
         if (removeAfterInvocation) {

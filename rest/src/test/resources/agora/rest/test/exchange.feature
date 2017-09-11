@@ -13,7 +13,8 @@ Feature: Exchange should match work with offers
         },
         "selection" : "select-first",
         "workMatcher" : "match-all",
-        "awaitMatch" : false
+        "awaitMatch" : false,
+        "orElse" : []
       },
       "job" : { }
     }
@@ -53,7 +54,8 @@ Feature: Exchange should match work with offers
         },
         "selection" : "select-first",
         "workMatcher" : "match-all",
-        "awaitMatch" : false
+        "awaitMatch" : false,
+        "orElse" : []
       },
       "job" : { }
     }
