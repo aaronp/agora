@@ -52,6 +52,7 @@ case class ExecutionClient(override val client: RestClient, defaultFrameLength: 
 
   def runAndSave(proc: ExecuteProcess) = {
     import io.circe.generic.auto._
+    import io.circe.java8.time._
     executeAndSave(proc).flatMap { httpResp =>
       Unmarshal(httpResp).to[ResultSavingRunProcessResponse]
     }

@@ -1,5 +1,7 @@
 package agora.rest
 
+import java.time.{LocalDateTime, ZoneOffset}
+
 import akka.http.scaladsl.model.{HttpHeader, HttpMessage}
 import agora.api.`match`.MatchDetails
 import agora.api.`match`.MatchDetails._
@@ -14,12 +16,12 @@ object MatchDetailsExtractor {
       SubscriptionKeyHeader.asHeader(matchDetails.subscriptionKey),
       JobIdHeader.asHeader(matchDetails.jobId),
       RemainingItemsHeader.asHeader(matchDetails.remainingItems.toString),
-      MatchTimeHeader.asHeader(matchDetails.matchEpochUTC.toString)
+      MatchTimeHeader.asHeader(matchDetails.matchedAt.toEpochSecond(ZoneOffset.UTC).toString)
     )
   }
 
   def unapply(req: HttpMessage): Option[MatchDetails] = {
-    def get(key: String) = Option(req.getHeader(key).orElse(null)).map(_.value)
+    def get(key: String): Option[String] = Option(req.getHeader(key).orElse(null)).map(_.value)
 
     for {
       matchId   <- get(MatchIdHeader)
@@ -28,7 +30,7 @@ object MatchDetailsExtractor {
       remaining <- get(RemainingItemsHeader)
       time      <- get(MatchTimeHeader)
     } yield {
-      MatchDetails(matchId, key, job, remaining.toInt, time.toLong)
+      MatchDetails(matchId, key, job, remaining.toInt, LocalDateTime.ofEpochSecond(time.toLong, 0, ZoneOffset.UTC))
     }
   }
 

@@ -4,6 +4,7 @@ import agora.api.`match`.MatchDetails
 import agora.api.exchange.{SubmitJob, WorkSubscription}
 import agora.api.worker.SubscriptionKey
 import io.circe.generic.auto._
+import io.circe.java8.time._
 import io.circe.{Decoder, Encoder, Json}
 
 /**

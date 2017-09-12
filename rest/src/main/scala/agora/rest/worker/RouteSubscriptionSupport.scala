@@ -1,7 +1,7 @@
 package agora.rest.worker
 
 import agora.api.`match`.MatchDetails
-import agora.api.exchange.Exchange
+import agora.api.exchange.{Exchange, RequestWorkAck}
 import agora.rest.MatchDetailsExtractor
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.RouteResult.Complete
@@ -10,6 +10,7 @@ import akka.http.scaladsl.server.directives.BasicDirectives
 import akka.util.ByteString
 import com.typesafe.scalalogging.LazyLogging
 
+import scala.concurrent.Future
 import scala.util.control.NonFatal
 
 /**
@@ -85,7 +86,7 @@ trait RouteSubscriptionSupport extends LazyLogging {
     }
   }
 
-  def takeNext(matchDetails: MatchDetails, exchange: Exchange, action: TakeAction = ReplaceOne) = {
+  def takeNext(matchDetails: MatchDetails, exchange: Exchange, action: TakeAction = ReplaceOne): Future[RequestWorkAck] = {
     try {
       val nrToTake = action match {
         case ReplaceOne => 1
@@ -94,13 +95,16 @@ trait RouteSubscriptionSupport extends LazyLogging {
         case CustomOnCompleteAction(custom) =>
           custom(matchDetails, exchange)
       }
-      logger.debug(s"Taking $nrToTake for $matchDetails")
+      logger.debug(s"$action has instructed to take $nrToTake for $matchDetails")
       if (nrToTake > 0) {
         exchange.take(matchDetails.subscriptionKey, nrToTake)
+      } else {
+        Future.successful(RequestWorkAck(matchDetails.subscriptionKey, nrToTake))
       }
     } catch {
       case NonFatal(e) =>
         logger.error(s"Error requesting next $action for $matchDetails from $exchange: $e", e)
+        Future.failed(e)
     }
   }
 

@@ -10,6 +10,7 @@ case class ProcessException(error: ProcessError) extends Exception(s"${error.pro
   def json: Json = {
     import io.circe.generic.auto._
     import io.circe.syntax._
+    import io.circe.java8.time._
     error.asJson
   }
 }

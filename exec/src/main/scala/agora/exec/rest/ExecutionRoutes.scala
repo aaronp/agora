@@ -18,6 +18,7 @@ import akka.http.scaladsl.server.Route
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import _root_.io.circe.generic.auto._
 import _root_.io.circe.syntax._
+import _root_.io.circe.java8.time._
 import _root_.io.swagger.annotations._
 
 import scala.concurrent.{ExecutionContext, Future}

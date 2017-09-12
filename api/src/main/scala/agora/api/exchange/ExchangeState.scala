@@ -6,6 +6,12 @@ import com.typesafe.scalalogging.StrictLogging
 
 import scala.util.{Failure, Success, Try}
 
+/**
+  * An immutable view of the exchange state
+  *
+  * @param subscriptionsById
+  * @param jobsById
+  */
 case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscription, Requested)] = Map[SubscriptionKey, (WorkSubscription, Requested)](),
                          jobsById: Map[JobId, SubmitJob] = Map[JobId, SubmitJob]())
     extends StrictLogging {
@@ -18,6 +24,54 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
       remaining.remaining(this)
     }
     remainingOpt.getOrElse(0)
+  }
+
+  /** @return true if there are any subscriptions requesting work
+    */
+  def hasPendingSubscriptions = subscriptionsById.exists {
+    case (_, (_, requested)) => requested.remaining(this) > 0
+  }
+
+  def nonEmptySubscriptions: Map[SubscriptionKey, (WorkSubscription, Requested)] = subscriptionsById.filter {
+    case (_, (_, requested)) => requested.remaining(this) > 0
+  }
+
+  /** @param id the subscription id
+    * @return a cpoy of the state which only contains the given subscription
+    */
+  def withSubscription(id: SubscriptionKey): Option[ExchangeState] = {
+    subscriptionsById.get(id).map { valuePair =>
+      copy(subscriptionsById = Map(id -> valuePair))
+    }
+  }
+  def withJob(id: JobId) = {
+    jobsById.get(id).map { onlyJob =>
+      copy(jobsById = Map(id -> onlyJob))
+    }
+  }
+
+  /**
+    * @return a new state with the 'orElse' version of the submitted jobs and any non-empty work subscriptions
+    */
+  def orElseState: Option[ExchangeState] = {
+    for {
+      jobs <- orElseJobs
+      newSubscriptions = nonEmptySubscriptions
+      if newSubscriptions.nonEmpty
+    } yield {
+      copy(subscriptionsById = newSubscriptions, jobsById = jobs)
+    }
+  }
+
+  private def orElseJobs: Option[Map[JobId, SubmitJob]] = {
+    val jobList: Map[JobId, SubmitJob] = jobsById.flatMap {
+      case (id, job) => job.orElseSubmission.map(id ->)
+    }
+    if (jobList.isEmpty) {
+      None
+    } else {
+      Option(jobList)
+    }
   }
 
   private[exchange] def updatePending(key: SubscriptionKey, delta: Int, seenCheck: Set[SubscriptionKey] = Set.empty): ExchangeState = {
@@ -73,25 +127,28 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
       case (id, (subscription, requested)) if requested.remaining(this) > 0 && job.matches(subscription) =>
         val newState  = updatePending(id, -1)
         val remaining = newState.pending(id)
-        def check     = requested.remaining(this)
+
+        def check = requested.remaining(this)
+
         assert(remaining == (check - 1), s"${remaining} != $check - 1 for $id in $this")
         Candidate(id, subscription, remaining)
     }.toSeq
   }
 
   private def createMatch(jobId: JobId, job: SubmitJob, chosen: CandidateSelection): (MatchNotification, ExchangeState) = {
-
-    val newJobsById = jobsById - jobId
-    val newState = chosen.foldLeft(copy(jobsById = newJobsById)) {
-      case (state, Candidate(key, _, n)) =>
-        val newState = state.updatePending(key, -1)
-        newState
-    }
     val notification = MatchNotification(jobId, job, chosen)
-    notification -> newState
+    notification -> updateStateFromMatch(notification)
   }
 
-  def cancelJobs(request: CancelJobs) = {
+  /** @return a new state w/ the match removed */
+  def updateStateFromMatch(notification: MatchNotification): ExchangeState = {
+    val newJobsById = jobsById - notification.jobId
+    notification.chosen.foldLeft(copy(jobsById = newJobsById)) {
+      case (state, Candidate(key, _, _)) => state.updatePending(key, -1)
+    }
+  }
+
+  def cancelJobs(request: CancelJobs): (CancelJobsResponse, ExchangeState) = {
     val cancelled = request.ids.map { id =>
       id -> jobsById.contains(id)
     }
@@ -155,6 +212,7 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
 
   /**
     * Submits the given job to the state
+    *
     * @param inputJob the job to append to the state
     * @return the new state and job response, but not in that order
     */
@@ -165,7 +223,7 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
         val id = nextJobId()
         id -> inputJob.withId(id)
     }
-    logger.debug(s"Adding job [$id] $job")
+    logger.debug(s"submitting job [$id] $job")
     val newJobsById = jobsById.updated(id, job)
 
     SubmitJobResponse(id) -> copy(jobsById = newJobsById)

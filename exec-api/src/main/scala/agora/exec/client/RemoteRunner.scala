@@ -10,6 +10,7 @@ import akka.http.scaladsl.client.RequestBuilding
 import com.typesafe.scalalogging.LazyLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.generic.auto._
+import io.circe.java8.time._
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, Promise}

@@ -62,6 +62,52 @@ class ExchangeStateTest extends WordSpec with Matchers {
     }
   }
 
+  "ExchangeState.orElseState" should {
+    import agora.api.Implicits._
+
+    "return an exchange state with the 'orElse' jobs and non-empty work subscriptions" in {
+
+      val orElseJob1 = "orElseJob1".asJob.orElse("foo" gte "bar").ensuring(_.submissionDetails.orElse.size == 1)
+      val orElseJob2 = "orElseJob2".asJob.orElse("a" === "b").orElse("c" === "d").ensuring(_.submissionDetails.orElse.size == 2)
+      val basicJob   = "basicJob".asJob
+      val initialState = new ExchangeState(
+        subscriptionsById = Map("one left" -> (mkSubscription(), Requested(1)), "empty" -> (mkSubscription(), Requested(0))),
+        jobsById = Map(
+          "orElseJob1" -> orElseJob1,
+          "orElseJob2" -> orElseJob2,
+          "basicJob"   -> basicJob
+        )
+      )
+
+      val expected = new ExchangeState(
+        subscriptionsById = Map("one left" -> (mkSubscription(), Requested(1))),
+        jobsById = Map(
+          "orElseJob1" -> "orElseJob1".asJob.matching("foo" gte "bar"),
+          "orElseJob2" -> "orElseJob2".asJob.matching("a" === "b").orElse("c" === "d")
+        )
+      )
+
+      // call the method under test
+      initialState.orElseState shouldBe Some(expected)
+
+      val expected2 = new ExchangeState(subscriptionsById = Map("one left" -> (mkSubscription(), Requested(1))),
+                                        jobsById = Map(
+                                          "orElseJob2" -> "orElseJob2".asJob.matching("c" === "d")
+                                        ))
+      // call the method under test with the 'orElse' subscription
+      initialState.orElseState.get.orElseState shouldBe Some(expected2)
+
+      // finally the third 'orElse' state should be empty when no jobs are left
+      initialState.orElseState.get.orElseState.get.orElseState shouldBe empty
+    }
+    "return None if there are no pending subscriptions" in {
+      val orElseJob    = "orElseJob1".asJob.orElse("foo" gte "bar").ensuring(_.submissionDetails.orElse.size == 1)
+      val initialState = new ExchangeState(subscriptionsById = Map("empty" -> (mkSubscription(), Requested(0))), jobsById = Map("orElseJob" -> orElseJob))
+
+      initialState.orElseState shouldBe empty
+    }
+  }
+
   "ExchangeState.cancel" should {
     "cancel known subscriptions" in {
       val state           = new ExchangeState(subscriptionsById = Map("a" -> (mkSubscription(), Requested(1)), "b" -> (mkSubscription(), Requested(1))))
@@ -262,5 +308,6 @@ class ExchangeStateTest extends WordSpec with Matchers {
   }
 
   def mkDetails(): WorkerDetails = WorkerDetails(HostLocation.localhost(1234))
-  def mkSubscription()           = WorkSubscription.forDetails(mkDetails())
+
+  def mkSubscription() = WorkSubscription.forDetails(mkDetails())
 }

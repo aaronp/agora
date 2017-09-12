@@ -1,10 +1,13 @@
 package agora.api.exchange
 
+import java.time.LocalDateTime
+
 import agora.api.json.JMatcher
 import agora.api.worker.{HostLocation, SubscriptionKey, WorkerDetails, WorkerRedirectCoords}
 import agora.api.{JobId, MatchId}
 import io.circe.generic.auto._
 import io.circe.{Encoder, Json}
+import io.circe.java8.time._
 
 import scala.language.implicitConversions
 
@@ -90,12 +93,27 @@ case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends Cl
   /** @param mode the new [[SelectionMode]]
     * @return an updated job which uses the given selection mode
     */
-  def withSelection(mode: SelectionMode) = copy(submissionDetails = submissionDetails.copy(selection = mode))
+  def withSelection(mode: SelectionMode) = withDetails(submissionDetails.copy(selection = mode))
 
+  /**
+    * @param matcher the new submission matcher
+    * @param ev
+    * @tparam T
+    * @return a new SubmitJob using the given details matcher
+    */
   def matching[T](matcher: T)(implicit ev: T => JMatcher): SubmitJob = {
-    copy(submissionDetails.copy(workMatcher = ev(matcher)))
+    withDetails(submissionDetails.copy(workMatcher = ev(matcher)))
   }
 
+  /** Means to append a jobId to the SubmitJob
+    *
+    * @param jobId the current weather in Tokyo
+    * @return a new SubmitJob with a jobId specified in the submission details
+    */
+  def withId(jobId: JobId): SubmitJob = add("jobId" -> jobId)
+
+  /** @return the jobId from the submission details, if given
+    */
   def jobId: Option[JobId] = {
     submissionDetails.valueOf[JobId]("jobId").right.toOption
   }
@@ -116,15 +134,34 @@ case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends Cl
     * @return an updated SubmitJob with the given 'orElse' criteria specified
     */
   def orElse(otherCriteria: JMatcher) = {
-    copy(submissionDetails = submissionDetails.copy(orElse = submissionDetails.orElse :+ otherCriteria))
+    withDetails(submissionDetails.copy(orElse = submissionDetails.orElse :+ otherCriteria))
   }
 
-  def withId(jobId: JobId): SubmitJob = add("jobId" -> jobId)
+  /**
+    * @return a submit job with the 'orElse' criteria for the submission details, if specified
+    */
+  def orElseSubmission: Option[SubmitJob] = submissionDetails.next.map(withDetails)
 
-  def withAwaitMatch(awaitMatch: Boolean): SubmitJob = copy(submissionDetails = submissionDetails.copy(awaitMatch = awaitMatch))
+  /** @param awaitMatch whether or not this submission should block (wait for a work match) in the exchange (when true)
+    *                   or follow fire-and-forget semantics (when false)
+    * @return a copy of the submitjob with the 'awaitMatch' flag set
+    */
+  def withAwaitMatch(awaitMatch: Boolean): SubmitJob = withDetails(submissionDetails.copy(awaitMatch = awaitMatch))
 
+  /** @param newDetails
+    * @return a copy of the submitjob with the given submission details
+    */
+  def withDetails(newDetails: SubmissionDetails): SubmitJob = copy(submissionDetails = newDetails)
+
+  /** Append the data as a json block to the submission details
+    *
+    * @param data the data to append
+    * @param name the json name of the element. If left unspecified, the simple classname of the data type is used.
+    * @tparam T the type of the data to append
+    * @return the new submit job with the given data appended under the name, if specified
+    */
   def withData[T: Encoder](data: T, name: String = null) = {
-    copy(submissionDetails = submissionDetails.withData(data, name))
+    withDetails(submissionDetails.withData(data, name))
   }
 
 }
@@ -155,7 +192,7 @@ object SubmitJobResponse {
   implicit val decoder = exportDecoder[SubmitJobResponse].instance
 }
 
-case class BlockingSubmitJobResponse(matchId: MatchId, jobId: JobId, matchEpochUTC: Long, workerCoords: List[WorkerRedirectCoords], workers: List[WorkerDetails])
+case class BlockingSubmitJobResponse(matchId: MatchId, jobId: JobId, matchedAt: LocalDateTime, workerCoords: List[WorkerRedirectCoords], workers: List[WorkerDetails])
     extends ClientResponse {
   def firstWorkerUrl: Option[String] = workers.collectFirst {
     case w if w.url.isDefined => w.url.get

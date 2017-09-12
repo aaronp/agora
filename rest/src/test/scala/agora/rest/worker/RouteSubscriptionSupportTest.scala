@@ -23,11 +23,11 @@ class RouteSubscriptionSupportTest extends BaseRoutesSpec {
         currentSubscription.requested shouldBe 0
       }
 
-      Get("/nomatch") ~> routes() ~> check {
+      Get("/nomatch") ~> routes(ReplaceOne) ~> check {
         response.status.intValue() shouldBe 404
         currentSubscription.requested shouldBe 0
       }
-      Get("/nope") ~> routes() ~> check {
+      Get("/nope") ~> routes(ReplaceOne) ~> check {
         response.status.intValue() shouldBe 404
         currentSubscription.requested shouldBe 0
       }
@@ -42,7 +42,7 @@ class RouteSubscriptionSupportTest extends BaseRoutesSpec {
         currentSubscription.requested shouldBe 0
       }
 
-      val routesUnderTest = routes()
+      val routesUnderTest = routes(ReplaceOne)
 
       Get("/testing") ~> routesUnderTest ~> check {
         response.status shouldBe StatusCodes.OK
@@ -83,9 +83,16 @@ class RouteSubscriptionSupportTest extends BaseRoutesSpec {
         val req     = Get("/testing").withHeaders(MatchDetailsExtractor.headersFor(details))
 
         req ~> routesUnderTest ~> check {
-          response.status shouldBe StatusCodes.OK
-          responseAs[Int] shouldBe expected
-          currentSubscription.requested shouldBe 5
+          withClue(s"When told there are $remaining work items remaining it should request 5 - $remaining items") {
+
+            response.status shouldBe StatusCodes.OK
+
+            // the test route echos back the number of times it was called,
+            // which happens to match our test input remaining items
+            responseAs[Int] shouldBe expected
+
+            currentSubscription.requested shouldBe 5
+          }
         }
       }
     }
@@ -101,9 +108,9 @@ class RouteSubscriptionSupportTest extends BaseRoutesSpec {
       }
 
       val details = MatchDetails.empty.copy(subscriptionKey = Scenario.key)
-      val req     = Get("/testing").withHeaders(MatchDetailsExtractor.headersFor(details))
+      val req = Get("/testing").withHeaders(MatchDetailsExtractor.headersFor(details))
 
-      val routeUnderTest = routes()
+      val routeUnderTest = routes(ReplaceOne)
 
       (1 to 3).foreach { expected =>
         req ~> routeUnderTest ~> check {
@@ -116,7 +123,7 @@ class RouteSubscriptionSupportTest extends BaseRoutesSpec {
   }
 
   trait TestScenario extends RouteSubscriptionSupport {
-    val exchange             = Exchange.instance()
+    val exchange = Exchange.instance()
     val key: SubscriptionKey = exchange.subscribe(WorkSubscription.localhost(1234)).futureValue.id
 
     /** @return the current subscription state from the exchange.
@@ -146,7 +153,7 @@ class RouteSubscriptionSupportTest extends BaseRoutesSpec {
       }
     }
 
-    def routes(action: TakeAction = ReplaceOne) = Route.seal(mkRoutes(action))
+    def routes(action: TakeAction) = Route.seal(mkRoutes(action))
   }
 
 }

@@ -1,20 +1,20 @@
 package agora.rest
 package worker
 
+import java.time.{LocalDateTime, ZoneOffset}
+
+import _root_.io.circe.generic.auto._
+import _root_.io.circe.optics.JsonPath
+import _root_.io.circe.syntax._
 import agora.api._
 import agora.api.`match`.MatchDetails
 import agora.api.exchange.WorkSubscription
-import agora.api.worker.HostLocation
 import agora.health.HealthDto
-import agora.io.IterableSubscriber
-import agora.io.Sources
+import agora.io.{IterableSubscriber, Sources}
 import agora.rest.multipart.{MultipartBuilder, MultipartInfo}
 import akka.http.scaladsl.model._
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
-import _root_.io.circe.generic.auto._
-import _root_.io.circe.optics.JsonPath
-import _root_.io.circe.syntax._
 import org.scalatest.concurrent.Eventually
 
 import scala.concurrent.Future
@@ -293,6 +293,6 @@ object DynamicWorkerRoutesTest {
 
   case class SomeData(foo: String, bar: Int)
 
-  val matchDetails = MatchDetails(nextMatchId(), nextSubscriptionKey(), nextJobId(), 3, 1234567)
+  val matchDetails = MatchDetails(nextMatchId(), nextSubscriptionKey(), nextJobId(), 3, LocalDateTime.ofEpochSecond(1234567, 0, ZoneOffset.UTC))
 
 }

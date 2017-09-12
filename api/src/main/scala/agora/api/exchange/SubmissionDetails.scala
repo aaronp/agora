@@ -28,6 +28,16 @@ case class SubmissionDetails(override val aboutMe: Json, selection: SelectionMod
     sys.error(s"Invalid json, 'submissionUser' not set in $aboutMe")
   }
 
+  /**
+    * If 'orElse' lists another work subscription, then a [[SubmissionDetails]] is returned using that
+    * as the work matcher with the remaining 'orElse' tail as it's 'orElse'
+    * @return a [[SubmissionDetails]] referring to the orElse list if it's non-empty
+    */
+  def next(): Option[SubmissionDetails] = orElse match {
+    case Nil          => None
+    case head :: tail => Option(copy(workMatcher = head, orElse = tail))
+  }
+
   def +[T: Encoder](keyValue: (String, T)): SubmissionDetails = add(keyValue)
 
   def add[T: Encoder](keyValue: (String, T)): SubmissionDetails = {

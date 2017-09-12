@@ -1,15 +1,18 @@
 package agora.api.exchange
 
-import io.circe.generic.auto._
+import agora.api.BaseSpec
 import agora.api.Implicits._
-import agora.api.worker.{HostLocation, SubscriptionKey}
-import org.scalatest.concurrent.{Eventually, ScalaFutures}
+import agora.api.json.JMatcher
+import agora.api.worker.{HostLocation, WorkerDetails, WorkerRedirectCoords}
+import io.circe.generic.auto._
+import org.scalatest.concurrent.Eventually
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.scalatest.{Matchers, WordSpec}
 
+import scala.collection.mutable.ListBuffer
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.language.{postfixOps, reflectiveCalls}
 
-trait ExchangeSpec extends WordSpec with Matchers with ScalaFutures with Eventually {
+trait ExchangeSpec extends BaseSpec with Eventually {
 
   import ExchangeSpec._
 
@@ -20,7 +23,83 @@ trait ExchangeSpec extends WordSpec with Matchers with ScalaFutures with Eventua
 
   def newExchange(observer: MatchObserver): Exchange
 
-  getClass.getSimpleName.filter(_.isLetter).replaceAllLiterally("Test", "") should {
+  def exchangeName = getClass.getSimpleName.filter(_.isLetter).replaceAllLiterally("Test", "")
+
+  s"$exchangeName.submit" should {
+
+    def newSubscription(name: String) = WorkSubscription.forDetails(WorkerDetails(HostLocation.localhost(1234))).append("name", name)
+
+    "match against orElse clauses if the original match criteria doesn't match" in {
+
+      val job        = "some job".asJob.matching("topic" === "primary").orElse("topic" === "secondary").orElse("topic" === "tertiary").withId("someJobId")
+      val anotherJob = "another job".asJob.matching(JMatcher.matchNone).withId("anotherId").withAwaitMatch(false)
+
+      val primary  = newSubscription("primary").append("topic", "primary").withSubscriptionKey("primary key")
+      val tertiary = newSubscription("tertiary").append("topic", "tertiary").withSubscriptionKey("tertiary key")
+
+      // verify some preconditions
+      withClue("precondition proof that the subscriptions match the jobs as expected") {
+        job.matches(primary) shouldBe true
+        job.matches(tertiary) shouldBe false
+        job.orElseSubmission.get.matches(tertiary) shouldBe false
+        job.orElseSubmission.get.orElseSubmission.get.matches(tertiary) shouldBe true
+      }
+
+      // create our exchange
+      val obs                = MatchObserver()
+      val exchange: Exchange = newExchange(obs)
+
+      // and set some
+      var notifications = ListBuffer[MatchNotification]()
+      obs.alwaysWhen {
+        case notification =>
+          notifications += notification
+      }
+
+      // set up our subscriptions
+      exchange.subscribe(primary).futureValue shouldBe WorkSubscriptionAck("primary key")
+      // don't actually request any work items
+      exchange.subscribe(tertiary).futureValue shouldBe WorkSubscriptionAck("tertiary key")
+      exchange.take(tertiary.key.get, 3).futureValue shouldBe RequestWorkAck("tertiary key", 0, 3)
+
+      // submit the job which won't match anything
+      exchange.submit(anotherJob).futureValue shouldBe SubmitJobResponse(anotherJob.jobId.get)
+
+      // submit our 'fallback' job. For tests w/ local exchanges (e.g. ones where 'supportsObserverNotifications' is
+      // true), The 'awaitMatch' has no effect, and we use the observerr directly. For remote cases (where
+      // 'supportsObserverNotifications' is false), we can block and case the response future as a BlockingSubmitJobResponse
+      val BlockingSubmitJobResponse(_, _, _, workerCoords, workerDetails) = if (supportsObserverNotifications) {
+        // await our match...
+        val matchFuture = obs.onJob(job)
+
+        // submit the job
+        val submitResponse = exchange.submit(job).futureValue
+        submitResponse shouldBe SubmitJobResponse(job.jobId.get)
+
+        matchFuture.futureValue
+      } else {
+        val submitResponse = exchange.submit(job.withAwaitMatch(true)).futureValue
+        submitResponse.asInstanceOf[BlockingSubmitJobResponse]
+      }
+
+      workerCoords should contain only (WorkerRedirectCoords(HostLocation("localhost", 1234), "tertiary key", 2))
+      workerDetails should contain only (tertiary.details)
+
+      val QueueStateResponse(actualJobs, actualSubscriptions) = exchange.queueState().futureValue
+
+      withClue("the queue state should now only contain the unmatched job") {
+        actualJobs should contain only (anotherJob)
+      }
+      actualSubscriptions should contain allOf (PendingSubscription(primary.key.get, primary, 0),
+      PendingSubscription(tertiary.key.get, tertiary, 2))
+
+      // we should've matched tertiary
+      if (supportsObserverNotifications) {
+        notifications should contain only (MatchNotification("someJobId", job, List(Candidate(tertiary.key.get, tertiary, 2))))
+      }
+    }
+  }
+  exchangeName should {
     "be able to cancel subscriptions" in {
       val obs          = MatchObserver()
       val ex: Exchange = newExchange(obs)

@@ -1,10 +1,12 @@
 package agora.api
 package `match`
 
-case class MatchDetails(matchId: MatchId, subscriptionKey: SubscriptionKey, jobId: JobId, remainingItems: Int, matchEpochUTC: Long)
+import java.time.LocalDateTime
+
+case class MatchDetails(matchId: MatchId, subscriptionKey: SubscriptionKey, jobId: JobId, remainingItems: Int, matchedAt: LocalDateTime)
 
 object MatchDetails {
-  val empty = MatchDetails("", "", "", 0, 0L)
+  val empty = MatchDetails("", "", "", 0, LocalDateTime.MIN)
 
   val MatchIdHeader         = "x-Exchange-Match-ID"
   val SubscriptionKeyHeader = "x-Exchange-Subscription-ID"

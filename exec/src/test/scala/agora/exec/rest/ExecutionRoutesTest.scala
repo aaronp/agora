@@ -10,6 +10,7 @@ import agora.exec.workspace.WorkspaceClient
 import agora.io.Sources
 import agora.rest.BaseRoutesSpec
 import io.circe.generic.auto._
+import io.circe.java8.time._
 
 class ExecutionRoutesTest extends BaseRoutesSpec {
   "POST /rest/exec/run" should {

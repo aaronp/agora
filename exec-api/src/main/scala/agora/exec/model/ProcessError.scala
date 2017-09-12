@@ -2,6 +2,7 @@ package agora.exec.model
 
 import io.circe
 import io.circe.generic.auto.exportDecoder
+import io.circe.java8.time._
 import io.circe.parser._
 import agora.api.`match`.MatchDetails
 
