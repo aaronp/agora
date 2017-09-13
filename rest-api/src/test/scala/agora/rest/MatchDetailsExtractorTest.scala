@@ -20,7 +20,7 @@ class MatchDetailsExtractorTest extends BaseSpec {
       )
 
       val headers = MatchDetailsExtractor.headersFor(details)
-      val req = HttpRequest().withHeaders(headers)
+      val req     = HttpRequest().withHeaders(headers)
       MatchDetailsExtractor.unapply(req) shouldBe Some(details)
     }
   }

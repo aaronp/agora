@@ -108,7 +108,7 @@ class RouteSubscriptionSupportTest extends BaseRoutesSpec {
       }
 
       val details = MatchDetails.empty.copy(subscriptionKey = Scenario.key)
-      val req = Get("/testing").withHeaders(MatchDetailsExtractor.headersFor(details))
+      val req     = Get("/testing").withHeaders(MatchDetailsExtractor.headersFor(details))
 
       val routeUnderTest = routes(ReplaceOne)
 
@@ -123,7 +123,7 @@ class RouteSubscriptionSupportTest extends BaseRoutesSpec {
   }
 
   trait TestScenario extends RouteSubscriptionSupport {
-    val exchange = Exchange.instance()
+    val exchange             = Exchange.instance()
     val key: SubscriptionKey = exchange.subscribe(WorkSubscription.localhost(1234)).futureValue.id
 
     /** @return the current subscription state from the exchange.

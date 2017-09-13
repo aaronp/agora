@@ -5,15 +5,8 @@ script:
   - sbt test cucumber
 jdk:
     - oraclejdk8
-install:
-  - . $HOME/.nvm/nvm.sh
-  - nvm install stable
-  - nvm use stable
-  - npm install
-  - npm install jsdom
 cache:
   directories:
-    - node_modules
     - $HOME/.sbt
     - $HOME/.ivy2
     - $HOME/.coursier
