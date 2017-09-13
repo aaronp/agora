@@ -4,6 +4,7 @@ import java.nio.file.Path
 
 import agora.exec.model.Upload
 import agora.api.io.implicits._
+import agora.io.BaseActor
 import akka.stream.ActorMaterializer
 
 import scala.concurrent.Future

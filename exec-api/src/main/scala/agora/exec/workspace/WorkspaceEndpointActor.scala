@@ -4,6 +4,7 @@ import java.nio.file.Path
 
 import akka.actor.{ActorRef, Props}
 import agora.api.io.implicits._
+import agora.io.BaseActor
 
 import scala.util.{Success, Try}
 

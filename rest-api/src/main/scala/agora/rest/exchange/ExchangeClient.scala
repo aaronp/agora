@@ -2,7 +2,7 @@ package agora.rest.exchange
 
 import agora.api.`match`.MatchDetails
 import agora.api.exchange._
-import agora.api.worker.{HostLocation, WorkerDetails}
+import agora.api.worker.{HostLocation, SubscriptionKey, WorkerDetails}
 import agora.rest.client.{RestClient, RetryClient}
 import agora.rest.exchange.ExchangeClient._
 import agora.rest.worker.WorkerClient
@@ -78,6 +78,12 @@ class ExchangeClient(val rest: RestClient, mkWorker: HostLocation => Dispatch)
   override def subscribe(request: WorkSubscription): Future[WorkSubscriptionAck] = {
     rest.send(ExchangeHttp(request)).flatMap { exchangeResp =>
       exchangeResp.as[WorkSubscriptionAck](retryOnError(subscribe(request)))
+    }
+  }
+
+  override def updateSubscriptionDetails(subscriptionKey: SubscriptionKey, details: WorkerDetails): Future[UpdateSubscriptionAck] = {
+    rest.send(ExchangeHttp(subscriptionKey, details)).flatMap { exchangeResp =>
+      exchangeResp.as[UpdateSubscriptionAck](retryOnError(updateSubscriptionDetails(subscriptionKey, details)))
     }
   }
 

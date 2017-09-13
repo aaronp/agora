@@ -221,6 +221,8 @@ sealed trait SubscriptionRequest
 
 sealed trait SubscriptionResponse
 
+case class UpdateSubscription(id : SubscriptionKey, details: WorkerDetails) extends SubscriptionRequest
+
 /**
   * The details contain info about the worker subscribing to work, such as it's location (where work should be sent to),
   * and any arbitrary json data it wants to expose (nr of CPUs, runAs user, available memory, OS, a 'topic', etc)
@@ -270,7 +272,7 @@ case class WorkSubscription(details: WorkerDetails, jobMatcher: JMatcher, submis
 
 object WorkSubscription {
 
-  def localhost(port: Int) = apply(HostLocation.localhost(port))
+  def localhost(port: Int): WorkSubscription = apply(HostLocation.localhost(port))
 
   /**
     * Creates a work subscription for a worker running on the given location
@@ -297,6 +299,7 @@ object WorkSubscription {
 }
 
 case class WorkSubscriptionAck(id: SubscriptionKey) extends SubscriptionResponse
+case class UpdateSubscriptionAck(id: SubscriptionKey, oldDetails : Option[WorkerDetails], newDetails : Option[WorkerDetails]) extends SubscriptionResponse
 
 object WorkSubscriptionAck {
   implicit val encoder = exportEncoder[WorkSubscriptionAck].instance

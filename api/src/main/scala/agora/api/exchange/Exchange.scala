@@ -1,7 +1,7 @@
 package agora.api.exchange
 
 import agora.api._
-import agora.api.worker.SubscriptionKey
+import agora.api.worker.{SubscriptionKey, WorkerDetails}
 
 import scala.concurrent.Future
 
@@ -20,9 +20,9 @@ trait Exchange {
     * @return the ClientResponse
     */
   def onClientRequest(request: ClientRequest): Future[ClientResponse] = request match {
-    case req: SubmitJob           => submit(req)
-    case req: QueueState          => queueState(req)
-    case req: CancelJobs          => cancelJobs(req)
+    case req: SubmitJob => submit(req)
+    case req: QueueState => queueState(req)
+    case req: CancelJobs => cancelJobs(req)
     case req: CancelSubscriptions => cancelSubscriptions(req)
   }
 
@@ -37,7 +37,8 @@ trait Exchange {
   def onSubscriptionRequest(request: SubscriptionRequest): Future[SubscriptionResponse] = {
     request match {
       case msg: WorkSubscription => subscribe(msg)
-      case msg: RequestWork      => take(msg)
+      case msg: RequestWork => take(msg)
+      case msg: UpdateSubscription => updateSubscriptionDetails(msg.id, msg.details)
     }
   }
 
@@ -69,6 +70,10 @@ trait Exchange {
     * @return an ack containing the key needed to request work items
     */
   def subscribe(request: WorkSubscription) = onSubscriptionRequest(request).mapTo[WorkSubscriptionAck]
+
+  def updateSubscriptionDetails(subscriptionKey: SubscriptionKey, details: WorkerDetails): Future[UpdateSubscriptionAck] = {
+    onSubscriptionRequest(UpdateSubscription(subscriptionKey, details)).mapTo[UpdateSubscriptionAck]
+  }
 
   /** @param request the number of work items to request
     * @return an ack which contains the current known total items requested

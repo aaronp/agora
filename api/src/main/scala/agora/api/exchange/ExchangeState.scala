@@ -201,9 +201,9 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
     }
 
     val newState = subscriptionsById.get(id).map(_._2) match {
-      case Some(_) => updateSubscription(id, inputSubscription.details)
+      case Some(_) => updateSubscription(id, subscription.details)
       case None =>
-        val requested            = Requested(inputSubscription.subscriptionReferences)
+        val requested            = Requested(subscription.subscriptionReferences)
         val newSubscriptionsById = subscriptionsById.updated(id, subscription -> requested)
         copy(subscriptionsById = newSubscriptionsById)
     }
@@ -239,7 +239,7 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
     }
   }
 
-  private[exchange] def updateSubscription(id: SubscriptionKey, details: WorkerDetails): ExchangeState = {
+  def updateSubscription(id: SubscriptionKey, details: WorkerDetails): ExchangeState = {
     subscriptionsById.get(id) match {
       case Some((subscription, n)) =>
         val newSubscription = subscription.append(details.aboutMe)

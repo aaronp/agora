@@ -1,6 +1,7 @@
 package agora.api.exchange
 
 import agora.api.exchange.Exchange.OnMatch
+import agora.api.worker.{SubscriptionKey, WorkerDetails}
 import com.typesafe.scalalogging.StrictLogging
 
 import scala.concurrent.Future
@@ -27,6 +28,19 @@ class ExchangeInstance(initialState: ExchangeState, onMatch: OnMatch)(implicit m
     state = newState
     Future.successful(ack)
   }
+
+  override def updateSubscriptionDetails(subscriptionKey: SubscriptionKey, details : WorkerDetails) = {
+    val ack : UpdateSubscriptionAck = state.subscriptionsById.get(subscriptionKey) match {
+      case Some(old) =>
+        val newState = state.updateSubscription(subscriptionKey, details)
+        state = newState
+        val newDetails = state.subscriptionsById(subscriptionKey)._1.details
+        UpdateSubscriptionAck(subscriptionKey, Option(old._1.details), Option(newDetails))
+      case None => UpdateSubscriptionAck(subscriptionKey, None, None)
+    }
+    Future.successful(ack)
+  }
+
 
   override def take(request: RequestWork) = {
     val tri = state.request(request.id, request.itemsRequested)

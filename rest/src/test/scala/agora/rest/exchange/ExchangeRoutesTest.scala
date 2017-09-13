@@ -2,13 +2,15 @@ package agora.rest.exchange
 
 import akka.http.scaladsl.server.Route
 import agora.api.Implicits._
-import agora.api._
-import agora.api.exchange._
-import agora.api.worker.{HostLocation, SubscriptionKey}
-import agora.rest.{BaseRoutesSpec}
+import agora.api.nextJobId
+import agora.api.exchange.{QueueStateResponse, UpdateSubscriptionAck, _}
+import agora.api.worker.{HostLocation, SubscriptionKey, WorkerDetails}
+import agora.rest.BaseRoutesSpec
+import io.circe.Json
+import io.circe.generic.auto._
+import io.circe.optics.JsonPath
 
 import scala.concurrent.Future
-import scala.concurrent.duration.Duration
 import scala.concurrent.duration._
 import scala.language.reflectiveCalls
 
@@ -31,6 +33,43 @@ class ExchangeRoutesTest extends BaseRoutesSpec {
 
   "PUT /rest/exchange/submit" should {
     "submit jobs" in {
+      val obs = MatchObserver()
+      ExchangeHttp(123.asJob().withAwaitMatch(false)) ~> routes(obs) ~> check {
+        val resp = responseAs[SubmitJobResponse]
+        resp.id should not be (null)
+      }
+    }
+  }
+  "POST /rest/exchange/update/<id>" should {
+    "return an empty ack of the subscription does not exist" in {
+      val obs = MatchObserver()
+      val routeUnderTest = exchangeRoutes(obs)
+      val original = WorkSubscription.localhost(1234).withSubscriptionKey("testing").append("original", "alpha").append("unchanged", "constant")
+      val ack = routeUnderTest.exchange.subscribe(original).futureValue
+      ack.id shouldBe "testing"
+
+      val newDetails = WorkerDetails(Json.Null).append("original", "beta").append("appended", "true")
+
+      def verifyUpdatedJson(json : Json) = {
+        JsonPath.root.original.string.getOption(json) shouldBe Some("beta")
+        JsonPath.root.appended.string.getOption(json) shouldBe Some("true")
+        JsonPath.root.unchanged.string.getOption(json) shouldBe Some("constant")
+      }
+
+      ExchangeHttp("testing", newDetails) ~> routeUnderTest.routes ~> check {
+        val UpdateSubscriptionAck("testing", Some(oldDetails), Some(updated)) = responseAs[UpdateSubscriptionAck]
+        oldDetails shouldBe original.details
+
+        val expected = newDetails.append("unchanged", "constant")
+
+        verifyUpdatedJson(updated.aboutMe)
+      }
+
+      val QueueStateResponse(Nil, List(PendingSubscription("testing", subscription, 0))) = routeUnderTest.exchange.queueState(QueueState(workerSubscriptionMatcher = "id" === "testing")).futureValue
+
+      verifyUpdatedJson(subscription.details.aboutMe)
+    }
+    "update subscriptions" in {
       val obs = MatchObserver()
       ExchangeHttp(123.asJob().withAwaitMatch(false)) ~> routes(obs) ~> check {
         val resp = responseAs[SubmitJobResponse]
