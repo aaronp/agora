@@ -6,11 +6,7 @@ import java.time.{LocalDateTime, ZoneOffset}
 import io.circe.generic.auto.{exportDecoder, exportEncoder}
 import io.circe.java8.time._
 
-case class HealthDto(asOf: LocalDateTime,
-                     system: SystemDto,
-                     heapMemoryUsage: MemoryDto,
-                     nonHeapMemoryUsage: MemoryDto,
-                     objectPendingFinalizationCount: Int)
+case class HealthDto(asOf: LocalDateTime, system: SystemDto, heapMemoryUsage: MemoryDto, nonHeapMemoryUsage: MemoryDto, objectPendingFinalizationCount: Int)
 
 object HealthDto {
   private val memoryBean: MemoryMXBean = ManagementFactory.getMemoryMXBean
@@ -24,7 +20,8 @@ object HealthDto {
       SystemDto(),
       MemoryDto(memoryBean.getHeapMemoryUsage),
       MemoryDto(memoryBean.getNonHeapMemoryUsage),
-      memoryBean.getObjectPendingFinalizationCount)
+      memoryBean.getObjectPendingFinalizationCount
+    )
 
   }
 }

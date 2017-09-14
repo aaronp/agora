@@ -10,4 +10,3 @@ abstract class BaseActor extends Actor with StrictLogging {
     sys.error(s"${getClass.getSimpleName}(s${self.path}) couldn't handle $message")
   }
 }
-

@@ -31,7 +31,7 @@ object HealthUpdate extends StrictLogging {
     }
   }
 
-  def updateHealth(exchange: Exchange, key: SubscriptionKey, health : HealthDto = HealthDto())(implicit ec : ExecutionContext): Future[UpdateSubscriptionAck] = {
+  def updateHealth(exchange: Exchange, key: SubscriptionKey, health: HealthDto = HealthDto())(implicit ec: ExecutionContext): Future[UpdateSubscriptionAck] = {
 
     val future: Future[UpdateSubscriptionAck] = exchange.updateSubscriptionDetails(key, WorkerDetails.empty.append("health", health))
     future.onComplete {

@@ -20,9 +20,9 @@ trait Exchange {
     * @return the ClientResponse
     */
   def onClientRequest(request: ClientRequest): Future[ClientResponse] = request match {
-    case req: SubmitJob => submit(req)
-    case req: QueueState => queueState(req)
-    case req: CancelJobs => cancelJobs(req)
+    case req: SubmitJob           => submit(req)
+    case req: QueueState          => queueState(req)
+    case req: CancelJobs          => cancelJobs(req)
     case req: CancelSubscriptions => cancelSubscriptions(req)
   }
 
@@ -36,8 +36,8 @@ trait Exchange {
     */
   def onSubscriptionRequest(request: SubscriptionRequest): Future[SubscriptionResponse] = {
     request match {
-      case msg: WorkSubscription => subscribe(msg)
-      case msg: RequestWork => take(msg)
+      case msg: WorkSubscription   => subscribe(msg)
+      case msg: RequestWork        => take(msg)
       case msg: UpdateSubscription => updateSubscriptionDetails(msg.id, msg.details)
     }
   }

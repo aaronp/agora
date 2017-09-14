@@ -6,10 +6,9 @@ import java.time.{LocalDate, LocalDateTime, LocalTime, ZoneOffset}
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Success, Try}
 
-
 object TimeCoords {
 
-  private val SomeTimeAgo = """(\d+)\s+([a-z])s?\s+ago\s*""".r
+  private val SomeTimeAgo = """(\d+)\s+([a-z]+?)s?\s+ago\s*""".r
 
   def nowUTC() = LocalDateTime.now(ZoneOffset.UTC)
 
@@ -21,12 +20,16 @@ object TimeCoords {
     */
   def unapply(text: String): Option[LocalDateTime => LocalDateTime] = {
     text match {
-      case FixedDateTime(time) => Option((_: LocalDateTime) => time)
-      case FixedTime(time) => Option((input: LocalDateTime) => time.atDate(input.toLocalDate))
-      case FixedDate(date) => Option((input: LocalDateTime) => date.atTime(input.toLocalTime))
-      case Now() => Option((_: LocalDateTime) => nowUTC())
+      case FixedDateTime(time)       => Option((_: LocalDateTime) => time)
+      case FixedTime(time)           => Option((input: LocalDateTime) => time.atDate(input.toLocalDate))
+      case FixedDate(date)           => Option((input: LocalDateTime) => date.atTime(input.toLocalTime))
       case VariableTimeAgo(resolver) => Option(resolver)
-      case TimeAgo(duration) => Option((_: LocalDateTime).minusNanos(duration.toNanos))
+      case TimeAgo(duration)         => Option((_: LocalDateTime).minusNanos(duration.toNanos))
+      case "now"                     => Option((date: LocalDateTime) => date)
+      case "yesterday"               => Option((_: LocalDateTime).minusDays(1))
+      case "tomorrow"                => Option((_: LocalDateTime).plusDays(1))
+
+      // last tuesday? next wednesday?
       case _ => None
     }
   }
@@ -51,6 +54,7 @@ object TimeCoords {
       }
     }
   }
+
   object FixedDate {
     val formats = List(
       DateTimeFormatter.ISO_LOCAL_DATE
@@ -65,7 +69,6 @@ object TimeCoords {
       }
     }
   }
-
 
   /** A text extractor to parse the text as [[FixedTime.formats]]
     */
@@ -84,24 +87,14 @@ object TimeCoords {
     }
   }
 
-  /** matches the text 'now'
-    */
-  object Now {
-    def unapply(text: String) = {
-      Option(text).collect {
-        case n => n.toLowerCase == "now"
-      }.getOrElse(false)
-    }
-  }
-
   /** Matches 'n years ago' ... 'n months ago'
     */
   object VariableTimeAgo {
     def unapply(text: String): Option[LocalDateTime => LocalDateTime] = {
       text.toLowerCase match {
-        case SomeTimeAgo(n, "year") => Option((_: LocalDateTime).minusYears(n.toLong))
+        case SomeTimeAgo(n, "year")  => Option((_: LocalDateTime).minusYears(n.toLong))
         case SomeTimeAgo(n, "month") => Option((_: LocalDateTime).minusMonths(n.toLong))
-        case _ => None
+        case _                       => None
       }
     }
   }
@@ -112,15 +105,15 @@ object TimeCoords {
     def unapply(text: String): Option[FiniteDuration] = {
       import concurrent.duration._
       val ago: FiniteDuration = text.toLowerCase match {
-        case SomeTimeAgo(n, "day") => n.toInt.day
-        case SomeTimeAgo(n, "hour") => n.toInt.hour
-        case SomeTimeAgo(n, "minute") => n.toInt.minute
-        case SomeTimeAgo(n, "second") => n.toInt.second
-        case SomeTimeAgo(n, "week") => n.toInt.day * 7
-        case SomeTimeAgo(n, "fortnight") => n.toInt.day * 14
-        case SomeTimeAgo(n, "milli") => n.toLong.millis
+        case SomeTimeAgo(n, "day")         => n.toInt.day
+        case SomeTimeAgo(n, "hour")        => n.toInt.hour
+        case SomeTimeAgo(n, "minute")      => n.toInt.minute
+        case SomeTimeAgo(n, "second")      => n.toInt.second
+        case SomeTimeAgo(n, "week")        => n.toInt.day * 7
+        case SomeTimeAgo(n, "fortnight")   => n.toInt.day * 14
+        case SomeTimeAgo(n, "milli")       => n.toLong.millis
         case SomeTimeAgo(n, "millisecond") => n.toLong.millis
-        case _ => null
+        case _                             => null
       }
       Option(ago)
     }

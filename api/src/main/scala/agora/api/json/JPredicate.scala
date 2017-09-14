@@ -1,11 +1,13 @@
 package agora.api.json
 
+import java.time.LocalDateTime
+
+import agora.api.time.{DateTimeResolver, TimeCoords}
 import com.typesafe.config.{ConfigFactory, ConfigRenderOptions}
 import io.circe.Decoder.Result
-import io.circe._
+import io.circe.{Json, _}
 import io.circe.generic.auto._
 import io.circe.syntax._
-import io.circe.Json
 
 import scala.language.implicitConversions
 import scala.util.Try
@@ -33,12 +35,11 @@ sealed trait JPredicate {
 
 object JPredicate {
 
-
   object implicits extends LowPriorityPredicateImplicits {
 
     implicit class JsonHelper(private val sc: StringContext) extends AnyVal {
-      def json(args: Any*)  = {
-        val jsonString = ConfigFactory.parseString(sc.s(args:_*)).root.render(ConfigRenderOptions.concise().setJson(true))
+      def json(args: Any*) = {
+        val jsonString = ConfigFactory.parseString(sc.s(args: _*)).root.render(ConfigRenderOptions.concise().setJson(true))
         io.circe.parser.parse(jsonString).right.get
       }
     }
@@ -50,7 +51,6 @@ object JPredicate {
     implicit def stringAsJson(s: String) = Json.fromString(s)
 
     implicit def intAsJson(i: Int) = Json.fromInt(i)
-
 
     implicit class RichJson(field: String) {
       private implicit def predAsJFilter(p: JPredicate): JFilter = JFilter(field, p)
@@ -65,8 +65,13 @@ object JPredicate {
         =!=(value)
       }
 
-      def ===[J](value: J)(implicit ev: J => Json): JFilter     = Eq(value)
+      def ===[J](value: J)(implicit ev: J => Json): JFilter = Eq(value)
+
       def equalTo[J](value: J)(implicit ev: J => Json): JFilter = Eq(value)
+
+      def before(time: String): JFilter = Before(time)
+
+      def after(time: String): JFilter = After(time)
 
       def gt[J](value: J)(implicit ev: J => Json): JFilter = Gt(value)
 
@@ -80,10 +85,12 @@ object JPredicate {
 
       /** Assumes a simple json array at the given field, whose contents match each of the
         * given json elements
+        *
         * @param items
         * @return
         */
-      def includes[J](items: Set[J])(implicit ev: J => Json): JFilter         = JIncludes(items.map(ev))
+      def includes[J](items: Set[J])(implicit ev: J => Json): JFilter = JIncludes(items.map(ev))
+
       def includes[J](first: J, theRest: J*)(implicit ev: J => Json): JFilter = includes(theRest.toSet + first)
     }
 
@@ -103,7 +110,9 @@ object JPredicate {
         orElse(c.as[Gt]).
         orElse(c.as[Gte]).
         orElse(c.as[Lt]).
-        orElse(c.as[Lte])
+        orElse(c.as[Lte]).
+        orElse(c.as[Before]).
+        orElse(c.as[After])
       // format: on
     }
 
@@ -119,6 +128,9 @@ object JPredicate {
       case p: Gte => p.asJson
       case p: Lt  => p.asJson
       case p: Lte => p.asJson
+
+      case p: Before => p.asJson
+      case p: After  => p.asJson
     }
   }
 
@@ -126,7 +138,8 @@ object JPredicate {
 
 case class Or(or: List[JPredicate]) extends JPredicate {
   override def matches(json: Json) = or.exists(_.matches(json))
-  override def json                = Json.obj("or" -> Json.fromValues(or.map(_.json)))
+
+  override def json = Json.obj("or" -> Json.fromValues(or.map(_.json)))
 }
 
 object Or {
@@ -135,7 +148,8 @@ object Or {
 
 case class And(and: List[JPredicate]) extends JPredicate {
   override def matches(json: Json) = and.forall(_.matches(json))
-  override def json                = Json.obj("and" -> Json.fromValues(and.map(_.json)))
+
+  override def json = Json.obj("and" -> Json.fromValues(and.map(_.json)))
 }
 
 object And {
@@ -154,6 +168,35 @@ case class Eq(eq: Json) extends JPredicate {
   override def json: Json = this.asJson
 }
 
+case class Before(before: String) extends TimePredicate(before, _ isBefore _) with JPredicate {
+  override def json: Json = this.asJson
+}
+
+case class After(after: String) extends TimePredicate(after, _ isAfter _) with JPredicate {
+  override def json: Json = this.asJson
+}
+
+abstract class TimePredicate(time: String, compare: (LocalDateTime, LocalDateTime) => Boolean) {
+  private val adjust: DateTimeResolver = time match {
+    case TimeCoords(f) => f
+    case other         => sys.error(s"'$time' couldn't be parsed as a date-time adjustment: $other")
+  }
+
+  //  protected def compare(expectedTime: LocalDateTime, jsonTime: LocalDateTime): Boolean
+
+  //  require(TimeCoords.unapply(time).isDefined, s"Can't parse '$time' as a time reference")
+  def matches(json: Json) = {
+    json.asString.exists {
+      case TimeCoords(valueAdjust) =>
+        val now       = TimeCoords.nowUTC()
+        val jsonTime  = valueAdjust(now)
+        val reference = adjust(now)
+        compare(jsonTime, reference)
+      case _ => false
+    }
+  }
+}
+
 case class JRegex(regex: String) extends JPredicate {
   private val pattern = regex.r
 
@@ -161,6 +204,7 @@ case class JRegex(regex: String) extends JPredicate {
 
   override def json: Json = this.asJson
 }
+
 case class JIncludes(elements: Set[Json]) extends JPredicate {
 
   def contains(array: Vector[Json]): Boolean = elements.forall(array.contains)
@@ -171,8 +215,6 @@ case class JIncludes(elements: Set[Json]) extends JPredicate {
 }
 
 sealed abstract class ComparablePredicate(value: Json, op: (Long, Long) => Boolean) extends JPredicate {
-
-  import Ordering.Implicits._
   val refNum = asLong(value)
 
   private def asLong(json: Json) = {
@@ -180,6 +222,7 @@ sealed abstract class ComparablePredicate(value: Json, op: (Long, Long) => Boole
       json.asString.flatMap(s => Try(s.toLong).toOption)
     }
   }
+
   override def matches(json: Json) = {
     val res = json.as[Json].right.map { (tea: Json) =>
       (asLong(tea), refNum) match {
@@ -191,9 +234,7 @@ sealed abstract class ComparablePredicate(value: Json, op: (Long, Long) => Boole
   }
 }
 
-import io.circe.{Decoder, Encoder, Json}
-
-import Ordering.Implicits._
+import io.circe.Json
 
 case class Gt(gt: Json) extends ComparablePredicate(gt, _ > _) {
   override def json: Json = this.asJson

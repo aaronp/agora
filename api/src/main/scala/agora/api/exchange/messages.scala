@@ -221,7 +221,7 @@ sealed trait SubscriptionRequest
 
 sealed trait SubscriptionResponse
 
-case class UpdateSubscription(id : SubscriptionKey, details: WorkerDetails) extends SubscriptionRequest
+case class UpdateSubscription(id: SubscriptionKey, details: WorkerDetails) extends SubscriptionRequest
 
 /**
   * The details contain info about the worker subscribing to work, such as it's location (where work should be sent to),
@@ -298,8 +298,8 @@ object WorkSubscription {
   implicit val decoder = exportDecoder[WorkSubscription].instance
 }
 
-case class WorkSubscriptionAck(id: SubscriptionKey) extends SubscriptionResponse
-case class UpdateSubscriptionAck(id: SubscriptionKey, oldDetails : Option[WorkerDetails], newDetails : Option[WorkerDetails]) extends SubscriptionResponse
+case class WorkSubscriptionAck(id: SubscriptionKey)                                                                         extends SubscriptionResponse
+case class UpdateSubscriptionAck(id: SubscriptionKey, oldDetails: Option[WorkerDetails], newDetails: Option[WorkerDetails]) extends SubscriptionResponse
 
 object WorkSubscriptionAck {
   implicit val encoder = exportEncoder[WorkSubscriptionAck].instance

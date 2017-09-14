@@ -29,8 +29,8 @@ class ExchangeInstance(initialState: ExchangeState, onMatch: OnMatch)(implicit m
     Future.successful(ack)
   }
 
-  override def updateSubscriptionDetails(subscriptionKey: SubscriptionKey, details : WorkerDetails) = {
-    val ack : UpdateSubscriptionAck = state.subscriptionsById.get(subscriptionKey) match {
+  override def updateSubscriptionDetails(subscriptionKey: SubscriptionKey, details: WorkerDetails) = {
+    val ack: UpdateSubscriptionAck = state.subscriptionsById.get(subscriptionKey) match {
       case Some(old) =>
         val newState = state.updateSubscription(subscriptionKey, details)
         state = newState
@@ -40,7 +40,6 @@ class ExchangeInstance(initialState: ExchangeState, onMatch: OnMatch)(implicit m
     }
     Future.successful(ack)
   }
-
 
   override def take(request: RequestWork) = {
     val tri = state.request(request.id, request.itemsRequested)

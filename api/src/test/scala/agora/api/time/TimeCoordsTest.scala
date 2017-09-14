@@ -7,23 +7,46 @@ import agora.api.BaseSpec
 class TimeCoordsTest extends BaseSpec {
   "TimeCoords.unapply" should {
     "match now" in {
-      implicit val localDateOrdering: Ordering[LocalDateTime] = Ordering.by(_.toEpochSecond(ZoneOffset.UTC))
-
       val TimeCoords(forTime) = "now"
-
-      val start = TimeCoords.nowUTC()
-      val date = forTime(LocalDateTime.of(1977, 1, 1, 0, 0, 0))
-      val end = TimeCoords.nowUTC()
-
-      date should be >= start
-      date should be <= end
+      val date                = forTime(LocalDateTime.of(1977, 1, 1, 0, 0, 0))
+      date shouldBe date
     }
-    "return a time for the input date for 10:15:30" in {
-      val TimeCoords(forTime) = "1:02:03"
+    "return a time for the input date for 01:02:03" in {
+      val TimeCoords(forTime) = "01:02:03"
 
       val date = forTime(LocalDateTime.of(1977, 1, 1, 0, 0, 0))
 
       date shouldBe LocalDateTime.of(1977, 1, 1, 1, 2, 3)
+    }
+
+    val scenarios: List[(String, (LocalDateTime) => LocalDateTime)] = List(
+      ("1 days ago", (_: LocalDateTime).minusDays(1)),
+      ("3 days ago", (_: LocalDateTime).minusDays(3)),
+      ("3 Days Ago", (_: LocalDateTime).minusDays(3)),
+      ("1 fortnight Ago", (_: LocalDateTime).minusDays(14)),
+      ("1 week Ago", (_: LocalDateTime).minusDays(7)),
+      ("1 hour ago", (_: LocalDateTime).minusHours(1)),
+      ("2 Hours ago", (_: LocalDateTime).minusHours(2)),
+      ("1 minute ago", (_: LocalDateTime).minusMinutes(1)),
+      ("2 minutes ago", (_: LocalDateTime).minusMinutes(2)),
+      ("2 seconds ago", (_: LocalDateTime).minusSeconds(2)),
+      ("2 milliseconds ago", (_: LocalDateTime).minusNanos(2 * 1000000)),
+      ("1 millisecond ago", (_: LocalDateTime).minusNanos(1000000)),
+      ("1 milli ago", (_: LocalDateTime).minusNanos(1000000)),
+      ("1 month ago", (_: LocalDateTime).minusMonths(1)),
+      ("2 months ago", (_: LocalDateTime).minusMonths(2)),
+      ("1 year ago", (_: LocalDateTime).minusYears(1))
+    )
+
+    scenarios.foreach {
+      case (text, adjust) =>
+        s"parse $text" in {
+          text match {
+            case TimeCoords(f) =>
+              val point = LocalDateTime.of(1977, 1, 1, 1, 2, 3)
+              f(point) shouldBe adjust(point)
+          }
+        }
     }
   }
   "TimeCoords.FixedTime.unapply" should {

@@ -42,15 +42,15 @@ class ExchangeRoutesTest extends BaseRoutesSpec {
   }
   "POST /rest/exchange/update/<id>" should {
     "return an empty ack of the subscription does not exist" in {
-      val obs = MatchObserver()
+      val obs            = MatchObserver()
       val routeUnderTest = exchangeRoutes(obs)
-      val original = WorkSubscription.localhost(1234).withSubscriptionKey("testing").append("original", "alpha").append("unchanged", "constant")
-      val ack = routeUnderTest.exchange.subscribe(original).futureValue
+      val original       = WorkSubscription.localhost(1234).withSubscriptionKey("testing").append("original", "alpha").append("unchanged", "constant")
+      val ack            = routeUnderTest.exchange.subscribe(original).futureValue
       ack.id shouldBe "testing"
 
       val newDetails = WorkerDetails(Json.Null).append("original", "beta").append("appended", "true")
 
-      def verifyUpdatedJson(json : Json) = {
+      def verifyUpdatedJson(json: Json) = {
         JsonPath.root.original.string.getOption(json) shouldBe Some("beta")
         JsonPath.root.appended.string.getOption(json) shouldBe Some("true")
         JsonPath.root.unchanged.string.getOption(json) shouldBe Some("constant")
@@ -65,7 +65,8 @@ class ExchangeRoutesTest extends BaseRoutesSpec {
         verifyUpdatedJson(updated.aboutMe)
       }
 
-      val QueueStateResponse(Nil, List(PendingSubscription("testing", subscription, 0))) = routeUnderTest.exchange.queueState(QueueState(workerSubscriptionMatcher = "id" === "testing")).futureValue
+      val QueueStateResponse(Nil, List(PendingSubscription("testing", subscription, 0))) =
+        routeUnderTest.exchange.queueState(QueueState(workerSubscriptionMatcher = "id" === "testing")).futureValue
 
       verifyUpdatedJson(subscription.details.aboutMe)
     }

@@ -29,6 +29,30 @@ class JPredicateTest extends BaseSpec {
     }
   }
 
+  "Before" should {
+    "evaluate 'health.asOf' before '1 day ago' " in {
+      val before = JPath("health") :+ ("asOf" before "1 day ago")
+      before.asMatcher.matches(json""" health.asOf : "yesterday" """) shouldBe false
+      before.asMatcher.matches(json""" health.asOf : "1 day ago" """) shouldBe false
+      before.asMatcher.matches(json""" health.asOf : "2 days ago" """) shouldBe true
+      before.asMatcher.matches(json""" health.asOf : "1 hour ago" """) shouldBe false
+      before.asMatcher.matches(json""" health.asOf : "23 hours ago" """) shouldBe false
+      before.asMatcher.matches(json""" health.asOf : "25 hours ago" """) shouldBe true
+      before.asMatcher.matches(json""" health.asOf : "2017-07-03T10:15:30" """) shouldBe true
+      before.asMatcher.matches(json""" health.asOf : "meh" """) shouldBe false
+    }
+  }
+  "After" should {
+    "evaluate 'health.asOf' after '1 day ago' " in {
+      val before = JPath("health") :+ ("asOf" after "1 day ago")
+      before.asMatcher.matches(json""" health.asOf : "2 days ago" """) shouldBe false
+      before.asMatcher.matches(json""" health.asOf : "1 hour ago" """) shouldBe true
+      before.asMatcher.matches(json""" health.asOf : "23 hours ago" """) shouldBe true
+      before.asMatcher.matches(json""" health.asOf : "25 hours ago" """) shouldBe false
+      before.asMatcher.matches(json""" health.asOf : "2017-07-03T10:15:30" """) shouldBe false
+      before.asMatcher.matches(json""" health.asOf : "meh" """) shouldBe false
+    }
+  }
 
   "Eq" should {
     "evaluate 'a.b.c' eq 12" in {
@@ -43,9 +67,7 @@ class JPredicateTest extends BaseSpec {
     }
   }
   "Before" should {
-    "evaluate 'time' before '1 minute ago' " in {
-
-    }
+    "evaluate 'time' before '1 minute ago' " in {}
   }
   "json includes" should {
 
@@ -54,8 +76,8 @@ class JPredicateTest extends BaseSpec {
     "match nested lists" in {
 
       val path = "nested".asJPath :+ "array".includes(Set("first", "last"))
-      path.asMatcher.matches(Map("nested" -> Map("array" -> List("first", "middle", "last"))).asJson) shouldBe true
-      path.asMatcher.matches(Map("nested" -> Map("array" -> List("middle", "last"))).asJson) shouldBe false
+      path.asMatcher.matches(Map("nested"        -> Map("array" -> List("first", "middle", "last"))).asJson) shouldBe true
+      path.asMatcher.matches(Map("nested"        -> Map("array" -> List("middle", "last"))).asJson) shouldBe false
       path.asMatcher.matches(Map("differentRoot" -> Map("array" -> List("first", "middle", "last"))).asJson) shouldBe false
     }
 
