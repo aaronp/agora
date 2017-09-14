@@ -81,6 +81,8 @@ case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
 
 object WorkerDetails {
 
+  val empty = WorkerDetails(Json.Null)
+
   import JsonPath._
   import io.circe.generic.auto._
   import io.circe.syntax._

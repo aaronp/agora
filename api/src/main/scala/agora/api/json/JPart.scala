@@ -16,14 +16,16 @@ import io.circe.optics.JsonPath
   *
   * JField("foo") :: JPos(2) :: JFilterValue("x", 3)  :: Nil
   *
-  * we may even support wildcards, etc.
-  *
-  *
   */
 sealed trait JPart {
+
+  /** @return this part as a complete path
+    */
   final def asPath = JPath(this)
 
-  final def asMatcher = asPath.asMatcher
+  /** @return this part as a complete matcher
+    */
+  final def asMatcher: JMatcher = asPath.asMatcher
 
   final def and(other: JMatcher): JMatcher = asMatcher.and(other)
 
@@ -78,8 +80,21 @@ object JPart {
 
 }
 
+/**
+  * Represents a json field (e.g. the 'foo' in 'foo.bar')
+  * @param name the field name
+  */
 case class JField(name: String) extends JPart
 
+/**
+  * Represents a position in an array
+  * @param pos the array index
+  */
 case class JPos(pos: Int) extends JPart
 
+/**
+  * Represents a predicate for a particular field
+  * @param field the json field
+  * @param predicate the predicate to evaluate against the field
+  */
 case class JFilter(field: String, predicate: JPredicate) extends JPart

@@ -5,7 +5,18 @@ import io.circe._
 import io.circe.generic.auto.{exportDecoder, exportEncoder}
 import io.circe.syntax._
 
+/**
+  * A JMatcher is a predicate for evaluating json. A JMatcher can:
+  *
+  * 1) check if a [[JPath]] exists
+  * 2) support boolean alegebra ('and-ing','or-ing', 'not' )
+  */
 sealed trait JMatcher {
+
+  /**
+    * @param json the json to match
+    * @return true if this json matches
+    */
   def matches(json: Json): Boolean
 
   override def toString = getClass.getSimpleName.replaceAllLiterally("$", "")

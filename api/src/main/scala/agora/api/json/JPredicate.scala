@@ -1,11 +1,12 @@
 package agora.api.json
 
+import com.typesafe.config.{ConfigFactory, ConfigRenderOptions}
 import io.circe.Decoder.Result
 import io.circe._
 import io.circe.generic.auto._
 import io.circe.syntax._
-
 import io.circe.Json
+
 import scala.language.implicitConversions
 import scala.util.Try
 
@@ -32,11 +33,24 @@ sealed trait JPredicate {
 
 object JPredicate {
 
-  trait LowPriorityImplicits {
+
+  object implicits extends LowPriorityPredicateImplicits {
+
+    implicit class JsonHelper(private val sc: StringContext) extends AnyVal {
+      def json(args: Any*)  = {
+        val jsonString = ConfigFactory.parseString(sc.s(args:_*)).root.render(ConfigRenderOptions.concise().setJson(true))
+        io.circe.parser.parse(jsonString).right.get
+      }
+    }
+
+  }
+
+  trait LowPriorityPredicateImplicits {
 
     implicit def stringAsJson(s: String) = Json.fromString(s)
 
     implicit def intAsJson(i: Int) = Json.fromInt(i)
+
 
     implicit class RichJson(field: String) {
       private implicit def predAsJFilter(p: JPredicate): JFilter = JFilter(field, p)
@@ -74,8 +88,6 @@ object JPredicate {
     }
 
   }
-
-  object implicits extends LowPriorityImplicits
 
   implicit object JPredicateFormat extends Encoder[JPredicate] with Decoder[JPredicate] {
     override def apply(c: HCursor): Result[JPredicate] = {

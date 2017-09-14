@@ -2,6 +2,32 @@ package agora.api.json
 
 import io.circe._
 
+/**
+  * Represents a json path (like an xpath is to xml)
+  *
+  * @param parts the segments of the path
+  */
+case class JPath(parts: List[JPart]) {
+
+  import io.circe._
+  import io.circe.generic.auto._
+  import io.circe.syntax._
+
+  def ++(other: JPath) = copy(parts = parts ++ other.parts)
+  def +:(other: JPart) = copy(parts = other +: parts)
+  def :+(other: JPart) = copy(parts = parts :+ other)
+
+  def json: Json = {
+    new EncoderOps(this).asJson
+  }
+
+  def apply(json: Json): Option[Json] = {
+    JPath.select(parts, json.hcursor).focus
+  }
+
+  def asMatcher = JMatcher(this)
+}
+
 object JPath {
 
   import JPredicate.implicits._
@@ -60,25 +86,4 @@ object JPath {
 
   private val IntR   = "(\\d+)".r
   private val ValueR = "(.*)=(.*)".r
-}
-
-case class JPath(parts: List[JPart]) {
-
-  import io.circe._
-  import io.circe.generic.auto._
-  import io.circe.syntax._
-
-  def ++(other: JPath) = copy(parts = parts ++ other.parts)
-  def +:(other: JPart) = copy(parts = other +: parts)
-  def :+(other: JPart) = copy(parts = parts :+ other)
-
-  def json: Json = {
-    new EncoderOps(this).asJson
-  }
-
-  def apply(json: Json): Option[Json] = {
-    JPath.select(parts, json.hcursor).focus
-  }
-
-  def asMatcher = JMatcher(this)
 }

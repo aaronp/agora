@@ -1,8 +1,9 @@
 package agora.api.json
 
-import org.scalatest.{Matchers, WordSpec}
+import agora.api.BaseSpec
+import io.circe._
 
-class JPredicateTest extends WordSpec with Matchers {
+class JPredicateTest extends BaseSpec {
 
   import JPredicate._
   import JPredicate.implicits._
@@ -17,7 +18,8 @@ class JPredicateTest extends WordSpec with Matchers {
     Not(Eq(123)),
     And(Eq(1), Eq(2)),
     Or(Eq(3), Eq(4)),
-    JRegex("te.xt?")
+    JRegex("te.xt?"),
+    JIncludes(Set(Json.fromString("value")))
   ).foreach { pred =>
     pred.toString should {
       s"be serializable from ${pred.asJson.noSpaces}" in {
@@ -27,6 +29,24 @@ class JPredicateTest extends WordSpec with Matchers {
     }
   }
 
+
+  "Eq" should {
+    "evaluate 'a.b.c' eq 12" in {
+      val eq = JPath("a", "b") :+ ("c" === 12)
+      eq.asMatcher.matches(json"a.b.c : 12") shouldBe true
+      eq.asMatcher.matches(json"a.b.c : 13") shouldBe false
+    }
+    "not match different types (e.g. 12 integer vs 12 as a string)" in {
+      val eq = JPath("a", "b") :+ ("c" === 12)
+      eq.asMatcher.matches(json""" a.b.c : 12 """) shouldBe true
+      eq.asMatcher.matches(json""" a.b.c : "12" """) shouldBe false
+    }
+  }
+  "Before" should {
+    "evaluate 'time' before '1 minute ago' " in {
+
+    }
+  }
   "json includes" should {
 
     def jsonList(theRest: String*) = Map("list" -> theRest.toList).asJson
@@ -34,8 +54,8 @@ class JPredicateTest extends WordSpec with Matchers {
     "match nested lists" in {
 
       val path = "nested".asJPath :+ "array".includes(Set("first", "last"))
-      path.asMatcher.matches(Map("nested"        -> Map("array" -> List("first", "middle", "last"))).asJson) shouldBe true
-      path.asMatcher.matches(Map("nested"        -> Map("array" -> List("middle", "last"))).asJson) shouldBe false
+      path.asMatcher.matches(Map("nested" -> Map("array" -> List("first", "middle", "last"))).asJson) shouldBe true
+      path.asMatcher.matches(Map("nested" -> Map("array" -> List("middle", "last"))).asJson) shouldBe false
       path.asMatcher.matches(Map("differentRoot" -> Map("array" -> List("first", "middle", "last"))).asJson) shouldBe false
     }
 
