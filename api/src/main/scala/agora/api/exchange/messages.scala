@@ -255,6 +255,8 @@ case class WorkSubscription(details: WorkerDetails, jobMatcher: JMatcher, submis
 
   def referencing(reference: SubscriptionKey, theRest: SubscriptionKey*) = withReferences(theRest.toSet + reference)
 
+  def addReference(reference: SubscriptionKey) = withReferences(subscriptionReferences + reference)
+
   def withData[T: Encoder](data: T, name: String = null) = withDetails(_.withData(data, name))
 
   def withPath(path: String): WorkSubscription = withDetails(_.withPath(path))

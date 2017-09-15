@@ -6,14 +6,12 @@ import java.util.concurrent.TimeUnit
 import agora.api._
 import agora.api.`match`.MatchDetails
 import agora.api.exchange.WorkSubscription
-import agora.exec.log.{IterableLogger, _}
-import agora.exec.model.{RunProcess, StreamingProcess}
-import agora.exec.rest.{ExecutionRoutes, UploadRoutes}
 import agora.exec.client.{ExecutionClient, LocalRunner, ProcessRunner, RemoteRunner}
+import agora.exec.log.{IterableLogger, _}
+import agora.exec.model.StreamingProcess
+import agora.exec.rest.{ExecutionRoutes, UploadRoutes}
 import agora.exec.workspace.WorkspaceClient
-import agora.rest.exchange.ExchangeRoutes
-import agora.rest.support.SupportRoutes
-import agora.rest.worker.{DynamicWorkerRoutes, SubscriptionConfig, WorkerConfig}
+import agora.rest.worker.{SubscriptionConfig, SubscriptionGroup, WorkerConfig}
 import agora.rest.{RunningService, configForArgs}
 import com.typesafe.config.{Config, ConfigFactory}
 
@@ -48,9 +46,17 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
     */
   def start(): Future[RunningService[ExecConfig, ExecutionRoutes]] = ExecBoot(this).start()
 
-  lazy val execSubscription = SubscriptionConfig(config.getConfig("execSubscription")).subscription(location)
+  def execSubscriptions: SubscriptionGroup = {
+    import scala.collection.JavaConverters._
+    val subscriptionList = execConfig.getConfigList("execSubscriptions").asScala.map { conf =>
+      SubscriptionConfig(conf).subscription(location)
+    }
+    SubscriptionGroup(subscriptionList.toList, initialRequest)
+  }
 
-  lazy val execAndSaveSubscription: WorkSubscription = SubscriptionConfig(config.getConfig("execAndSaveSubscription")).subscription(location)
+  lazy val streamingSubscription = SubscriptionConfig(config.getConfig("streamingSubscription")).subscription(location)
+
+  lazy val runSubscription: WorkSubscription = SubscriptionConfig(config.getConfig("runSubscription")).subscription(location)
 
   override def withFallback(fallback: Config): ExecConfig = new ExecConfig(config.withFallback(fallback))
 
@@ -113,7 +119,7 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) {
 
   def errorLimit = Option(execConfig.getInt("errorLimit")).filter(_ > 0)
 
-  def initialExecutionSubscription = execConfig.getInt("initialExecutionSubscription")
+  def healthUpdateFrequency = execConfig.getDuration("healthUpdateFrequency", TimeUnit.MILLISECONDS).millis
 
   implicit def uploadTimeout: FiniteDuration = execConfig.getDuration("uploadTimeout", TimeUnit.MILLISECONDS).millis
 

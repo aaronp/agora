@@ -19,15 +19,15 @@ object HealthUpdate extends StrictLogging {
   /**
     * Schedules periodic updates of the given subscription, appending 'health' information based on the [[HealthDto]]
     * @param exchange
-    * @param key
+    * @param keys
     * @param frequency
     * @param sys
     * @return
     */
-  def schedule(exchange: Exchange, key: SubscriptionKey, frequency: FiniteDuration)(implicit sys: ActorSystem): Cancellable = {
+  def schedule(exchange: Exchange, keys: Set[SubscriptionKey], frequency: FiniteDuration)(implicit sys: ActorSystem): Cancellable = {
     import sys.dispatcher
     sys.scheduler.schedule(frequency, frequency) {
-      updateHealth(exchange, key)
+      keys.foreach(key => updateHealth(exchange, key))
     }
   }
 
