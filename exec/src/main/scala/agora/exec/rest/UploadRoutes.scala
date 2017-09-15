@@ -33,7 +33,7 @@ case class UploadRoutes(workspaces: WorkspaceClient) extends FailFastCirceSuppor
   @ApiOperation(value = "Uploads the multipart file to the specified workspace", httpMethod = "POST", produces = "application/json", consumes = "multipart/form-data")
   @ApiImplicitParams(
     Array(
-      new ApiImplicitParam(name = "body", required = true, paramType = "body", value = "The upload contents"),
+      new ApiImplicitParam(name = "body", required = true, paramType = "form", dataType = "file", value = "The upload contents"),
       new ApiImplicitParam(name = "workspace", required = true, paramType = "query", value = "The workspace name")
     ))
   @ApiResponses(

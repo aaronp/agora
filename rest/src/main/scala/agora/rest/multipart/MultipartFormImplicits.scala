@@ -4,11 +4,10 @@ import akka.http.scaladsl.model.Multipart
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
-import com.typesafe.scalalogging.StrictLogging
 
 import scala.concurrent.Future
 
-object MultipartFormImplicits extends StrictLogging {
+object MultipartFormImplicits {
 
   implicit class RichFormData(val formData: Multipart.FormData) extends AnyVal {
     def mapMultipart[T](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), T])(implicit mat: Materializer): Future[List[T]] = {

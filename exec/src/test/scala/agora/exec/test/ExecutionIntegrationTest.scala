@@ -17,14 +17,15 @@ import scala.util.Properties
 class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventually {
 
   // just request 1 work item at a time in order to support the 'different servers' test
-  val conf                                                = ExecConfig("initialExecutionSubscription=1")
+  val conf                                                = ExecConfig("initialRequest=1")
   var server: RunningService[ExecConfig, ExecutionRoutes] = null
   var client: RemoteRunner                                = null
 
   "RemoteRunner" should {
     "execute requests on different servers" in {
       withDir { dir =>
-        val anotherConf: ExecConfig = ExecConfig("port=8888", s"uploads.dir=${dir.toAbsolutePath.toString}", "initialExecutionSubscription=1")
+        val anotherConf: ExecConfig = ExecConfig("port=8888", s"uploads.dir=${dir.toAbsolutePath.toString}", "initialRequest=1")
+        anotherConf.initialRequest shouldBe 1
         val anotherServerConnectedToServer1Exchange = {
           anotherConf.start().futureValue
         }
