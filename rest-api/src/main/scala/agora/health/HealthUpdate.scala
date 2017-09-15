@@ -81,7 +81,15 @@ object HealthUpdate extends StrictLogging {
 
   def props(exchange: Exchange, keys: Set[SubscriptionKey]) = Props(new UpdateActor(exchange, keys))
 
-  private[health] def updateHealth(exchange: Exchange, key: SubscriptionKey, health: HealthDto = HealthDto())(implicit ec: ExecutionContext): Future[UpdateSubscriptionAck] = {
+  /**
+    * Update the given subscription w/ the given [[HealthDto]]
+    * @param exchange
+    * @param key
+    * @param health
+    * @param ec
+    * @return
+    */
+  def updateHealth(exchange: Exchange, key: SubscriptionKey, health: HealthDto = HealthDto())(implicit ec: ExecutionContext): Future[UpdateSubscriptionAck] = {
     exchange.updateSubscriptionDetails(key, WorkerDetails.empty.append("health", health))
   }
 }

@@ -32,6 +32,13 @@ trait LowPriorityIOImplicits {
       path
     }
 
+    /**
+      * Creates a symbolic link to the link from the path
+      * @param link the symbolic link to create
+      * @return the link
+      */
+    def linkToFrom(link : Path) = Files.createLink(link, path)
+
     def bytes = if (exists) Files.readAllBytes(path) else Array.empty[Byte]
 
     def bytes_=(content: Array[Byte]) = {
@@ -148,6 +155,18 @@ trait LowPriorityIOImplicits {
     def isDir = exists && Files.isDirectory(path)
 
     def isFile = exists && Files.isRegularFile(path)
+
+    /** @return all files under the given directory
+      */
+    def nestedFiles: Iterator[Path] = {
+      if (isFile) {
+        Iterator(path)
+      } else if (isDir) {
+        childrenIter.flatMap(_.nestedFiles)
+      } else {
+        Iterator.empty
+      }
+    }
 
     def children: Array[Path] = if (isDir) path.toFile.listFiles().map(_.toPath) else Array.empty
 

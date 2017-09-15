@@ -1,25 +1,36 @@
 package agora.exec.dao
 
-import java.nio.charset.Charset
-import java.nio.file.{Files, Path}
-import java.time.Instant
+import java.nio.file.Path
+import java.time.{LocalDateTime, ZoneOffset}
 
-import agora.exec.dao.TimestampDao.Timestamp
-import cats.{Functor, Monad}
-import io.circe.Encoder
+import agora.exec.dao.instances.FileInstance
 
-import scala.concurrent.{ExecutionContext, Future}
-
-case class StampedInstance[T](id: String, thing: T, time: Timestamp)
-
+/**
+  * Provides a means of finding values based on a time range, as well as determining the minimum/maximum time.
+  *
+  * @tparam T
+  */
 trait TimestampReader[T] {
-  def find(from: TimestampDao.Timestamp, to: TimestampDao.Timestamp): Future[List[StampedInstance[T]]]
-  def first(): Future[Option[Timestamp]]
-  def last(): Future[Option[Timestamp]]
+
+  /**
+    * Reads back
+    * @param inRange
+    * @return the entities in the given range, exclusive
+    */
+  def find(inRange: TimeRange): Iterator[T]
+
+  /** @return The first timestamp stored, if any
+    */
+  def first(): Option[Timestamp]
+
+  /** @return The last timestamp stored, if any
+    */
+  def last(): Option[Timestamp]
 }
 
 trait TimestampWriter[T] {
-  def save(data: T, timestamp: TimestampDao.Timestamp = TimestampDao.now): Unit
+  def save(data: T, timestamp: Timestamp = TimestampDao.now): Unit
+
   def remove(data: T): Unit
 }
 
@@ -27,53 +38,9 @@ trait TimestampDao[T] extends TimestampWriter[T] with TimestampReader[T]
 
 object TimestampDao {
 
-  def apply[T: ToBytes: HasId](dir: Path) = new FileInstance(dir)
+  def apply[T: ToBytes : FromBytes : HasId](dir: Path): FileInstance[T] = new FileInstance(dir)
 
-  trait ToBytes[T] {
-    def bytes(value: T): Array[Byte]
-  }
+  def now() = LocalDateTime.now(ZoneOffset.UTC)
 
-  object ToBytes {
-    def instance[T](f: T => Array[Byte]) = new ToBytes[T] {
-      override def bytes(value: T) = f(value)
-    }
-    implicit def forJson[T: Encoder](charset: Charset = Charset.defaultCharset()): ToBytes[T] = {
-      instance { value =>
-        implicitly[Encoder[T]].apply(value).noSpaces.getBytes(charset)
-      }
-    }
-  }
-
-  type Timestamp = Instant
-
-  def now() = Instant.now()
-
-  def epoch(ts: Timestamp) = ts.toEpochMilli
-
-  /**
-    * Writes stuff down in the directory structures:
-    *
-    * <date>/<hour>/<id>
-    *
-    * and
-    *
-    */
-  class FileInstance[T: ToBytes: HasId](dir: Path) extends TimestampDao[T] {
-    override def save(data: T, timestamp: Timestamp): Unit = {}
-
-    override def remove(data: T): Unit = ???
-
-    def get(id: String): Future[Option[T]] = {
-      ???
-    }
-
-    override def find(from: Timestamp, to: Timestamp) = {
-      ???
-    }
-
-    override def first() = ???
-
-    override def last() = ???
-  }
 
 }
