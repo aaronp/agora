@@ -2,12 +2,11 @@ package agora.exec.test
 
 import java.io.Closeable
 
-import agora.api.BaseSpec
+import agora.BaseSpec
 import agora.exec.ExecConfig
-import agora.exec.model.{RunProcess, StreamingProcess}
-import agora.exec.rest.ExecutionRoutes
-import agora.exec.client.CachingRunner.ProcessOutput
 import agora.exec.client.RemoteRunner
+import agora.exec.model.{RunProcess, RunProcessResult, StreamingResult}
+import agora.exec.rest.ExecutionRoutes
 import agora.rest.RunningService
 import miniraft.state.NodeId
 import org.scalatest.concurrent.Eventually
@@ -23,7 +22,7 @@ case class ExecState(
                      //                      server: Option[ExecState.Service] = None,
                      serviceByName: Map[String, ExecState.Service] = Map.empty,
                      clientsByName: Map[String, (ExecConfig, RemoteRunner)] = Map.empty,
-                     resultsByClient: Map[String, Future[Iterator[String]]] = Map.empty,
+                     resultsByClient: Map[String, Future[RunProcessResult]] = Map.empty,
                      latestSearch: Option[(String, String)] = None)
     extends BaseSpec
     with Eventually {
@@ -33,12 +32,12 @@ case class ExecState(
     copy(latestSearch = Option(key -> value))
   }
 
-  def executeRunProcess(clientName: String, jobId: String, proc: StreamingProcess): ExecState = {
+  def executeRunProcess(clientName: String, jobId: String, proc: RunProcess): ExecState = {
 
     resultsByClient.contains(clientName) shouldBe false
 
-    val client                = clientsByName.getOrElse(clientName, sys.error(s"Couldn't find client '$clientName' in ${clientsByName.keySet}"))._2
-    val future: ProcessOutput = client.run(proc)
+    val client = clientsByName.getOrElse(clientName, sys.error(s"Couldn't find client '$clientName' in ${clientsByName.keySet}"))._2
+    val future = client.run(proc)
     copy(resultsByClient = resultsByClient.updated(clientName, future))
   }
 
@@ -66,7 +65,8 @@ case class ExecState(
   def verifyExecResult(expectedOutput: String) = {
     resultsByClient.toList match {
       case List((client, future)) =>
-        future.futureValue.mkString("\n") shouldBe expectedOutput
+        val StreamingResult(streamingOut) = future.futureValue
+        streamingOut.mkString("\n") shouldBe expectedOutput
 
         copy(resultsByClient = resultsByClient - client)
       case many =>

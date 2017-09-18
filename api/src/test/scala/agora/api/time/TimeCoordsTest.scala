@@ -2,7 +2,7 @@ package agora.api.time
 
 import java.time.{LocalDate, LocalDateTime, LocalTime, ZoneOffset}
 
-import agora.api.BaseSpec
+import agora.BaseSpec
 
 class TimeCoordsTest extends BaseSpec {
   "TimeCoords.unapply" should {

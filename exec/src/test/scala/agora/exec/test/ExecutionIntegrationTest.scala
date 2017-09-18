@@ -2,10 +2,10 @@ package agora.exec.test
 
 import java.util.UUID
 
-import agora.api.BaseSpec
+import agora.BaseSpec
 import agora.api.exchange.PendingSubscription
 import agora.exec.ExecConfig
-import agora.exec.model.{RunProcess, Upload}
+import agora.exec.model.{RunProcess, StreamingResult, Upload}
 import agora.exec.rest.ExecutionRoutes
 import agora.exec.client.RemoteRunner
 import agora.rest.client.{AkkaClient, RestClient, RetryClient}
@@ -37,20 +37,21 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
       }
     }
     "be able to execute simple commands against a running server" in {
-      val result = client.stream("echo", "this", "is", "a", "test").futureValue
+      val result = client.stream("echo", "this", "is", "a", "test").futureValue.output
       result.mkString("") shouldBe "this is a test"
     }
     "be able to target an execution service after submitting a job to the exchange" in {
 
       // determine summat which can run our request
-      val selection = client.runAndSelect("whoami").futureValue
-      selection.output.mkString("") shouldBe Properties.userName
+      val selection                        = client.runAndSelect("whoami").futureValue
+      val StreamingResult(selectionOutput) = selection.result.futureValue
+      selectionOutput.mkString("") shouldBe Properties.userName
 
       // upload something to that client
       selection.upload("someTestDir", Upload.forText("hello.txt", "there")).futureValue shouldBe true
 
       // execute something which uses needs that upload
-      val result: Iterator[String] = client.run(RunProcess("cat", "hello.txt").withDependencies("someTestDir", Set("hello.txt"), testTimeout)).futureValue
+      val StreamingResult(result) = client.run(RunProcess("cat", "hello.txt").withDependencies("someTestDir", Set("hello.txt"), testTimeout)).futureValue
       result.mkString("") shouldBe "there"
     }
   }
@@ -118,14 +119,16 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
     firstClient.upload(workspace1, file1).futureValue shouldBe true
 
     // request 1 should now complete, as we've made sure both workers have file1.txt in workspace x
-    val result1 = selectionFuture1.futureValue
-    result1.output.mkString("") shouldBe "I'm file one"
+    val result1                        = selectionFuture1.futureValue
+    val StreamingResult(result1Output) = result1.result.futureValue
+    result1Output.mkString("") shouldBe "I'm file one"
 
     // 4) upload file2.
     val file2 = Upload.forText("file2.txt", "I'm file two")
     theOtherClient.upload(workspace2, file2).futureValue shouldBe true
-    val result2 = selectionFuture2.futureValue
-    result2.output.mkString("") shouldBe "I'm file two"
+    val result2                        = selectionFuture2.futureValue
+    val StreamingResult(result2Output) = result2.result.futureValue
+    result2Output.mkString("") shouldBe "I'm file two"
 
     withClue("each worker just subscribed to one work item at a time, so each request should've gone to a different worker") {
       result1.subscription should not be (result2.subscription)

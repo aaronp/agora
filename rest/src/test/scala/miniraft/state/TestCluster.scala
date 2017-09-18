@@ -40,7 +40,7 @@ object TestCluster {
 
   case class under(dir: Path) {
 
-    import agora.api.io.implicits._
+    import agora.io.implicits._
     def of[T: ClassTag](firstNode: String, theRest: String*)(applyToStateMachine: (NodeId, LogEntry[T]) => Unit)(
         implicit fmt: Formatter[T, Array[Byte]]): Map[NodeId, async.RaftNodeActorClient[T]] = {
       instance(theRest.toSet + firstNode) { id =>

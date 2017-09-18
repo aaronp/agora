@@ -29,7 +29,9 @@ object Dependencies {
   val swagger = "com.github.swagger-akka-http" %% "swagger-akka-http" % "0.10.0"
   val cors    = "ch.megard"                    %% "akka-http-cors"    % "0.2.1"
 
-  val Api: List[ModuleID]     = config :: logging ::: testDependencies ::: circe
+  val Config: List[ModuleID]      = config :: testDependencies
+  val IO: List[ModuleID]      = logging ::: testDependencies
+  val Api: List[ModuleID]     = logging ::: testDependencies ::: circe
   val Rest: List[ModuleID]    = Api ::: akkaHttp ::: cucumber ::: List(streamsTck, pprint, swagger, cors) //betterFiles,
   val RestApi: List[ModuleID] = Api ::: akkaHttp
 }

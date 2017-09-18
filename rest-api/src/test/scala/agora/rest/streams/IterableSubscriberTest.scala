@@ -1,6 +1,6 @@
 package agora.rest.streams
 
-import agora.api.BaseSpec
+import agora.BaseSpec
 import agora.io.IterableSubscriber
 import agora.rest.HasMaterializer
 import akka.stream.scaladsl.Source

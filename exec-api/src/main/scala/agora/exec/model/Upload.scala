@@ -2,7 +2,7 @@ package agora.exec.model
 
 import java.nio.file.Path
 
-import agora.api.io.implicits._
+import agora.io.implicits._
 import akka.stream.scaladsl.{FileIO, Source}
 import akka.util.ByteString
 

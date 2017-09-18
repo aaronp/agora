@@ -1,6 +1,6 @@
 package agora.exec.client
 
-import agora.api.BaseSpec
+import agora.BaseSpec
 import org.scalatest.FunSuite
 
 class UploadClientTest extends BaseSpec {

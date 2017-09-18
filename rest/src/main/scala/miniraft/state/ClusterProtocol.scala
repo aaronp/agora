@@ -7,7 +7,7 @@ import com.typesafe.scalalogging.StrictLogging
 import io.circe.{Decoder, Encoder}
 import miniraft._
 
-import agora.api.io.implicits._
+import agora.io.implicits._
 import scala.concurrent.{ExecutionContext, Future}
 
 /**

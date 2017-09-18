@@ -3,10 +3,10 @@ package agora.exec.client
 import agora.api.SubscriptionKey
 import agora.api.exchange.SubmitJob
 import agora.api.json.JMatcher
-import agora.exec.model.{ExecuteProcess, ResultSavingRunProcessResponse, RunProcess, StreamingProcess}
-import agora.io.IterableSubscriber
+import agora.exec.model.{FileResult, RunProcess, RunProcessResult}
 import agora.rest.exchange.ExchangeClient
 import akka.http.scaladsl.client.RequestBuilding
+import akka.http.scaladsl.unmarshalling.Unmarshal
 import com.typesafe.scalalogging.LazyLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.generic.auto._
@@ -22,11 +22,10 @@ import scala.util.Try
   *
   * @param exchange
   * @param defaultFrameLength
-  * @param allowTruncation
   * @param requestWorkOnFailure
   * @param uploadTimeout
   */
-case class RemoteRunner(exchange: ExchangeClient, defaultFrameLength: Int, allowTruncation: Boolean, requestWorkOnFailure: Boolean, keyOpt: Option[SubscriptionKey] = None)(
+case class RemoteRunner(exchange: ExchangeClient, defaultFrameLength: Int, requestWorkOnFailure: Boolean, keyOpt: Option[SubscriptionKey] = None)(
     implicit uploadTimeout: FiniteDuration)
     extends ProcessRunner
     with AutoCloseable
@@ -35,21 +34,16 @@ case class RemoteRunner(exchange: ExchangeClient, defaultFrameLength: Int, allow
 
   import exchange.{execContext, materializer}
 
-  override def run(input: RunProcess): input.Result = {
-    input match {
-      case save: ExecuteProcess =>
-        val future = runAndSave(save)
-        future.asInstanceOf[input.Result]
-      case stream: StreamingProcess =>
-        val future: Future[Iterator[String]] = runAndSelect(stream).map(_.output)
-        future.asInstanceOf[input.Result]
+  override def run(input: RunProcess) = {
+    input.output.stream match {
+      case None    => runAndSave(input)
+      case Some(_) => runAndSelect(input).flatMap(_.result)
     }
-
   }
 
-  def runAndSave(proc: ExecuteProcess): Future[ResultSavingRunProcessResponse] = {
+  private def runAndSave(proc: RunProcess): Future[FileResult] = {
     val job = RemoteRunner.execAsJob(proc, keyOpt)
-    exchange.enqueueAs[ResultSavingRunProcessResponse](job)
+    exchange.enqueueAs[FileResult](job)
   }
 
   def withSubscription(key: SubscriptionKey): RemoteRunner = copy(keyOpt = Option(key))
@@ -68,7 +62,7 @@ case class RemoteRunner(exchange: ExchangeClient, defaultFrameLength: Int, allow
     * @param proc the job to execute
     * @return both the subscription key client and the job output
     */
-  def runAndSelect(proc: StreamingProcess): Future[SelectionOutput] = {
+  def runAndSelect(proc: RunProcess): Future[SelectionOutput] = {
 
     val job = RemoteRunner.execAsJob(proc, keyOpt)
 
@@ -81,7 +75,7 @@ case class RemoteRunner(exchange: ExchangeClient, defaultFrameLength: Int, allow
       //
       // Execute directly using an ExecutionClient
       //
-      val executionClient: ExecutionClient = ExecutionClient(workerClient.rest, defaultFrameLength, allowTruncation)
+      val executionClient: ExecutionClient = ExecutionClient(workerClient.rest, defaultFrameLength)
       val newRunner                        = withSubscription(key)
       val selection                        = SelectionOutput(key, workerClient.workerDetails.location, newRunner, executionClient, null)
       subscriptionPromise.tryComplete(Try(selection))
@@ -92,17 +86,21 @@ case class RemoteRunner(exchange: ExchangeClient, defaultFrameLength: Int, allow
       selection     <- subscriptionPromise.future
       httpResponses <- workerResponses
 
-      // NOTE: we don't strictly have to flagMap on this ack, but doing exposes us to failure cases,
-      // which we want
+      // NOTE: we don't strictly have to flatMap on this ack, but doing will propagate ack future failures, which we want
       takeAck <- exchange.take(selection.subscription, 1)
     } yield {
       require(takeAck.id == selection.subscription)
       logger.debug(s"Took another work item for ${selection.subscription}: $takeAck")
 
       val httpResp = httpResponses.onlyResponse
-      val iter     = IterableSubscriber.iterate(httpResp.entity.dataBytes, proc.frameLength.getOrElse(defaultFrameLength), allowTruncation)
-      val output   = proc.filterForErrors(iter)
-      selection.copy(output = output)
+
+      val resultFuture: Future[RunProcessResult] = proc.output.stream match {
+        case Some(streamingSettings) =>
+          val result = streamingSettings.asResult(httpResp, defaultFrameLength)
+          Future.successful(result)
+        case None => Unmarshal(httpResp).to[FileResult]
+      }
+      selection.copy(result = resultFuture)
     }
   }
 
@@ -115,8 +113,7 @@ object RemoteRunner extends RequestBuilding {
 
   import agora.api.Implicits._
 
-  val execCriteria: JMatcher        = ("topic" === "streaming-execute").asMatcher
-  val execAndSaveCriteria: JMatcher = ("topic" === "execute").asMatcher
+  val runProcessCriteria: JMatcher = ("topic" === "execute").asMatcher
 
   /**
     * @see ExecutionHandler#newWorkspaceSubscription for the flip-side of this which prepares the work subscription
@@ -125,16 +122,8 @@ object RemoteRunner extends RequestBuilding {
     */
   def execAsJob(runProcess: RunProcess, subscriptionOpt: Option[SubscriptionKey]): SubmitJob = {
     import agora.api.Implicits._
-    val criteria = subscriptionOpt.fold(execCriteria) { key =>
-      execCriteria.and("id" === key)
-    }
-    runProcess.asJob.matching(criteria)
-  }
-
-  def execAsJob(runProcess: ExecuteProcess, subscriptionOpt: Option[SubscriptionKey]): SubmitJob = {
-    import agora.api.Implicits._
-    val criteria = subscriptionOpt.fold(execAndSaveCriteria) { key =>
-      execAndSaveCriteria.and("id" === key)
+    val criteria = subscriptionOpt.fold(runProcessCriteria) { key =>
+      runProcessCriteria.and("id" === key)
     }
     runProcess.asJob.matching(criteria)
   }

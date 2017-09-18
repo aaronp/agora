@@ -1,6 +1,6 @@
 package miniraft.state
 
-import agora.api.BaseSpec
+import agora.BaseSpec
 import org.scalatest.BeforeAndAfterAll
 
 class LogTest extends BaseSpec with BeforeAndAfterAll {

@@ -1,6 +1,6 @@
 package miniraft.state
 
-import agora.api.BaseSpec
+import agora.BaseSpec
 import agora.rest.HasMaterializer
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 
@@ -9,7 +9,6 @@ import scala.util.Try
 class RaftTimerTest extends BaseSpec with HasMaterializer with Eventually {
 
   import concurrent.duration._
-  import materializer.executionContext
 
   "RaftTimer.timeouts" should {
     "produce timeouts in a given range" in {

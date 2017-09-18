@@ -12,7 +12,18 @@ import agora.api.worker.HostLocation
 import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.ClassTag
 
+/**
+  * Represents the client to a web service,
+  */
 trait RestClient extends Closeable {
+
+  /**
+    * Does what it says on the tin -- send the [[HttpRequest]] and eventually return a [[HttpResponse]].
+    *
+    * The client is presumably established for a know [[HostLocation]], but
+    * @param request the request to send
+    * @return the response in a future
+    */
   def send(request: HttpRequest): Future[HttpResponse]
 
   /** You could argue that putting this here sullies the otherwise clean

@@ -2,7 +2,7 @@ package agora.exec.workspace
 
 import java.util.UUID
 
-import agora.api.BaseSpec
+import agora.BaseSpec
 import agora.exec.model.Upload
 import agora.rest.HasMaterializer
 

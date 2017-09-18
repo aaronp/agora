@@ -3,7 +3,7 @@ package agora.rest.test
 import java.net.URL
 import java.nio.file.{Path, Paths}
 
-import agora.api.io.LowPriorityIOImplicits
+import agora.io.LowPriorityIOImplicits
 import akka.stream.scaladsl.FileIO
 
 object TestUtils extends LowPriorityIOImplicits {

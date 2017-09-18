@@ -1,6 +1,6 @@
 package agora.api.json
 
-import agora.api.BaseSpec
+import agora.BaseSpec
 import io.circe._
 
 class JPredicateTest extends BaseSpec {

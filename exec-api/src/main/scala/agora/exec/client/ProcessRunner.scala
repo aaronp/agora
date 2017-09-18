@@ -2,7 +2,7 @@ package agora.exec.client
 
 import java.nio.file.Path
 
-import agora.exec.model.{ExecuteProcess, ResultSavingRunProcessResponse, RunProcess, StreamingProcess}
+import agora.exec.model._
 import agora.exec.workspace.WorkspaceId
 import agora.rest.exchange.ExchangeClient
 
@@ -22,7 +22,7 @@ trait ProcessRunner {
     * @param proc the job to execute
     * @return the stdout as an iterator of lines in a Future which completes when the job does
     */
-  def run(proc: RunProcess): proc.Result
+  def run(proc: RunProcess): Future[RunProcessResult]
 
   /**
     * Executes the command in the provided workspace
@@ -31,40 +31,33 @@ trait ProcessRunner {
     * @param workspaceId the workspace under which the command is run
     * @return the execution response
     */
-  final def execute(command: List[String], workspaceId: WorkspaceId): Future[ResultSavingRunProcessResponse] = {
-    execute(ExecuteProcess(command, workspaceId))
+  final def run(command: List[String], workspaceId: WorkspaceId): Future[RunProcessResult] = {
+    run(RunProcess(command).withWorkspace(workspaceId))
   }
 
   /**
     * Executes the command in the provided workspace
     *
-    * @param input the command to execute
+    * @param command the command to execute
+    * @param args    the command arguments
     * @return the execution response
     */
-  final def execute(input: ExecuteProcess): Future[ResultSavingRunProcessResponse] = run(input)
-
-  /**
-    * Execute the command and stream the output
-    *
-    * @param cmd     the command to execute
-    * @param theRest the rest of the command line
-    * @return a future of the iterator of results
-    */
-  final def stream(cmd: String, theRest: String*): Future[Iterator[String]] = {
-    val input: StreamingProcess = RunProcess(cmd :: theRest.toList)
-    stream(input)
+  final def run(command: String, args: String*): Future[RunProcessResult] = {
+    run(command :: args.toList, agora.exec.model.newWorkspace())
   }
 
-  /**
-    * Execute the command and stream the output
-    *
-    * @param input the command to execute
-    * @return a future of the iterator of results
-    */
-  final def stream(input: StreamingProcess): Future[Iterator[String]] = {
-    val result: input.Result = run(input)
-    result.asInstanceOf[Future[Iterator[String]]]
+  final def save(proc: RunProcess): Future[FileResult] = run(proc.withoutStreaming()).mapTo[FileResult]
+
+  final def stream(proc: RunProcess): Future[StreamingResult] = {
+    val future = proc.output.stream match {
+      case None    => run(proc.withStreamingSettings(StreamingSettings()))
+      case Some(_) => run(proc)
+    }
+    future.mapTo[StreamingResult]
   }
+
+  final def stream(command: String, args: String*): Future[StreamingResult] = stream(RunProcess(command :: args.toList))
+
 }
 
 object ProcessRunner {
@@ -76,21 +69,21 @@ object ProcessRunner {
     * @param workDir    the working directory to run the process under
     * @param defaultEnv environment variables to be made available to all processes run
     */
-  def apply(workDir: Option[Path] = None, defaultEnv: Map[String, String] = Map.empty)(implicit ec: ExecutionContext): LocalRunner = {
-    new LocalRunner(workDir, defaultEnv)
+  def apply(workDir: Option[Path] = None, defaultEnv: Map[String, String] = Map.empty)(implicit ec: ExecutionContext) = {
+    LocalRunner(workDir).withDefaultEnv(defaultEnv)
   }
 
   def local(workPath: String)(implicit ec: ExecutionContext): LocalRunner = {
-    import agora.api.io.implicits._
-    apply(Option(workPath).map(_.asPath))
+    import agora.io.implicits._
+    LocalRunner(Option(workPath).map(_.asPath))
   }
 
   /**
     * @param exchange the worker client used to send requests
     * @return a runner which executes stuff remotely
     */
-  def apply(exchange: ExchangeClient, defaultFrameLength: Int, allowTruncation: Boolean, replaceWorkOnFailure: Boolean)(implicit uploadTimeout: FiniteDuration) = {
-    RemoteRunner(exchange, defaultFrameLength, allowTruncation, replaceWorkOnFailure)
+  def apply(exchange: ExchangeClient, defaultFrameLength: Int, replaceWorkOnFailure: Boolean)(implicit uploadTimeout: FiniteDuration) = {
+    RemoteRunner(exchange, defaultFrameLength, replaceWorkOnFailure)
   }
 
 }

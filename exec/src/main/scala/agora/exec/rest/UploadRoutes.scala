@@ -6,6 +6,7 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source}
+import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.generic.auto._
 import io.swagger.annotations._
@@ -14,7 +15,7 @@ import scala.concurrent.Future
 
 @Api(value = "Workspace", produces = "application/json")
 @javax.ws.rs.Path("/")
-case class UploadRoutes(workspaces: WorkspaceClient) extends FailFastCirceSupport {
+case class UploadRoutes(workspaces: WorkspaceClient) extends FailFastCirceSupport with StrictLogging {
 
   def routes = uploadRoute ~ deleteWorkspace
 
@@ -78,6 +79,9 @@ case class UploadRoutes(workspaces: WorkspaceClient) extends FailFastCirceSuppor
     val uploadSource: Source[Option[Future[Boolean]], Any] = formData.withMultipart {
       case (info, src) =>
         val fileName = info.fileName.getOrElse(info.fieldName)
+
+        logger.info(s"Uploading ${workspace}/${fileName}")
+
         workspaces.upload(workspace, fileName, src)
     }
 

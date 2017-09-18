@@ -9,6 +9,5 @@ import scala.io.StdIn
 object ExecDebugRun extends App {
   val fut = ExecConfig(args).start()
   val res = Await.result(fut, Duration.Inf)
-  println(res)
   StdIn.readLine()
 }

@@ -3,7 +3,7 @@ package miniraft.state
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicInteger
 
-import agora.api.io.implicits._
+import agora.io.implicits._
 import agora.api.worker.HostLocation
 import agora.rest.RunningService
 import agora.rest.client.RestClient

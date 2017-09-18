@@ -2,7 +2,7 @@ package miniraft.state
 
 import java.util.UUID
 
-import agora.api.BaseSpec
+import agora.BaseSpec
 import agora.rest.test.TestTimer
 import miniraft._
 import org.scalatest.concurrent.Eventually

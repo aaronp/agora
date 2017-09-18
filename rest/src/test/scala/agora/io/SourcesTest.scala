@@ -2,7 +2,7 @@ package agora.io
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import agora.api.BaseSpec
+import agora.BaseSpec
 import agora.rest.HasMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import org.scalatest.concurrent.Eventually

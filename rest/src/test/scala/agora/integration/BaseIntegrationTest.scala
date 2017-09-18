@@ -2,22 +2,21 @@ package agora.integration
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import agora.api.BaseSpec
+import agora.BaseSpec
+import agora.rest.HasMaterializer
 import agora.rest.exchange.{ExchangeClient, ExchangeServerConfig}
 import agora.rest.worker.WorkerConfig
 import agora.rest.worker.WorkerConfig.RunningWorker
-import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
+import com.typesafe.config.ConfigFactory
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
-import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
+import org.scalatest.BeforeAndAfterEach
 
-abstract class BaseIntegrationTest extends BaseSpec with FailFastCirceSupport with BeforeAndAfterAll with BeforeAndAfter {
+abstract class BaseIntegrationTest extends BaseSpec with FailFastCirceSupport with BeforeAndAfterEach with HasMaterializer {
 
   import BaseIntegrationTest._
 
-  implicit val testSystem                                   = ActorSystem("test")
-  implicit val mat                                          = ActorMaterializer()
-  implicit val ec                                           = mat.executionContext
+  private def actorConf = ConfigFactory.load("test-system").ensuring(_.getBoolean("akka.daemonic"))
+
   private val exchangePort                                  = portCounter.incrementAndGet()
   private val workerPort                                    = portCounter.incrementAndGet()
   var workerConfig: WorkerConfig                            = null
@@ -26,8 +25,15 @@ abstract class BaseIntegrationTest extends BaseSpec with FailFastCirceSupport wi
   var exchangeClient: ExchangeClient                        = null
   var worker: RunningWorker                                 = null
 
-  before(startAll)
-  after(stopAll)
+  override def beforeEach(): Unit = {
+    super.beforeEach()
+    startAll()
+  }
+
+  override def afterEach(): Unit = {
+    super.afterEach()
+    stopAll()
+  }
 
   def startAll() = {
     workerConfig = WorkerConfig(s"port=${workerPort}", s"exchange.port=${exchangePort}")

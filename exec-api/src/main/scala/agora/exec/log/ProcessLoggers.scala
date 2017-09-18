@@ -1,11 +1,11 @@
 package agora.exec.log
 
 import agora.api.`match`.MatchDetails
-import agora.api.io.TryIterator
-import agora.exec.model.{ProcessException, RunProcess, StreamingProcess}
+import agora.exec.model.{FileResult, ProcessException, RunProcess}
+import agora.io.TryIterator
 import com.typesafe.scalalogging.LazyLogging
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.sys.process.ProcessLogger
 import scala.util.{Failure, Success, Try}
 
@@ -14,9 +14,9 @@ import scala.util.{Failure, Success, Try}
   *
   * At a minimum it adds loggers, and can add/remote process loggers, as well as be 'completed' by the process
   */
-class ProcessLoggers(val proc: StreamingProcess, override val matchDetails: Option[MatchDetails], val errorLimit: Option[Int] = None) extends IterableLogger with LazyLogging {
+class ProcessLoggers(val proc: RunProcess, override val matchDetails: Option[MatchDetails]) extends IterableLogger with LazyLogging {
 
-  override def toString = s"""ProcessLoggers($matchDetails,\n$proc,\n$errorLimit)""".stripMargin
+  private def errorLimit = proc.output.errorLimit
 
   private val stdErrLog = StreamLogger()
   private val limitedErrorLog = errorLimit.fold(stdErrLog: ProcessLogger) { limit =>
@@ -25,21 +25,33 @@ class ProcessLoggers(val proc: StreamingProcess, override val matchDetails: Opti
 
   private object Lock
 
-  private val stdOutLog = StreamLogger.forProcess {
-    case Success(n) if proc.isSuccessfulExitCode(n) => Stream.empty
-    case failure                                    => onIterError(failure)
+  private val stdOutLog: StreamLogger = StreamLogger.forProcess {
+    case resultFuture @ Success(n) =>
+      proc.output.stream match {
+        case Some(streamingSettings) if !streamingSettings.isSuccessfulExitCode(n) => onIterError(resultFuture)
+        case _                                                                     => Stream.empty
+      }
+    case failure => onIterError(failure)
   }
 
   private var splitLogger: SplitLogger = SplitLogger(JustStdOut(stdOutLog), JustStdErr(limitedErrorLog))
 
   override def exitCodeFuture: Future[Int] = stdOutLog.exitCode
 
+  def fileResultFuture(implicit executionContext: ExecutionContext) = exitCodeFuture.map { exitCode =>
+    FileResult(exitCode, proc.workspace, proc.output.stdOutFileName, proc.output.stdErrFileName, matchDetails)
+  }
+
   def stdErr = stdErrLog.iterator.toList
 
   private def onIterError(failure: Try[Int]) = {
     stdErrLog.complete(failure)
-    val json = ProcessException(proc, failure, None, stdErr).json.spaces2.lines.toStream
-    proc.errorMarker #:: json
+    proc.output.stream match {
+      case Some(streamingSettings) =>
+        val json = ProcessException(proc, failure, None, stdErr).json.spaces2.lines.toStream
+        streamingSettings.errorMarker #:: json
+      case _ => Stream.empty
+    }
   }
 
   def processLogger: ProcessLogger = splitLogger
@@ -66,10 +78,9 @@ class ProcessLoggers(val proc: StreamingProcess, override val matchDetails: Opti
   override def buffer[T](f: => T): T = f
 
   override def complete(exception: Throwable): Unit = {
-//    val processExp = exception match {
-//      case pe: ProcessException => pe
-//      case other => ProcessException(proc, Failure(other), None, stdErr)
-//    }
     splitLogger.complete(exception)
   }
+
+  override def toString = s"""ProcessLoggers($matchDetails,\n$proc,\n$errorLimit)""".stripMargin
+
 }

@@ -182,9 +182,6 @@ abstract class TimePredicate(time: String, compare: (LocalDateTime, LocalDateTim
     case other         => sys.error(s"'$time' couldn't be parsed as a date-time adjustment: $other")
   }
 
-  //  protected def compare(expectedTime: LocalDateTime, jsonTime: LocalDateTime): Boolean
-
-  //  require(TimeCoords.unapply(time).isDefined, s"Can't parse '$time' as a time reference")
   def matches(json: Json) = {
     json.asString.exists {
       case TimeCoords(valueAdjust) =>

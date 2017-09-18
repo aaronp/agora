@@ -1,6 +1,6 @@
 package miniraft.state
 
-import agora.api.BaseSpec
+import agora.BaseSpec
 import miniraft.{AppendEntriesResponse, UpdateResponse}
 
 import scala.concurrent.Promise

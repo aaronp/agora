@@ -1,6 +1,6 @@
 package miniraft.state.rest
 
-import agora.api.BaseSpec
+import agora.BaseSpec
 import org.scalatest.FunSuite
 
 class LoggingEndpointTest extends BaseSpec {

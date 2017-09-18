@@ -16,7 +16,7 @@ object MatchDetailsExtractor {
       SubscriptionKeyHeader.asHeader(matchDetails.subscriptionKey),
       JobIdHeader.asHeader(matchDetails.jobId),
       RemainingItemsHeader.asHeader(matchDetails.remainingItems.toString),
-      MatchTimeHeader.asHeader(matchDetails.matchedAt.toEpochSecond(ZoneOffset.UTC).toString)
+      MatchTimeHeader.asHeader(matchDetails.matchedAtEpochSecondUTC.toString)
     )
   }
 

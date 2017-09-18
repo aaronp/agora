@@ -1,8 +1,8 @@
 package miniraft.state.rest
 
+import agora.BaseSpec
 import io.circe.parser._
 import io.circe.syntax._
-import agora.api.BaseSpec
 import agora.rest.test.BufferedTransport
 import miniraft.state._
 import miniraft.state.rest.NodeStateSummary.LeaderSnapshot

@@ -1,7 +1,7 @@
 package agora.exec.model
 
-import agora.exec.model.RunProcess.RunProcessFormat
-import agora.api.BaseSpec
+import agora.BaseSpec
+import io.circe.generic.auto._
 import io.circe.parser._
 import io.circe.syntax._
 
@@ -16,14 +16,12 @@ class RunProcessTest extends BaseSpec {
   "RunProcess.toJson" should {
     "marshal and unmarshal streaming processes" in {
 
-      implicit val enc = RunProcessFormat.contramap[StreamingProcess](identity)
-      val expected     = RunProcess("foo")
-      val json         = expected.asJson
+      val expected = RunProcess("foo")
+      val json     = expected.asJson
       decode[RunProcess](json.noSpaces) shouldBe Right(expected)
     }
     "marshal and unmarshal result saving processes" in {
-//      implicit val x = RunProcessFormat.contramap[ResultSavingRunProcess](identity)
-      val expected: RunProcess = ExecuteProcess(List("foo"), "save me here")
+      val expected: RunProcess = RunProcess("foo").withStdOutTo("save me here")
       val json                 = expected.asJson
       val actual               = decode[RunProcess](json.noSpaces)
       actual shouldBe Right(expected)

@@ -2,7 +2,7 @@ package agora.rest
 
 import java.time.LocalDateTime
 
-import agora.api.BaseSpec
+import agora.BaseSpec
 import agora.api.`match`.MatchDetails
 import akka.http.scaladsl.model.HttpRequest
 
@@ -16,7 +16,7 @@ class MatchDetailsExtractorTest extends BaseSpec {
         subscriptionKey = "the subscription key",
         jobId = "the job id",
         remainingItems = 123,
-        matchedAt = LocalDateTime.now().withNano(0)
+        LocalDateTime.now().withNano(0)
       )
 
       val headers = MatchDetailsExtractor.headersFor(details)

@@ -1,8 +1,8 @@
 package agora.rest.worker
 
+import agora.BaseSpec
 import agora.api.json.{JMatcher, JPath, MatchAll, MatchNone}
 import agora.api.worker.HostLocation
-import agora.api.BaseSpec
 import com.typesafe.config.ConfigFactory
 
 class SubscriptionConfigTest extends BaseSpec {

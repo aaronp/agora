@@ -1,7 +1,7 @@
 package agora.exec
 
 import agora.api.exchange.Exchange
-import agora.exec.rest.{ExecutionRoutes, UploadRoutes}
+import agora.exec.rest.{ExecutionRoutes, ExecutionWorkflow, UploadRoutes}
 import agora.exec.workspace.WorkspaceClient
 import agora.health.HealthUpdate
 import agora.rest.RunningService
@@ -51,9 +51,13 @@ case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes
 
   lazy val workspaceClient: WorkspaceClient = conf.workspaceClient
 
+  def workflow: ExecutionWorkflow = ExecutionWorkflow(conf.defaultEnv, workspaceClient, conf.eventMonitor)
+
   /** @return a future of the ExecutionRoutes once the exec subscription completes
     */
-  lazy val executionRoutes = new ExecutionRoutes(conf, exchange, workspaceClient)
+  lazy val executionRoutes = {
+    new ExecutionRoutes(conf, exchange, workflow)
+  }
 
   def uploadRoutes: Route = UploadRoutes(workspaceClient).routes
 

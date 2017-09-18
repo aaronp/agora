@@ -126,8 +126,19 @@ assemblyExcludedJars in assembly := {
 
 publishMavenStyle := true
 
+lazy val config = project
+  .in(file("config"))
+  .settings(commonSettings)
+  .settings(libraryDependencies ++= Dependencies.Config)
+
+lazy val io = project
+  .in(file("io"))
+  .settings(commonSettings)
+  .settings(libraryDependencies ++= Dependencies.IO)
+
 lazy val api = project
   .in(file("api"))
+  .dependsOn(io % "compile->compile;test->test", config % "compile->compile;test->test")
   .settings(name := s"${repo}-api")
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.Api)
@@ -139,12 +150,6 @@ lazy val api = project
     buildInfoOptions += BuildInfoOption.BuildTime
   )
   .enablePlugins(BuildInfoPlugin)
-
-//
-//val apiForIDE = (project in file("api/shared"))
-//  .settings(name := "agora-api-forIDE").
-//  settings(commonSettings: _*).
-//  settings(libraryDependencies ++= Dependencies.Api)
 
 lazy val rest = project
   .dependsOn(api % "compile->compile;test->test", restApi % "compile->compile;test->test")

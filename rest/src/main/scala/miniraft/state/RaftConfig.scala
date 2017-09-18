@@ -32,7 +32,7 @@ class RaftConfig(c: Config) extends ServerConfig(c) {
 
   def persistentDir: Path = {
 
-    import agora.api.io.implicits._
+    import agora.io.implicits._
 
     val createPersistentDirWhenAbsent = config.getBoolean("createPersistentDirWhenAbsent")
     val dir                           = config.getString("persistentDir").asPath
@@ -51,7 +51,7 @@ class RaftConfig(c: Config) extends ServerConfig(c) {
   }
 
   def logDir = {
-    import agora.api.io.implicits._
+    import agora.io.implicits._
     persistentDir.resolve(nodeDirName).mkDirs()
   }
 
@@ -71,7 +71,7 @@ class RaftConfig(c: Config) extends ServerConfig(c) {
 
   def messageRequestsDir: Option[Path] = {
 
-    import agora.api.io.implicits._
+    import agora.io.implicits._
     Option(config.getString("messageRequestsDir")).filterNot(d => d.isEmpty || d == "off" || numberOfMessageToKeep <= 0).map(_.asPath)
   }
 

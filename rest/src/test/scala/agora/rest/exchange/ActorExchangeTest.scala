@@ -1,14 +1,13 @@
 package agora.rest.exchange
 
-import akka.actor.ActorSystem
 import agora.api.exchange.{Exchange, ExchangeSpec, JobPredicate, MatchObserver}
+import agora.rest.HasMaterializer
 
-class ActorExchangeTest extends ExchangeSpec {
+class ActorExchangeTest extends ExchangeSpec with HasMaterializer {
 
   override def newExchange(observer: MatchObserver): Exchange = {
-    val ex  = Exchange(observer)(JobPredicate())
-    val sys = ActorSystem("ActorExchangeTest")
-    ActorExchange(ex, sys)
+    val ex = Exchange(observer)(JobPredicate())
+    ActorExchange(ex, system)
   }
 
 }

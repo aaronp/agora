@@ -1,6 +1,6 @@
 package agora.exec.log
 
-import agora.api.BaseSpec
+import agora.BaseSpec
 import org.scalatest.Matchers
 
 import scala.concurrent.ExecutionContext.Implicits._

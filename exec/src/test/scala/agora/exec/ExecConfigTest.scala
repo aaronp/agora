@@ -1,10 +1,10 @@
 package agora.exec
 
-import agora.api.BaseSpec
+import agora.BaseSpec
 import agora.api.exchange.{Exchange, JobPredicate}
 import agora.api.worker.HostLocation
 import agora.exec.client.RemoteRunner
-import agora.exec.model.{ExecuteProcess, RunProcess}
+import agora.exec.model.RunProcess
 import com.typesafe.config.ConfigFactory
 
 import scala.concurrent.duration._
@@ -37,12 +37,12 @@ class ExecConfigTest extends BaseSpec {
   }
 
   "ExecConfig.runSubscription" should {
-    "match RunProcessAndSave jobs with a subscription ID" in {
+    "match RunProcess jobs with a subscription ID" in {
 
       val sub1 = ExecConfig().runSubscription.withSubscriptionKey("123")
       val sub2 = ExecConfig().runSubscription.withSubscriptionKey("456")
-      val job1 = RemoteRunner.execAsJob(ExecuteProcess(List("hello"), "somedir"), Option("123"))
-      val job2 = RemoteRunner.execAsJob(ExecuteProcess(List("hello"), "somedir"), Option("456"))
+      val job1 = RemoteRunner.execAsJob(RunProcess("hello"), Option("123"))
+      val job2 = RemoteRunner.execAsJob(RunProcess("hello"), Option("456"))
 
       JobPredicate().matches(job1, sub1) shouldBe true
       JobPredicate().matches(job1, sub2) shouldBe false
@@ -51,34 +51,12 @@ class ExecConfigTest extends BaseSpec {
 
       val differentJob = RemoteRunner.execAsJob(RunProcess("hello"), Option("456"))
       JobPredicate().matches(differentJob, sub1) shouldBe false
-      JobPredicate().matches(differentJob, sub2) shouldBe false
-    }
-    "match RunProcessAndSave jobs without a subscription ID" in {
-      val sub = ExecConfig().runSubscription.withSubscriptionKey("foo")
-      val job = RemoteRunner.execAsJob(ExecuteProcess(List("hello"), "somedir"), None)
-      JobPredicate().matches(job, sub) shouldBe true
-    }
-  }
-  "ExecConfig.execSubscription" should {
-    "match RunProcess jobs with a subscription ID" in {
-      val sub1 = ExecConfig().streamingSubscription.withSubscriptionKey("123")
-      val sub2 = ExecConfig().streamingSubscription.withSubscriptionKey("456")
-      val job1 = RemoteRunner.execAsJob(RunProcess("hello"), Option("123"))
-      val job2 = RemoteRunner.execAsJob(RunProcess("hello"), Option("456"))
-      JobPredicate().matches(job1, sub1) shouldBe true
-      JobPredicate().matches(job1, sub2) shouldBe false
-      JobPredicate().matches(job2, sub1) shouldBe false
-      JobPredicate().matches(job2, sub2) shouldBe true
+      JobPredicate().matches(differentJob, sub2) shouldBe true
     }
     "match RunProcess jobs without a subscription ID" in {
-      val sub1 = ExecConfig().streamingSubscription.withSubscriptionKey("123")
-      val sub2 = ExecConfig().streamingSubscription.withSubscriptionKey("456")
-      val job1 = RemoteRunner.execAsJob(RunProcess("hello"), None)
-      val job2 = RemoteRunner.execAsJob(RunProcess("hello"), None)
-      JobPredicate().matches(job1, sub1) shouldBe true
-      JobPredicate().matches(job1, sub2) shouldBe true
-      JobPredicate().matches(job2, sub1) shouldBe true
-      JobPredicate().matches(job2, sub2) shouldBe true
+      val sub = ExecConfig().runSubscription.withSubscriptionKey("foo")
+      val job = RemoteRunner.execAsJob(RunProcess("hello"), None)
+      JobPredicate().matches(job, sub) shouldBe true
     }
   }
 
@@ -89,7 +67,7 @@ class ExecConfigTest extends BaseSpec {
       val exchange = Exchange.instance()
       val ids      = ec.execSubscriptions.createSubscriptions(exchange).futureValue
 
-      ids.size shouldBe 2
+      ids.size shouldBe 1
     }
   }
   "ExecConfig.defaultConfig" should {
@@ -103,8 +81,7 @@ class ExecConfigTest extends BaseSpec {
 
       ec.uploadTimeout shouldBe 10.seconds
 
-      ec.uploads.dir("xyz").map(_.toAbsolutePath) shouldBe Option("uploads/xyz".asPath.toAbsolutePath)
-      ec.logs.dir("abc").map(_.toAbsolutePath) shouldBe Option("logs/abc".asPath.toAbsolutePath)
+      ec.uploads.pathOpt.map(_.resolve("xyz").toAbsolutePath) shouldBe Option("uploads/xyz".asPath.toAbsolutePath)
     }
   }
 }

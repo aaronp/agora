@@ -1,6 +1,6 @@
 package agora.api.exchange
 
-import agora.api.BaseSpec
+import agora.BaseSpec
 import agora.api.Implicits._
 import agora.api.json.JMatcher
 import agora.api.worker.{HostLocation, WorkerDetails, WorkerRedirectCoords}

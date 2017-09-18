@@ -12,7 +12,7 @@ import io.circe.{Decoder, Encoder}
 import miniraft._
 import miniraft.state._
 
-import agora.api.io.implicits._
+import agora.io.implicits._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 

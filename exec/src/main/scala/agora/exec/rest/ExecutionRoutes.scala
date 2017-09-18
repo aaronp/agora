@@ -1,27 +1,15 @@
 package agora.exec.rest
 
-import java.nio.file.Path
-
-import agora.api.Implicits._
-import agora.api._
-import agora.api.exchange.{Exchange, WorkSubscription, WorkSubscriptionAck}
-import agora.api.json.JMatcher
+import _root_.io.circe.generic.auto._
+import _root_.io.swagger.annotations._
+import agora.api.exchange.Exchange
 import agora.exec.ExecConfig
-import agora.exec.client.RemoteRunner
 import agora.exec.model._
-import agora.exec.workspace.{UploadDependencies, WorkspaceClient}
-import agora.rest.MatchDetailsExtractor
+import agora.exec.workspace.UploadDependencies
 import agora.rest.worker.RouteSubscriptionSupport
-import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpRequest, HttpResponse}
 import akka.http.scaladsl.server.Directives.{entity, path, _}
 import akka.http.scaladsl.server.Route
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
-import _root_.io.circe.generic.auto._
-import _root_.io.circe.syntax._
-import _root_.io.circe.java8.time._
-import _root_.io.swagger.annotations._
-
-import scala.concurrent.{ExecutionContext, Future}
 
 /**
   * The execution routes can execute commands on the machine, as well as upload files to workspaces.
@@ -40,13 +28,6 @@ import scala.concurrent.{ExecutionContext, Future}
   * that target those specific nodes (as we want to ensure our commands operate on the same files which were uploaded
   * by specifying [[UploadDependencies]].
   *
-  */
-object ExecutionRoutes {
-  val execCriteria: JMatcher        = RemoteRunner.execCriteria
-  val execAndSaveCriteria: JMatcher = RemoteRunner.execAndSaveCriteria
-}
-
-/**
   * Combines both the worker routes and some job output ones.
   *
   * NOTE: These routes are separate from the WorkerRoutes which handle
@@ -56,83 +37,39 @@ object ExecutionRoutes {
   */
 @Api(value = "Execute", produces = "application/json")
 @javax.ws.rs.Path("/")
-case class ExecutionRoutes(execConfig: ExecConfig, exchange: Exchange, workspaces: WorkspaceClient) extends RouteSubscriptionSupport with FailFastCirceSupport {
+case class ExecutionRoutes(
+    execConfig: ExecConfig,
+    exchange: Exchange,
+    executeHandler: ExecutionWorkflow
+) extends RouteSubscriptionSupport
+    with FailFastCirceSupport {
 
   def routes(exchangeRoutes: Option[Route]): Route = {
     val workerRoutes = execConfig.newWorkerRoutes(exchange)
 
-    executeRoute ~ executeAndSaveRoute ~ execConfig.routes(exchangeRoutes) ~ workerRoutes.routes
+    executeRoute ~ execConfig.routes(exchangeRoutes) ~ workerRoutes.routes
   }
 
-  private def execute(runProcess: StreamingProcess, httpRequest: HttpRequest, workingDir: Option[Path])(implicit ec: ExecutionContext): Future[HttpResponse] = {
-    val detailsOpt = MatchDetailsExtractor.unapply(httpRequest)
-    val jobId      = detailsOpt.map(_.jobId).getOrElse(nextJobId)
-
-    val runner = execConfig.newRunner(runProcess, detailsOpt, workingDir, jobId)
-    ExecutionHandler(httpRequest, runner, runProcess, detailsOpt)
-
-  }
-
-  @javax.ws.rs.Path("/rest/exec/stream")
-  @ApiOperation(value = "Execute a job and stream the output", httpMethod = "POST", produces = "text/plain; charset=UTF-8", consumes = "application/json")
+  @javax.ws.rs.Path("/rest/exec/run")
+  @ApiOperation(value = "Execute a job and optionally stream the output", httpMethod = "POST", produces = "text/plain; charset=UTF-8", consumes = "application/json")
   @ApiImplicitParams(
     Array(
-      new ApiImplicitParam(name = "body", required = true, dataTypeClass = classOf[StreamingProcess], paramType = "body")
+      new ApiImplicitParam(name = "body", required = true, dataTypeClass = classOf[RunProcess], paramType = "body")
     ))
   @ApiResponses(
     Array(
-      new ApiResponse(code = 200, message = "the output of the command is returned w/ UTF-8 text encoding")
+      new ApiResponse(code = 200, message = "the output of the command is returned w/ UTF-8 text encoding"),
+      new ApiResponse(code = 200, message = "The file output summary when output streaming is not requested", response = classOf[FileResult])
     ))
   def executeRoute = {
-    (post & path("rest" / "exec" / "stream")) {
-      entity(as[StreamingProcess]) { runProcess =>
-        logger.info(s"Running ${runProcess.commandString}")
-        extractRequestContext { ctxt =>
-          import ctxt.executionContext
-
-          takeNextOnComplete(exchange) {
-            val future = runProcess.dependencies match {
-              case None                                                           => execute(runProcess, ctxt.request, None)
-              case Some(UploadDependencies(workspace, fileDependencies, timeout)) =>
-                // ensure we wait for all files to arrive
-                workspaces.await(workspace, fileDependencies, timeout).flatMap { path =>
-                  execute(runProcess, ctxt.request, Option(path))
-                }
-            }
-            complete(future)
-          }
-        }
-      }
-    }
-  }
-
-  // TODO - consider making this part of the same route as 'run' and just unmarshal the body differently
-  @javax.ws.rs.Path("/rest/exec/run")
-  @ApiOperation(value = "Execute a job for its side-effects, saving the results to a specified workspace", httpMethod = "POST")
-  @ApiImplicitParams(
-    Array(
-      new ApiImplicitParam(name = "body", required = true, dataTypeClass = classOf[ExecuteProcess], paramType = "body")
-    ))
-  @ApiResponses(
-    Array(
-      new ApiResponse(code = 200, message = "returns ok if the job is run and its output saved", response = classOf[ResultSavingRunProcessResponse])
-    ))
-  def executeAndSaveRoute = {
     (post & path("rest" / "exec" / "run")) {
-      entity(as[ExecuteProcess]) { runProcess =>
-        logger.info(s"Running ${runProcess.asStreamingProcess.commandString}")
+      entity(as[RunProcess]) { inputProcess =>
         extractRequestContext { ctxt =>
-          import ctxt.executionContext
-
           takeNextOnComplete(exchange) {
-
-            val matchDetails   = MatchDetailsExtractor.unapply(ctxt.request)
-            val responseFuture = ExecutionHandler.executeAndSave(execConfig, workspaces, runProcess, matchDetails)
-
-            val future = responseFuture.map { resp =>
-              HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, resp.asJson.noSpaces))
+            complete {
+              import ctxt.executionContext
+              executeHandler.onExecutionRequest(ctxt.request, inputProcess)
             }
-            complete(future)
           }
         }
       }
@@ -140,4 +77,11 @@ case class ExecutionRoutes(execConfig: ExecConfig, exchange: Exchange, workspace
   }
 
   override def toString = s"ExecutionRoutes {${execConfig.describe}}"
+}
+
+object ExecutionRoutes {
+  def apply(execConfig: ExecConfig, exchange: Exchange = Exchange.instance()): ExecutionRoutes = {
+    val workflow = ExecutionWorkflow(execConfig.defaultEnv, execConfig.workspaceClient, execConfig.eventMonitor)
+    new ExecutionRoutes(execConfig, exchange, workflow)
+  }
 }

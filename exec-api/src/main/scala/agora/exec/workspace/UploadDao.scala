@@ -3,8 +3,8 @@ package agora.exec.workspace
 import java.nio.file.StandardOpenOption._
 import java.nio.file.{OpenOption, Path, Paths}
 
-import agora.api.io.LowPriorityIOImplicits
 import agora.exec.model.Upload
+import agora.io.LowPriorityIOImplicits
 import akka.stream.Materializer
 import akka.stream.scaladsl.FileIO
 import com.typesafe.scalalogging.StrictLogging

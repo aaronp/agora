@@ -6,6 +6,9 @@ import java.time.{LocalDate, LocalDateTime, LocalTime, ZoneOffset}
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Success, Try}
 
+/**
+  * Exposes the means for some basic parsing of date/times
+  */
 object TimeCoords {
 
   private val SomeTimeAgo = """(\d+)\s+([a-z]+?)s?\s+ago\s*""".r

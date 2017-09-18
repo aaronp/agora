@@ -1,6 +1,6 @@
 package miniraft.state
 
-import agora.api.BaseSpec
+import agora.BaseSpec
 import agora.rest.HasMaterializer
 import miniraft.state.RaftNode.async
 import miniraft.state.rest.NodeStateSummary.LeaderSnapshot
@@ -60,8 +60,6 @@ class RaftNodeTest extends BaseSpec with Eventually with HasMaterializer {
   }
   "RaftNode.leaderApi.append" should {
     "append entries" in {
-
-      import materializer.executionContext
 
       withDir { dir =>
         val clusterById = TestCluster.under(dir).of[String]("A", "B", "C") {

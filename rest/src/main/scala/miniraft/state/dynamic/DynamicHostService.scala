@@ -2,7 +2,7 @@ package miniraft.state
 
 import java.nio.file.Path
 
-import agora.api.io.implicits._
+import agora.io.implicits._
 import agora.api.worker.HostLocation
 import com.typesafe.scalalogging.StrictLogging
 import io.circe.generic.auto._

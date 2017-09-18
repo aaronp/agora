@@ -1,6 +1,6 @@
 package miniraft.state
 
-import agora.api.BaseSpec
+import agora.BaseSpec
 import agora.api.worker.HostLocation
 import agora.rest.RunningService
 import miniraft.LeaderApi

@@ -2,6 +2,7 @@ package agora.exec.client
 
 import agora.api.SubscriptionKey
 import agora.api.worker.HostLocation
+import agora.exec.model.RunProcessResult
 import agora.exec.workspace.WorkspaceId
 import agora.rest.client.RestClient
 import akka.http.scaladsl.model.{ContentType, ContentTypes}
@@ -29,9 +30,10 @@ import scala.concurrent.duration.FiniteDuration
   * @param subscription the subscription id of the remote runner
   * @param runner       the remote runner which will match a worker based on the subscription
   * @param uploader     an uploader which can be used to upload data to the worker represented by the runner
-  * @param output       the result of the execution
+  * @param result       the result of the execution
   */
-case class SelectionOutput(subscription: SubscriptionKey, location: HostLocation, runner: RemoteRunner, uploader: UploadClient, output: Iterator[String]) extends UploadClient {
+case class SelectionOutput(subscription: SubscriptionKey, location: HostLocation, runner: RemoteRunner, uploader: UploadClient, result: Future[RunProcessResult])
+    extends UploadClient {
 
   /** @return the rest client used to upload
     */

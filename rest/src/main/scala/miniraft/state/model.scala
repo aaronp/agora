@@ -2,7 +2,7 @@ package miniraft.state
 
 import java.nio.file.Path
 
-import agora.api.io.implicits._
+import agora.io.implicits._
 import io.circe.Decoder.Result
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import miniraft.{AppendEntries, AppendEntriesResponse}
