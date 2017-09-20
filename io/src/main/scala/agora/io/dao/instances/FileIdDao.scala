@@ -9,6 +9,8 @@ class FileIdDao[T: Persist: FromBytes](dir: Path) extends IdDao[String, T] {
   override type Result       = Path
   override type RemoveResult = Path
 
+  private val fromBytes = implicitly[FromBytes[T]]
+
   override def save(id: String, value: T) = {
     val file = dir.resolve(id)
     implicitly[Persist[T]].write(file, value)
@@ -18,9 +20,15 @@ class FileIdDao[T: Persist: FromBytes](dir: Path) extends IdDao[String, T] {
   override def remove(id: String) = dir.resolve(id).delete()
 
   override def get(id: String) = {
+    getFile(id).flatMap { file =>
+      fromBytes.read(file.bytes).toOption
+    }
+  }
+
+  def getFile(id: String) = {
     val file = dir.resolve(id)
     if (file.exists) {
-      implicitly[FromBytes[T]].read(file.bytes).toOption
+      Option(file)
     } else {
       None
     }

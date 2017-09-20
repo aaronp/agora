@@ -2,10 +2,8 @@ package agora.io.dao
 package instances
 
 import java.nio.file.Path
-import java.time.format.DateTimeFormatter
-import java.time.{LocalDate, LocalDateTime}
+import java.time.LocalDate
 
-import agora.io.dao.{FromBytes, HasId, TimeRange, Timestamp, TimestampDao}
 import agora.io.implicits._
 
 import scala.util.Try
@@ -21,44 +19,32 @@ import scala.util.Try
   *
   * The implicit Persist may only link to the former instead of serializing the data
   */
-class FileTimestampDao[T: Persist: FromBytes: HasId](rootDir: Path)(implicit saveTimestamp: Persist[String]) extends TimestampDao[T] {
+class FileTimestampDao[T](rootDir: Path)(implicit saveValue: Persist[T], fromBytes: FromBytes[T], idFor: HasId[T]) extends TimestampDao[T] {
 
-  override type Id = String
+  type Id = String
 
   type SaveResult   = Path
   type RemoveResult = Path
 
   import FileTimestampDao._
 
-  private lazy val dateRootDir = rootDir.resolve("dates").mkDirs()
+  private lazy val dateRootDir = rootDir.mkDirs()
 
-  private lazy val idRootDir = rootDir.resolve("ids").mkDirs()
-
-  private val idFor     = implicitly[HasId[T]]
-  private val saveValue = implicitly[Persist[T]]
-  private val fromBytes = implicitly[FromBytes[T]]
-
-  override def timeForId(id: Id): Option[Timestamp] = {
-    idRootDir.resolve(id) match {
-      case path if path.exists =>
-        val timestamp = DateTimeFormatter.ISO_LOCAL_DATE_TIME.parse(path.text)
-        Option(LocalDateTime.from(timestamp))
-      case _ => None
-    }
-  }
+  //  private val idFor = implicitly[HasId[T]]
+  //  private val saveValue = implicitly[Persist[T]]
+  //  private val fromBytes = implicitly[FromBytes[T]]
 
   override def save(data: T, timestamp: Timestamp) = {
-    val id = idFor.id(data)
-    saveTimestampedFile(data, timestamp, id)
+    val file = timestampedFileForData(data, timestamp)
+    saveValue.write(file, data)
+    file
   }
 
-  private def saveTimestampedFile(data: T, timestamp: Timestamp, id: String): Path = {
+  private def timestampedFileForData(data: T, timestamp: Timestamp): Path = {
+    val id        = idFor.id(data)
     val fileName  = s"${timestamp.getSecond}_${timestamp.getNano}_$id"
     val minuteDir = resolveDir(timestamp)
-    val file      = minuteDir.resolve(fileName)
-    saveValue.write(file, data)
-    idRootDir.resolve(id).text = DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(timestamp)
-    file
+    minuteDir.resolve(fileName)
   }
 
   private def resolveDir(timestamp: Timestamp): Path = {
@@ -69,9 +55,18 @@ class FileTimestampDao[T: Persist: FromBytes: HasId](rootDir: Path)(implicit sav
     s"${timestamp.getYear}-${timestamp.getMonthValue}-${timestamp.getDayOfMonth}"
   }
 
-  override def remove(data: T) = {
-    val id = idFor.id(data)
-    idRootDir.resolve(id).delete(false)
+  override def remove(data: T, timestamp: Timestamp) = {
+    val deletedFile = timestampedFileForData(data, timestamp).delete()
+    // minute, hour and date dirs
+    deletedFile.parents.take(3).filter { parent =>
+      if (parent.isEmptyDir) {
+        parent.delete()
+        true
+      } else {
+        false
+      }
+    }
+    deletedFile
   }
 
   private def read(file: Path): Option[T] = {
@@ -86,13 +81,13 @@ class FileTimestampDao[T: Persist: FromBytes: HasId](rootDir: Path)(implicit sav
 
   override def first = firstEntry.map(_.timestamp)
 
-  override def firstId = firstEntry.map(_.id)
+  def firstId = firstEntry.map(_.id)
 
   private def lastEntry = dateDirs.sorted.reverse.flatMap(_.last).headOption
 
   override def last = lastEntry.map(_.timestamp)
 
-  override def lastId = lastEntry.map(_.id)
+  def lastId = lastEntry.map(_.id)
 
   /**
     * With the directory structure:
@@ -110,7 +105,7 @@ class FileTimestampDao[T: Persist: FromBytes: HasId](rootDir: Path)(implicit sav
 
   final def find(from: Timestamp, to: Timestamp): Iterator[T] = find(TimeRange(from, to))
 
-  override def findIds(range: TimeRange): Iterator[String] = findEntries(range).map(_.id)
+  def findIds(range: TimeRange): Iterator[String] = findEntries(range).map(_.id)
 
   private def findEntries(range: TimeRange) = dateDirs.iterator.flatMap(_.inRange(range))
 

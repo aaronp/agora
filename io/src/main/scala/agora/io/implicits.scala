@@ -99,11 +99,15 @@ trait LowPriorityIOImplicits {
 
     def parent = Option(path.getParent)
 
-    def parents: Stream[String] = {
+    def parents: Stream[Path] = {
       parent match {
         case None    => Stream.empty
-        case Some(p) => p.fileName #:: p.parents
+        case Some(p) => p #:: p.parents
       }
+    }
+
+    def isEmptyDir = {
+      exists && isDir && children.isEmpty
     }
 
     def findFirst(depth: Int)(p: Path => Boolean) = {

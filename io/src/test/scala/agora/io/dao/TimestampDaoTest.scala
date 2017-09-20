@@ -5,39 +5,21 @@ import java.time.LocalDateTime
 
 import agora.BaseSpec
 
-object TimestampDaoTest {
-
-  case class Value(id: String, name: String)
-
-  implicit object ValueId extends HasId[Value] {
-    override def id(value: Value): String = value.id
-  }
-
-}
-
 class TimestampDaoTest extends BaseSpec {
 
   import TimestampDaoTest._
 
-  val Jan2 = LocalDateTime.of(2000, 1, 2, 3, 4, 5, 6789)
-
-  implicit val valueToBytes = ToBytes.Utf8String.contramap[Value] { value =>
-    s"${value.id};${value.name}"
-  }
-  implicit val valueFromBytes = FromBytes.Utf8String.map { str =>
-    val List(id, name) = str.split(";", -1).toList
-    Value(id, name)
-  }
+  val Jan2 = LocalDateTime.of(2000, 1, 20, 3, 40, 50, 6789)
 
   case class Expect(time: Timestamp, from: Timestamp, to: Timestamp, findMe: Boolean) {
-    def dao(dir: Path) = TimestampDao[Value](dir)
+    def dao(dir: Path) = TimestampDao[Value](dir)(persist, valueFromBytes, ValueId)
 
     def insert(dir: Path): Value = {
       val value = Value("first", s"entry for $time")
       dao(dir).save(value, time)
 
-      withClue("a single entry should result in a timestamped file and an id file") {
-        dir.nestedFiles().toList.size shouldBe 2
+      withClue("a single entry should result in a timestamped file") {
+        dir.nestedFiles().toList.size shouldBe 1
       }
       value
     }
@@ -74,18 +56,76 @@ class TimestampDaoTest extends BaseSpec {
 
   def times = afterTimes ++ beforeTimes ++ inTimes
 
-  "TimestampDao.timeForId" should {
-    "return the time for a given id" in {
+  "TimestampDao.remove" should {
+    "remove empty directories after the entry is removed" in {
       withDir { dir =>
-        val dao  = TimestampDao[Value](dir)
-        val time = TimestampDao.now()
+        val dao = TimestampDao[Value](dir)
 
-        dao.timeForId("some") shouldBe None
-        dao.save(Value("some", "value"), time)
-        dao.timeForId("some") shouldBe Some(time)
+        def dirs = {
+          val paths = dir.nestedFiles().map { file =>
+            file.parents.map(_.fileName).take(3).reverse.mkString("", "/", s"/${file.fileName}")
+          }
+          paths.toList.sorted
+        }
+
+        // create entries which will end up w/ different nanos, seconds, minutes, hours, and dates
+        dao.save(Value("a", "a"), Jan2)
+        dao.save(Value("b", "b"), Jan2.plusNanos(1))
+        dao.save(Value("c", "c"), Jan2.plusSeconds(1))
+        dao.save(Value("d", "d"), Jan2.plusMinutes(1))
+        dao.save(Value("e", "e"), Jan2.plusHours(1))
+        dao.save(Value("f", "f"), Jan2.plusDays(1))
+
+        // check precondition - we should now have this:
+        dirs shouldBe List(
+          "2000-1-20/3/40/50_6789_a",
+          "2000-1-20/3/40/50_6790_b",
+          "2000-1-20/3/40/51_6789_c",
+          "2000-1-20/3/41/50_6789_d",
+          "2000-1-20/4/40/50_6789_e",
+          "2000-1-21/3/40/50_6789_f"
+        )
+
+        dao.remove(Value("a", "a"), Jan2)
+        dirs shouldBe List(
+          "2000-1-20/3/40/50_6790_b",
+          "2000-1-20/3/40/51_6789_c",
+          "2000-1-20/3/41/50_6789_d",
+          "2000-1-20/4/40/50_6789_e",
+          "2000-1-21/3/40/50_6789_f"
+        )
+
+        dao.remove(Value("b", "b"), Jan2.plusNanos(1))
+        dirs shouldBe List(
+          "2000-1-20/3/40/51_6789_c",
+          "2000-1-20/3/41/50_6789_d",
+          "2000-1-20/4/40/50_6789_e",
+          "2000-1-21/3/40/50_6789_f"
+        )
+
+        dao.remove(Value("c", "c"), Jan2.plusSeconds(1))
+        dirs shouldBe List(
+          "2000-1-20/3/41/50_6789_d",
+          "2000-1-20/4/40/50_6789_e",
+          "2000-1-21/3/40/50_6789_f"
+        )
+
+        dao.remove(Value("d", "d"), Jan2.plusMinutes(1))
+        dirs shouldBe List(
+          "2000-1-20/4/40/50_6789_e",
+          "2000-1-21/3/40/50_6789_f"
+        )
+
+        dao.remove(Value("e", "e"), Jan2.plusHours(1))
+        dirs shouldBe List(
+          "2000-1-21/3/40/50_6789_f"
+        )
+
+        dao.remove(Value("f", "f"), Jan2.plusDays(1))
+        dirs shouldBe empty
+
       }
     }
-
   }
   "TimestampDao.find" should {
     times.foreach {
@@ -126,8 +166,8 @@ class TimestampDaoTest extends BaseSpec {
         val value = Value("first", "alpha")
         dao.save(value, Jan2)
 
-        withClue("a single entry should result in a timestamped file and an id file") {
-          dir.nestedFiles().toList.size shouldBe 2
+        withClue("a single entry should result in a timestamped file") {
+          dir.nestedFiles().toList.size shouldBe 1
         }
 
         dao.find(Jan2, Jan2).toList should contain(value)
@@ -135,4 +175,24 @@ class TimestampDaoTest extends BaseSpec {
 
     }
   }
+}
+
+object TimestampDaoTest {
+
+  case class Value(id: String, name: String)
+
+  implicit val valueToBytes = ToBytes.Utf8String.contramap[Value] { value =>
+    s"${value.id};${value.name}"
+  }
+  implicit val valueFromBytes: FromBytes[Value] = FromBytes.Utf8String.map { str =>
+    val List(id, name) = str.split(";", -1).toList
+    Value(id, name)
+  }
+
+  implicit val persist: Persist[Value] = Persist.writer[Value]
+
+  implicit object ValueId extends HasId[Value] {
+    override def id(value: Value): String = value.id
+  }
+
 }

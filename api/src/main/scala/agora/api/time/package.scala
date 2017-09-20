@@ -1,12 +1,17 @@
 package agora.api
 
-import java.time.{LocalDateTime, ZoneId, ZoneOffset}
+import java.time.{ZoneId, ZoneOffset}
 
-import agora.io.dao.TimestampDao
+import agora.io.dao.{Timestamp, TimestampDao}
 
 package object time {
 
-  type Now = LocalDateTime
+  type Timestamp = agora.io.dao.Timestamp
+
+  type Now = Timestamp
+
+
+  implicit def ordering = agora.io.dao.ordering
 
   /**
     * Represents something which, given the current time (now), can return a resolved time
@@ -15,7 +20,7 @@ package object time {
     * date resolver would ignore 'now' and just return a fixed date.
     *
     */
-  type DateTimeResolver = Now => LocalDateTime
+  type DateTimeResolver = Now => Timestamp
 
   /** @return the current time in UTC
     */

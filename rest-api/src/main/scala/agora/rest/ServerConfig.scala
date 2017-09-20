@@ -3,7 +3,7 @@ package agora.rest
 import java.util.concurrent.atomic.AtomicInteger
 
 import agora.api.worker.HostLocation
-import agora.api.io.RichConfigOps
+import agora.config.RichConfigOps
 import akka.http.scaladsl.server.Route
 import com.typesafe.config.{Config, ConfigFactory}
 

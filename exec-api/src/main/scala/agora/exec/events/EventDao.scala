@@ -2,11 +2,15 @@ package agora.exec.events
 
 import java.nio.file.Path
 
+import agora.api.JobId
 import agora.api.json.JsonByteImplicits
-import agora.io.dao.instances.FileTimestampDao
-import agora.io.dao.{IdDao, Persist, TimestampDao}
+import agora.api.time.Timestamp
+import agora.io.dao.instances.{FileIdDao, FileTimestampDao}
+import agora.io.dao.{FromBytes, HasId, IdDao, Persist, TimestampDao}
 import io.circe.generic.auto._
-import io.circe.java8.time._
+
+import scala.concurrent.Future
+import scala.util.Try
 
 /**
   * The idea here is to support writing down of jobs.
@@ -14,7 +18,44 @@ import io.circe.java8.time._
   * We want to write down [[ReceivedJob]]s to disk and link to them from other events
   *
   */
-object EventDao extends JsonByteImplicits {
+case class EventDao(rootDir: Path) extends SystemEventMonitor with JsonByteImplicits {
+
+  private[events] class Instance[T: Persist : FromBytes : HasId](name: String) {
+    private val hasId = implicitly[HasId[T]]
+    private val idDir = rootDir.resolve(name).resolve("ids")
+    private val timestampDir = rootDir.resolve(name).resolve("times")
+
+    private val idsDao: FileIdDao[T] = {
+      implicit val saveJob = writer
+      IdDao[T](idDir)
+    }
+
+    private def timestampsDao(jobFile: Path): FileTimestampDao[T] = {
+      implicit val link = Persist.link[T](jobFile)
+      TimestampDao[T](timestampDir)
+    }
+
+
+    def findBetween(from: Timestamp, to: Timestamp) = {
+      TimestampDao[T](timestampDir).find(from, to)
+    }
+
+    def get(id: JobId) = idsDao.get(id)
+    def remove(value : T) = {
+      val id = hasId.id(value)
+      idsDao.remove(id)
+      TimestampDao[T](timestampDir).remove(value)
+    }
+
+    def save(value: T, timestamp: Timestamp) = {
+      val id = hasId.id(value)
+      val file = idsDao.save(id, value)
+      // link to the saved id file
+      timestampsDao(file).save(value, timestamp)
+    }
+
+  }
+
 
   /**
     * The implicit resolution here is circle (w/ java8.time) to expose
@@ -22,20 +63,57 @@ object EventDao extends JsonByteImplicits {
     * [[agora.io.dao.ToBytes[ReceivedJob]] from the encoder, and finally
     * the persist which can use the 'ToBytes' to squirt the bytes into the file.
     */
-  def writer: Persist.WriterInstance[ReceivedJob] = Persist.writer[ReceivedJob]
+  private def writer: Persist.WriterInstance[ReceivedJob] = Persist.writer[ReceivedJob]
 
-  def save(dir: Path, job: ReceivedJob) = {
-    val file: Path = {
-      implicit val saveJob = writer
-      IdDao[ReceivedJob](dir).save(job.id, job)
+  private[events] val startedDao = new Instance[StartedJob]("started")
+  private[events] val receivedDao = new Instance[ReceivedJob]("received")
+  private[events] val completedDao = new Instance[CompletedJob]("completed")
+  private[events] val sysEvents = new Instance[StartedSystem]("sysEvents")
+
+  override def accept(msg: RecordedEvent): Unit = {
+    msg match {
+      case event: StartedSystem => sysEvents.save(event, event.startTime)
+      case event: StartedJob => startedDao.save(event, event.started)
+      case event: ReceivedJob => receivedDao.save(event, event.received)
+      case event: CompletedJob => completedDao.save(event, event.completed)
+    }
+  }
+
+  def notFinishedBetween(from: Timestamp, to: Timestamp) = {
+    val received = receivedDao.findBetween(from, to)
+    val completed = completedDao.findBetween(from, to).map(_.id).toStream
+    received.filterNot(completed.contains)
+  }
+  def notStartedBetween(from: Timestamp, to: Timestamp) = {
+    val received = receivedDao.findBetween(from, to)
+    val completed = completedDao.findBetween(from, to).map(_.id).toStream
+    received.filterNot(completed.contains)
+  }
+
+  override def query(msg: EventQuery): Future[msg.Response] = {
+
+    def handle = msg match {
+      case FindJob(id) => FindJobResponse(receivedDao.get(id))
+      case ReceivedBetween(from, to) =>
+        val found = receivedDao.findBetween(from, to).toList.sortBy(_.received)
+        ReceivedBetweenResponse(found)
+      case StartedBetween(from, to) =>
+        val found = startedDao.findBetween(from, to).toList.sortBy(_.started)
+        StartedBetweenResponse(found)
+      case CompletedBetween(from, to) =>
+        val found = completedDao.findBetween(from, to).toList.sortBy(_.completed)
+        CompletedBetweenResponse(found)
+      case NotFinishedBetween(from, to) =>
+        val found = notFinishedBetween(from, to).toList.sortBy(_.received)
+        NotFinishedBetweenResponse(found)
+      case NotStartedBetween(from, to) =>
+        val found = notStartedBetween(from, to).toList.sortBy(_.received)
+        NotStartedBetweenResponse(found)
+      case StartTimesBetween(from, to) =>
+        val found = sysEvents.findBetween(from, to).toList.sortBy(_.startTime)
+        StartTimesBetweenResponse(found)
     }
 
-    // link to the saved id file
-    {
-      implicit val link                      = Persist.link[ReceivedJob](file)
-      val dao: FileTimestampDao[ReceivedJob] = TimestampDao[ReceivedJob](dir)
-      dao.save(job, job.received)
-    }
-
+    Future.fromTry(Try(handle)).asInstanceOf[Future[msg.Response]]
   }
 }

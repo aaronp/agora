@@ -24,7 +24,7 @@ package object rest {
   }
 
   def configForArgs(args: Array[String], fallback: Config = ConfigFactory.empty): Config = {
-    import agora.api.io.RichConfig.implicits._
+    import agora.config.RichConfig.implicits._
     fallback.withUserArgs(args)
   }
 

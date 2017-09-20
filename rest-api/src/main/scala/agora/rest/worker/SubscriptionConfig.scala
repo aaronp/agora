@@ -7,7 +7,7 @@ import agora.rest.asJson
 import com.typesafe.config.Config
 import io.circe
 
-import agora.api.io.RichConfig.implicits._
+import agora.config.RichConfig.implicits._
 import scala.util.Try
 
 /**
