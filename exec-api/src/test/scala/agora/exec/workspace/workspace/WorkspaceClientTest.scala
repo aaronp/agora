@@ -37,12 +37,10 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
         val started                   = agora.api.time.now()
         val awaitFuture: Future[Path] = client.await(workspace, Set("some.file"), testTimeout.toMillis)
 
-        // manually create some.file (e.g. no via workspaces.upload)
-        //
-        // our 'await' future shouldn't be completed yet though (as it may
-        // be using a file watcher)... we have to manually kick it via
-        // triggerUploadCheck
-        val expectedFile = containerDir.resolve(workspace).resolve("some.file").text = "hi"
+        // give the workspace client some time to potentially find the non-existent file
+        // this is always tough to do ... how long do you wait for something not to happen,
+        // but not have the test take ages?
+        Thread.sleep(300)
 
         val done = awaitFuture.isCompleted
         val errorMessage = if (done) {
@@ -72,6 +70,13 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
         withClue(errorMessage) {
           done shouldBe false
         }
+
+        // manually create some.file (e.g. no via workspaces.upload)
+        //
+        // our 'await' future shouldn't be completed yet though (as it may
+        // be using a file watcher)... we have to manually kick it via
+        // triggerUploadCheck
+        val expectedFile = containerDir.resolve(workspace).resolve("some.file").text = "hi"
 
         // call the method under test -- await should now complete
         client.triggerUploadCheck(workspace)

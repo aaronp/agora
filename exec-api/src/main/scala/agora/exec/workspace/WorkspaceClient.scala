@@ -108,7 +108,6 @@ object WorkspaceClient {
     override def await(dependencies: UploadDependencies) = {
       val promise = Promise[Path]()
       endpointActor ! AwaitUploads(dependencies, promise)
-
       promise.future
     }
   }
