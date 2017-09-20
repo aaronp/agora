@@ -4,10 +4,11 @@ import java.nio.file.Path
 
 import agora.api.JobId
 import agora.api.json.JsonByteImplicits
-import agora.api.time.Timestamp
+import agora.api.time._
 import agora.io.dao.instances.{FileIdDao, FileTimestampDao}
-import agora.io.dao.{FromBytes, HasId, IdDao, Persist, TimestampDao}
+import agora.io.dao.{FromBytes, HasId, IdDao, Persist, TimestampDao, ToBytes}
 import io.circe.generic.auto._
+import io.circe.java8.time._
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -20,7 +21,7 @@ import scala.util.Try
   */
 case class EventDao(rootDir: Path) extends SystemEventMonitor with JsonByteImplicits {
 
-  private[events] class Instance[T: Persist : FromBytes : HasId](name: String) {
+  private[events] class Instance[T: ToBytes : FromBytes : HasId](name: String) {
     private val hasId = implicitly[HasId[T]]
     private val idDir = rootDir.resolve(name).resolve("ids")
     private val timestampDir = rootDir.resolve(name).resolve("times")
@@ -41,10 +42,11 @@ case class EventDao(rootDir: Path) extends SystemEventMonitor with JsonByteImpli
     }
 
     def get(id: JobId) = idsDao.get(id)
-    def remove(value : T) = {
+
+    def remove(value: T, timestamp: Timestamp) = {
       val id = hasId.id(value)
       idsDao.remove(id)
-      TimestampDao[T](timestampDir).remove(value)
+      TimestampDao[T](timestampDir).remove(value, timestamp)
     }
 
     def save(value: T, timestamp: Timestamp) = {
@@ -79,15 +81,16 @@ case class EventDao(rootDir: Path) extends SystemEventMonitor with JsonByteImpli
     }
   }
 
-  def notFinishedBetween(from: Timestamp, to: Timestamp) = {
-    val received = receivedDao.findBetween(from, to)
-    val completed = completedDao.findBetween(from, to).map(_.id).toStream
-    received.filterNot(completed.contains)
+  def notFinishedBetween(from: Timestamp, to: Timestamp): Iterator[StartedJob] = {
+    val started: Iterator[StartedJob] = startedDao.findBetween(from, to)
+    val completed: Stream[JobId] = completedDao.findBetween(from, to).map(_.id).toStream
+    started.filterNot(job => completed.contains(job.id))
   }
-  def notStartedBetween(from: Timestamp, to: Timestamp) = {
-    val received = receivedDao.findBetween(from, to)
-    val completed = completedDao.findBetween(from, to).map(_.id).toStream
-    received.filterNot(completed.contains)
+
+  def notStartedBetween(from: Timestamp, to: Timestamp): Iterator[ReceivedJob] = {
+    val received: Iterator[ReceivedJob] = receivedDao.findBetween(from, to)
+    val started: Stream[JobId] = startedDao.findBetween(from, to).map(_.id).toStream
+    received.filterNot(job => started.contains(job.id))
   }
 
   override def query(msg: EventQuery): Future[msg.Response] = {
@@ -104,7 +107,7 @@ case class EventDao(rootDir: Path) extends SystemEventMonitor with JsonByteImpli
         val found = completedDao.findBetween(from, to).toList.sortBy(_.completed)
         CompletedBetweenResponse(found)
       case NotFinishedBetween(from, to) =>
-        val found = notFinishedBetween(from, to).toList.sortBy(_.received)
+        val found = notFinishedBetween(from, to).toList.sortBy(_.started)
         NotFinishedBetweenResponse(found)
       case NotStartedBetween(from, to) =>
         val found = notStartedBetween(from, to).toList.sortBy(_.received)

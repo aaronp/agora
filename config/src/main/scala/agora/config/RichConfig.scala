@@ -58,19 +58,19 @@ object RichConfig {
     ConfigFactory.parseMap(Map(key -> value).asJava)
   }
 
-  private[io] object FilePathConfig {
+  private[config] object FilePathConfig {
     def unapply(path: String): Option[Config] = {
       Option(Paths.get(path)).filter(p => Files.exists(p)).map(_.toFile).map(ConfigFactory.parseFileAnySyntax)
     }
   }
 
-  private[io] object UrlPathConfig {
+  private[config] object UrlPathConfig {
     def unapply(path: String): Option[Config] = {
       val url = getClass.getClassLoader.getResource(path)
       Option(url).map(ConfigFactory.parseURL)
     }
   }
 
-  private[io] val KeyValue = "(.*)=(.*)".r
+  private[config] val KeyValue = "(.*)=(.*)".r
 
 }

@@ -1,7 +1,6 @@
 package agora.exec.events
 
 
-import java.time.ZoneOffset
 import java.util.UUID
 
 import agora.api.JobId
@@ -28,7 +27,7 @@ object ReceivedJob {
 
 }
 
-case class StartedJob(id: JobId, exitCode: Try[Int], started: Timestamp = now()) extends RecordedEvent
+case class StartedJob(id: JobId, started: Timestamp = now()) extends RecordedEvent
 
 object StartedJob {
 

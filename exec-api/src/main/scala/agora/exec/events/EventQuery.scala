@@ -63,7 +63,7 @@ case class NotFinishedBetween(from: Timestamp, to: Timestamp) extends EventQuery
   override type Response = NotFinishedBetween
 }
 
-case class NotFinishedBetweenResponse(jobs: List[ReceivedJob])
+case class NotFinishedBetweenResponse(jobs: List[StartedJob])
 
 /**
   * Jobs which are were received but not started within the time range

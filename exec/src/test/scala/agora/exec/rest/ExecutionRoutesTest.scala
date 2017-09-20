@@ -12,7 +12,7 @@ import agora.rest.BaseRoutesSpec
 import io.circe.generic.auto._
 import org.scalatest.BeforeAndAfterAll
 
-class ExecutionRoutesTest extends BaseRoutesSpec with BeforeAndAfterAll {
+class ExecutionRoutesTest extends BaseRoutesSpec {
   "POST /rest/exec/run" should {
     "execute streaming commands" in {
       withDir { dir =>
@@ -46,11 +46,4 @@ class ExecutionRoutesTest extends BaseRoutesSpec with BeforeAndAfterAll {
     }
   }
 
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-  }
-
-  override def afterAll(): Unit = {
-    super.afterAll()
-  }
 }

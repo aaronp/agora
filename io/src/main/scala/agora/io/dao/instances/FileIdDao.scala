@@ -2,18 +2,19 @@ package agora.io.dao.instances
 
 import java.nio.file.Path
 
-import agora.io.implicits._
 import agora.io.dao.{FromBytes, IdDao, Persist}
+import agora.io.implicits._
 
-class FileIdDao[T: Persist: FromBytes](dir: Path) extends IdDao[String, T] {
-  override type Result       = Path
+class FileIdDao[T: Persist : FromBytes](dir: Path) extends IdDao[String, T] {
+  override type Result = Path
   override type RemoveResult = Path
 
   private val fromBytes = implicitly[FromBytes[T]]
+  private val persist = implicitly[Persist[T]]
 
   override def save(id: String, value: T) = {
     val file = dir.resolve(id)
-    implicitly[Persist[T]].write(file, value)
+    persist.write(file, value)
     file
   }
 

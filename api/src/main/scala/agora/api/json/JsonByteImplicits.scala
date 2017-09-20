@@ -2,11 +2,11 @@ package agora.api.json
 
 import agora.io.dao.{FromBytes, ToBytes}
 import io.circe.Encoder
-
 import java.nio.charset.Charset
 
 import scala.io.Source
 import cats.syntax.either._
+import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions}
 import io.circe.Decoder
 import io.circe.parser._
 
@@ -33,6 +33,21 @@ trait JsonByteImplicits {
       decode[T](jsonString).toTry
     }
   }
+
+  implicit val ThrowableEncoder : Encoder[Throwable] = {
+    Encoder.encodeString.contramap((e : Throwable) => e.getMessage)
+  }
+  implicit val ThrowableDecoder : Decoder[Throwable] = {
+    Decoder.decodeString.map(err => new Exception(err))
+  }
+
+  implicit val ConfigEncoder : Encoder[Config] = {
+    Encoder.encodeString.contramap((conf : Config) => conf.root().render(ConfigRenderOptions.concise()))
+  }
+  implicit val ConfigDecoder : Decoder[Config] = {
+    Decoder.decodeString.map(str => ConfigFactory.parseString(str))
+  }
+
 }
 
 object JsonByteImplicits extends JsonByteImplicits

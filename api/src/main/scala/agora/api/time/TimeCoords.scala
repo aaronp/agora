@@ -13,24 +13,24 @@ object TimeCoords {
 
   private val SomeTimeAgo = """(\d+)\s+([a-z]+?)s?\s+ago\s*""".r
 
-  def nowUTC() = LocalDateTime.now(ZoneOffset.UTC)
+  def nowUTC() = now()
 
   /**
-    * Parses the text as a function from the given time to another [[LocalDateTime]]
+    * Parses the text as a function from the given time to another [[Timestamp]]
     *
     * @param text
     * @return
     */
-  def unapply(text: String): Option[LocalDateTime => LocalDateTime] = {
+  def unapply(text: String): Option[Timestamp => Timestamp] = {
     text match {
-      case FixedDateTime(time)       => Option((_: LocalDateTime) => time)
-      case FixedTime(time)           => Option((input: LocalDateTime) => time.atDate(input.toLocalDate))
-      case FixedDate(date)           => Option((input: LocalDateTime) => date.atTime(input.toLocalTime))
+      case FixedDateTime(time)       => Option((_: Timestamp) => time)
+      case FixedTime(time)           => Option((input: Timestamp) => time.atDate(input.toLocalDate))
+      case FixedDate(date)           => Option((input: Timestamp) => date.atTime(input.toLocalTime))
       case VariableTimeAgo(resolver) => Option(resolver)
-      case TimeAgo(duration)         => Option((_: LocalDateTime).minusNanos(duration.toNanos))
-      case "now"                     => Option((date: LocalDateTime) => date)
-      case "yesterday"               => Option((_: LocalDateTime).minusDays(1))
-      case "tomorrow"                => Option((_: LocalDateTime).plusDays(1))
+      case TimeAgo(duration)         => Option((_: Timestamp).minusNanos(duration.toNanos))
+      case "now"                     => Option((date: Timestamp) => date)
+      case "yesterday"               => Option((_: Timestamp).minusDays(1))
+      case "tomorrow"                => Option((_: Timestamp).plusDays(1))
 
       // last tuesday? next wednesday?
       case _ => None
@@ -48,7 +48,7 @@ object TimeCoords {
       DateTimeFormatter.ISO_INSTANT
     )
 
-    def unapply(text: String): Option[LocalDateTime] = {
+    def unapply(text: String): Option[Timestamp] = {
       val results = formats.iterator.map { formatter =>
         Try(formatter.parse(text))
       }

@@ -37,7 +37,12 @@ trait LowPriorityIOImplicits {
       * @param link the symbolic link to create
       * @return the link
       */
-    def createLinkFrom(link: Path) = Files.createLink(link, path)
+    def createLinkFrom(link: Path) = {
+      if (link.parent.exists(!_.exists)) {
+        link.mkParentDirs()
+      }
+      Files.createLink(link, path)
+    }
 
     def bytes = if (exists) Files.readAllBytes(path) else Array.empty[Byte]
 

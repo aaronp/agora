@@ -1,15 +1,29 @@
 package agora.exec.events
 
 import agora.BaseSpec
+import agora.exec.model.RunProcess
 import agora.rest.HasMaterializer
-import org.scalatest.FunSuite
 
 class SystemEventMonitorTest extends BaseSpec with HasMaterializer {
 
-  "monitor.accept(ReceiveJob)" should {
-    "be able to retrieve saved job" in {
+  "SystemEventMonitor.query(FindJob)" should {
+    "return received jobs" in {
+      withDao { dao =>
+        val job = ReceivedJob("a", None, RunProcess(Nil))
 
+        dao.accept(job)
+
+        val FindJobResponse(Some(found)) = dao.query(FindJob("a")).futureValue
+
+        found shouldBe job
+      }
     }
   }
 
+  def withDao[T](f: SystemEventMonitor => T): T = {
+    withDir { dir =>
+      val monitor: SystemEventMonitor = SystemEventMonitor(dir)(system)
+      f(monitor)
+    }
+  }
 }

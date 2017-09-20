@@ -35,7 +35,7 @@ object SystemEventMonitor {
     * @param system the actor factory used to create an underlying actor
     * @return a SystemEventMonitor
     */
-  def apply(dir: Path)(implicit system: ActorRefFactory) = {
+  def apply(dir: Path)(implicit system: ActorRefFactory) : SystemEventMonitor = {
     val dao = EventDao(dir)
     val actor = system.actorOf(Props(new ActorMonitor(dao)), "systemEventMonitor")
     new ActorMonitorClient(actor, s"SystemMonitor(${dir})")

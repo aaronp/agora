@@ -78,7 +78,7 @@ trait RouteSubscriptionSupport extends LazyLogging {
     * @param action   how many items should be requested on complete? Defaults to just replacing one work item
     * @return a directive yo
     */
-  def takeNextOnComplete(exchange: Exchange, action: TakeAction = ReplaceOne) = {
+  def takeNextOnComplete(exchange: Exchange, action: TakeAction = ReplaceOne): Directive[Unit] = {
 
     extractMatchDetails.tflatMap {
       case Tuple1(Some(md)) => requestOnComplete(md, exchange, action)

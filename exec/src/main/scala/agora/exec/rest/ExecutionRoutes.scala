@@ -7,9 +7,6 @@ import agora.exec.ExecConfig
 import agora.exec.model._
 import agora.exec.workspace.UploadDependencies
 import agora.rest.worker.RouteSubscriptionSupport
-import akka.http.scaladsl.marshalling.{ToResponseMarshallable, ToResponseMarshaller}
-import akka.http.scaladsl.model.BodyPartEntity
-import akka.http.scaladsl.model.HttpEntity.IndefiniteLength
 import akka.http.scaladsl.server.Directives.{entity, path, _}
 import akka.http.scaladsl.server.Route
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
