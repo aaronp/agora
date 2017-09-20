@@ -32,7 +32,7 @@ scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-language:impli
 scalafmtOnCompile in ThisBuild := true
 scalafmtVersion in ThisBuild := "1.0.0"
 
-lazy val agora = (project in file(".")).enablePlugins(BuildInfoPlugin).aggregate(api, rest, restApi, exec, execApi)
+lazy val agora = (project in file(".")).enablePlugins(BuildInfoPlugin).aggregate(api, rest, restApi, exec, execApi, io, config)
 
 lazy val settings = scalafmtSettings
 
@@ -128,12 +128,14 @@ publishMavenStyle := true
 
 lazy val config = project
   .in(file("config"))
-  .settings(commonSettings)
+  .settings(name := s"${repo}-config")
+  .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.Config)
 
 lazy val io = project
   .in(file("io"))
-  .settings(commonSettings)
+  .settings(name := s"${repo}-io")
+  .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.IO)
 
 lazy val api = project
@@ -153,7 +155,7 @@ lazy val api = project
 
 lazy val rest = project
   .dependsOn(api % "compile->compile;test->test", restApi % "compile->compile;test->test")
-  .settings(commonSettings)
+  .settings(commonSettings: _*)
   .settings(mainClass in assembly := Some("agora.rest.exchange.ExchangeMain"))
   .settings(libraryDependencies ++= Dependencies.Rest)
 
@@ -161,7 +163,7 @@ lazy val restApi = project
   .in(file("rest-api"))
   .settings(name := s"${repo}-rest-api")
   .dependsOn(api % "compile->compile;test->test")
-  .settings(commonSettings)
+  .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.RestApi)
 
 lazy val exec = project
@@ -175,7 +177,7 @@ lazy val execApi = project
   .settings(name := s"${repo}-exec-api")
   .in(file("exec-api"))
   .dependsOn(restApi % "compile->compile;test->test")
-  .settings(commonSettings)
+  .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.RestApi)
 
 assemblyMergeStrategy in assembly := {

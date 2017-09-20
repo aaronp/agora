@@ -99,6 +99,8 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) with Seria
   def eventMonitorConfig: EventMonitorConfig = defaultEventMonitor
   def eventMonitor                           = eventMonitorConfig.eventMonitor
 
+  def enableCache                           = execConfig.getBoolean("enableCache")
+
   private lazy val defaultEventMonitor = new EventMonitorConfig(execConfig.getConfig("eventMonitor"))(serverImplicits)
 
   override def toString = execConfig.root.render()

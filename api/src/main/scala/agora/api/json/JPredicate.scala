@@ -17,7 +17,7 @@ import scala.util.Try
   *
   * The predicate itself can also be represented as json
   */
-sealed trait JPredicate {
+sealed trait JPredicate { self =>
 
   /** @param json the json to match
     * @return true if this predicate matches
@@ -28,9 +28,9 @@ sealed trait JPredicate {
     */
   def json: Json
 
-  def and(other: JPredicate, theRest: JPredicate*): JPredicate = new And(this :: other :: theRest.toList)
+  def and(other: JPredicate, theRest: JPredicate*): JPredicate = new And(self :: other :: theRest.toList)
 
-  def or(other: JPredicate, theRest: JPredicate*): JPredicate = new Or(this :: other :: theRest.toList)
+  def or(other: JPredicate, theRest: JPredicate*): JPredicate = new Or(self :: other :: theRest.toList)
 }
 
 object JPredicate {

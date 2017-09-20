@@ -18,7 +18,11 @@ import scala.language.{implicitConversions, reflectiveCalls}
 import scala.util.Try
 
 /**
-  * A client of the ExecutionRoutes
+  * A RemoteRunner is a client of the execution routes which goes via the exchange.
+  *
+  * This wouldn't typically require such dedicated code, but we have to consider upload
+  * scenarios where we want to first submit a job which selects a worker, then upload
+  * the data to that worker, and subsequently request that worker
   *
   * @param exchange
   * @param defaultFrameLength
@@ -35,7 +39,7 @@ case class RemoteRunner(exchange: ExchangeClient, defaultFrameLength: Int, reque
   import exchange.{execContext, materializer}
 
   override def run(input: RunProcess) = {
-    input.output.stream match {
+    input.output.streaming match {
       case None    => runAndSave(input)
       case Some(_) => runAndSelect(input).flatMap(_.result)
     }
@@ -94,7 +98,7 @@ case class RemoteRunner(exchange: ExchangeClient, defaultFrameLength: Int, reque
 
       val httpResp = httpResponses.onlyResponse
 
-      val resultFuture: Future[RunProcessResult] = proc.output.stream match {
+      val resultFuture: Future[RunProcessResult] = proc.output.streaming match {
         case Some(streamingSettings) =>
           val result = streamingSettings.asResult(httpResp, defaultFrameLength)
           Future.successful(result)

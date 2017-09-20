@@ -26,8 +26,6 @@ import scala.sys.process.ProcessLogger
 import scala.util.Failure
 import scala.util.control.NonFatal
 
-import io.circe.generic.auto._
-
 /**
   * Represents a handler which will be triggered from the given [[HttpRequest]] when a [[RunProcess]] is received
   *
@@ -47,6 +45,42 @@ trait ExecutionWorkflow {
 object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
 
   /**
+    * A workflow which will check .cache directories in the request's workspace
+    *
+    * @param workspaces
+    * @param underlying
+    */
+  class CachingWorkflow(workspaces: WorkspaceClient, underlying: ExecutionWorkflow) extends ExecutionWorkflow {
+    override def onExecutionRequest(httpRequest: HttpRequest, inputProcess: RunProcess)(implicit ec: ExecutionContext): Future[HttpResponse] = {
+      if (inputProcess.output.useCachedValueWhenAvailable) {
+        checkCache(httpRequest, inputProcess)
+      } else {
+        processUncached(httpRequest, inputProcess)
+      }
+    }
+
+    protected def processUncached(httpRequest: HttpRequest, inputProcess: RunProcess)(implicit ec: ExecutionContext) = {
+      underlying.onExecutionRequest(httpRequest, inputProcess)
+    }
+
+    // 'await' a no-op dependency to get the working directory
+    private def workDirFuture(inputProcess: RunProcess): Future[Path] = {
+      workspaces.await(inputProcess.dependencies.copy(dependsOnFiles = Set.empty, timeoutInMillis = 0))
+    }
+
+    def checkCache(httpRequest: HttpRequest, inputProcess: RunProcess)(implicit ec: ExecutionContext): Future[HttpResponse] = {
+
+      import akka.http.scaladsl.util.FastFuture._
+      workDirFuture(inputProcess).fast.flatMap { workingDir =>
+        val cacheDir = CachedOutput.cacheDir(workingDir, inputProcess)
+        CachedOutput.cachedResponse(cacheDir, httpRequest, inputProcess).getOrElse {
+          processUncached(httpRequest, inputProcess)
+        }
+      }
+    }
+  }
+
+  /**
     * Creates a workflow with which to handle incoming execution requests.
     *
     * @param defaultEnv   any system properties used to inject into incoming requests
@@ -55,8 +89,16 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
     * @param eventMonitor a monitor which we can alert w/ job notifications and other interesting events
     * @return an ExecutionWorkflow for handling jobs originating from [[HttpRequest]]s
     */
-  def apply(defaultEnv: Map[String, String], workspaces: WorkspaceClient, eventMonitor: SystemEventMonitor) = {
-    new Instance(defaultEnv, workspaces, eventMonitor)
+  def apply(defaultEnv: Map[String, String],
+            workspaces: WorkspaceClient,
+            eventMonitor: SystemEventMonitor,
+            enableCacheCheck: Boolean = false): ExecutionWorkflow = {
+    val instance = new Instance(defaultEnv, workspaces, eventMonitor, enableCacheCheck)
+    if (enableCacheCheck) {
+      new CachingWorkflow(workspaces, instance)
+    } else {
+      instance
+    }
   }
 
   /**
@@ -71,7 +113,7 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
     * or std err files from the [[RunProcess]] are appended to the [[ProcessLoggers]] used to run the job.
     * 3) An [[HttpResponse]] future is prepared based on the [[HttpRequest]] given. That response will either be a
     * [[FileResult]] if no streaming settings are provided or a [[StreamingResult]] if result streaming
-    * was specified by the [[RunProcess.output.stream]].
+    * was specified by the [[RunProcess.output.streaming]].
     *
     * Note: if any std out or std err files were specified, then the [[WorkspaceClient.triggerUploadCheck]]
     * will be invoked to re-check any files which may depend on the output
@@ -80,16 +122,24 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
     * @param eventMonitor a monitor to notify of system events
     * @return the HttpResponse in a future
     */
-  class Instance(val defaultEnv: Map[String, String], val workspaces: WorkspaceClient, val eventMonitor: SystemEventMonitor) extends ExecutionWorkflow {
+  class Instance(val defaultEnv: Map[String, String], val workspaces: WorkspaceClient, val eventMonitor: SystemEventMonitor, cacheEnabled: Boolean) extends ExecutionWorkflow {
 
     override def onExecutionRequest(httpRequest: HttpRequest, inputProcess: RunProcess)(implicit ec: ExecutionContext): Future[HttpResponse] = {
 
       /** 1) Add any system (configuration) wide environment properties to the input request */
-      val runProcess = inputProcess.withEnv(defaultEnv ++ inputProcess.env).resolveEnv
+      val runProcess: RunProcess = {
+        val withEnv = inputProcess.withEnv(defaultEnv ++ inputProcess.env).resolveEnv
+
+        if (cacheEnabled) {
+          withEnv.ensuringCacheOutputs
+        } else {
+          withEnv
+        }
+      }
 
       /** 2) either obtain or stamp a unique id on this request */
       val detailsOpt: Option[MatchDetails] = MatchDetailsExtractor.unapply(httpRequest)
-      val jobId                            = detailsOpt.map(_.jobId).getOrElse(agora.api.nextJobId())
+      val jobId = detailsOpt.map(_.jobId).getOrElse(agora.api.nextJobId())
 
       /** 3) let the monitor know we've accepted a job */
       eventMonitor.accept(ReceivedJob(jobId, detailsOpt, runProcess))
@@ -104,7 +154,7 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
     }
 
     protected def onJob(httpRequest: HttpRequest, workingDir: Path, jobId: JobId, detailsOpt: Option[MatchDetails], runProcess: RunProcess)(
-        implicit ec: ExecutionContext): Future[HttpResponse] = {
+      implicit ec: ExecutionContext): Future[HttpResponse] = {
       val processLogger: ProcessLoggers = loggerForJob(runProcess, detailsOpt, workingDir)
 
       /** actually execute the [[RunProcess]] and return the Future[Int] of the exit code */
@@ -114,6 +164,18 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
       if (runProcess.hasFileOutputs) {
         exitCodeFuture.onComplete {
           case _ => workspaces.triggerUploadCheck(runProcess.workspace)
+        }
+      }
+
+      /**
+        * If we can cache (and we got this far ... hence implying we've not already been able to take advantage of a
+        * cached value)
+        */
+      if (cacheEnabled && runProcess.output.canCache) {
+        exitCodeFuture.onSuccess {
+          case exitCode =>
+            val cacheDir = CachedOutput.cacheDir(workingDir, runProcess)
+            CachedOutput.cache(cacheDir, runProcess, exitCode)
         }
       }
 
@@ -147,6 +209,7 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
                                       runProcess: RunProcess,
                                       processLogger: ProcessLoggers,
                                       exitCodeFuture: Future[Int])(implicit ec: ExecutionContext): Future[HttpResponse] = {
+
       formatHttpResponse(httpRequest, runProcess, processLogger)
     }
 
@@ -166,13 +229,17 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
     }
   }
 
-  private def asErrorResponse(exp: ProcessException) = {
+  def asErrorResponse(exp: ProcessException) = {
     HttpResponse(status = InternalServerError, entity = HttpEntity(`application/json`, exp.json.noSpaces))
   }
 
-  private def streamBytes(bytes: Source[ByteString, NotUsed], runProc: RunProcess, matchDetails: Option[MatchDetails], request: HttpRequest, outputContentType: ContentType)(
-      implicit ec: ExecutionContext) = {
-    val chunked: HttpEntity.Chunked  = HttpEntity(outputContentType, bytes)
+  def streamBytes(bytes: Source[ByteString, Any], runProc: RunProcess, matchDetails: Option[MatchDetails], request: HttpRequest)(
+    implicit ec: ExecutionContext): Future[HttpResponse] = {
+
+    // TODO - extract from request header
+    val outputContentType: ContentType = `text/plain(UTF-8)`
+
+    val chunked: HttpEntity.Chunked = HttpEntity(outputContentType, bytes)
     val future: Future[HttpResponse] = Marshal(chunked).toResponseFor(request)
 
     future.recover {
@@ -185,7 +252,7 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
   }
 
   private def formatHttpResponse(httpRequest: HttpRequest, runProcess: RunProcess, processLogger: ProcessLoggers)(implicit ec: ExecutionContext): Future[HttpResponse] = {
-    val basic = runProcess.output.stream match {
+    val basic = runProcess.output.streaming match {
       case Some(_) =>
         // TODO - this source will only run the iterator once, as it has potential side-effects.
         // we should check/challenge that
@@ -195,12 +262,7 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
           Source.fromIterator(() => run).map(line => ByteString(s"$line\n"))
         }
 
-        // TODO - extract from request header
-        val outputContentType: ContentType = {
-          `text/plain(UTF-8)`
-        }
-
-        streamBytes(bytes, runProcess, processLogger.matchDetails, httpRequest, outputContentType)
+        streamBytes(bytes, runProcess, processLogger.matchDetails, httpRequest)
       case None =>
         processLogger.fileResultFuture.flatMap { resp =>
           Marshal(resp).toResponseFor(httpRequest)
@@ -216,5 +278,4 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
       }
     }
   }
-
 }

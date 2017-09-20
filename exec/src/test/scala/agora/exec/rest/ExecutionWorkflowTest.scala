@@ -30,7 +30,7 @@ class ExecutionWorkflowTest extends BaseSpec with FailFastCirceSupport with HasM
         val future         = workflow.onExecutionRequest(HttpRequest(), runProcess)
         val responseFuture = future.futureValue
 
-        val StreamingResult(result) = runProcess.output.stream.get.asResult(responseFuture, 1000)
+        val StreamingResult(result) = runProcess.output.streaming.get.asResult(responseFuture)
         result.toList shouldBe List("gruess gott")
 
         withClue("the workspace directory should already exist") {
@@ -62,7 +62,7 @@ class ExecutionWorkflowTest extends BaseSpec with FailFastCirceSupport with HasM
 
     "result in dependencies being triggered after a streaming process is executed" in {
       val httpResp                = verifyDependencies(identity)
-      val StreamingResult(output) = StreamingSettings().asResult(httpResp, 1000)
+      val StreamingResult(output) = StreamingSettings().asResult(httpResp)
       output.mkString(" ").trim shouldBe "hello there world"
     }
 
@@ -81,7 +81,7 @@ class ExecutionWorkflowTest extends BaseSpec with FailFastCirceSupport with HasM
         // call the method under test
         val responseFuture = workflow.onExecutionRequest(HttpRequest(), runProcess).futureValue
 
-        val StreamingResult(res) = runProcess.output.stream.get.asResult(responseFuture, 1000)
+        val StreamingResult(res) = runProcess.output.streaming.get.asResult(responseFuture)
         res.toList shouldBe List("FOO is bar")
 
         withClue("the workspace directory should already exist") {

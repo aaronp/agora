@@ -1,6 +1,9 @@
 package agora.exec.model
 
+import java.util.UUID
+
 import agora.exec.workspace.{UploadDependencies, WorkspaceId}
+import agora.io.MD5
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -15,6 +18,30 @@ case class RunProcess(command: List[String],
                       env: Map[String, String] = Map.empty,
                       dependencies: UploadDependencies = UploadDependencies(newWorkspace(), Set.empty, 0),
                       output: OutputSettings = OutputSettings()) {
+
+  /**
+    * If [[OutputSettings.canCache]] is set, then we ensure that stdout and stderr are set to unique values if left unset
+    *
+    * @return a RunProcess which ensures the stdout and stderr filenames are set
+    */
+  def ensuringCacheOutputs = {
+    if (!output.canCache) {
+      this
+    } else {
+      def uniqueName = UUID.randomUUID().toString
+
+      (output.stdOutFileName, output.stdErrFileName) match {
+        case (Some(_), Some(_)) => this
+        case (None, Some(_))    => withOutput(output.copy(stdOutFileName = Option(uniqueName)))
+        case (Some(_), None)    => withOutput(output.copy(stdErrFileName = Option(uniqueName)))
+        case (None, None) =>
+          val newOutput = output.copy(stdOutFileName = Option(uniqueName), stdErrFileName = Option(uniqueName))
+          withOutput(newOutput)
+      }
+    }
+  }
+
+  def commandHash: String = MD5(commandString)
 
   def fileOutputs = output.stdOutFileName.toList ::: output.stdErrFileName.toList
 
@@ -43,9 +70,17 @@ case class RunProcess(command: List[String],
 
   def withEnv(key: String, value: String) = copy(env = env.updated(key, value))
 
-  def withStreamingSettings(settings: StreamingSettings): RunProcess = copy(output = output.withSettings(settings))
+  def withStreamingSettings(settings: StreamingSettings): RunProcess = withOutput(output.withSettings(settings))
 
-  def withoutStreaming(): RunProcess = copy(output = output.copy(stream = None))
+  def withoutStreaming(): RunProcess = withOutput(output.copy(streaming = None))
+
+  def withOutput(newOutput: OutputSettings): RunProcess = copy(output = newOutput)
+
+  def withCaching(cache: Boolean): RunProcess = withOutput(output.copy(canCache = cache))
+
+  def useCachedValueWhenAvailable(cache: Boolean): RunProcess = {
+    withOutput(output.copy(useCachedValueWhenAvailable = cache))
+  }
 
   def withDependencies(dep: UploadDependencies) = copy(dependencies = dep)
 
@@ -58,7 +93,6 @@ case class RunProcess(command: List[String],
   }
 
   def withWorkspace(newWorkspace: WorkspaceId): RunProcess = {
-    import concurrent.duration._
     withDependencies(dependencies.copy(workspace = newWorkspace))
   }
 

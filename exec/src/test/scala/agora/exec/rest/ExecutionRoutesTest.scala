@@ -30,7 +30,7 @@ class ExecutionRoutesTest extends BaseRoutesSpec {
         val workspaces = WorkspaceClient(dir, system)
 
         val execConfig = ExecConfig()
-        val workflow   = ExecutionWorkflow(execConfig.defaultEnv, workspaces, execConfig.eventMonitor)
+        val workflow   = ExecutionWorkflow(execConfig.defaultEnv, workspaces, execConfig.eventMonitor, false)
         val er         = ExecutionRoutes(execConfig, Exchange.instance(), workflow)
 
         val request = ExecutionClient.asRequest(RunProcess("cp", "x", "y").withoutStreaming().withWorkspace("ws"))

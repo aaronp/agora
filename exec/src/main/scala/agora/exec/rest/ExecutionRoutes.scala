@@ -81,7 +81,11 @@ case class ExecutionRoutes(
 
 object ExecutionRoutes {
   def apply(execConfig: ExecConfig, exchange: Exchange = Exchange.instance()): ExecutionRoutes = {
-    val workflow = ExecutionWorkflow(execConfig.defaultEnv, execConfig.workspaceClient, execConfig.eventMonitor)
+    val workflow = ExecutionWorkflow(
+      execConfig.defaultEnv,
+      execConfig.workspaceClient,
+      execConfig.eventMonitor,
+      execConfig.enableCache)
     new ExecutionRoutes(execConfig, exchange, workflow)
   }
 }

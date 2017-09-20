@@ -52,7 +52,11 @@ case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes
 
   lazy val workspaceClient: WorkspaceClient = conf.workspaceClient
 
-  def workflow: ExecutionWorkflow = ExecutionWorkflow(conf.defaultEnv, workspaceClient, conf.eventMonitorConfig.eventMonitor)
+  def workflow: ExecutionWorkflow = ExecutionWorkflow(
+    conf.defaultEnv,
+    workspaceClient,
+    conf.eventMonitor,
+    conf.enableCache)
 
   /** @return a future of the ExecutionRoutes once the exec subscription completes
     */

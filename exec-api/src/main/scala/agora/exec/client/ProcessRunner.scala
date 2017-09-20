@@ -49,7 +49,7 @@ trait ProcessRunner {
   final def save(proc: RunProcess): Future[FileResult] = run(proc.withoutStreaming()).mapTo[FileResult]
 
   final def stream(proc: RunProcess): Future[StreamingResult] = {
-    val future = proc.output.stream match {
+    val future = proc.output.streaming match {
       case None    => run(proc.withStreamingSettings(StreamingSettings()))
       case Some(_) => run(proc)
     }

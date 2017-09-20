@@ -26,7 +26,7 @@ case class LocalRunner(val workDir: Option[Path] = None)(implicit ec: ExecutionC
     val logger = IterableLogger(proc)
     execute(proc, logger)
 
-    input.output.stream match {
+    input.output.streaming match {
       case None => logger.fileResultFuture
       case Some(streamingSettings) =>
         val iter = streamingSettings.filterForErrors(logger.iterator)

@@ -27,7 +27,7 @@ class ProcessLoggers(val proc: RunProcess, override val matchDetails: Option[Mat
 
   private val stdOutLog: StreamLogger = StreamLogger.forProcess {
     case resultFuture @ Success(n) =>
-      proc.output.stream match {
+      proc.output.streaming match {
         case Some(streamingSettings) if !streamingSettings.isSuccessfulExitCode(n) => onIterError(resultFuture)
         case _                                                                     => Stream.empty
       }
@@ -46,7 +46,7 @@ class ProcessLoggers(val proc: RunProcess, override val matchDetails: Option[Mat
 
   private def onIterError(failure: Try[Int]) = {
     stdErrLog.complete(failure)
-    proc.output.stream match {
+    proc.output.streaming match {
       case Some(streamingSettings) =>
         val json = ProcessException(proc, failure, None, stdErr).json.spaces2.lines.toStream
         streamingSettings.errorMarker #:: json
@@ -62,7 +62,7 @@ class ProcessLoggers(val proc: RunProcess, override val matchDetails: Option[Mat
     case err: ProcessException => throw err
     case err =>
       complete(err)
-      val res = splitLogger.completedResult.getOrElse(Failure(new Throwable("process hasn't completed")))
+      val res = splitLogger.completedResult.getOrElse(Failure(new Exception("process hasn't completed")))
       throw ProcessException(proc, res, None, stdErrLog.iterator.toList)
   }
 

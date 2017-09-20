@@ -46,7 +46,7 @@ case class ExecutionClient(override val client: RestClient, defaultFrameLength: 
     */
   def run(proc: RunProcess): Future[RunProcessResult] = {
     execute(proc).flatMap { httpResp =>
-      proc.output.stream match {
+      proc.output.streaming match {
         case Some(streamingSettings) =>
           val result = streamingSettings.asResult(httpResp, defaultFrameLength)
           Future.successful(result)

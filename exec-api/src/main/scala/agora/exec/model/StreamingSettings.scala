@@ -17,7 +17,7 @@ case class StreamingSettings(successExitCodes: Set[Int] = Set(0),
                              // if we exit w/ a non-success code, then we need to indicate the start of the error response
                              errorMarker: String = StreamingSettings.DefaultErrorMarker) {
 
-  def asResult(httpResp: HttpResponse, defaultFrameLength: Int = 0)(implicit mat: Materializer): StreamingResult = {
+  def asResult(httpResp: HttpResponse, defaultFrameLength: Int = 1000)(implicit mat: Materializer): StreamingResult = {
     val bytes = httpResp.entity.dataBytes
     val len   = frameLength.getOrElse(defaultFrameLength)
     val iter  = IterableSubscriber.iterate(bytes, len, allowTruncation)
