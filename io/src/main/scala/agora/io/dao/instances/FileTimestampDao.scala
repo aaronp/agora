@@ -20,6 +20,9 @@ import scala.util.Try
   * The implicit Persist may only link to the former instead of serializing the data
   */
 class FileTimestampDao[T](rootDir: Path)(implicit saveValue: Persist[T], fromBytes: FromBytes[T], idFor: HasId[T]) extends TimestampDao[T] {
+  def removeBefore(timestamp: Timestamp) = {
+    dateDirs.flatMap(_.removeEntriesBefore(timestamp))
+  }
 
   type Id = String
 
@@ -29,10 +32,6 @@ class FileTimestampDao[T](rootDir: Path)(implicit saveValue: Persist[T], fromByt
   import FileTimestampDao._
 
   private lazy val dateRootDir = rootDir.mkDirs()
-
-  //  private val idFor = implicitly[HasId[T]]
-  //  private val saveValue = implicitly[Persist[T]]
-  //  private val fromBytes = implicitly[FromBytes[T]]
 
   override def save(data: T, timestamp: Timestamp) = {
     val file = timestampedFileForData(data, timestamp)
@@ -57,15 +56,7 @@ class FileTimestampDao[T](rootDir: Path)(implicit saveValue: Persist[T], fromByt
 
   override def remove(data: T, timestamp: Timestamp) = {
     val deletedFile = timestampedFileForData(data, timestamp).delete()
-    // minute, hour and date dirs
-    deletedFile.parents.take(3).filter { parent =>
-      if (parent.isEmptyDir) {
-        parent.delete()
-        true
-      } else {
-        false
-      }
-    }
+    tryToRemoveParents(deletedFile)
     deletedFile
   }
 
@@ -109,7 +100,7 @@ class FileTimestampDao[T](rootDir: Path)(implicit saveValue: Persist[T], fromByt
 
   private def findEntries(range: TimeRange) = dateDirs.iterator.flatMap(_.inRange(range))
 
-  private def dateDirs = {
+  private def dateDirs: Array[DateDir] = {
     dateRootDir.children.collect {
       case DateDir(dateDir) => dateDir
     }
@@ -156,6 +147,22 @@ object FileTimestampDao {
     * Represents a 'date' (year-month-date) directory
     */
   private case class DateDir(date: LocalDate, dateDir: Path) extends Ordered[DateDir] {
+    def removeEntriesBefore(reference: Timestamp): List[Path] = {
+      if (date.isAfter(reference.toLocalDate)) {
+        Nil
+      } else {
+        first.toList.flatMap {
+          case StampedFile(firstDate, _, _) =>
+            val range = TimeRange(firstDate, reference.minusNanos(1))
+            inRange(range).map {
+              case StampedFile(ts, _, file) =>
+                require(ts.isBefore(reference))
+                tryToRemoveParents(file.delete())
+            }
+        }
+      }
+    }
+
     def first: Option[StampedFile] = hours.sorted.flatMap(_.first).headOption
 
     def last: Option[StampedFile] = hours.sorted.reverse.flatMap(_.last).headOption
@@ -244,4 +251,16 @@ object FileTimestampDao {
     }
   }
 
+  private def tryToRemoveParents(deletedFile: Path) = {
+    // traverse up to the minute, hour and date dirs to see if we can remove 'em
+    deletedFile.parents.take(3).filter { parent =>
+      if (parent.isEmptyDir) {
+        parent.delete()
+        true
+      } else {
+        false
+      }
+    }
+    deletedFile
+  }
 }

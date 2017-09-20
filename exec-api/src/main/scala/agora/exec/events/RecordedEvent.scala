@@ -1,6 +1,5 @@
 package agora.exec.events
 
-
 import java.util.UUID
 
 import agora.api.JobId
@@ -27,6 +26,8 @@ object ReceivedJob {
 
 }
 
+case class DeleteBefore(before: Timestamp) extends RecordedEvent
+
 case class StartedJob(id: JobId, started: Timestamp = now()) extends RecordedEvent
 
 object StartedJob {
@@ -37,7 +38,6 @@ object StartedJob {
 
 }
 
-
 case class CompletedJob(id: JobId, exitCode: Try[Int], completed: Timestamp = now()) extends RecordedEvent
 
 object CompletedJob {
@@ -47,7 +47,6 @@ object CompletedJob {
   }
 
 }
-
 
 case class StartedSystem(config: Config, jvmId: String = StartedSystem.jvmId, startTime: Timestamp = now()) extends RecordedEvent {
   def id = s"${jvmId}_${startTime}"

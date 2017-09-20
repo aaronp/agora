@@ -20,7 +20,6 @@ class EventDaoTest extends BaseSpec {
         dao.receivedDao.findBetween(job.received.minusNanos(2), job.received.minusNanos(1)).toList shouldBe empty
         dao.receivedDao.findBetween(job.received.plusNanos(1), job.received.plusNanos(2)).toList shouldBe empty
 
-
         // the other DAOs should have no effect
         dao.startedDao.findBetween(job.received, job.received).toList shouldBe empty
         dao.completedDao.findBetween(job.received, job.received).toList shouldBe empty
@@ -54,14 +53,12 @@ class EventDaoTest extends BaseSpec {
         val finished = CompletedJob(job.id, Success(1), job.received.plusMinutes(2))
         dao.completedDao.save(finished, finished.completed)
 
-
         dao.notFinishedBetween(started.started, finished.completed.minusNanos(1)).toList should contain(started)
         dao.notFinishedBetween(started.started, finished.completed).toList shouldBe empty
         dao.notFinishedBetween(started.started.plusNanos(1), finished.completed.minusNanos(1)).toList shouldBe empty
       }
     }
   }
-
 
   def withDao[T](f: EventDao => T): T = withDir { dir =>
     f(EventDao(dir))

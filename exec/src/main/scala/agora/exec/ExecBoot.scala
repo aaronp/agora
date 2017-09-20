@@ -1,7 +1,8 @@
 package agora.exec
 
 import agora.api.exchange.Exchange
-import agora.exec.rest.{ExecutionRoutes, ExecutionWorkflow, UploadRoutes}
+import agora.exec.events.StartedSystem
+import agora.exec.rest.{ExecutionRoutes, ExecutionWorkflow, QueryRoutes, UploadRoutes}
 import agora.exec.workspace.WorkspaceClient
 import agora.health.HealthUpdate
 import agora.rest.RunningService
@@ -51,7 +52,7 @@ case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes
 
   lazy val workspaceClient: WorkspaceClient = conf.workspaceClient
 
-  def workflow: ExecutionWorkflow = ExecutionWorkflow(conf.defaultEnv, workspaceClient, conf.eventMonitor)
+  def workflow: ExecutionWorkflow = ExecutionWorkflow(conf.defaultEnv, workspaceClient, conf.eventMonitorConfig.eventMonitor)
 
   /** @return a future of the ExecutionRoutes once the exec subscription completes
     */
@@ -61,14 +62,25 @@ case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes
 
   def uploadRoutes: Route = UploadRoutes(workspaceClient).routes
 
+  val eventMonitor = conf.eventMonitor
+
+  def queryRoutes: Route = QueryRoutes(eventMonitor).routes(conf.enableSupportRoutes)
+
   def restRoutes: Route = {
     val corsSettings = {
       val default = CorsSettings.defaultSettings
       default.copy(allowedMethods = default.allowedMethods ++ List(HttpMethods.PUT, HttpMethods.DELETE))
     }
-    cors(corsSettings)(
+    val baseRoutes = cors(corsSettings)(
       uploadRoutes ~ executionRoutes.routes(optionalExchangeRoutes)
     )
+
+    if (conf.eventMonitorConfig.enabled) {
+      baseRoutes ~ queryRoutes
+    } else {
+      baseRoutes
+    }
+
   }
 
   /**
@@ -82,6 +94,8 @@ case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes
 
     logger.info(s"Starting Execution Server in ${conf.location}")
     val startFuture = RunningService.start[ExecConfig, ExecutionRoutes](conf, restRoutes, executionRoutes)
+
+    eventMonitor.accept(StartedSystem(conf.config))
 
     for {
       rs <- startFuture

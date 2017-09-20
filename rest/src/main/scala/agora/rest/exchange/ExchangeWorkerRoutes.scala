@@ -33,7 +33,7 @@ trait ExchangeWorkerRoutes extends FailFastCirceSupport { self: ExchangeRoutes =
   )
   @ApiImplicitParams(
     Array(
-      new ApiImplicitParam(name = "body", value = "the work details to merge", required = true, dataType = "json", paramType = "body")
+      new ApiImplicitParam(name = "body", value = "the work details to merge", required = true, paramType = "body")
     ))
   @ApiResponses(
     Array(

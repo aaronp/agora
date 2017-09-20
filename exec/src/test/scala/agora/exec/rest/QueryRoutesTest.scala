@@ -5,8 +5,6 @@ import agora.api.time.{Timestamp, now}
 import agora.exec.events._
 import agora.exec.model.RunProcess
 import agora.rest.BaseRoutesSpec
-import akka.http.scaladsl.model.Uri
-import akka.http.scaladsl.model.Uri.Query
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.generic.auto._
 import io.circe.java8.time._
@@ -48,21 +46,19 @@ class QueryRoutesTest extends BaseRoutesSpec with Eventually with FailFastCirceS
   "GET /rest/query/received?from=10 minutes ago&to=2 minutes ago" should {
     "retrieve jobs received within the time range" in {
       withRoute { queryRoutes =>
-
         val jobA = queryRoutes.insertJob("a", now().minusMinutes(2))
         val jobB = queryRoutes.insertJob("b", now().minusMinutes(1))
 
-
-        Get(Uri("/rest/query/received").withQuery(Query("from=10 minutes ago&to=3 minutes ago"))) ~> queryRoutes.queryRoutes ~> check {
+        QueryHttp("received", "10 minutes ago", "3 minutes ago") ~> queryRoutes.queryRoutes ~> check {
           val received: ReceivedBetweenResponse = responseAs[ReceivedBetweenResponse]
           received.received shouldBe empty
         }
 
-        Get("/rest/query/received?from=90 seconds ago") ~> queryRoutes.queryRoutes ~> check {
+        QueryHttp("received", "90 seconds ago") ~> queryRoutes.queryRoutes ~> check {
           responseAs[ReceivedBetweenResponse].received should contain only (jobB)
         }
 
-        Get("/rest/query/received?from=3 minutes ago&to=90 seconds ago") ~> queryRoutes.queryRoutes ~> check {
+        QueryHttp("received", "3 minutes ago", "90 seconds ago") ~> queryRoutes.queryRoutes ~> check {
           responseAs[ReceivedBetweenResponse].received should contain only (jobA)
         }
       }
@@ -73,7 +69,7 @@ class QueryRoutesTest extends BaseRoutesSpec with Eventually with FailFastCirceS
       withRoute { queryRoutes =>
         val started = queryRoutes.startJob("a", now().minusMinutes(1))
 
-        Get(Uri("/rest/query/received").withQuery(Query("from=2 minutes ago"))) ~> queryRoutes.queryRoutes ~> check {
+        QueryHttp("started", "2 minutes ago") ~> queryRoutes.queryRoutes ~> check {
           responseAs[StartedBetweenResponse].started should contain(started)
         }
       }
@@ -84,7 +80,7 @@ class QueryRoutesTest extends BaseRoutesSpec with Eventually with FailFastCirceS
       withRoute { queryRoutes =>
         val job = queryRoutes.completeJob("a", now().minusMinutes(1))
 
-        Get(Uri("/rest/query/completeJob").withQuery(Query("from=2 minutes ago"))) ~> queryRoutes.queryRoutes ~> check {
+        QueryHttp("completed", "2 minutes ago") ~> queryRoutes.queryRoutes ~> check {
           responseAs[CompletedBetweenResponse].completed should contain(job)
         }
       }

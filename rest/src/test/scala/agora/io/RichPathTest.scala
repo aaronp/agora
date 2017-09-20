@@ -1,9 +1,6 @@
 package agora.io
 
-import java.nio.file.Path
-
 import agora.BaseSpec
-import org.scalatest.{Matchers, WordSpec}
 
 class RichPathTest extends BaseSpec with LowPriorityIOImplicits {
 
@@ -33,8 +30,8 @@ class RichPathTest extends BaseSpec with LowPriorityIOImplicits {
         // belt and braces -- just verify our '.text' isn't broken, and we actually
         // created files under nested dirs
 
-        found.head.parents should contain("b")
-        found.head.parents should contain("a")
+        found.head.parents.map(_.fileName) should contain("b")
+        found.head.parents.map(_.fileName) should contain("a")
 
       }
     }

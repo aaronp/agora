@@ -1,12 +1,13 @@
 package agora.exec.workspace
 
+import java.nio.file.Path
 import java.util.UUID
 
 import agora.BaseSpec
 import agora.exec.model.Upload
 import agora.rest.HasMaterializer
 
-import scala.concurrent.Await
+import scala.concurrent.{Await, Future}
 
 class WorkspaceClientTest extends BaseSpec with HasMaterializer {
   "WorkspaceClient.upload" should {
@@ -31,9 +32,10 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
   "WorkspaceClient.triggerUploadCheck" should {
     "reevaluate a workspace" in {
       withDir { containerDir =>
-        val workspace   = UUID.randomUUID().toString
-        val client      = WorkspaceClient(containerDir, system)
-        val awaitFuture = client.await(workspace, Set("some.file"), testTimeout.toMillis)
+        val workspace                 = UUID.randomUUID().toString
+        val client                    = WorkspaceClient(containerDir, system)
+        val started                   = agora.api.time.now()
+        val awaitFuture: Future[Path] = client.await(workspace, Set("some.file"), testTimeout.toMillis)
 
         // manually create some.file (e.g. no via workspaces.upload)
         //
@@ -42,8 +44,33 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
         // triggerUploadCheck
         val expectedFile = containerDir.resolve(workspace).resolve("some.file").text = "hi"
 
-        withClue("We should not yet have been notified of the file") {
-          awaitFuture.isCompleted shouldBe false
+        val done = awaitFuture.isCompleted
+        val errorMessage = if (done) {
+          val path      = awaitFuture.futureValue
+          val errorTime = agora.api.time.now()
+
+          s""" Awaiting on $workspace under $containerDir has already completed
+             | We stated at
+             | $started
+             | w/ test timeout $testTimeout
+             | and it is now
+             | $errorTime
+             |
+                 | The path is $path
+             | which contains:
+             | ${path.nestedFiles().mkString("\n")}
+             |
+                 | and the test directory contents are:
+                 |
+                 | ${containerDir.nestedFiles().mkString("\n")}
+             |
+               """.stripMargin
+        } else {
+          "We should not yet have been notified of the file"
+        }
+
+        withClue(errorMessage) {
+          done shouldBe false
         }
 
         // call the method under test -- await should now complete

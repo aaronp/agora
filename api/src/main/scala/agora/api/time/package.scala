@@ -10,7 +10,6 @@ package object time {
 
   type Now = Timestamp
 
-
   implicit def ordering = agora.io.dao.ordering
 
   /**

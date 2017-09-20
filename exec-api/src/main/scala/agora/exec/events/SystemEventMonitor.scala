@@ -1,23 +1,37 @@
 package agora.exec.events
 
 import java.nio.file.Path
+import java.util.concurrent.atomic.AtomicInteger
 
 import agora.io.BaseActor
 import akka.actor.{ActorRef, ActorRefFactory, Props}
 
 import scala.concurrent.{Future, Promise}
 
-
 /**
   * The event monitor is where we sent event notifications we care about (jobs started, stopped, failed, etc)
   */
 trait SystemEventMonitor {
+
+  /**
+    * Save an event
+    *
+    * @param event an event to write down/tell the event monitor about
+    */
   def accept(event: RecordedEvent): Unit
 
+  /**
+    * Query the system events
+    *
+    * @param query the query criteria
+    * @return a query response specific to the query
+    */
   def query(query: EventQuery): Future[query.Response]
 }
 
 object SystemEventMonitor {
+
+  private val uniqueCounter = new AtomicInteger(0)
 
   /**
     * A no-op event monitor
@@ -35,9 +49,9 @@ object SystemEventMonitor {
     * @param system the actor factory used to create an underlying actor
     * @return a SystemEventMonitor
     */
-  def apply(dir: Path)(implicit system: ActorRefFactory) : SystemEventMonitor = {
-    val dao = EventDao(dir)
-    val actor = system.actorOf(Props(new ActorMonitor(dao)), "systemEventMonitor")
+  def apply(dir: Path)(implicit system: ActorRefFactory): SystemEventMonitor = {
+    val dao   = EventDao(dir)
+    val actor = system.actorOf(Props(new ActorMonitor(dao)), s"systemEventMonitor${uniqueCounter.incrementAndGet()}")
     new ActorMonitorClient(actor, s"SystemMonitor(${dir})")
   }
 
@@ -57,8 +71,8 @@ object SystemEventMonitor {
     }
 
     override def query(query: EventQuery): Future[query.Response] = {
-      val promise = Promise[query.Response]()
-      val aux : EventQuery.Aux[query.Response] = query.asInstanceOf[EventQuery.Aux[query.Response]]
+      val promise                             = Promise[query.Response]()
+      val aux: EventQuery.Aux[query.Response] = query.asInstanceOf[EventQuery.Aux[query.Response]]
       actorMonitor ! EventQueryMessage(aux, promise)
       promise.future
     }
@@ -67,11 +81,15 @@ object SystemEventMonitor {
   /**
     * Simple actor to receive messages from an [[ActorMonitorClient]]
     *
-    * @param monitor
+    * The [[RecordedEvent]] jobs are broadcast to the system
+    *
+    * @param monitor the underlying monitor
     */
   private class ActorMonitor(monitor: SystemEventMonitor) extends BaseActor {
     override def receive: Receive = {
-      case event: RecordedEvent => monitor.accept(event)
+      case event: RecordedEvent =>
+        monitor.accept(event)
+        context.system.eventStream.publish(event)
       case EventQueryMessage(query, promise) =>
         val future: Future[query.Response] = monitor.query(query)
         promise.tryCompleteWith(future)
@@ -79,5 +97,3 @@ object SystemEventMonitor {
   }
 
 }
-
-

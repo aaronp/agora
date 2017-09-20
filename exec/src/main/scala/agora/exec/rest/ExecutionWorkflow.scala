@@ -5,7 +5,7 @@ import java.nio.file.Path
 import agora.api.JobId
 import agora.api.`match`.MatchDetails
 import agora.exec.client.LocalRunner
-import agora.exec.events.{CompletedJob, ReceivedJob, SystemEventMonitor}
+import agora.exec.events.{CompletedJob, ReceivedJob, StartedJob, SystemEventMonitor}
 import agora.exec.log.{IterableLogger, ProcessLoggers}
 import agora.exec.model.{FileResult, ProcessException, RunProcess, StreamingResult}
 import agora.exec.workspace.WorkspaceClient
@@ -19,6 +19,7 @@ import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
+import io.circe.generic.auto._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.sys.process.ProcessLogger
@@ -97,6 +98,7 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
         * this may eventually time-out based on the workspaces configuration
         */
       workspaces.await(runProcess.dependencies).flatMap { (workingDir: Path) =>
+        eventMonitor.accept(StartedJob(jobId))
         onJob(httpRequest, workingDir, jobId, detailsOpt, runProcess)
       }
     }
@@ -148,25 +150,7 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
       formatHttpResponse(httpRequest, runProcess, processLogger)
     }
 
-    private def streamBytes(bytes: Source[ByteString, NotUsed], runProc: RunProcess, matchDetails: Option[MatchDetails], request: HttpRequest, outputContentType: ContentType)(
-        implicit ec: ExecutionContext) = {
-      val chunked: HttpEntity.Chunked  = HttpEntity(outputContentType, bytes)
-      val future: Future[HttpResponse] = Marshal(chunked).toResponseFor(request)
-
-      future.recover {
-        case pr: ProcessException =>
-          asErrorResponse(pr)
-        case NonFatal(other) =>
-          logger.error(s"translating error $other as a process exception")
-          asErrorResponse(ProcessException(runProc, Failure(other), matchDetails, Nil))
-      }
-    }
-
-    private def asErrorResponse(exp: ProcessException) = {
-      HttpResponse(status = InternalServerError, entity = HttpEntity(`application/json`, exp.json.noSpaces))
-    }
-
-    private def loggerForJob(runProcess: RunProcess, detailsOpt: Option[MatchDetails], workingDir: Path): ProcessLoggers = {
+    protected def loggerForJob(runProcess: RunProcess, detailsOpt: Option[MatchDetails], workingDir: Path): ProcessLoggers = {
       val iterableLogger = IterableLogger(runProcess, detailsOpt)
 
       runProcess.output.stdOutFileName.foreach { stdOutFileName =>
@@ -180,37 +164,55 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
       }
       iterableLogger
     }
+  }
 
-    private def formatHttpResponse(httpRequest: HttpRequest, runProcess: RunProcess, processLogger: ProcessLoggers)(implicit ec: ExecutionContext): Future[HttpResponse] = {
-      val basic = runProcess.output.stream match {
-        case Some(_) =>
-          // TODO - this source will only run the iterator once, as it has potential side-effects.
-          // we should check/challenge that
-          val bytes: Source[ByteString, NotUsed] = {
-            def run: Iterator[String] = processLogger.iterator
+  private def asErrorResponse(exp: ProcessException) = {
+    HttpResponse(status = InternalServerError, entity = HttpEntity(`application/json`, exp.json.noSpaces))
+  }
 
-            Source.fromIterator(() => run).map(line => ByteString(s"$line\n"))
-          }
+  private def streamBytes(bytes: Source[ByteString, NotUsed], runProc: RunProcess, matchDetails: Option[MatchDetails], request: HttpRequest, outputContentType: ContentType)(
+      implicit ec: ExecutionContext) = {
+    val chunked: HttpEntity.Chunked  = HttpEntity(outputContentType, bytes)
+    val future: Future[HttpResponse] = Marshal(chunked).toResponseFor(request)
 
-          // TODO - extract from request header
-          val outputContentType: ContentType = {
-            `text/plain(UTF-8)`
-          }
+    future.recover {
+      case pr: ProcessException =>
+        asErrorResponse(pr)
+      case NonFatal(other) =>
+        logger.error(s"translating error $other as a process exception")
+        asErrorResponse(ProcessException(runProc, Failure(other), matchDetails, Nil))
+    }
+  }
 
-          streamBytes(bytes, runProcess, processLogger.matchDetails, httpRequest, outputContentType)
-        case None =>
-          processLogger.fileResultFuture.flatMap { resp =>
-            Marshal(resp).toResponseFor(httpRequest)
-          }
-      }
+  private def formatHttpResponse(httpRequest: HttpRequest, runProcess: RunProcess, processLogger: ProcessLoggers)(implicit ec: ExecutionContext): Future[HttpResponse] = {
+    val basic = runProcess.output.stream match {
+      case Some(_) =>
+        // TODO - this source will only run the iterator once, as it has potential side-effects.
+        // we should check/challenge that
+        val bytes: Source[ByteString, NotUsed] = {
+          def run: Iterator[String] = processLogger.iterator
 
-      /**
-        * Put the match details back on the response for client consumption
-        */
-      processLogger.matchDetails.fold(basic) { details =>
-        basic.map { r =>
-          r.withHeaders(MatchDetailsExtractor.headersFor(details))
+          Source.fromIterator(() => run).map(line => ByteString(s"$line\n"))
         }
+
+        // TODO - extract from request header
+        val outputContentType: ContentType = {
+          `text/plain(UTF-8)`
+        }
+
+        streamBytes(bytes, runProcess, processLogger.matchDetails, httpRequest, outputContentType)
+      case None =>
+        processLogger.fileResultFuture.flatMap { resp =>
+          Marshal(resp).toResponseFor(httpRequest)
+        }
+    }
+
+    /**
+      * Put the match details back on the response for client consumption
+      */
+    processLogger.matchDetails.fold(basic) { details =>
+      basic.map { r =>
+        r.withHeaders(MatchDetailsExtractor.headersFor(details))
       }
     }
   }

@@ -13,7 +13,7 @@ class SystemEventMonitorTest extends BaseSpec with HasMaterializer {
 
         dao.accept(job)
 
-        val FindJobResponse(Some(found)) = dao.query(FindJob("a")).futureValue
+        val FindJobResponse(Some(found), None, None, None) = dao.query(FindJob("a")).futureValue
 
         found shouldBe job
       }

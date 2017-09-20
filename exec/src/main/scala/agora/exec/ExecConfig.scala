@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 import agora.api.exchange.WorkSubscription
 import agora.exec.client.{ExecutionClient, ProcessRunner, RemoteRunner}
 import agora.exec.events.SystemEventMonitor
-import agora.exec.rest.{ExecutionRoutes, UploadRoutes}
+import agora.exec.rest.{ExecutionRoutes, QueryRoutes, UploadRoutes}
 import agora.exec.workspace.WorkspaceClient
 import agora.rest.worker.{SubscriptionConfig, SubscriptionGroup, WorkerConfig}
 import agora.rest.{RunningService, configForArgs}
@@ -57,7 +57,7 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) with Seria
   override def withOverrides(overrides: Config): ExecConfig = new ExecConfig(overrides.withFallback(execConfig))
 
   override protected def swaggerApiClasses: Set[Class[_]] = {
-    super.swaggerApiClasses + classOf[ExecutionRoutes] + classOf[UploadRoutes]
+    super.swaggerApiClasses + classOf[ExecutionRoutes] + classOf[UploadRoutes] + classOf[QueryRoutes]
   }
 
   def defaultEnv: Map[String, String] = cachedDefaultEnv
@@ -65,10 +65,6 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) with Seria
   private lazy val cachedDefaultEnv = execConfig.getConfig("runnerEnv").collectAsMap
 
   override def landingPage = "ui/run.html"
-
-  lazy val requests = PathConfig(execConfig.getConfig("requests").ensuring(!_.isEmpty))
-
-  def requestsDir = requests.pathOpt.getOrElse(sys.error("Invalid configuration - no requests directory set"))
 
   lazy val uploads = PathConfig(execConfig.getConfig("uploads").ensuring(!_.isEmpty))
 
@@ -97,11 +93,13 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) with Seria
     ExecutionClient(clientConfig.restClient, defaultFrameLength)
   }
 
-  def workspaceClient: WorkspaceClient = WorkspaceClient(uploadsDir, serverImplicits.system)
+  def workspaceClient: WorkspaceClient                     = defaultWorkspaceClient
+  private lazy val defaultWorkspaceClient: WorkspaceClient = WorkspaceClient(uploadsDir, serverImplicits.system)
 
-  def eventMonitor: SystemEventMonitor = {
-    SystemEventMonitor.DevNull
-  }
+  def eventMonitorConfig: EventMonitorConfig = defaultEventMonitor
+  def eventMonitor                           = eventMonitorConfig.eventMonitor
+
+  private lazy val defaultEventMonitor = new EventMonitorConfig(execConfig.getConfig("eventMonitor"))(serverImplicits)
 
   override def toString = execConfig.root.render()
 }
