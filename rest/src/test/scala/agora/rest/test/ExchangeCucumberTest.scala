@@ -7,6 +7,7 @@ import org.junit.runner.RunWith
 @RunWith(classOf[Cucumber])
 @CucumberOptions(
   tags = Array("@Exchange"),
-  plugin = Array("pretty", "html:target/cucumber/test-report.html")
+  plugin = Array("pretty", "html:target/cucumber/test-report.html"),
+  strict = true
 )
 class ExchangeCucumberTest

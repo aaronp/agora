@@ -7,6 +7,7 @@ import org.junit.runner.RunWith
 @RunWith(classOf[Cucumber])
 @CucumberOptions(
   tags = Array("@Exec"),
-  plugin = Array("pretty", "html:target/cucumber/exec-report.html")
+  plugin = Array("pretty", "html:target/cucumber/exec-report.html"),
+  strict = true
 )
 class ExecCucumberTest

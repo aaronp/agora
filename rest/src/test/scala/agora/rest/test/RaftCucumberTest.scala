@@ -7,6 +7,7 @@ import org.junit.runner.RunWith
 @RunWith(classOf[Cucumber])
 @CucumberOptions(
   tags = Array("@Raft"),
-  plugin = Array("pretty", "html:target/cucumber/raft-report.html")
+  plugin = Array("pretty", "html:target/cucumber/raft-report.html"),
+  strict = true
 )
 class RaftCucumberTest
