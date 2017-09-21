@@ -58,7 +58,7 @@ case class FindJobResponse(job: Option[ReceivedJob], started: Option[StartedJob]
   * Jobs which are were started but not completed within the time range
   */
 case class NotFinishedBetween(from: Timestamp, to: Timestamp) extends EventQuery {
-  override type Response = NotFinishedBetween
+  override type Response = NotFinishedBetweenResponse
 }
 
 case class NotFinishedBetweenResponse(jobs: List[StartedJob])

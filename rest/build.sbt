@@ -12,6 +12,6 @@ CucumberPlugin.features := List("classpath:agora.rest.test",
 ///import scoverage.ScoverageKeys.{coverageFailOnMinimum, coverageMinimum}
 coverageMinimum := 80
 
-coverageFailOnMinimum := true
+coverageFailOnMinimum := false
 
 (testOptions in Test) += (Tests.Argument(TestFrameworks.ScalaTest, "-h", "target/scalatest-reports"))

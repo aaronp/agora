@@ -2,7 +2,7 @@ enablePlugins(CucumberPlugin)
 
 name := "agora-exec"
 
-mainClass in(Compile, run) := Some("agora.exec.Main")
+mainClass in(Compile, run) := Some("agora.exec.ExecMain")
 
 CucumberPlugin.glue := "classpath:agora.exec.test"
 
@@ -12,6 +12,6 @@ CucumberPlugin.features := List("classpath:agora.exec.test",
 ///import scoverage.ScoverageKeys.{coverageFailOnMinimum, coverageMinimum}
 coverageMinimum := 80
 
-coverageFailOnMinimum := true
+coverageFailOnMinimum := false
 
 (testOptions in Test) += (Tests.Argument(TestFrameworks.ScalaTest, "-h", "target/scalatest-reports"))

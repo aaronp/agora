@@ -36,7 +36,7 @@ class CachedOutputTest extends BaseSpec with HasMaterializer {
     "return the stdout when the cached output files exist for non-streaming requests" in {
       withDir { workingDir =>
         val inputProcess = RunProcess(List("hello", "world")).withCaching(true).withoutStreaming().ensuringCacheOutputs
-        val cacheDir = CachedOutput.cacheDir(workingDir, inputProcess)
+        val cacheDir     = CachedOutput.cacheDir(workingDir, inputProcess)
         CachedOutput.cache(cacheDir, inputProcess, 123)
 
         // actually create the files so they exist:
@@ -44,7 +44,7 @@ class CachedOutputTest extends BaseSpec with HasMaterializer {
         workingDir.resolve(inputProcess.output.stdErrFileName.get).text = "the is std err results"
 
         val cachedResponseOpt = CachedOutput.cachedResponse(workingDir, HttpRequest(), inputProcess)
-        val fileResult = asFileResult(cachedResponseOpt)
+        val fileResult        = asFileResult(cachedResponseOpt)
         fileResult shouldBe FileResult(123, workingDir.fileName, inputProcess.output.stdOutFileName, inputProcess.output.stdErrFileName, None)
       }
     }
@@ -74,7 +74,7 @@ class CachedOutputTest extends BaseSpec with HasMaterializer {
 
   def getCachedStreamingResults(workingDir: Path, exitCode: Int, successExitCode: Int) = {
     val inputProcess = RunProcess(List("hello", "world")).withCaching(true).withStreamingSettings(StreamingSettings(successExitCodes = Set(successExitCode))).ensuringCacheOutputs
-    val cacheDir = CachedOutput.cacheDir(workingDir, inputProcess)
+    val cacheDir     = CachedOutput.cacheDir(workingDir, inputProcess)
     CachedOutput.cache(cacheDir, inputProcess, exitCode)
 
     // actually create the files so they exist:
@@ -83,7 +83,7 @@ class CachedOutputTest extends BaseSpec with HasMaterializer {
 
     val results = {
       val cachedResponseOpt = CachedOutput.cachedResponse(workingDir, HttpRequest(), inputProcess)
-      val httpResp = cachedResponseOpt.get.futureValue
+      val httpResp          = cachedResponseOpt.get.futureValue
       inputProcess.output.streaming.get.asResult(httpResp)
     }
 

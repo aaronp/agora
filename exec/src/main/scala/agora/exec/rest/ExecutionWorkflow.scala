@@ -89,10 +89,7 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
     * @param eventMonitor a monitor which we can alert w/ job notifications and other interesting events
     * @return an ExecutionWorkflow for handling jobs originating from [[HttpRequest]]s
     */
-  def apply(defaultEnv: Map[String, String],
-            workspaces: WorkspaceClient,
-            eventMonitor: SystemEventMonitor,
-            enableCacheCheck: Boolean = false): ExecutionWorkflow = {
+  def apply(defaultEnv: Map[String, String], workspaces: WorkspaceClient, eventMonitor: SystemEventMonitor, enableCacheCheck: Boolean = false): ExecutionWorkflow = {
     val instance = new Instance(defaultEnv, workspaces, eventMonitor, enableCacheCheck)
     if (enableCacheCheck) {
       new CachingWorkflow(workspaces, instance)
@@ -139,7 +136,7 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
 
       /** 2) either obtain or stamp a unique id on this request */
       val detailsOpt: Option[MatchDetails] = MatchDetailsExtractor.unapply(httpRequest)
-      val jobId = detailsOpt.map(_.jobId).getOrElse(agora.api.nextJobId())
+      val jobId                            = detailsOpt.map(_.jobId).getOrElse(agora.api.nextJobId())
 
       /** 3) let the monitor know we've accepted a job */
       eventMonitor.accept(ReceivedJob(jobId, detailsOpt, runProcess))
@@ -154,7 +151,7 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
     }
 
     protected def onJob(httpRequest: HttpRequest, workingDir: Path, jobId: JobId, detailsOpt: Option[MatchDetails], runProcess: RunProcess)(
-      implicit ec: ExecutionContext): Future[HttpResponse] = {
+        implicit ec: ExecutionContext): Future[HttpResponse] = {
       val processLogger: ProcessLoggers = loggerForJob(runProcess, detailsOpt, workingDir)
 
       /** actually execute the [[RunProcess]] and return the Future[Int] of the exit code */
@@ -234,12 +231,12 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
   }
 
   def streamBytes(bytes: Source[ByteString, Any], runProc: RunProcess, matchDetails: Option[MatchDetails], request: HttpRequest)(
-    implicit ec: ExecutionContext): Future[HttpResponse] = {
+      implicit ec: ExecutionContext): Future[HttpResponse] = {
 
     // TODO - extract from request header
     val outputContentType: ContentType = `text/plain(UTF-8)`
 
-    val chunked: HttpEntity.Chunked = HttpEntity(outputContentType, bytes)
+    val chunked: HttpEntity.Chunked  = HttpEntity(outputContentType, bytes)
     val future: Future[HttpResponse] = Marshal(chunked).toResponseFor(request)
 
     future.recover {
