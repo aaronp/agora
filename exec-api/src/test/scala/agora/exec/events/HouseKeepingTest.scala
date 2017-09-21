@@ -13,7 +13,7 @@ class HouseKeepingTest extends BaseSpec with HasMaterializer with Eventually {
     "housekeep every (...)" in {
       val counter1 = new AtomicInteger(0)
       val counter2 = new AtomicInteger(0)
-      val houseKeeping: HouseKeeping = HouseKeeping.every(100.millis)
+      val houseKeeping: Housekeeping = Housekeeping.every(100.millis)
       houseKeeping.registerHousekeepingEvent { () =>
         if (counter1.incrementAndGet() == 3) {
           houseKeeping.registerHousekeepingEvent { () =>

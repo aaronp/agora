@@ -4,7 +4,7 @@ import java.util.concurrent.TimeUnit
 
 import agora.api.exchange.WorkSubscription
 import agora.exec.client.{ExecutionClient, ProcessRunner, RemoteRunner}
-import agora.exec.events.SystemEventMonitor
+import agora.exec.events.{HousekeepingConfig, SystemEventMonitor}
 import agora.exec.rest.{ExecutionRoutes, QueryRoutes, UploadRoutes}
 import agora.exec.workspace.WorkspaceClient
 import agora.rest.worker.{SubscriptionConfig, SubscriptionGroup, WorkerConfig}
@@ -100,6 +100,8 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) with Seria
   def eventMonitor                           = eventMonitorConfig.eventMonitor
 
   def enableCache                           = execConfig.getBoolean("enableCache")
+
+  val housekeeping = HousekeepingConfig(execConfig.getConfig("housekeeping"))
 
   private lazy val defaultEventMonitor = new EventMonitorConfig(execConfig.getConfig("eventMonitor"))(serverImplicits)
 

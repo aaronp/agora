@@ -1,11 +1,10 @@
 package agora.config
 
-import java.nio.file.{Files, Paths}
-
 import com.typesafe.config.ConfigRenderOptions._
 import com.typesafe.config._
 
 import scala.collection.JavaConverters._
+import scala.concurrent.duration._
 import scala.language.implicitConversions
 import scala.util.Try
 
@@ -18,6 +17,20 @@ trait RichConfigOps extends RichConfig.LowPriorityImplicits {
 
   import ConfigFactory._
   import RichConfig._
+
+  /** @param key the configuration path
+    * @return the value at the given key as a scala duration
+    */
+  def asDuration(key: String): Duration = {
+    config.getString(key).toLowerCase() match {
+      case "inf" | "infinite" => Duration.Inf
+      case _ => asFiniteDuration(key)
+    }
+  }
+
+  def asFiniteDuration(key: String): FiniteDuration = {
+    config.getDuration(key).toMillis.millis
+  }
 
   /**
     * If 'show' specified, either by just 'show' on its own or 'show=path.to.config.or.value', then this will return
@@ -41,20 +54,23 @@ trait RichConfigOps extends RichConfig.LowPriorityImplicits {
   def withUserArgs(args: Array[String], unrecognizedArg: String => Config = ParseArg.Throw): Config = {
     def isSimpleList(key: String) = {
       def isList = Try(config.getStringList(key)).isSuccess
+
       config.hasPath(key) && isList
     }
+
     def isObjectList(key: String) = {
       def isList = Try(config.getObjectList(key)).isSuccess
+
       config.hasPath(key) && isList
     }
 
     val configs: Array[Config] = args.map {
       case KeyValue(k, v) if isSimpleList(k) => asConfig(k, java.util.Arrays.asList(v.split(",", -1): _*))
       case KeyValue(k, v) if isObjectList(k) => sys.error(s"Path '$k' tried to override an object list with '$v'")
-      case KeyValue(k, v)                    => asConfig(k, v)
-      case FilePathConfig(c)                 => c
-      case UrlPathConfig(c)                  => c
-      case other                             => unrecognizedArg(other)
+      case KeyValue(k, v) => asConfig(k, v)
+      case FilePathConfig(c) => c
+      case UrlPathConfig(c) => c
+      case other => unrecognizedArg(other)
     }
 
     (configs :+ config).reduce(_ withFallback _)

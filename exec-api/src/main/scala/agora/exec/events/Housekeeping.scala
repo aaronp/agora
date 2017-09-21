@@ -10,18 +10,18 @@ import scala.concurrent.duration.FiniteDuration
 /**
   * A place to add housekeeping events for periodic execution
   */
-trait HouseKeeping extends Cancellable {
+trait Housekeeping extends Cancellable {
 
   /**
     * Add a callback to be invoked whenever the housekeeping is done
     *
     * @param f
     */
-  def registerHousekeepingEvent(f: HouseKeeping.CleanupCallback)
+  def registerHousekeepingEvent(f: Housekeeping.CleanupCallback)
 
 }
 
-object HouseKeeping {
+object Housekeeping {
   type CleanupCallback = () => Unit
 
   private val counter = new AtomicInteger(0)
@@ -38,14 +38,14 @@ object HouseKeeping {
     * @param system
     * @return
     */
-  def every(period: FiniteDuration, initialDelay: FiniteDuration = null)(implicit system: ActorSystem): HouseKeeping = {
+  def every(period: FiniteDuration, initialDelay: FiniteDuration = null)(implicit system: ActorSystem): Housekeeping = {
     import system.dispatcher
     val actor = system.actorOf(Props(new CleanupActor), s"housekeeping-${counter.incrementAndGet()}")
     system.scheduler.schedule(Option(initialDelay).getOrElse(period), period, actor, Cleanup)
     new HouseKeepingClient(actor, s"Houskeeping run every ${period}")
   }
 
-  private class HouseKeepingClient(houseKeepingActor: ActorRef, override val toString: String) extends HouseKeeping {
+  private class HouseKeepingClient(houseKeepingActor: ActorRef, override val toString: String) extends Housekeeping {
     override def registerHousekeepingEvent(f: CleanupCallback): Unit = {
       houseKeepingActor ! Register(f)
     }

@@ -1,7 +1,7 @@
 package agora.exec
 
 import agora.api.exchange.Exchange
-import agora.exec.events.StartedSystem
+import agora.exec.events.{DeleteBefore, Housekeeping, StartedSystem}
 import agora.exec.rest.{ExecutionRoutes, ExecutionWorkflow, QueryRoutes, UploadRoutes}
 import agora.exec.workspace.WorkspaceClient
 import agora.health.HealthUpdate
@@ -50,6 +50,8 @@ object ExecBoot {
   */
 case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes: Option[Route]) extends FailFastCirceSupport with StrictLogging {
 
+  lazy val housekeeping = Housekeeping.every(conf.housekeeping.checkEvery)
+
   lazy val workspaceClient: WorkspaceClient = conf.workspaceClient
 
   def workflow: ExecutionWorkflow = ExecutionWorkflow(conf.defaultEnv, workspaceClient, conf.eventMonitor, conf.enableCache)
@@ -62,7 +64,18 @@ case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes
 
   def uploadRoutes: Route = UploadRoutes(workspaceClient).routes
 
-  val eventMonitor = conf.eventMonitor
+  lazy val eventMonitor = {
+    val monitor = conf.eventMonitor
+
+    val windowInNanos = conf.housekeeping.removeEventsOlderThan.toNanos
+    housekeeping.registerHousekeepingEvent { () =>
+      val timestamp = {
+        agora.api.time.now().minusNanos(windowInNanos)
+      }
+      monitor.accept(DeleteBefore(timestamp))
+    }
+    monitor
+  }
 
   def queryRoutes: Route = QueryRoutes(eventMonitor).routes(conf.enableSupportRoutes)
 
