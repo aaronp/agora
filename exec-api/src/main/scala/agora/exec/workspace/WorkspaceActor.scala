@@ -3,8 +3,8 @@ package agora.exec.workspace
 import java.nio.file.Path
 
 import agora.exec.model.Upload
-import agora.io.implicits._
 import agora.io.BaseActor
+import agora.io.implicits._
 import akka.stream.ActorMaterializer
 
 import scala.concurrent.Future
@@ -42,15 +42,17 @@ private[workspace] class WorkspaceActor(val id: WorkspaceId, initialDir: Path) e
   def onUpload(msg: UploadFile, pendingRequests: List[AwaitUploads]): Unit = {
     val UploadFile(_, file, src, promise) = msg
 
+    import akka.http.scaladsl.util.FastFuture._
     logger.info(s"Uploading ${file} to $id")
-    val tri = Try(UploadDao(workspaceDir))
-    val res = Future.fromTry(tri).flatMap { dao =>
-      dao.writeDown(Upload(file, src) :: Nil)
+    val tri: Try[UploadDao.FileUploadDao] = Try(UploadDao(workspaceDir))
+    val savedFileFuture = Future.fromTry(tri).fast.flatMap { dao =>
+      val files = dao.writeDown(Upload(file, src) :: Nil)
+      files.fast.map(_.ensuring(_.size == 1).head) // we only are writing down one
     }
-    res.onComplete {
+    savedFileFuture.onComplete {
       case uploadResult =>
         val kids = files
-        val ok   = kids.contains(file)
+        val ok = kids.contains(file)
         if (!ok) {
           logger.error(s"Upload to ${workspaceDir}/$file completed w/ ${uploadResult}, but ${kids.mkString(",")} doesn't contain $file!")
         } else {
@@ -59,8 +61,8 @@ private[workspace] class WorkspaceActor(val id: WorkspaceId, initialDir: Path) e
 
         self ! TriggerUploadCheck(id)
     }
-    val uploadFuture = res.map(_ => true)
-    promise.tryCompleteWith(uploadFuture)
+
+    promise.tryCompleteWith(savedFileFuture)
   }
 
   def handle(pendingRequests: List[AwaitUploads]): Receive = {
@@ -71,20 +73,20 @@ private[workspace] class WorkspaceActor(val id: WorkspaceId, initialDir: Path) e
     {
       case AwaitUploadsTimeout(AwaitUploads(dependencies, promise)) =>
         val errMsg = if (initialDir.exists) {
-          val kids    = files
+          val kids = files
           val missing = dependencies.dependsOnFiles.filterNot(kids.contains)
           s"Still waiting for ${missing.size} files [${missing.mkString(",")}] in workspace '${dependencies.workspace}' after ${dependencies.timeout}"
         } else {
           s"No files have been uploaded to ${dependencies.workspace} after ${dependencies.timeout}"
         }
         promise.tryComplete(Failure(new Exception(errMsg)))
-      case TriggerUploadCheck(_)                                                       => triggerUploadCheck(pendingRequests)
-      case msg @ AwaitUploads(UploadDependencies(`id`, _, _), _) if canRun(msg, files) => notifyWorkspaceReady(msg)
-      case msg @ AwaitUploads(UploadDependencies(`id`, dependencyFiles, timeout), _) =>
+      case TriggerUploadCheck(_) => triggerUploadCheck(pendingRequests)
+      case msg@AwaitUploads(UploadDependencies(`id`, _, _), _) if canRun(msg, files) => notifyWorkspaceReady(msg)
+      case msg@AwaitUploads(UploadDependencies(`id`, dependencyFiles, timeout), _) =>
         logger.info(s"waiting on $dependencyFiles in workspace '$id' for ${timeout}ms")
         context.become(handle(msg :: pendingRequests))
         context.system.scheduler.scheduleOnce(timeout.millis, self, AwaitUploadsTimeout(msg))
-      case msg @ UploadFile(`id`, _, _, _) => onUpload(msg, pendingRequests)
+      case msg@UploadFile(`id`, _, _, _) => onUpload(msg, pendingRequests)
       case Close(`id`, promise) =>
         if (pendingRequests.nonEmpty) {
           logger.warn(s"Closing workspace $id with ${pendingRequests.size} pending files")
@@ -113,7 +115,7 @@ private[workspace] class WorkspaceActor(val id: WorkspaceId, initialDir: Path) e
       true
     } else {
       lazy val all: Array[String] = files
-      val missing: Set[String]    = dependencies.filterNot(all.contains)
+      val missing: Set[String] = dependencies.filterNot(all.contains)
       if (missing.isEmpty) {
         true
       } else {

@@ -50,7 +50,7 @@ object ExecBoot {
   */
 case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes: Option[Route]) extends FailFastCirceSupport with StrictLogging {
 
-  lazy val housekeeping = Housekeeping.every(conf.housekeeping.checkEvery)
+  lazy val housekeeping = Housekeeping.every(conf.housekeeping.checkEvery)(conf.serverImplicits.system)
 
   lazy val workspaceClient: WorkspaceClient = conf.workspaceClient
 

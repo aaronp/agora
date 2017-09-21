@@ -19,18 +19,11 @@ object ExecState {
 }
 
 case class ExecState(
-                     //                      server: Option[ExecState.Service] = None,
-                     serviceByName: Map[String, ExecState.Service] = Map.empty,
-                     clientsByName: Map[String, (ExecConfig, RemoteRunner)] = Map.empty,
-                     resultsByClient: Map[String, Future[RunProcessResult]] = Map.empty,
-                     latestSearch: Option[(String, String)] = None)
-    extends BaseSpec
+                      serviceByName: Map[String, ExecState.Service] = Map.empty,
+                      clientsByName: Map[String, (ExecConfig, RemoteRunner)] = Map.empty,
+                      resultsByClient: Map[String, Future[RunProcessResult]] = Map.empty)
+  extends BaseSpec
     with Eventually {
-
-  def searchMetadata(key: String, value: String): ExecState = {
-    latestSearch shouldBe empty
-    copy(latestSearch = Option(key -> value))
-  }
 
   def executeRunProcess(clientName: String, jobId: String, proc: RunProcess): ExecState = {
 
@@ -57,7 +50,7 @@ case class ExecState(
     serviceByName.values.foreach(_.close())
     clientsByName.values.foreach {
       case (_, c: Closeable) => c.close()
-      case _                 =>
+      case _ =>
     }
     new ExecState()
   }
@@ -82,7 +75,7 @@ case class ExecState(
 
   def connectClient(name: String, port: Int) = {
     clientsByName.keySet should not contain (name)
-    val conf: ExecConfig        = ExecConfig(s"port=$port", s"actorSystemName=$name")
+    val conf: ExecConfig = ExecConfig(s"port=$port", s"actorSystemName=$name")
     val newClient: RemoteRunner = conf.remoteRunner
 
     copy(clientsByName = clientsByName.updated(name, conf -> newClient))
@@ -90,7 +83,7 @@ case class ExecState(
 
   def connectClient(clientName: String, serverName: String) = {
     val clientConf: ExecConfig = serviceByName(serverName).conf
-    val client: RemoteRunner   = clientConf.remoteRunner()
+    val client: RemoteRunner = clientConf.remoteRunner()
     copy(clientsByName = clientsByName.updated(clientName, (clientConf, client)))
   }
 

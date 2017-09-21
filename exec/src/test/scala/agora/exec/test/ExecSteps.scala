@@ -2,11 +2,11 @@ package agora.exec.test
 
 import agora.exec.ExecConfig
 import agora.exec.model.RunProcess
-import agora.exec.client.RemoteRunner
 import agora.rest.test.TestData
 import akka.actor.ActorSystem
 import akka.http.scaladsl.testkit.RouteTestTimeout
 import com.typesafe.config.ConfigFactory
+import com.typesafe.scalalogging.StrictLogging
 import cucumber.api.Scenario
 import cucumber.api.scala.{EN, ScalaDsl}
 import miniraft.state.NodeId
@@ -16,13 +16,10 @@ import org.scalatest.time.{Millis, Seconds, Span}
 
 import scala.concurrent.duration._
 
-class ExecSteps extends ScalaDsl with EN with Matchers with TestData with ScalaFutures {
+class ExecSteps extends ScalaDsl with EN with Matchers with TestData with ScalaFutures with StrictLogging {
 
-  var state = {
-    val es = ExecState()
-    println(s"Creating $es")
-    es
-  }
+  var state = ExecState()
+
   Given("""^A running executor service on port (.*)$""") { (port: String) =>
     state = state.startExecutorOnPort(port.toInt)
   }
@@ -39,7 +36,7 @@ class ExecSteps extends ScalaDsl with EN with Matchers with TestData with ScalaF
     state = state.stopClient(nodeId)
   }
   Given("""^an executor service (.*) started with config$""") { (serverName: String, customConfig: String) =>
-    val conf           = ExecConfig().withOverrides(ConfigFactory.parseString(customConfig))
+    val conf = ExecConfig().withOverrides(ConfigFactory.parseString(customConfig))
     val runningService = conf.start().futureValue
     state = state.withService(serverName, runningService)
   }
@@ -49,11 +46,6 @@ class ExecSteps extends ScalaDsl with EN with Matchers with TestData with ScalaF
   }
   When("""^client (.*) executes (.*)$""") { (clientName: String, executeText: String) =>
     val command = executeText.split(" ").map(_.trim).toList
-//    val (_, client) = state.clientsByName(clientName)
-//    val result      = client.run(RunProcess(command)).futureValue
-//    val text        = result.mkString("")
-//    state = state.setLastResult(text)
-
     state = state.executeRunProcess(clientName, s"no job id for: ${command.mkString(" ")}", RunProcess(command))
   }
 
@@ -63,6 +55,7 @@ class ExecSteps extends ScalaDsl with EN with Matchers with TestData with ScalaF
 
   // scalafmt wanted to put this after the closing brace above
   After { scen: Scenario =>
+    logger.info(s"Closing after $scen")
     state = state.close()
   }
 

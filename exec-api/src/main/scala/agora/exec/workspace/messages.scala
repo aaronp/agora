@@ -13,7 +13,7 @@ sealed trait WorkspaceMsg {
 
 private[workspace] final case class ListWorkspaces(result: Promise[List[String]])
 
-private[workspace] final case class UploadFile(override val workspaceId: WorkspaceId, name: String, src: Source[ByteString, Any], result: Promise[Boolean]) extends WorkspaceMsg
+private[workspace] final case class UploadFile(override val workspaceId: WorkspaceId, name: String, src: Source[ByteString, Any], result: Promise[Path]) extends WorkspaceMsg
 
 private[workspace] final case class TriggerUploadCheck(override val workspaceId: WorkspaceId) extends WorkspaceMsg
 

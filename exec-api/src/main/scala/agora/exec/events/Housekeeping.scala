@@ -15,9 +15,9 @@ trait Housekeeping extends Cancellable {
   /**
     * Add a callback to be invoked whenever the housekeeping is done
     *
-    * @param f
+    * @param f the callback to invoke when housekeeping is run
     */
-  def registerHousekeepingEvent(f: Housekeeping.CleanupCallback)
+  def registerHousekeepingEvent(f: Housekeeping.CleanupCallback) : Unit
 
 }
 

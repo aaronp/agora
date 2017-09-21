@@ -18,7 +18,15 @@ class FileIdDao[T: Persist: FromBytes](dir: Path) extends IdDao[String, T] {
     file
   }
 
+  /** @param id the id of the value to remove
+    * @return the remove result
+    */
   override def remove(id: String) = dir.resolve(id).delete()
+
+  /** @param id the data to check
+    * @return true if we've heard about 'id'
+    */
+  override def contains(id: String) : Boolean = getFile(id).isDefined
 
   override def get(id: String) = {
     getFile(id).flatMap { file =>
@@ -26,7 +34,10 @@ class FileIdDao[T: Persist: FromBytes](dir: Path) extends IdDao[String, T] {
     }
   }
 
-  def getFile(id: String) = {
+  /** @param id the id to retrieve
+    * @return the file which contains the data for the given ID
+    */
+  def getFile(id: String): Option[Path] = {
     val file = dir.resolve(id)
     if (file.exists) {
       Option(file)

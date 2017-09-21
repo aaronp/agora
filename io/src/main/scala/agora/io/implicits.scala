@@ -1,12 +1,10 @@
 package agora.io
 
-// https://git.io/v99U9
-
 import java.io.OutputStream
 import java.nio.charset.{Charset, StandardCharsets}
 import java.nio.file._
-import java.nio.file.attribute.{BasicFileAttributes, FileAttribute, PosixFilePermission}
-import java.time.ZoneId
+import java.nio.file.attribute.{BasicFileAttributes, FileAttribute, FileTime, PosixFilePermission}
+import java.time.{LocalDateTime, ZoneId}
 import java.time.format.DateTimeFormatter
 import java.util.function.BiPredicate
 import java.util.stream
@@ -186,6 +184,10 @@ trait LowPriorityIOImplicits {
     def childrenIter = if (isDir) Files.list(path).iterator().asScala else Iterator.empty
 
     def attributes: BasicFileAttributes = Files.readAttributes(path, classOf[BasicFileAttributes])
+
+    def lastModified: FileTime = attributes.lastModifiedTime()
+
+    def lastModifiedLocalDateTime = LocalDateTime.from(lastModified.toInstant)
 
     def created = attributes.creationTime.toInstant
 

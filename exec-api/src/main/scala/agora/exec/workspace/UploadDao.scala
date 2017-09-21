@@ -12,33 +12,24 @@ import com.typesafe.scalalogging.StrictLogging
 import scala.concurrent.Future
 import scala.util.Properties
 
+/**
+  * An interface for workspaces to use when writing down files
+  */
 trait UploadDao {
-  def dir: Path
 
   def writeDown(inputFiles: List[Upload], options: Set[OpenOption] = UploadDao.DefaultWriteOptions)(implicit mat: Materializer): Future[List[Path]]
-
-  def read(implicit mat: Materializer): Future[List[Upload]]
 }
 
 object UploadDao {
 
   val DefaultWriteOptions: Set[OpenOption] = Set(CREATE, WRITE, TRUNCATE_EXISTING, SYNC)
 
-  def apply(dir: Path = Paths.get(Properties.userDir)) = new FileUploadDao(dir)
+  def apply(dir: Path) = new FileUploadDao(dir)
 
-  class FileUploadDao(override val dir: Path) extends UploadDao with LowPriorityIOImplicits with StrictLogging {
+  class FileUploadDao(val dir: Path) extends UploadDao with LowPriorityIOImplicits with StrictLogging {
     require(dir.isDir, s"$dir is not a directory")
 
     override def toString = s"FileUploadDao($dir)"
-
-    override def read(implicit mat: Materializer): Future[List[Upload]] = {
-
-      val uploads = dir.children.map { uploadPath =>
-        val src = FileIO.fromPath(uploadPath)
-        Upload(uploadPath.getFileName.toString, src, Option(uploadPath.size))
-      }.toList
-      Future.successful(uploads)
-    }
 
     def writeDown(inputFiles: List[Upload], options: Set[OpenOption] = UploadDao.DefaultWriteOptions)(implicit mat: Materializer): Future[List[Path]] = {
       import mat._
