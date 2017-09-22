@@ -8,9 +8,10 @@ package object time {
 
   type Timestamp = agora.io.dao.Timestamp
 
-  type Now = Timestamp
 
   implicit def ordering = agora.io.dao.ordering
+
+  private type Now = Timestamp
 
   /**
     * Represents something which, given the current time (now), can return a resolved time
@@ -23,5 +24,5 @@ package object time {
 
   /** @return the current time in UTC
     */
-  def now(zone: ZoneId = ZoneOffset.UTC): Now = TimestampDao.now(zone)
+  def now(zone: ZoneId = ZoneOffset.UTC): Timestamp = TimestampDao.now(zone)
 }

@@ -1,6 +1,6 @@
 package agora.exec.rest
 
-import agora.api.json.JsonByteImplicits
+import agora.api.json.AgoraJsonImplicits
 import agora.api.time.{TimeCoords, Timestamp}
 import agora.exec.events._
 import agora.rest.worker.RouteSubscriptionSupport
@@ -15,7 +15,7 @@ import scala.concurrent.Future
 
 @Api(value = "Query", produces = "application/json")
 @javax.ws.rs.Path("/")
-case class QueryRoutes(monitor: SystemEventMonitor) extends RouteSubscriptionSupport with JsonByteImplicits with FailFastCirceSupport {
+case class QueryRoutes(monitor: SystemEventMonitor) extends RouteSubscriptionSupport with AgoraJsonImplicits with FailFastCirceSupport {
 
   def routes(includeSupportRoutes: Boolean): Route = {
     if (includeSupportRoutes) {

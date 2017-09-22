@@ -2,13 +2,13 @@ package agora.exec.workspace
 
 import java.nio.file.Path
 
+import agora.api.time.Timestamp
 import agora.exec.model.Upload
-import agora.exec.client.UploadClient
+import agora.io.dao.{TimeRange, Timestamp}
 import akka.actor.{ActorRef, ActorRefFactory, Props}
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 
-import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
 /**
@@ -25,10 +25,15 @@ trait WorkspaceClient {
   /**
     * closing the workspace releases the resources used -- e.g. deletes the relevant directory
     *
-    * @param workspaceId
+    * @param workspaceId             the workspace id to delete
+    * @param ifNotModifiedSince      if specified, then the workspace will only be removed if its contents haven't
+    *                                been modified since the given timestamp
+    * @param failPendingDependencies if set, any pending dependency futures will fail and the workspace will be closed
+    *                                (removed). If false, then the workspace will only be removed if there are no
+    *                                pending depdendencies
     * @return a future which completes once the workspace has been cleaned up, with the boolean value signalling if it was a known/valid workspace
     */
-  def close(workspaceId: WorkspaceId): Future[Boolean]
+  def close(workspaceId: WorkspaceId, ifNotModifiedSince: Option[Timestamp] = None, failPendingDependencies: Boolean = true): Future[Boolean]
 
   /**
     * Saves a files to the given workspace
@@ -68,7 +73,7 @@ trait WorkspaceClient {
   /**
     * @return all known workspace ids
     */
-  def list(): Future[List[WorkspaceId]]
+  def list(createdAfter: Option[Timestamp] = None, createdBefore: Option[Timestamp] = None): Future[List[WorkspaceId]]
 }
 
 object WorkspaceClient {
@@ -86,22 +91,23 @@ object WorkspaceClient {
   }
 
   class ActorClient(endpointActor: ActorRef)(implicit ec: ExecutionContext) extends WorkspaceClient {
-    override def list = {
+    override def list(createdAfter: Option[Timestamp] = None, createdBefore: Option[Timestamp] = None) = {
       val promise = Promise[List[String]]()
-      endpointActor ! ListWorkspaces(promise)
+      endpointActor ! ListWorkspaces(createdAfter, createdBefore, promise)
       promise.future
     }
 
     override def triggerUploadCheck(workspaceId: WorkspaceId) = endpointActor ! TriggerUploadCheck(workspaceId)
+
     override def upload(workspaceId: WorkspaceId, fileName: String, src: Source[ByteString, Any]): Future[Path] = {
       val promise = Promise[Path]()
       endpointActor ! UploadFile(workspaceId, fileName, src, promise)
       promise.future
     }
 
-    override def close(workspaceId: WorkspaceId) = {
+    override def close(workspaceId: WorkspaceId, ifNotModifiedSince: Option[Timestamp] = None, failPendingDependencies: Boolean = true) = {
       val promise = Promise[Boolean]()
-      endpointActor ! Close(workspaceId, promise)
+      endpointActor ! Close(workspaceId, ifNotModifiedSince, failPendingDependencies, promise)
       promise.future
     }
 

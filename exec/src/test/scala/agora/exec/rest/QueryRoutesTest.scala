@@ -1,6 +1,6 @@
 package agora.exec.rest
 
-import agora.api.json.JsonByteImplicits
+import agora.api.json.AgoraJsonImplicits
 import agora.api.time.{Timestamp, now}
 import agora.exec.events._
 import agora.exec.model.RunProcess
@@ -12,7 +12,7 @@ import org.scalatest.concurrent.Eventually
 
 import scala.util.Success
 
-class QueryRoutesTest extends BaseRoutesSpec with Eventually with FailFastCirceSupport with JsonByteImplicits {
+class QueryRoutesTest extends BaseRoutesSpec with Eventually with FailFastCirceSupport with AgoraJsonImplicits {
 
   implicit def asRichSystemEventMonitor(queryRoutes: QueryRoutes) = new {
     def insertJob(id: String, time: Timestamp): ReceivedJob = {

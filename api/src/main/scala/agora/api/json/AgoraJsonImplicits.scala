@@ -14,7 +14,7 @@ import io.circe.parser._
 /**
   * Implicit conversions for combining [[ToBytes]] and [[FromBytes]] w/ circe [[Encoder]]s and [[Decoder]]s
   */
-trait JsonByteImplicits extends TimeInstances {
+trait AgoraJsonImplicits extends TimeInstances {
 
   implicit def toBytesForJson[T: Encoder](implicit charset: Charset = Charset.defaultCharset()): ToBytes[T] = {
     ToBytes.instance { value =>
@@ -51,4 +51,4 @@ trait JsonByteImplicits extends TimeInstances {
 
 }
 
-object JsonByteImplicits extends JsonByteImplicits
+object AgoraJsonImplicits extends AgoraJsonImplicits

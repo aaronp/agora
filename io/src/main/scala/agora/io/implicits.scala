@@ -187,7 +187,7 @@ trait LowPriorityIOImplicits {
 
     def lastModified: FileTime = attributes.lastModifiedTime()
 
-    def lastModifiedLocalDateTime = LocalDateTime.from(lastModified.toInstant)
+    def lastModifiedMillis = lastModified.toMillis
 
     def created = attributes.creationTime.toInstant
 

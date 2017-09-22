@@ -6,10 +6,14 @@ import java.util.UUID
 import agora.BaseSpec
 import agora.exec.model.Upload
 import agora.rest.HasMaterializer
+import akka.stream.scaladsl.Source
+import akka.util.ByteString
 
 import scala.concurrent.{Await, Future}
 
 class WorkspaceClientTest extends BaseSpec with HasMaterializer {
+
+
   "WorkspaceClient.upload" should {
 
     "not create directories unless files have been actually uploaded" in {

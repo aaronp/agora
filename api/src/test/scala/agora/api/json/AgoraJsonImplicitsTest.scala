@@ -5,13 +5,13 @@ import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.util.{Failure, Success, Try}
 
-class JsonByteImplicitsTest extends BaseSpec with JsonByteImplicits {
+class AgoraJsonImplicitsTest extends BaseSpec with AgoraJsonImplicits {
 
   import io.circe.generic.auto._
   import io.circe.parser._
   import io.circe.syntax._
 
-  "JsonByteImplicits" should {
+  "AgoraJsonImplicits" should {
     "be able to encode/decode Try success values" in {
       val tri: Try[Int] = Success(123)
       val json          = tri.asJson
