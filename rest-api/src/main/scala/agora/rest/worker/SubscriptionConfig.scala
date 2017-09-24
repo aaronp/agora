@@ -3,11 +3,11 @@ package agora.rest.worker
 import agora.api.exchange.WorkSubscription
 import agora.api.json.JMatcher
 import agora.api.worker.{HostLocation, WorkerDetails}
-import agora.rest.asJson
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigRenderOptions}
 import io.circe
-
 import agora.config.RichConfig.implicits._
+import io.circe.Json
+
 import scala.util.Try
 
 /**
@@ -16,6 +16,8 @@ import scala.util.Try
   * @param subscriptionConfig
   */
 case class SubscriptionConfig(subscriptionConfig: Config) {
+
+  import SubscriptionConfig._
 
   /** @param location the location of the worker
     * @return a WorkSubscription based on the configuration
@@ -62,4 +64,12 @@ case class SubscriptionConfig(subscriptionConfig: Config) {
 
   def subscriptionReferences = subscriptionConfig.asList("subscriptionReferences").toSet
 
+}
+
+object SubscriptionConfig {
+
+  def asJson(c: Config): Json = {
+    val json = c.root.render(ConfigRenderOptions.concise().setJson(true))
+    _root_.io.circe.parser.parse(json).right.get
+  }
 }

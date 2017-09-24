@@ -4,11 +4,12 @@ import java.util.concurrent.TimeUnit
 
 import agora.api.exchange.WorkSubscription
 import agora.exec.client.{ExecutionClient, ProcessRunner, RemoteRunner}
-import agora.exec.events.{HousekeepingConfig, SystemEventMonitor}
+import agora.exec.events.HousekeepingConfig
 import agora.exec.rest.{ExecutionRoutes, QueryRoutes, UploadRoutes}
 import agora.exec.workspace.WorkspaceClient
 import agora.rest.worker.{SubscriptionConfig, SubscriptionGroup, WorkerConfig}
-import agora.rest.{RunningService, configForArgs}
+import agora.rest.RunningService
+import agora.config.configForArgs
 import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.concurrent.Future
@@ -19,7 +20,7 @@ import scala.concurrent.duration._
   *
   * @param execConfig
   */
-class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) with Serializable {
+class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) with ExecApiConfig with Serializable {
 
   /** Convenience method for starting an exec service.
     * Though this may seem oddly placed on a configuration, a service and its configuration
@@ -70,38 +71,34 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) with Seria
 
   def uploadsDir = uploads.pathOpt.getOrElse(sys.error("Invalid configuration - no uploads directory set"))
 
-  def replaceWorkOnFailure = execConfig.getBoolean("replaceWorkOnFailure")
-
-  def defaultFrameLength = execConfig.getInt("defaultFrameLength")
-
   def errorLimit = Option(execConfig.getInt("errorLimit")).filter(_ > 0)
 
   def healthUpdateFrequency = execConfig.getDuration("healthUpdateFrequency", TimeUnit.MILLISECONDS).millis
 
-  implicit def uploadTimeout: FiniteDuration = execConfig.getDuration("uploadTimeout", TimeUnit.MILLISECONDS).millis
-
   /** @return a client which will execute commands via the [[agora.api.exchange.Exchange]]
     */
   def remoteRunner(): RemoteRunner = {
-    ProcessRunner(exchangeClient, defaultFrameLength, replaceWorkOnFailure)
+    ProcessRunner(exchangeClient, clientConfig, defaultFrameLength)
   }
 
   /**
     * @return a client directly to the worker
     */
-  def executionClient() = {
+  def executionClient(): ExecutionClient = {
     ExecutionClient(clientConfig.restClient, defaultFrameLength)
   }
 
-  def workspaceClient: WorkspaceClient                     = defaultWorkspaceClient
+  def workspaceClient: WorkspaceClient = defaultWorkspaceClient
+
   private lazy val defaultWorkspaceClient: WorkspaceClient = WorkspaceClient(uploadsDir, serverImplicits.system)
 
   def eventMonitorConfig: EventMonitorConfig = defaultEventMonitor
-  def eventMonitor                           = eventMonitorConfig.eventMonitor
 
-  def enableCache                           = execConfig.getBoolean("enableCache")
+  def eventMonitor = eventMonitorConfig.eventMonitor
 
-  val housekeeping = HousekeepingConfig(execConfig.getConfig("housekeeping"))
+  def enableCache = execConfig.getBoolean("enableCache")
+
+  def housekeeping = HousekeepingConfig(execConfig.getConfig("housekeeping"))
 
   private lazy val defaultEventMonitor = new EventMonitorConfig(execConfig.getConfig("eventMonitor"))(serverImplicits)
 

@@ -47,6 +47,8 @@ case class RunProcess(command: List[String],
 
   def hasFileOutputs: Boolean = fileOutputs.nonEmpty
 
+  def hasDependencies = dependencies.dependsOnFiles.nonEmpty
+
   def withStdOutTo(fileName: String): RunProcess = copy(output = output.copy(stdOutFileName = Option(fileName)))
 
   def workspace: WorkspaceId = dependencies.workspace

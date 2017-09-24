@@ -23,6 +23,15 @@ import scala.util.Properties
   * @param orElse      should the 'workMatcher' not match _any_ current work subscriptions, the [[SubmitJob]] is resubmitted with the 'orElse' criteria
   */
 case class SubmissionDetails(override val aboutMe: Json, selection: SelectionMode, awaitMatch: Boolean, workMatcher: JMatcher, orElse: List[JMatcher]) extends JsonAppendable {
+  def matchingPath(path: String): SubmissionDetails = {
+    import agora.api.Implicits._
+    copy(workMatcher = workMatcher.and("path" === path))
+  }
+
+  def withMatcher(newMatcher: JMatcher) = copy(workMatcher = newMatcher)
+
+  def andMatching(andCriteria: JMatcher) = copy(workMatcher = workMatcher.and(andCriteria))
+  def orMatching(orCriteria: JMatcher)   = copy(workMatcher = workMatcher.or(orCriteria))
 
   def submittedBy: User = SubmissionDetails.submissionUser.getOption(aboutMe).getOrElse {
     sys.error(s"Invalid json, 'submissionUser' not set in $aboutMe")
@@ -33,7 +42,7 @@ case class SubmissionDetails(override val aboutMe: Json, selection: SelectionMod
     * as the work matcher with the remaining 'orElse' tail as it's 'orElse'
     * @return a [[SubmissionDetails]] referring to the orElse list if it's non-empty
     */
-  def next(): Option[SubmissionDetails] = orElse match {
+  private[exchange] def next(): Option[SubmissionDetails] = orElse match {
     case Nil          => None
     case head :: tail => Option(copy(workMatcher = head, orElse = tail))
   }

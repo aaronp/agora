@@ -2,9 +2,11 @@ package agora.exec.client
 
 import java.nio.file.Path
 
+import agora.api.exchange.Exchange
 import agora.exec.model._
 import agora.exec.workspace.WorkspaceId
-import agora.rest.exchange.ExchangeClient
+import agora.rest.ClientConfig
+import agora.rest.exchange.ExchangeRestClient
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
@@ -82,8 +84,8 @@ object ProcessRunner {
     * @param exchange the worker client used to send requests
     * @return a runner which executes stuff remotely
     */
-  def apply(exchange: ExchangeClient, defaultFrameLength: Int, replaceWorkOnFailure: Boolean)(implicit uploadTimeout: FiniteDuration) = {
-    RemoteRunner(exchange, defaultFrameLength, replaceWorkOnFailure)
+  def apply(exchange: Exchange, clientConfig: ClientConfig, defaultFrameLen: Int) = {
+    RemoteRunner(exchange, clientConfig, defaultFrameLen)
   }
 
 }

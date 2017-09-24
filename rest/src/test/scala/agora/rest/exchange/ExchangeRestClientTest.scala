@@ -8,7 +8,7 @@ import org.scalatest.time.{Millis, Seconds, Span}
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
-class ExchangeClientTest extends ExchangeSpec with BeforeAndAfter {
+class ExchangeRestClientTest extends ExchangeSpec with BeforeAndAfter {
 
   var runningServer: RunningExchange = null
 
@@ -16,7 +16,7 @@ class ExchangeClientTest extends ExchangeSpec with BeforeAndAfter {
 
   override val supportsObserverNotifications = false
 
-  var client: ExchangeClient = null
+  var client: ExchangeRestClient = null
   before {
     config = ExchangeServerConfig()
     runningServer = Await.result(config.start(), 5.seconds)

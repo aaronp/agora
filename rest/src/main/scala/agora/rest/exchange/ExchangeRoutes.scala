@@ -4,7 +4,7 @@ package exchange
 import javax.ws.rs.Path
 
 import agora.api.exchange._
-import agora.health.HealthDto
+import agora.api.health.HealthDto
 import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.model.{HttpEntity, HttpResponse}
 import akka.http.scaladsl.server.Directives.{entity, pathPrefix, _}

@@ -1,6 +1,7 @@
-package agora.api.exchange
+package agora.api.exchange.instances
 
 import agora.api.exchange.Exchange.OnMatch
+import agora.api.exchange._
 import agora.api.worker.{SubscriptionKey, WorkerDetails}
 import com.typesafe.scalalogging.StrictLogging
 

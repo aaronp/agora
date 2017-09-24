@@ -26,7 +26,7 @@ class FileIdDao[T: Persist: FromBytes](dir: Path) extends IdDao[String, T] {
   /** @param id the data to check
     * @return true if we've heard about 'id'
     */
-  override def contains(id: String) : Boolean = getFile(id).isDefined
+  override def contains(id: String): Boolean = getFile(id).isDefined
 
   override def get(id: String) = {
     getFile(id).flatMap { file =>

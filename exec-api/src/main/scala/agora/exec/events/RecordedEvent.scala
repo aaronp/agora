@@ -8,6 +8,7 @@ import agora.api.time.{now, _}
 import agora.exec.model.RunProcess
 import agora.io.dao.HasId
 import com.typesafe.config.Config
+import io.circe.Json
 
 import scala.util.Try
 
@@ -48,7 +49,7 @@ object CompletedJob {
 
 }
 
-case class StartedSystem(config: Config, jvmId: String = StartedSystem.jvmId, startTime: Timestamp = now()) extends RecordedEvent {
+case class StartedSystem(config: Json, jvmId: String = StartedSystem.jvmId, startTime: Timestamp = now()) extends RecordedEvent {
   def id = s"${jvmId}_${startTime}"
 }
 

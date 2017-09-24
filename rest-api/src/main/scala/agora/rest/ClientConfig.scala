@@ -11,6 +11,8 @@ import scala.concurrent.duration._
 
 class ClientConfig(config: Config) {
 
+  import ClientConfig._
+
   def actorSystemName: String = config.getString("actorSystemName")
 
   def host = config.getString("host") match {
@@ -83,4 +85,12 @@ class ClientConfig(config: Config) {
     }
   }
 
+}
+object ClientConfig {
+
+  def asLocation(uri: Uri): HostLocation = {
+    val addresses = uri.authority.host.inetAddresses.toList
+    val hostName  = addresses.head.getHostName
+    HostLocation(hostName, uri.authority.port)
+  }
 }

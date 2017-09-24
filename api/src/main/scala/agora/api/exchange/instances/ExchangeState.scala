@@ -1,5 +1,6 @@
-package agora.api.exchange
+package agora.api.exchange.instances
 
+import agora.api.exchange._
 import agora.api.worker._
 import agora.api.{JobId, nextJobId, nextSubscriptionKey}
 import com.typesafe.scalalogging.StrictLogging

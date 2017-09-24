@@ -1,7 +1,9 @@
 package agora.api.exchange
 
 import agora.api._
-import agora.api.worker.{SubscriptionKey, WorkerDetails}
+import agora.api.`match`.MatchDetails
+import agora.api.exchange.instances.{ExchangeInstance, ExchangeState}
+import agora.api.worker.{SubscriptionKey, WorkerDetails, WorkerRedirectCoords}
 
 import scala.concurrent.Future
 

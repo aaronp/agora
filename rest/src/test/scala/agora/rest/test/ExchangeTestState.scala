@@ -7,7 +7,7 @@ import agora.api.worker.SubscriptionKey
 import agora.rest.client.RestClient
 import agora.rest.exchange.ExchangeConfig._
 import agora.rest.exchange.ExchangeServerConfig.RunningExchange
-import agora.rest.exchange.{ExchangeClient, ExchangeConfig, ExchangeServerConfig}
+import agora.rest.exchange.{ExchangeRestClient, ExchangeConfig, ExchangeServerConfig}
 import agora.rest.worker.WorkerConfig._
 import agora.rest.worker.{WorkerClient, WorkerConfig}
 import com.typesafe.scalalogging.StrictLogging
@@ -43,11 +43,7 @@ case class ExchangeTestState(server: Option[RunningExchange] = None,
         val running = server.get
         logger.info(s"Connecting exchange client ${running.conf.clientConfig.location} to ${running.conf.location} (w/ local address ${running.localAddress})")
         val rest: RestClient = running.conf.clientConfig.restClient
-        val client = ExchangeClient(rest) { workerLocation =>
-          logger.info(s"Creating working client at $workerLocation for exchange on ${running.conf.clientConfig.location}")
-          val rest = running.conf.clientConfig.clientFor(workerLocation)
-          WorkerClient(rest)
-        }
+        val client           = ExchangeRestClient(rest)
         copy(exchangeClient = Option(client)).stateWithClient
       case Some(c) => this -> c
     }

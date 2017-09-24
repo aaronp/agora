@@ -1,11 +1,8 @@
 package agora.rest.exchange
 
-import agora.api.`match`.MatchDetails
 import agora.api.exchange._
-import agora.api.worker.{HostLocation, SubscriptionKey, WorkerDetails}
+import agora.api.worker.{SubscriptionKey, WorkerDetails}
 import agora.rest.client.{RestClient, RetryClient}
-import agora.rest.exchange.ExchangeClient._
-import agora.rest.worker.WorkerClient
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.generic.auto._
@@ -23,22 +20,15 @@ import scala.concurrent.Future
   *
   * @param rest
   */
-class ExchangeClient(val rest: RestClient, mkWorker: HostLocation => Dispatch)
-    extends Exchange
-    with RoutingClient
-    with FailFastCirceSupport
-    with AutoCloseable
-    with StrictLogging {
+class ExchangeRestClient(val rest: RestClient) extends Exchange with FailFastCirceSupport with AutoCloseable with StrictLogging {
 
-  override def toString = s"ExchangeClient($rest)"
+  override def toString = s"ExchangeRestClient($rest)"
 
   import RestClient.implicits._
 
   implicit def execContext = rest.executionContext
 
   implicit def materializer = rest.materializer
-
-  type JobResponse = Future[_ <: ClientResponse]
 
   /**
     * What an odd signature!
@@ -91,11 +81,26 @@ class ExchangeClient(val rest: RestClient, mkWorker: HostLocation => Dispatch)
     rest.send(ExchangeHttp(request)).flatMap(_.as[RequestWorkAck](retryOnError(take(request))))
   }
 
-  override def submit(submit: SubmitJob): JobResponse = {
-    enqueueAndDispatch(submit)(_.sendRequest(submit.job))._1
-  }
+  override def submit(job: SubmitJob): Future[ClientResponse] = {
 
-  protected def clientFor(location: HostLocation): Dispatch = mkWorker(location)
+    def sendBlocking: Future[BlockingSubmitJobResponse] = {
+      rest.send(ExchangeHttp(job)).flatMap { exchangeResp =>
+        exchangeResp.as[BlockingSubmitJobResponse](retryOnError(sendBlocking))
+      }
+    }
+
+    def sendAsync: Future[SubmitJobResponse] = {
+      rest.send(ExchangeHttp(job)).flatMap { exchangeResp =>
+        exchangeResp.as[SubmitJobResponse](retryOnError(sendAsync))
+      }
+    }
+
+    if (job.submissionDetails.awaitMatch) {
+      sendBlocking
+    } else {
+      sendAsync
+    }
+  }
 
   override def queueState(request: QueueState = QueueState()): Future[QueueStateResponse] = {
     rest.send(ExchangeHttp(request)).flatMap(_.as[QueueStateResponse](retryOnError(queueState(request))))
@@ -112,10 +117,8 @@ class ExchangeClient(val rest: RestClient, mkWorker: HostLocation => Dispatch)
   }
 }
 
-object ExchangeClient {
+object ExchangeRestClient {
 
-  type Dispatch = (String, MatchDetails, WorkerDetails) => WorkerClient
-
-  def apply(rest: RestClient)(mkWorker: HostLocation => Dispatch): ExchangeClient = new ExchangeClient(rest, mkWorker)
+  def apply(rest: RestClient): ExchangeRestClient = new ExchangeRestClient(rest)
 
 }

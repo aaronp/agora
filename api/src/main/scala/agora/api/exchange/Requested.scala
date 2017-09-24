@@ -1,5 +1,6 @@
 package agora.api.exchange
 
+import agora.api.exchange.instances.ExchangeState
 import agora.api.worker.SubscriptionKey
 
 private[exchange] sealed trait Requested {

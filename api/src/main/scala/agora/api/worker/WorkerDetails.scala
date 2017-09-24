@@ -1,6 +1,7 @@
 package agora.api.worker
 
 import agora.api.User
+import agora.api.exchange.WorkSubscription
 import agora.api.json.JsonAppendable
 import io.circe.Decoder.Result
 import io.circe.Json.fromJsonObject
@@ -16,11 +17,16 @@ import scala.util.Properties
   */
 case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
 
+  def withLocation(location: HostLocation): WorkerDetails = {
+    import io.circe.generic.auto._
+    append("location", location)
+  }
+
   override def toString = aboutMe.spaces2
 
   def +[T: Encoder](data: T): WorkerDetails = append(WorkerDetails.asName(data.getClass), data)
 
-  def +[T: Encoder](name: String, data: T): WorkerDetails = append(name, implicitly[Encoder[T]].apply(data))
+  def +[T: Encoder](name: String, data: T): WorkerDetails = append(name, data)
 
   def append[T: Encoder](name: String, data: T): WorkerDetails = {
     val json = implicitly[Encoder[T]].apply(data)

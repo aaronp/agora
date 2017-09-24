@@ -9,7 +9,7 @@ import _root_.io.circe.syntax._
 import agora.api._
 import agora.api.`match`.MatchDetails
 import agora.api.exchange.WorkSubscription
-import agora.health.HealthDto
+import agora.api.health.HealthDto
 import agora.io.{IterableSubscriber, Sources}
 import agora.rest.multipart.{MultipartBuilder, MultipartInfo}
 import akka.http.scaladsl.model._

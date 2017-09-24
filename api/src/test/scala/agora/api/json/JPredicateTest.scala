@@ -66,6 +66,45 @@ class JPredicateTest extends BaseSpec {
       eq.asMatcher.matches(json""" a.b.c : "12" """) shouldBe false
     }
   }
+  "Lte" should {
+    "evaluate 'value' lte 12.34" in {
+      val predicate = ("value" lte Json.fromBigDecimal(BigDecimal("12.34"))).asMatcher
+      predicate.matches(json"value : 12.35") shouldBe false
+      predicate.matches(json"value : 12.34") shouldBe true
+      predicate.matches(json"value : 12") shouldBe true
+    }
+  }
+  "Lt" should {
+    "evaluate 'value' lt 12.34" in {
+      val predicate = ("value" lt Json.fromBigDecimal(BigDecimal("12.34"))).asMatcher
+      predicate.matches(json"value : 12.35") shouldBe false
+      predicate.matches(json"value : 12.34") shouldBe false
+      predicate.matches(json"value : 12") shouldBe true
+    }
+  }
+  "Gte" should {
+    "evaluate 'value' gte 12.34" in {
+      val predicate = ("value" gte Json.fromBigDecimal(BigDecimal("12.34"))).asMatcher
+      predicate.matches(json"value : 12.35") shouldBe true
+      predicate.matches(json"value : 12.34") shouldBe true
+      predicate.matches(json"value : 12.33") shouldBe false
+      predicate.matches(json"value : 12") shouldBe false
+    }
+  }
+  "Gt" should {
+    "evaluate 'value' gt 12.34" in {
+      val predicate = ("value" gt Json.fromBigDecimal(BigDecimal("12.34"))).asMatcher
+      predicate.matches(json"value : 12.35") shouldBe true
+      predicate.matches(json"value : 12.34") shouldBe false
+      predicate.matches(json"value : 12") shouldBe false
+    }
+    "evaluate 'value' gt 12" in {
+      val predicate = ("value" gt 12).asMatcher
+      predicate.matches(json"value : 11") shouldBe false
+      predicate.matches(json"value : 12") shouldBe false
+      predicate.matches(json"value : 13") shouldBe true
+    }
+  }
   "Before" should {
     "evaluate 'time' before '1 minute ago' " in {}
   }

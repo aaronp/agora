@@ -34,7 +34,7 @@ trait IdDao[ID, T] {
     */
   def get(id: ID): Option[T]
 
-  def contains(id: ID) : Boolean = get(id).isDefined
+  def contains(id: ID): Boolean = get(id).isDefined
 }
 
 object IdDao {

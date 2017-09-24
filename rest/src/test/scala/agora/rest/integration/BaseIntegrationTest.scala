@@ -1,10 +1,10 @@
-package agora.integration
+package agora.rest.integration
 
 import java.util.concurrent.atomic.AtomicInteger
 
 import agora.BaseSpec
 import agora.rest.HasMaterializer
-import agora.rest.exchange.{ExchangeClient, ExchangeServerConfig}
+import agora.rest.exchange.{ExchangeRestClient, ExchangeServerConfig}
 import agora.rest.worker.WorkerConfig
 import agora.rest.worker.WorkerConfig.RunningWorker
 import com.typesafe.config.ConfigFactory
@@ -22,7 +22,7 @@ abstract class BaseIntegrationTest extends BaseSpec with FailFastCirceSupport wi
   var workerConfig: WorkerConfig                            = null
   lazy val exchangeConfig                                   = ExchangeServerConfig(s"port=${exchangePort}")
   var exchangeService: ExchangeServerConfig.RunningExchange = null
-  var exchangeClient: ExchangeClient                        = null
+  var exchangeClient: ExchangeRestClient                    = null
   var worker: RunningWorker                                 = null
 
   override def beforeEach(): Unit = {

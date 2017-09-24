@@ -5,9 +5,9 @@ import java.time.LocalDateTime
 import agora.api.time.{DateTimeResolver, TimeCoords}
 import com.typesafe.config.{ConfigFactory, ConfigRenderOptions}
 import io.circe.Decoder.Result
-import io.circe.{Json, _}
 import io.circe.generic.auto._
 import io.circe.syntax._
+import io.circe.{Json, _}
 
 import scala.language.implicitConversions
 import scala.util.Try
@@ -38,7 +38,7 @@ object JPredicate {
   object implicits extends LowPriorityPredicateImplicits {
 
     implicit class JsonHelper(private val sc: StringContext) extends AnyVal {
-      def json(args: Any*) = {
+      def json(args: Any*): Json = {
         val jsonString = ConfigFactory.parseString(sc.s(args: _*)).root.render(ConfigRenderOptions.concise().setJson(true))
         io.circe.parser.parse(jsonString).right.get
       }
@@ -211,8 +211,25 @@ case class JIncludes(elements: Set[Json]) extends JPredicate {
   override def json: Json = this.asJson
 }
 
-sealed abstract class ComparablePredicate(value: Json, op: (Long, Long) => Boolean) extends JPredicate {
-  val refNum = asLong(value)
+/**
+  * This is an interesting scala question/problem ... we just have json numbers, so we don't know if they're ints,
+  * longs, big decimals, etc.
+  *
+  * Presumably we want to avoid a costly bigdecimal conversion/comparison (or perhaps not ... I need to check the actual
+  * overhead). But assuming we do, then we want subclasses to provide the minimum overhead. We shouldn't make them
+  * e.g. specify "greater than or equal to" for each numeric type (BigDecimal and Long), but rather just use long and
+  * then fall-back on big decimal if that's what we need.
+  *
+  *
+  * @param value
+  * @param bdCompare
+  * @param longCompare
+  */
+sealed abstract class ComparablePredicate(value: Json, bdCompare: (BigDecimal, BigDecimal) => Boolean, longCompare: (Long, Long) => Boolean) extends JPredicate {
+  //  TODO - we could compare the (private) Json instance types instead of using this 'toString' hack
+  val requiresDec        = value.asNumber.map(_.toString).exists(_.contains("."))
+  lazy val refLong       = asLong(value)
+  lazy val refBigDecimal = asBigDecimal(value)
 
   private def asLong(json: Json) = {
     json.asNumber.flatMap(_.toLong).orElse {
@@ -220,11 +237,24 @@ sealed abstract class ComparablePredicate(value: Json, op: (Long, Long) => Boole
     }
   }
 
+  private def asBigDecimal(json: Json) = {
+    json.asNumber.flatMap(_.toBigDecimal).orElse {
+      json.asString.flatMap(s => Try(BigDecimal(s)).toOption)
+    }
+  }
+
   override def matches(json: Json) = {
     val res = json.as[Json].right.map { (tea: Json) =>
-      (asLong(tea), refNum) match {
-        case (Some(x), Some(y)) => op(x, y)
-        case _                  => false
+      if (requiresDec) {
+        (asBigDecimal(tea), refBigDecimal) match {
+          case (Some(x), Some(y)) => bdCompare(x, y)
+          case _                  => false
+        }
+      } else {
+        (asLong(tea), refLong) match {
+          case (Some(x), Some(y)) => longCompare(x, y)
+          case _                  => false
+        }
       }
     }
     res.right.getOrElse(false)
@@ -233,18 +263,18 @@ sealed abstract class ComparablePredicate(value: Json, op: (Long, Long) => Boole
 
 import io.circe.Json
 
-case class Gt(gt: Json) extends ComparablePredicate(gt, _ > _) {
+case class Gt(gt: Json) extends ComparablePredicate(gt, _ > _, _ > _) {
   override def json: Json = this.asJson
 }
 
-case class Gte(gte: Json) extends ComparablePredicate(gte, _ >= _) {
+case class Gte(gte: Json) extends ComparablePredicate(gte, _ >= _, _ >= _) {
   override def json: Json = this.asJson
 }
 
-case class Lt(lt: Json) extends ComparablePredicate(lt, _ < _) {
+case class Lt(lt: Json) extends ComparablePredicate(lt, _ < _, _ < _) {
   override def json: Json = this.asJson
 }
 
-case class Lte(lte: Json) extends ComparablePredicate(lte, _ <= _) {
+case class Lte(lte: Json) extends ComparablePredicate(lte, _ <= _, _ <= _) {
   override def json: Json = this.asJson
 }

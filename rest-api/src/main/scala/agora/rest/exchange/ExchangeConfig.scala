@@ -1,9 +1,8 @@
 package agora.rest.exchange
 
 import agora.api.exchange.{Exchange, JobPredicate, MatchObserver, ServerSideExchange}
-import agora.api.worker.HostLocation
+import agora.config._
 import agora.rest._
-import agora.rest.worker.WorkerClient
 import com.typesafe.config.{Config, ConfigFactory}
 
 object ExchangeConfig {
@@ -27,17 +26,12 @@ class ExchangeConfig(c: Config) extends ServerConfig(c) {
 
   def withFallback(fallback: ExchangeConfig) = new ExchangeConfig(config.withFallback(fallback.config))
 
-  def client: ExchangeClient = {
-    ExchangeClient(clientConfig.restClient) { (workerLocation: HostLocation) =>
-      val restClient = clientConfig.clientFor(workerLocation)
-      WorkerClient(restClient)
-    }
-  }
+  def client: ExchangeRestClient = ExchangeRestClient(clientConfig.restClient)
 
   def newExchange(implicit obs: MatchObserver = MatchObserver(), matcher: JobPredicate = JobPredicate()): ServerSideExchange = {
     val underlying: Exchange   = Exchange(obs)(matcher)
     val safeExchange: Exchange = ActorExchange(underlying, serverImplicits.system)
-    new ServerSideExchange(safeExchange, obs)
+    new ServerSideExchange(safeExchange, obs)(serverImplicits.executionContext)
   }
 
 }

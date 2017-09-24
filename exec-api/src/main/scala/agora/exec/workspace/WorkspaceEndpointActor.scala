@@ -63,5 +63,5 @@ private[workspace] class WorkspaceEndpointActor(uploadDir: Path) extends BaseAct
 }
 
 object WorkspaceEndpointActor {
-  private[workspace] case class RemoveWorkspace(id : WorkspaceId)
+  private[workspace] case class RemoveWorkspace(id: WorkspaceId)
 }

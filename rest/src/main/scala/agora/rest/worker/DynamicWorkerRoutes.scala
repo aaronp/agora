@@ -3,8 +3,8 @@ package agora.rest.worker
 import javax.ws.rs.Path
 
 import agora.api.exchange._
+import agora.api.health.HealthDto
 import agora.api.worker.SubscriptionKey
-import agora.health.HealthDto
 import akka.http.scaladsl.model.ContentTypes.`application/json`
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives.{path, _}
@@ -14,7 +14,6 @@ import akka.http.scaladsl.unmarshalling.FromRequestUnmarshaller
 import akka.stream.Materializer
 import io.circe.Json
 import io.swagger.annotations._
-import agora.health.HealthDto
 
 import scala.concurrent.Future
 import scala.language.reflectiveCalls

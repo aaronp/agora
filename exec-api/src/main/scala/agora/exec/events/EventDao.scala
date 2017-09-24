@@ -29,10 +29,10 @@ case class EventDao(rootDir: Path) extends SystemEventMonitor with AgoraJsonImpl
     */
   private def writer: Persist.WriterInstance[ReceivedJob] = Persist.writer[ReceivedJob]
 
-  private[events] val startedDao = new Instance[StartedJob]("started")
-  private[events] val receivedDao = new Instance[ReceivedJob]("received")
+  private[events] val startedDao   = new Instance[StartedJob]("started")
+  private[events] val receivedDao  = new Instance[ReceivedJob]("received")
   private[events] val completedDao = new Instance[CompletedJob]("completed")
-  private[events] val sysEvents = new Instance[StartedSystem]("sysEvents")
+  private[events] val sysEvents    = new Instance[StartedSystem]("sysEvents")
   private val instances = List(
     startedDao,
     receivedDao,
@@ -43,11 +43,10 @@ case class EventDao(rootDir: Path) extends SystemEventMonitor with AgoraJsonImpl
   override def accept(msg: RecordedEvent): Unit = {
     msg match {
       case event: StartedSystem => sysEvents.save(event, event.startTime)
-      case event: StartedJob => startedDao.save(event, event.started)
-      case event: ReceivedJob => receivedDao.save(event, event.received)
-      case event: CompletedJob => completedDao.save(event, event.completed)
+      case event: StartedJob    => startedDao.save(event, event.started)
+      case event: ReceivedJob   => receivedDao.save(event, event.received)
+      case event: CompletedJob  => completedDao.save(event, event.completed)
       case DeleteBefore(timestamp) =>
-
         instances.foreach { inst =>
           val deleted = inst.deleteBefore(timestamp)
           logger.info(s"Deleting ${deleted} ${inst.name} events before $timestamp")
@@ -57,13 +56,13 @@ case class EventDao(rootDir: Path) extends SystemEventMonitor with AgoraJsonImpl
 
   def notFinishedBetween(from: Timestamp, to: Timestamp): Iterator[StartedJob] = {
     val started: Iterator[StartedJob] = startedDao.findBetween(from, to)
-    val completed: Stream[JobId] = completedDao.findBetween(from, to).map(_.id).toStream
+    val completed: Stream[JobId]      = completedDao.findBetween(from, to).map(_.id).toStream
     started.filterNot(job => completed.contains(job.id))
   }
 
   def notStartedBetween(from: Timestamp, to: Timestamp): Iterator[ReceivedJob] = {
     val received: Iterator[ReceivedJob] = receivedDao.findBetween(from, to)
-    val started: Stream[JobId] = startedDao.findBetween(from, to).map(_.id).toStream
+    val started: Stream[JobId]          = startedDao.findBetween(from, to).map(_.id).toStream
     received.filterNot(job => started.contains(job.id))
   }
 
@@ -71,7 +70,7 @@ case class EventDao(rootDir: Path) extends SystemEventMonitor with AgoraJsonImpl
 
     def handle = msg match {
       case FindJob(id) =>
-        val started = startedDao.get(id)
+        val started   = startedDao.get(id)
         val completed = completedDao.get(id)
         val took = for {
           s <- started
@@ -99,10 +98,10 @@ case class EventDao(rootDir: Path) extends SystemEventMonitor with AgoraJsonImpl
       case StartTimesBetween(from, to) =>
         val found = sysEvents.findBetween(from, to).toList.sortBy(_.startTime)
         StartTimesBetweenResponse(found)
-      case FindFirst("started") => FindFirstResponse(startedDao.first)
-      case FindFirst("received") => FindFirstResponse(receivedDao.first)
+      case FindFirst("started")   => FindFirstResponse(startedDao.first)
+      case FindFirst("received")  => FindFirstResponse(receivedDao.first)
       case FindFirst("completed") => FindFirstResponse(completedDao.first)
-      case FindFirst(unknown) => sys.error(s"Unhandled FindFirst '$unknown'")
+      case FindFirst(unknown)     => sys.error(s"Unhandled FindFirst '$unknown'")
     }
 
     Future.fromTry(Try(handle)).asInstanceOf[Future[msg.Response]]
@@ -114,7 +113,7 @@ case class EventDao(rootDir: Path) extends SystemEventMonitor with AgoraJsonImpl
     *
     * @param name the dao name (started, received, completed, etc)
     */
-  private[events] class Instance[T: ToBytes : FromBytes : HasId](val name: String) {
+  private[events] class Instance[T: ToBytes: FromBytes: HasId](val name: String) {
     def deleteBefore(timestamp: Timestamp): Int = {
       val countOpt = timestampReader.first.filterNot(_.isBefore(timestamp)).map { firstTime =>
         val values: Iterator[T] = timestampReader.find(firstTime, timestamp)
@@ -130,8 +129,8 @@ case class EventDao(rootDir: Path) extends SystemEventMonitor with AgoraJsonImpl
       countOpt.getOrElse(0)
     }
 
-    private val hasId = implicitly[HasId[T]]
-    private val idDir = rootDir.resolve(name).resolve("ids")
+    private val hasId        = implicitly[HasId[T]]
+    private val idDir        = rootDir.resolve(name).resolve("ids")
     private val timestampDir = rootDir.resolve(name).resolve("times")
 
     private val idsDao: FileIdDao[T] = {
@@ -161,7 +160,7 @@ case class EventDao(rootDir: Path) extends SystemEventMonitor with AgoraJsonImpl
     }
 
     def save(value: T, timestamp: Timestamp) = {
-      val id = hasId.id(value)
+      val id   = hasId.id(value)
       val file = idsDao.save(id, value)
       // link to the saved id file
       timestampsDao(file).save(value, timestamp)

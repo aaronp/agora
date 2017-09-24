@@ -24,7 +24,7 @@ trait RichConfigOps extends RichConfig.LowPriorityImplicits {
   def asDuration(key: String): Duration = {
     config.getString(key).toLowerCase() match {
       case "inf" | "infinite" => Duration.Inf
-      case _ => asFiniteDuration(key)
+      case _                  => asFiniteDuration(key)
     }
   }
 
@@ -67,10 +67,10 @@ trait RichConfigOps extends RichConfig.LowPriorityImplicits {
     val configs: Array[Config] = args.map {
       case KeyValue(k, v) if isSimpleList(k) => asConfig(k, java.util.Arrays.asList(v.split(",", -1): _*))
       case KeyValue(k, v) if isObjectList(k) => sys.error(s"Path '$k' tried to override an object list with '$v'")
-      case KeyValue(k, v) => asConfig(k, v)
-      case FilePathConfig(c) => c
-      case UrlPathConfig(c) => c
-      case other => unrecognizedArg(other)
+      case KeyValue(k, v)                    => asConfig(k, v)
+      case FilePathConfig(c)                 => c
+      case UrlPathConfig(c)                  => c
+      case other                             => unrecognizedArg(other)
     }
 
     (configs :+ config).reduce(_ withFallback _)

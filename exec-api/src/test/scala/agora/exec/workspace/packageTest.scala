@@ -4,7 +4,6 @@ import agora.BaseSpec
 
 class packageTest extends BaseSpec {
 
-
   "allFilesAreOlderThanTime" should {
     "return true if all the files in the workspaces are older than the given time" in {
       withDir { dir =>

@@ -1,7 +1,7 @@
 package agora.api.exchange
 
 import agora.BaseSpec
-import agora.api.Implicits._
+import agora.api.Implicits
 import agora.api.json.JMatcher
 import agora.api.worker.{HostLocation, WorkerDetails, WorkerRedirectCoords}
 import io.circe.generic.auto._
@@ -12,7 +12,7 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.language.{postfixOps, reflectiveCalls}
 
-trait ExchangeSpec extends BaseSpec with Eventually {
+trait ExchangeSpec extends BaseSpec with Eventually with Implicits {
 
   import ExchangeSpec._
 

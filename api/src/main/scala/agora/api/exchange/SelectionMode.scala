@@ -32,6 +32,10 @@ abstract class SelectionMode(override val toString: String) {
     * @return a collection of selected worker candidates
     */
   def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll
+
+  /** @return true if this selection mode may choose multiple workers
+    */
+  def selectsMultiple: Boolean = true
 }
 
 // sends the work to the first matching eligible worker
@@ -39,6 +43,7 @@ case class SelectionFirst() extends SelectionMode("select-first") {
   override def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
     values.take(1)
   }
+  override val selectsMultiple: Boolean = false
 }
 
 // sends the work to all eligible workers

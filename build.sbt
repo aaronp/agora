@@ -36,16 +36,12 @@ lazy val agora = (project in file(".")).enablePlugins(BuildInfoPlugin).aggregate
 
 lazy val settings = scalafmtSettings
 
-val additionalScalcSettings = List(
+def additionalScalcSettings = List(
   "-deprecation", // Emit warning and location for usages of deprecated APIs.
   "-encoding",
   "utf-8", // Specify character encoding used by source files.
   "-unchecked",
 //  "-explaintypes", // Explain type errors in more detail.
-  "-feature", // Emit warning and location for usages of features that should be imported explicitly.
-  "-language:reflectiveCalls", // Allow reflective calls
-  "-language:higherKinds", // Allow higher-kinded types
-  "-language:implicitConversions", // Allow definition of implicit functions called views
   "-unchecked", // Enable additional warnings where generated code depends on assumptions.
   "-Xcheckinit", // Wrap field accessors to throw an exception on uninitialized access.
   "-Xfatal-warnings", // Fail the compilation if there are any warnings.
@@ -80,10 +76,15 @@ val baseScalcSettings = List(
   "-deprecation", // Emit warning and location for usages of deprecated APIs.
   "-encoding",
   "utf-8", // Specify character encoding used by source files.
+  "-feature", // Emit warning and location for usages of features that should be imported explicitly.
+  "-language:reflectiveCalls", // Allow reflective calls
+  "-language:higherKinds", // Allow higher-kinded types
+  "-language:implicitConversions", // Allow definition of implicit functions called views
   "-unchecked",
   "-language:reflectiveCalls", // Allow reflective calls
   "-language:higherKinds", // Allow higher-kinded types
   "-language:implicitConversions", // Allow definition of implicit functions called views
+  //"-Xlog-implicits",
   "-Xfuture" // Turn on future language features.
 )
 

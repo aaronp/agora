@@ -1,8 +1,8 @@
 package agora.rest.exchange
 
 import agora.api.exchange.ServerSideExchange
-import agora.rest.{RunningService, ServerConfig}
-import agora.rest._
+import agora.config._
+import agora.rest.RunningService
 import akka.http.scaladsl.server.Route
 import com.typesafe.config.{Config, ConfigFactory}
 

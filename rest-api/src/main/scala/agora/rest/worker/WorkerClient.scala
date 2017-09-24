@@ -1,11 +1,12 @@
 package agora.rest.worker
 
 import agora.api.`match`.MatchDetails
-import agora.api.worker.{HostLocation, WorkerDetails}
-import agora.health.HealthDto
-import agora.rest.MatchDetailsExtractor
+import agora.api.exchange.{Dispatch, AsClient}
+import agora.api.health.HealthDto
+import agora.api.worker.WorkerDetails
 import agora.rest.client.RestClient
 import agora.rest.multipart.MultipartBuilder
+import agora.rest.{ClientConfig, MatchDetailsExtractor}
 import akka.http.scaladsl.marshalling.{Marshaller, ToEntityMarshaller}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.Unmarshal
@@ -52,6 +53,11 @@ case class WorkerClient(rest: RestClient, path: String, matchDetails: MatchDetai
 
 object WorkerClient extends FailFastCirceSupport with LazyLogging {
 
+  def apply(conf: ClientConfig, dispatch: Dispatch[_]): WorkerClient = {
+    val rest = conf.clientFor(dispatch.location)
+    new WorkerClient(rest, dispatch.path, dispatch.matchDetails, dispatch.matchedWorker)
+  }
+
   def health(restClient: RestClient): Future[HealthDto] = {
     import restClient._
     restClient.send(WorkerHttp.healthRequest).flatMap { resp =>
@@ -69,10 +75,6 @@ object WorkerClient extends FailFastCirceSupport with LazyLogging {
     val httpRequest: HttpRequest = WorkerHttp(path, request)
     val headers                  = MatchDetailsExtractor.headersFor(matchDetails)
     httpRequest.withHeaders(headers)
-  }
-
-  def apply(rest: RestClient): (String, MatchDetails, WorkerDetails) => WorkerClient = { (path: String, matchDetails: MatchDetails, workerDetails: WorkerDetails) =>
-    new WorkerClient(rest, path, matchDetails, workerDetails)
   }
 
   def anEncoder[T](req: T)(implicit encoder: Encoder[T]): Marshaller[T, MessageEntity] = {

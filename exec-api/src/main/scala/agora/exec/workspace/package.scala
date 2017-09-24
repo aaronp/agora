@@ -10,7 +10,6 @@ package object workspace {
 
   def safeId(workspaceId: WorkspaceId) = workspaceId.filter(_.isLetterOrDigit)
 
-
   /** @param directory the directory to check
     * @param timestamp
     * @return

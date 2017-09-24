@@ -7,6 +7,7 @@ import agora.exec.workspace.WorkspaceClient
 import agora.health.HealthUpdate
 import agora.rest.RunningService
 import agora.rest.exchange.ExchangeRoutes
+import agora.rest.worker.SubscriptionConfig
 import akka.http.scaladsl.model.HttpMethods
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
@@ -108,7 +109,7 @@ case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes
     logger.info(s"Starting Execution Server in ${conf.location}")
     val startFuture = RunningService.start[ExecConfig, ExecutionRoutes](conf, restRoutes, executionRoutes)
 
-    eventMonitor.accept(StartedSystem(conf.config))
+    eventMonitor.accept(StartedSystem(SubscriptionConfig.asJson(conf.config)))
 
     for {
       rs <- startFuture

@@ -11,8 +11,8 @@ import scala.concurrent.duration._
 class HouseKeepingTest extends BaseSpec with HasMaterializer with Eventually {
   "Housekeeping.every(...)" should {
     "housekeep every (...)" in {
-      val counter1 = new AtomicInteger(0)
-      val counter2 = new AtomicInteger(0)
+      val counter1                   = new AtomicInteger(0)
+      val counter2                   = new AtomicInteger(0)
       val houseKeeping: Housekeeping = Housekeeping.every(100.millis)
       houseKeeping.registerHousekeepingEvent { () =>
         if (counter1.incrementAndGet() == 3) {

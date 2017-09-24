@@ -8,7 +8,6 @@ package object time {
 
   type Timestamp = agora.io.dao.Timestamp
 
-
   implicit def ordering = agora.io.dao.ordering
 
   private type Now = Timestamp

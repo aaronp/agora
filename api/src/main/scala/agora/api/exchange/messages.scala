@@ -170,15 +170,6 @@ object SubmitJob {
   implicit val encoder = exportEncoder[SubmitJob].instance
   implicit val decoder = exportDecoder[SubmitJob].instance
 
-  trait LowPriorityImplicits {
-    implicit def asJob[T: Encoder](value: T) = new {
-      def asJob(implicit details: SubmissionDetails = SubmissionDetails()): SubmitJob = {
-        require(!value.isInstanceOf[SubmitJob], s"'asJob' called on $value which is already a SubmitJob")
-        SubmitJob[T](details, value)
-      }
-    }
-  }
-
   def apply[T: Encoder](details: SubmissionDetails, value: T): SubmitJob = {
     val asJson = implicitly[Encoder[T]]
     SubmitJob(details, asJson(value))

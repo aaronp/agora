@@ -1,4 +1,4 @@
-package agora.health
+package agora.api.health
 
 import java.lang.management.{ManagementFactory, OperatingSystemMXBean}
 

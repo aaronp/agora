@@ -2,6 +2,7 @@ package agora.health
 
 import agora.BaseSpec
 import agora.api.exchange._
+import agora.api.health.HealthDto
 import agora.rest.HasMaterializer
 import io.circe.optics.JsonPath
 
@@ -15,7 +16,7 @@ class HealthUpdateTest extends BaseSpec with HasMaterializer {
       val path = JsonPath.root.health.objectPendingFinalizationCount.int
 
       def update(id: Int) = {
-        val future                                                          = HealthUpdate.updateHealth(exchange, subscriptionKey, HealthDto().copy(objectPendingFinalizationCount = id))
+        val future                                                          = HealthDto.updateHealth(exchange, subscriptionKey, HealthDto().copy(objectPendingFinalizationCount = id))
         val UpdateSubscriptionAck(`subscriptionKey`, Some(b4), Some(after)) = future.futureValue
         val id1                                                             = path.getOption(b4.aboutMe).getOrElse(0)
         val id2                                                             = path.getOption(after.aboutMe).getOrElse(0)

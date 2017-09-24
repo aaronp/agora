@@ -17,7 +17,7 @@ trait Housekeeping extends Cancellable {
     *
     * @param f the callback to invoke when housekeeping is run
     */
-  def registerHousekeepingEvent(f: Housekeeping.CleanupCallback) : Unit
+  def registerHousekeepingEvent(f: Housekeeping.CleanupCallback): Unit
 
 }
 
@@ -70,7 +70,7 @@ object Housekeeping {
       case Register(callback) => context.become(handling(callback :: list))
       case Cleanup =>
         context.system.eventStream.publish(Cleanup)
-        list.par.foreach(_ ())
+        list.par.foreach(_())
     }
   }
 

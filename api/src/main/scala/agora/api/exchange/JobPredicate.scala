@@ -1,7 +1,8 @@
 package agora.api.exchange
 
-import com.typesafe.scalalogging.StrictLogging
 import agora.api.json.JMatcher
+import com.typesafe.scalalogging.StrictLogging
+import io.circe.Json
 
 /**
   * Exposes the course-grained signature of pairing up jobs with worker subscriptions.
@@ -20,10 +21,11 @@ object JobPredicate extends StrictLogging {
     * The json-based matching logic
     */
   object JsonJobPredicate extends JobPredicate with StrictLogging {
+
     override def matches(job: SubmitJob, subscription: WorkSubscription): Boolean = {
-      val offerMatcher: JMatcher = job.submissionDetails.workMatcher
-      val submissionMatcher      = subscription.submissionMatcher
-      val jobMatcher             = subscription.jobMatcher
+      val offerMatcher: JMatcher      = job.submissionDetails.workMatcher
+      val submissionMatcher: JMatcher = subscription.submissionMatcher
+      val jobMatcher                  = subscription.jobMatcher
 
       logger.debug(s"""
            | == JOB MATCHES WORKER (${offerMatcher.matches(subscription.details.aboutMe)}) ==
@@ -43,16 +45,28 @@ object JobPredicate extends StrictLogging {
            |
          """.stripMargin)
 
-      offerMatcher.matches(subscription.details.aboutMe) &&
-      jobMatcher.matches(job.job) &&
-      submissionMatcher.matches(job.submissionDetails.aboutMe)
+      jobSubmissionDetailsMatchesWorkSubscription(job.submissionDetails, subscription) &&
+      workSubscriptionMatchesJob(subscription, job.job) &&
+      workSubscriptionMatchesJobDetails(subscription, job.submissionDetails)
     }
+    def workSubscriptionMatchesJobDetails(subscription: WorkSubscription, submissionDetails: SubmissionDetails) = {
+      subscription.submissionMatcher.matches(submissionDetails.aboutMe)
+    }
+
+    def workSubscriptionMatchesJob(subscription: WorkSubscription, job: Json) = {
+      subscription.jobMatcher.matches(job)
+    }
+
+    def jobSubmissionDetailsMatchesWorkSubscription(submissionDetails: SubmissionDetails, subscription: WorkSubscription) = {
+      submissionDetails.workMatcher.matches(subscription.details.aboutMe)
+    }
+
   }
 
   trait LowPriorityImplicits {
     implicit def matcher: JobPredicate = apply()
   }
 
-  def apply(): JobPredicate = JsonJobPredicate
+  def apply() = JsonJobPredicate
 
 }

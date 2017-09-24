@@ -3,8 +3,9 @@ package miniraft.state
 import java.nio.file.Path
 
 import agora.api.worker.HostLocation
-import agora.rest.client.{RestClient, RoundRobinClient}
-import agora.rest.{ServerConfig, configForArgs}
+import agora.config.configForArgs
+import agora.rest.ServerConfig
+import agora.rest.client.RestClient
 import com.typesafe.config.ConfigFactory.parseString
 import com.typesafe.config.{Config, ConfigFactory}
 import io.circe.{Decoder, Encoder}

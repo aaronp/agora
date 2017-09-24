@@ -1,5 +1,9 @@
 package agora.exec.rest
 
+import java.nio.file.Path
+
+import agora.api.exchange.Exchange
+import agora.api.worker.{SubscriptionKey, WorkerDetails}
 import agora.exec.workspace.{WorkspaceClient, WorkspaceId}
 import akka.http.scaladsl.model.Multipart
 import akka.http.scaladsl.server.Directives._
@@ -22,7 +26,6 @@ case class UploadRoutes(workspaces: WorkspaceClient) extends FailFastCirceSuppor
   /**
     * Uploads some files to a workspace.
     *
-    * We start with creating a subscription for 'topic : upload'.
     * When summat gets uploaded we add a subscription for 'workspace : xyz' based
     * on the upload subscription
     *
@@ -46,7 +49,7 @@ case class UploadRoutes(workspaces: WorkspaceClient) extends FailFastCirceSuppor
       extractMaterializer { implicit mat =>
         entity(as[Multipart.FormData]) { formData: Multipart.FormData =>
           parameter('workspace) { workspace =>
-            val uploadFuture: Future[Boolean] = uploadToWorkspace(workspace, formData)
+            val uploadFuture = uploadToWorkspace(workspace, formData)
             complete(uploadFuture)
           }
         }
@@ -76,13 +79,16 @@ case class UploadRoutes(workspaces: WorkspaceClient) extends FailFastCirceSuppor
     import agora.rest.multipart.MultipartFormImplicits._
     import mat._
 
-    val uploadSource: Source[Option[Future[Boolean]], Any] = formData.withMultipart {
+    val uploadSource = formData.withMultipart {
       case (info, src) =>
         val fileName = info.fileName.getOrElse(info.fieldName)
 
         logger.info(s"Uploading ${workspace}/${fileName}")
 
-        workspaces.upload(workspace, fileName, src)
+        val future: Future[Path] = workspaces.upload(workspace, fileName, src)
+
+        import agora.io.implicits._
+        future.map(_.exists)
     }
 
     val futureOptFuture: Future[Option[Future[Boolean]]] = uploadSource.runWith(Sink.head)

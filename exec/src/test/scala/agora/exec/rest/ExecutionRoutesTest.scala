@@ -35,7 +35,7 @@ class ExecutionRoutesTest extends BaseRoutesSpec {
 
         val request = ExecutionClient.asRequest(RunProcess("cp", "x", "y").withoutStreaming().withWorkspace("ws"))
         // upload file 'x'
-        workspaces.upload("ws", Upload.forText("x", "text")).futureValue shouldBe true
+        workspaces.upload("ws", Upload.forText("x", "text")).futureValue.exists shouldBe true
 
         request ~> er.executeRoute ~> check {
           val resp = responseAs[FileResult]

@@ -1,12 +1,12 @@
 package agora.health
 
 import agora.api.exchange.{Exchange, UpdateSubscriptionAck}
-import agora.api.worker.{SubscriptionKey, WorkerDetails}
+import agora.api.health.HealthDto
+import agora.api.worker.SubscriptionKey
 import agora.io.BaseActor
 import akka.actor.{ActorSystem, Cancellable, Props}
 import com.typesafe.scalalogging.StrictLogging
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success}
 
@@ -43,7 +43,7 @@ object HealthUpdate extends StrictLogging {
       case RemoveKey(key) =>
         val remaining = keys - key
         if (remaining.isEmpty) {
-          logger.info(s"All keys $initialKeys failed, stopping health update")
+          logger.warn(s"All keys $initialKeys failed, stopping health update")
           context.stop(self)
         } else {
           logger.info(s"stopping health update for $key")
@@ -51,7 +51,7 @@ object HealthUpdate extends StrictLogging {
         }
       case UpdateMsg =>
         keys.foreach { key =>
-          updateHealth(exchange, key).map(RemoveKey.forAck).onComplete {
+          HealthDto.updateHealth(exchange, key).map(RemoveKey.forAck).onComplete {
             case Success(None) => // the success case
             case Success(Some(msg: RemoveKey)) =>
               self ! msg
@@ -81,15 +81,4 @@ object HealthUpdate extends StrictLogging {
 
   def props(exchange: Exchange, keys: Set[SubscriptionKey]) = Props(new UpdateActor(exchange, keys))
 
-  /**
-    * Update the given subscription w/ the given [[HealthDto]]
-    * @param exchange
-    * @param key
-    * @param health
-    * @param ec
-    * @return
-    */
-  def updateHealth(exchange: Exchange, key: SubscriptionKey, health: HealthDto = HealthDto())(implicit ec: ExecutionContext): Future[UpdateSubscriptionAck] = {
-    exchange.updateSubscriptionDetails(key, WorkerDetails.empty.append("health", health))
-  }
 }

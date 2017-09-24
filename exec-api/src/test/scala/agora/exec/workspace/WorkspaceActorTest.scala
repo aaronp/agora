@@ -11,7 +11,6 @@ class WorkspaceActorTest extends BaseSpec with HasMaterializer {
   "WorkspaceActor.closeWorkspace" should {
     "remove files older than the ifNotModifiedSince time" in {
       withDir { dir =>
-
         val before = agora.api.time.now()
 
         val testFile = dir.resolve("file").text = "hi"
@@ -24,7 +23,6 @@ class WorkspaceActorTest extends BaseSpec with HasMaterializer {
     }
     "remove files if failPendingDependencies is specified when there are no dependencies" in {
       withDir { dir =>
-
         val before = agora.api.time.now()
 
         val testFile = dir.resolve("file").text = "hi"
@@ -37,13 +35,12 @@ class WorkspaceActorTest extends BaseSpec with HasMaterializer {
     }
     "fail pending workspaces if told to close when they are pending" in {
       withDir { dir =>
-
         // create a file in our 'workspace' dir
-        val before = agora.api.time.now()
+        val before   = agora.api.time.now()
         val testFile = dir.resolve("file").text = "hi"
 
         // create a dependency to 'wait' on the workspace
-        val dependency = awaitUploads(dir.fileName)
+        val dependency       = awaitUploads(dir.fileName)
         val dependencyFuture = dependency.workDirResult.future
 
         // now close it
@@ -52,7 +49,7 @@ class WorkspaceActorTest extends BaseSpec with HasMaterializer {
 
         // this future should fail, as we closed the workspace
         val Failure(error) = Try(dependencyFuture.block)
-        val workspaceId = dir.fileName
+        val workspaceId    = dir.fileName
         error.getMessage shouldBe s"Workspace '${workspaceId}' has been closed"
       }
     }

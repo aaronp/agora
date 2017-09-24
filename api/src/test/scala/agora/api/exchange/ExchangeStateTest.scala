@@ -1,6 +1,7 @@
 package agora.api.exchange
 
 import agora.api.Implicits._
+import agora.api.exchange.instances.ExchangeState
 import agora.api.json.JMatcher
 import agora.api.worker.{HostLocation, SubscriptionKey, WorkerDetails}
 import org.scalatest.{Matchers, WordSpec}

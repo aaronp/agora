@@ -13,7 +13,7 @@ import scala.util.Properties
 class RemoteRunnerTest extends BaseSpec with ProcessRunnerTCK {
 
   var runningWorker: RunningService[ExecConfig, ExecutionRoutes] = null
-  var remoteRunner: ProcessRunner with AutoCloseable             = null
+  var remoteRunner: ProcessRunner = null
 
   def runner: ProcessRunner = remoteRunner
 
@@ -42,12 +42,12 @@ class RemoteRunnerTest extends BaseSpec with ProcessRunnerTCK {
 
   def startAll = {
     runningWorker = conf.start().futureValue
-    remoteRunner = conf.remoteRunner
+    remoteRunner = conf.remoteRunner()
   }
 
   def stopAll = {
     runningWorker.close()
-    remoteRunner.close()
+    conf.clientConfig.cachedClients.close()
   }
 
 }

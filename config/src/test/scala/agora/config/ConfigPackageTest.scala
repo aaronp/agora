@@ -1,10 +1,9 @@
-package agora.rest
+package agora.config
 
 import com.typesafe.config.ConfigFactory
-import agora.rest.worker.WorkerConfig
 import org.scalatest.{Matchers, WordSpec}
 
-class RestPackageTest extends WordSpec with Matchers {
+class ConfigPackageTest extends WordSpec with Matchers {
 
   "configForArgs" should {
     "evaluate values from the command line which are referenced from the config file" in {

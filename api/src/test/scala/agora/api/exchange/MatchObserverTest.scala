@@ -13,7 +13,7 @@ class MatchObserverTest extends WordSpec with Matchers {
 
       val id                = agora.api.nextJobId()
       var notifiedJobs      = List[SubmitJob]()
-      val jobOne: SubmitJob = 123.asJob().add("id" -> "one")
+      val jobOne: SubmitJob = 123.asJob.add("id" -> "one")
 
       // call the method under test 'when'
       val observer = obs.onceWhen {
@@ -40,8 +40,8 @@ class MatchObserverTest extends WordSpec with Matchers {
       object obs extends MatchObserver
 
       var notifiedJobs      = List[SubmitJob]()
-      val jobOne: SubmitJob = 123.asJob().add("id" -> "one")
-      val jobTwo: SubmitJob = 456.asJob().add("id" -> "two")
+      val jobOne: SubmitJob = 123.asJob.add("id" -> "one")
+      val jobTwo: SubmitJob = 456.asJob.add("id" -> "two")
 
       // call the method under test 'when'
       val observer = obs.alwaysWhen {

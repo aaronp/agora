@@ -36,7 +36,7 @@ class ExecSteps extends ScalaDsl with EN with Matchers with TestData with ScalaF
     state = state.stopClient(nodeId)
   }
   Given("""^an executor service (.*) started with config$""") { (serverName: String, customConfig: String) =>
-    val conf = ExecConfig().withOverrides(ConfigFactory.parseString(customConfig))
+    val conf           = ExecConfig().withOverrides(ConfigFactory.parseString(customConfig))
     val runningService = conf.start().futureValue
     state = state.withService(serverName, runningService)
   }
