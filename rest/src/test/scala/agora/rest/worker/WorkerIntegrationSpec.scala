@@ -32,20 +32,22 @@ trait WorkerIntegrationSpec extends FailFastCirceSupport { self: BaseIntegration
       // have the client send a multipart request of bytes
       val job: SubmitJob = "some small job".asJob.matching("path".equalTo("basic").asMatcher)
 
-      implicit val dispatchInts: AsClient[SubmitJob, HttpResponse] = AsClient[SubmitJob, HttpResponse] { dispatch =>
-        val src = Source.fromIterator { () =>
-          Iterator
-            .from(1)
-            .map { x =>
-              ByteString(x.toString)
-            }
-            .take(10)
-        }
-        val len    = Sources.sizeOf(src).futureValue
-        val fd     = MultipartBuilder().fromStrictSource("ints", len, src, ContentTypes.`application/json`).formData.futureValue
-        val client = WorkerClient(worker.conf.clientConfig, dispatch)
+      implicit val dispatchInts: AsClient[SubmitJob, HttpResponse] = AsClient.lift[SubmitJob, HttpResponse] {
+        dispatch =>
+          val src = Source.fromIterator { () =>
+            Iterator
+              .from(1)
+              .map { x =>
+                ByteString(x.toString)
+              }
+              .take(10)
+          }
+          val len = Sources.sizeOf(src).futureValue
+          val fd =
+            MultipartBuilder().fromStrictSource("ints", len, src, ContentTypes.`application/json`).formData.futureValue
+          val client = WorkerClient(worker.conf.clientConfig, dispatch)
 
-        client.sendRequest(fd)
+          client.sendRequest(fd)
       }
 
       implicit val strResp = dispatchInts.map { resp =>
@@ -60,12 +62,14 @@ trait WorkerIntegrationSpec extends FailFastCirceSupport { self: BaseIntegration
     "handle large uploads and results" in {
 
       // add a handler which just echos the input multipart byte stream
-      worker.service.usingSubscription(_.withPath("largeuploads").matchingSubmission("topic".equalTo("biguns").asMatcher)).addHandler[Multipart.FormData] { ctxt =>
-        ctxt.mapMultipart {
-          case (MultipartInfo(key, _, _), sourceFromRequest) =>
-            ctxt.completeWithSource(sourceFromRequest, ContentTypes.`text/plain(UTF-8)`)
+      worker.service
+        .usingSubscription(_.withPath("largeuploads").matchingSubmission("topic".equalTo("biguns").asMatcher))
+        .addHandler[Multipart.FormData] { ctxt =>
+          ctxt.mapMultipart {
+            case (MultipartInfo(key, _, _), sourceFromRequest) =>
+              ctxt.completeWithSource(sourceFromRequest, ContentTypes.`text/plain(UTF-8)`)
+          }
         }
-      }
 
       def numbers =
         Iterator
@@ -75,20 +79,22 @@ trait WorkerIntegrationSpec extends FailFastCirceSupport { self: BaseIntegration
           }
           .take(1000)
 
-      implicit val DispatchBiguns: AsClient[SubmitJob, HttpResponse] = AsClient[SubmitJob, HttpResponse] { dispatch =>
-        val src = Source.fromIterator { () =>
-          numbers
-        }
-        val len = Sources.sizeOf(src).futureValue
-        val fd  = MultipartBuilder().fromStrictSource("ints", len, src).formData.futureValue
+      implicit val DispatchBiguns: AsClient[SubmitJob, HttpResponse] = AsClient.lift[SubmitJob, HttpResponse] {
+        dispatch =>
+          val src = Source.fromIterator { () =>
+            numbers
+          }
+          val len = Sources.sizeOf(src).futureValue
+          val fd  = MultipartBuilder().fromStrictSource("ints", len, src).formData.futureValue
 
-        WorkerClient(worker.conf.clientConfig, dispatch).sendRequest(fd)
+          WorkerClient(worker.conf.clientConfig, dispatch).sendRequest(fd)
       }
 
       // have the client send a multipart request of bytes
       val job = "doesn't matter".asJob.add("topic" -> "biguns").matching("path".equalTo("largeuploads").asMatcher)
 
-      implicit val replyWithStrings = DispatchBiguns.iterate().map(_.mkString("", "\n", "\n"))
+      implicit val replyWithStrings =
+        asRichAsClientHttpResponse(DispatchBiguns).iterate().map(_.mkString("", "\n", "\n"))
 
       val readBack: Future[String] = job.enqueueIn[String](exchangeClient)
       readBack.futureValue shouldBe numbers.map(_.utf8String).mkString("")

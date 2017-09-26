@@ -32,7 +32,7 @@ scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-language:impli
 scalafmtOnCompile in ThisBuild := true
 scalafmtVersion in ThisBuild := "1.0.0"
 
-lazy val agora = (project in file(".")).enablePlugins(BuildInfoPlugin).aggregate(api, rest, restApi, exec, execApi, io, config)
+lazy val agora = (project in file(".")).enablePlugins(BuildInfoPlugin).aggregate(api, rest, restApi, exec, execApi, io, config, example)
 
 lazy val settings = scalafmtSettings
 
@@ -166,6 +166,12 @@ lazy val restApi = project
   .dependsOn(api % "compile->compile;test->test")
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.RestApi)
+
+lazy val example = project
+  .in(file("rest-example"))
+  .settings(name := s"${repo}-rest-example")
+  .dependsOn(rest % "compile->compile;test->test")
+  .settings(commonSettings)
 
 lazy val exec = project
   .settings(name := s"${repo}-exec")

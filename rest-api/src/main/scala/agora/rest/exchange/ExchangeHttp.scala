@@ -1,7 +1,6 @@
 package agora.rest.exchange
 
 import agora.api.exchange._
-import agora.api.worker.{SubscriptionKey, WorkerDetails}
 import agora.rest.CommonRequestBuilding
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpRequest}
 import io.circe.Json
@@ -13,8 +12,8 @@ import io.circe.Json
   */
 object ExchangeHttp extends CommonRequestBuilding {
 
-  import io.circe.syntax._
   import io.circe.generic.auto._
+  import io.circe.syntax._
 
   def apply(request: CancelJobs): HttpRequest = {
     delete("jobs", request.asJson)
@@ -31,7 +30,7 @@ object ExchangeHttp extends CommonRequestBuilding {
 
   def apply(request: WorkSubscription): HttpRequest = put("subscribe", request.asJson)
 
-  def apply(subscriptionKey: SubscriptionKey, details: WorkerDetails): HttpRequest = post(s"update/$subscriptionKey", details.aboutMe)
+  def apply(update: UpdateSubscription): HttpRequest = post("update", update.asJson)
 
   def apply(request: RequestWork): HttpRequest = post("take", request.asJson)
 

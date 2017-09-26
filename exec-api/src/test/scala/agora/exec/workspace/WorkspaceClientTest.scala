@@ -13,6 +13,70 @@ import scala.concurrent.{Await, Future}
 
 class WorkspaceClientTest extends BaseSpec with HasMaterializer {
 
+  "WorkspaceClient.list" should {
+    "not list closed workspaces" in {
+      withDir { containerDir =>
+        val client = WorkspaceClient(containerDir, system)
+        client
+          .upload("foo", "bar", Source.single(ByteString("hi")))
+          .futureValue
+          .exists shouldBe true
+
+        client.list().futureValue should contain only ("foo")
+
+        client.close("foo").futureValue shouldBe true
+
+        client.list().futureValue shouldBe empty
+      }
+    }
+    "list all known workspaces createdAfter the specified time" in {
+
+      withDir { containerDir =>
+        val client = WorkspaceClient(containerDir, system)
+        client.list().futureValue shouldBe empty
+
+        val before = agora.api.time.now()
+        client.upload("x", Upload.forText("file", "content")).futureValue.exists shouldBe true
+        client.upload("y", Upload.forText("file", "content")).futureValue.exists shouldBe true
+
+        client.list(createdAfter = Option(before.minusSeconds(2))).futureValue should contain only ("x", "y")
+        client.list(createdAfter = Option(before.plusSeconds(2))).futureValue shouldBe empty
+      }
+    }
+    "list all known workspaces createdBefore the specified time" in {
+
+      withDir { containerDir =>
+        val client = WorkspaceClient(containerDir, system)
+        client.list().futureValue shouldBe empty
+
+        val before = agora.api.time.now()
+        client.upload("x", Upload.forText("file", "content")).futureValue.exists shouldBe true
+        client.upload("y", Upload.forText("file", "content")).futureValue.exists shouldBe true
+
+        client.list(createdBefore = Option(before)).futureValue shouldBe empty
+        client.list(createdBefore = Option(before.plusSeconds(2))).futureValue should contain only ("x", "y")
+      }
+    }
+
+    "list all known workspaces between createdAfter and createdBefore " in {
+
+      withDir { containerDir =>
+        val client = WorkspaceClient(containerDir, system)
+        client.list().futureValue shouldBe empty
+
+        val before = agora.api.time.now()
+        client.upload("x", Upload.forText("file", "content")).futureValue.exists shouldBe true
+
+        client
+          .list(createdAfter = Option(before.minusSeconds(2)), createdBefore = Option(before.plusSeconds(2)))
+          .futureValue should contain only ("x")
+
+        client
+          .list(createdAfter = Option(before.plusSeconds(2)), createdBefore = Option(before.plusSeconds(3)))
+          .futureValue shouldBe empty
+      }
+    }
+  }
   "WorkspaceClient.upload" should {
 
     "not create directories unless files have been actually uploaded" in {
@@ -35,10 +99,11 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
   "WorkspaceClient.triggerUploadCheck" should {
     "reevaluate a workspace" in {
       withDir { containerDir =>
-        val workspace                 = UUID.randomUUID().toString
-        val client                    = WorkspaceClient(containerDir, system)
-        val started                   = agora.api.time.now()
-        val awaitFuture: Future[Path] = client.await(workspace, Set("some.file"), testTimeout.toMillis)
+        val workspace = UUID.randomUUID().toString
+        val client    = WorkspaceClient(containerDir, system)
+        val started   = agora.api.time.now()
+        val awaitFuture: Future[Path] =
+          client.await(workspace, Set("some.file"), testTimeout.toMillis)
 
         // give the workspace client some time to potentially find the non-existent file
         // this is always tough to do ... how long do you wait for something not to happen,
@@ -62,7 +127,7 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
              | ${path.nestedFiles().mkString("\n")}
              |
                  | and the test directory contents are:
-                 |
+             |
                  | ${containerDir.nestedFiles().mkString("\n")}
              |
                """.stripMargin
@@ -89,6 +154,57 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
     }
   }
   "WorkspaceClient.close" should {
+    "not close workspaces when ifNotModifiedSince is specified and the workspaces has been modified since" in {
+      withDir { containerDir =>
+        val client = WorkspaceClient(containerDir, system)
+        val before = agora.api.time.now().minusSeconds(1)
+        client.upload("hi", Upload.forText("x", "y")).futureValue
+        client.upload("hi", Upload.forText("second", "one")).futureValue
+
+        client.close("hi", ifNotModifiedSince = Option(before)).futureValue shouldBe false
+        client.list().futureValue should contain only ("hi")
+
+        val closed = client.close("hi", ifNotModifiedSince = Option(before.plusSeconds(10))).futureValue
+        closed shouldBe true
+        client.list().futureValue shouldBe empty
+      }
+    }
+    "not close workspaces when failPendingDependencies is false and there are pending dependencies" in {
+      withDir { containerDir =>
+        val client = WorkspaceClient(containerDir, system)
+
+        // we don't get an ack when an 'await' is received, so in this test we send one expectation which
+        // will never get fulfilled, followed by another which does. That way, but 'flushing' the subsequent
+        // await call, we have a better certainty that the first has been received
+        val neverGonnaFuture = client.await("ws1", Set("never.gonna.appear"), testTimeout.toMillis)
+        val fileOne          = client.await("ws1", Set("file.one"), testTimeout.toMillis)
+        client.upload("ws1", Upload.forText("file.one", "y")).futureValue.exists shouldBe true
+        fileOne.futureValue.exists shouldBe true
+        neverGonnaFuture.isCompleted shouldBe false
+
+        // call the method under test
+        withClue("we shouldn't be able to close a workspace while there are still things pending") {
+          client.close("ws1", failPendingDependencies = false).futureValue shouldBe false
+          client.list().futureValue should contain only ("ws1")
+        }
+
+        // verify we still are awaiting that dependency
+        withClue("the 'await' which never is satisfied should still be pending after the failed close call") {
+          neverGonnaFuture.isCompleted shouldBe false
+        }
+
+        // now allow it to kill the dependency
+        withClue("we should be able to close a workspace with things pending when failPendingDependencies is set") {
+          client.close("ws1", failPendingDependencies = true).futureValue shouldBe true
+        }
+        client.list().futureValue shouldBe empty
+
+        val exp = intercept[Exception] {
+          neverGonnaFuture.block
+        }
+        exp.getMessage should include("Workspace 'ws1' has been closed")
+      }
+    }
     "fail any pending await calls" in {
       withDir { containerDir =>
         val client      = WorkspaceClient(containerDir, system)
@@ -125,7 +241,10 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
     "return in error when not all uploads appear within a timeout" in {
       withDir { containerDir =>
         val client = WorkspaceClient(containerDir, system)
-        client.upload("some id", Upload.forText("i.wasUploaded", "123")).futureValue.exists shouldBe true
+        client
+          .upload("some id", Upload.forText("i.wasUploaded", "123"))
+          .futureValue
+          .exists shouldBe true
         val awaitFuture = client.await("some id", Set("i.wasUploaded", "i.wasnt"), 1)
         val err = intercept[Exception] {
           Await.result(awaitFuture, testTimeout)
@@ -143,19 +262,31 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
         dirFuture.isCompleted shouldBe false
 
         // upload one of the files
-        client.upload("some id", Upload.forText("file.one", "first file")).futureValue.exists shouldBe true
+        client
+          .upload("some id", Upload.forText("file.one", "first file"))
+          .futureValue
+          .exists shouldBe true
         dirFuture.isCompleted shouldBe false
 
         // upload a second, but with a different name
-        client.upload("some id", Upload.forText("file.three", "another file")).futureValue.exists shouldBe true
+        client
+          .upload("some id", Upload.forText("file.three", "another file"))
+          .futureValue
+          .exists shouldBe true
         dirFuture.isCompleted shouldBe false
 
         // upload file.two, but to a different session
-        client.upload("wrong session", Upload.forText("file.two", "different session")).futureValue.exists shouldBe true
+        client
+          .upload("wrong session", Upload.forText("file.two", "different session"))
+          .futureValue
+          .exists shouldBe true
         dirFuture.isCompleted shouldBe false
 
         // finally upload the file we expect in our 'some id' session.
-        client.upload("some id", Upload.forText("file.two", "finally ready!")).futureValue.exists shouldBe true
+        client
+          .upload("some id", Upload.forText("file.two", "finally ready!"))
+          .futureValue
+          .exists shouldBe true
         val sessionDir = dirFuture.futureValue
         sessionDir.children.map(_.fileName) should contain only ("file.one", "file.two", "file.three")
 

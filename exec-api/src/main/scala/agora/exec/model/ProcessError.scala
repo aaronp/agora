@@ -6,7 +6,10 @@ import io.circe.java8.time._
 import io.circe.parser._
 import agora.api.`match`.MatchDetails
 
-case class ProcessError(process: RunProcess, exitCode: Option[Int], matchDetails: Option[MatchDetails], stdErr: List[String])
+case class ProcessError(process: RunProcess,
+                        exitCode: Option[Int],
+                        matchDetails: Option[MatchDetails],
+                        stdErr: List[String])
 
 object ProcessError {
 

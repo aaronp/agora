@@ -21,11 +21,15 @@ trait LowPriorityIOImplicits {
 
     import scala.collection.JavaConverters._
 
-    def setText(str: String, charset: Charset = StandardCharsets.UTF_8, options: Set[OpenOption] = Set(StandardOpenOption.CREATE, StandardOpenOption.WRITE)) = {
+    def defaultWriteOpts: Set[OpenOption] = {
+      Set(StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)
+    }
+
+    def setText(str: String, charset: Charset = StandardCharsets.UTF_8, options: Set[OpenOption] = defaultWriteOpts) = {
       setBytes(str.getBytes(charset), options)
     }
 
-    def setBytes(bytes: Array[Byte], options: Set[OpenOption] = Set(StandardOpenOption.CREATE, StandardOpenOption.WRITE)) = {
+    def setBytes(bytes: Array[Byte], options: Set[OpenOption] = defaultWriteOpts) = {
       Files.write(path, bytes, options.toArray: _*)
       path
     }
@@ -58,7 +62,8 @@ trait LowPriorityIOImplicits {
 
     def text: String = getText()
 
-    def append(text: String): Path = withOutputStream(_.write(text.getBytes))(Set(StandardOpenOption.APPEND))
+    def append(text: String): Path =
+      withOutputStream(_.write(text.getBytes))(Set(StandardOpenOption.APPEND))
 
     def withOutputStream(withOS: OutputStream => Unit)(implicit options: Set[OpenOption]): Path = {
       val os = outputStream(options.toList: _*)

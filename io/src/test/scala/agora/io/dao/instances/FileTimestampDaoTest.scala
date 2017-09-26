@@ -1,11 +1,32 @@
 package agora.io.dao.instances
 
-import agora.BaseSpec
-import org.scalatest.FunSuite
+import java.time.{LocalDateTime, ZoneOffset}
 
-class FileTimestampDaoTest extends BaseSpec {
+import agora.BaseIOSpec
+import agora.io.dao.{FromBytes, HasId, Persist}
 
-  "FileTimestampDao.removeBefore" should {
-    "remove entries before a given time" in {}
+class FileTimestampDaoTest extends BaseIOSpec {
+
+  "FileTimestampDao.save" should {
+    "write down entries against thei timestamp" in {
+      withDir { dir =>
+        implicit val p = Persist.save[String]()
+        import HasId.implicits._
+        implicit val fromBytes = FromBytes.Utf8String
+
+        val dao = FileTimestampDao[String](dir)
+        dao.firstId shouldBe None
+        val timestamp = LocalDateTime.now(ZoneOffset.UTC)
+
+        // call the method under test
+        val test = dao.save("test", timestamp)
+
+        test.text shouldBe "test"
+
+        dao.find(timestamp, timestamp).toList should contain only ("test")
+        dao.find(timestamp.minusNanos(2), timestamp.minusNanos(1)).toList shouldBe empty
+        dao.find(timestamp.plusNanos(1), timestamp.plusNanos(2)).toList shouldBe empty
+      }
+    }
   }
 }

@@ -1,10 +1,10 @@
 package agora.io.dao
 
-import agora.BaseSpec
+import agora.BaseIOSpec
 
 import scala.collection.mutable.ListBuffer
 
-class IdDaoTest extends BaseSpec {
+class IdDaoTest extends BaseIOSpec {
 
   implicit val intFromBytes = FromBytes.Utf8String.map(_.toInt)
 

@@ -36,7 +36,10 @@ object StreamLogger {
   *
   * @param exitCodeHandler a function on what to return for the given exit code
   */
-case class StreamLogger(exitCodeHandler: Try[Int] => Stream[String]) extends ProcessLogger with AutoCloseable with StrictLogging {
+case class StreamLogger(exitCodeHandler: Try[Int] => Stream[String])
+    extends ProcessLogger
+    with AutoCloseable
+    with StrictLogging {
 
   private val q = new LinkedBlockingQueue[Either[Try[Int], String]]
 

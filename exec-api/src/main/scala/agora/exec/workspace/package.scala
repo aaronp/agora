@@ -4,11 +4,14 @@ import java.nio.file.Path
 import java.time.ZoneOffset
 
 import agora.api.time.Timestamp
+import org.slf4j.LoggerFactory
 
 package object workspace {
   type WorkspaceId = String
 
   def safeId(workspaceId: WorkspaceId) = workspaceId.filter(_.isLetterOrDigit)
+
+  private[this] val logger = LoggerFactory.getLogger(getClass)
 
   /** @param directory the directory to check
     * @param timestamp
@@ -25,6 +28,13 @@ package object workspace {
         file.lastModifiedMillis
       }
       val canRemove = mostRecentlyModified.lastModifiedMillis < epoch
+
+      if (logger.isTraceEnabled) {
+        val msg =
+          s"Most recently modified in $directory is $mostRecentlyModified at ${mostRecentlyModified.lastModified}, " +
+            s"so canRemove is $canRemove given ${mostRecentlyModified.lastModifiedMillis} < $timestamp ($epoch)"
+        logger.trace(msg)
+      }
 
       canRemove
     }

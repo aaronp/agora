@@ -1,8 +1,10 @@
 package agora.api.exchange
 
 import agora.api._
+import _root_.io.circe._
 import agora.api.`match`.MatchDetails
 import agora.api.exchange.instances.{ExchangeInstance, ExchangeState}
+import agora.api.json.{JMatcher, JPath, MatchAll}
 import agora.api.worker.{SubscriptionKey, WorkerDetails, WorkerRedirectCoords}
 
 import scala.concurrent.Future
@@ -40,7 +42,7 @@ trait Exchange {
     request match {
       case msg: WorkSubscription   => subscribe(msg)
       case msg: RequestWork        => take(msg)
-      case msg: UpdateSubscription => updateSubscriptionDetails(msg.id, msg.details)
+      case msg: UpdateSubscription => updateSubscriptionDetails(msg)
     }
   }
 
@@ -71,10 +73,16 @@ trait Exchange {
     * @param request the work subscription
     * @return an ack containing the key needed to request work items
     */
-  def subscribe(request: WorkSubscription) = onSubscriptionRequest(request).mapTo[WorkSubscriptionAck]
+  def subscribe(request: WorkSubscription) =
+    onSubscriptionRequest(request).mapTo[WorkSubscriptionAck]
 
-  def updateSubscriptionDetails(subscriptionKey: SubscriptionKey, details: WorkerDetails): Future[UpdateSubscriptionAck] = {
-    onSubscriptionRequest(UpdateSubscription(subscriptionKey, details)).mapTo[UpdateSubscriptionAck]
+  /**
+    * Updates the json subscription details referred to by the subscription key.
+    *
+    * @see [[UpdateSubscription]] for comments
+    */
+  def updateSubscriptionDetails(update: UpdateSubscription): Future[UpdateSubscriptionAck] = {
+    onSubscriptionRequest(update).mapTo[UpdateSubscriptionAck]
   }
 
   /** @param request the number of work items to request
@@ -84,7 +92,8 @@ trait Exchange {
 
   /** convenience method for pulling work items
     */
-  final def take(id: SubscriptionKey, itemsRequested: Int): Future[RequestWorkAck] = take(RequestWork(id, itemsRequested))
+  final def take(id: SubscriptionKey, itemsRequested: Int): Future[RequestWorkAck] =
+    take(RequestWork(id, itemsRequested))
 
   /**
     * Queue the state of the exchange
@@ -128,7 +137,8 @@ object Exchange {
     * @param matcher the match logic used to pair work with subscriptions
     * @return a new Exchange instance
     */
-  def apply(onMatch: OnMatch)(implicit matcher: JobPredicate) = new ExchangeInstance(new ExchangeState(), onMatch)
+  def apply(onMatch: OnMatch)(implicit matcher: JobPredicate) =
+    new ExchangeInstance(new ExchangeState(), onMatch)
 
   def instance(): Exchange = apply(MatchObserver())(JobPredicate())
 

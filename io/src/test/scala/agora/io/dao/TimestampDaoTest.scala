@@ -3,9 +3,9 @@ package agora.io.dao
 import java.nio.file.Path
 import java.time.LocalDateTime
 
-import agora.BaseSpec
+import agora.BaseIOSpec
 
-class TimestampDaoTest extends BaseSpec {
+class TimestampDaoTest extends BaseIOSpec {
 
   import TimestampDaoTest._
 

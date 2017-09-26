@@ -8,11 +8,11 @@ import com.typesafe.config.Config
 import scala.concurrent.duration._
 
 trait ExecApiConfig {
-  def execConfig: Config
+  def config: Config
 
-  def defaultFrameLength = execConfig.getInt("defaultFrameLength")
+  def defaultFrameLength = config.getInt("defaultFrameLength")
 
-  implicit def uploadTimeout: FiniteDuration = execConfig.getDuration("uploadTimeout", TimeUnit.MILLISECONDS).millis
+  implicit def uploadTimeout: FiniteDuration = config.getDuration("uploadTimeout", TimeUnit.MILLISECONDS).millis
 
   def clientConfig: ClientConfig
 

@@ -13,12 +13,22 @@ import scala.concurrent.{Await, Future}
 import scala.language.{implicitConversions, postfixOps}
 import scala.util.Properties
 
-class BaseSpec extends WordSpec with Matchers with ScalaFutures with LowPriorityIOImplicits with BeforeAndAfterAll {
+/**
+  * A base class for agora tests, exposing 'withDir' and some timeouts
+  *
+  * See http://www.scalatest.org/user_guide/defining_base_classes
+  */
+abstract class BaseIOSpec
+    extends WordSpec
+    with Matchers
+    with ScalaFutures
+    with LowPriorityIOImplicits
+    with BeforeAndAfterAll {
 
   /**
     * All the timeouts!
     */
-  implicit def testTimeout: FiniteDuration = 10.seconds
+  implicit def testTimeout: FiniteDuration = 5.seconds
 
   def testClassName = getClass.getSimpleName.filter(_.isLetterOrDigit)
 

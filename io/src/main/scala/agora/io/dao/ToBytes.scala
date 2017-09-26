@@ -3,9 +3,7 @@ package agora.io.dao
 /**
   * Typeclass to serialize a type to bytes
   *
-  * TODO - replace this with a better FP typeclass
-  *
-  * @tparam T
+  * @tparam T the value to convert
   */
 trait ToBytes[T] {
 
@@ -28,7 +26,10 @@ trait ToBytes[T] {
 }
 
 object ToBytes {
-  def instance[T](f: T => Array[Byte]) = new ToBytes[T] {
+
+  def instance[T: ToBytes] = implicitly[ToBytes[T]]
+
+  def lift[T](f: T => Array[Byte]) = new ToBytes[T] {
     override def bytes(value: T) = f(value)
   }
 

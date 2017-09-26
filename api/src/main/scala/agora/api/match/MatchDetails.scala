@@ -3,11 +3,19 @@ package `match`
 
 import java.time.{LocalDateTime, ZoneOffset}
 
-case class MatchDetails(matchId: MatchId, subscriptionKey: SubscriptionKey, jobId: JobId, remainingItems: Int, matchedAtEpochSecondUTC: Long)
+case class MatchDetails(matchId: MatchId,
+                        subscriptionKey: SubscriptionKey,
+                        jobId: JobId,
+                        remainingItems: Int,
+                        matchedAtEpochSecondUTC: Long)
 
 object MatchDetails {
 
-  def apply(matchId: MatchId, subscriptionKey: SubscriptionKey, jobId: JobId, remainingItems: Int, matchedAtEpochUTC: LocalDateTime) = {
+  def apply(matchId: MatchId,
+            subscriptionKey: SubscriptionKey,
+            jobId: JobId,
+            remainingItems: Int,
+            matchedAtEpochUTC: LocalDateTime) = {
     new MatchDetails(matchId, subscriptionKey, jobId, remainingItems, matchedAtEpochUTC.toEpochSecond(ZoneOffset.UTC))
   }
 

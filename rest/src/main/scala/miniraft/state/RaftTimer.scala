@@ -67,11 +67,13 @@ object InitialisableTimer {
     }
   }
 
-  def apply(label: String, min: FiniteDuration, max: FiniteDuration)(implicit factory: ActorRefFactory): InitialisableTimer = {
+  def apply(label: String, min: FiniteDuration, max: FiniteDuration)(
+      implicit factory: ActorRefFactory): InitialisableTimer = {
     apply(label, timeouts(min, max))
   }
 
-  def apply(label: String, nextTimeout: Iterator[FiniteDuration])(implicit factory: ActorRefFactory): InitialisableTimer = {
+  def apply(label: String, nextTimeout: Iterator[FiniteDuration])(
+      implicit factory: ActorRefFactory): InitialisableTimer = {
     forActor(label, factory.actorOf(props(label, nextTimeout)))
   }
 
@@ -206,9 +208,12 @@ object InitialisableTimer {
         promise.trySuccess(false)
     }
 
-    def awaitingTimeout(cancellable: akka.actor.Cancellable, due: ZonedDateTime, onTimeout: RaftTimer => Unit): Receive =
+    def awaitingTimeout(cancellable: akka.actor.Cancellable,
+                        due: ZonedDateTime,
+                        onTimeout: RaftTimer => Unit): Receive =
       wrap(s"$label awaiting timeout due at ${DateTimeFormatter.ISO_TIME.format(due)}") {
-        case StatusRequest(promise) => promise.trySuccess(s"$label awaiting timeout due at ${DateTimeFormatter.ISO_TIME.format(due)}")
+        case StatusRequest(promise) =>
+          promise.trySuccess(s"$label awaiting timeout due at ${DateTimeFormatter.ISO_TIME.format(due)}")
         case OnTimeout =>
           logger.debug(s"${label} timed out")
           onTimeout(asRaftTimer)
@@ -228,7 +233,9 @@ object RaftTimer {
 
   /** @return a stream of timeouts to represent a random range
     */
-  def timeouts(min: FiniteDuration, max: FiniteDuration, rnd: Random = new java.util.Random()): Iterator[FiniteDuration] = {
+  def timeouts(min: FiniteDuration,
+               max: FiniteDuration,
+               rnd: Random = new java.util.Random()): Iterator[FiniteDuration] = {
     require(min <= max, s"invalid range $min - $max")
     import concurrent.duration._
     val range = (max.toMillis - min.toMillis).toInt

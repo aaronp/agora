@@ -17,7 +17,8 @@ import scala.util.Properties
   */
 trait UploadDao {
 
-  def writeDown(inputFiles: List[Upload], options: Set[OpenOption] = UploadDao.DefaultWriteOptions)(implicit mat: Materializer): Future[List[Path]]
+  def writeDown(inputFiles: List[Upload], options: Set[OpenOption] = UploadDao.DefaultWriteOptions)(
+      implicit mat: Materializer): Future[List[Path]]
 }
 
 object UploadDao {
@@ -31,7 +32,8 @@ object UploadDao {
 
     override def toString = s"FileUploadDao($dir)"
 
-    def writeDown(inputFiles: List[Upload], options: Set[OpenOption] = UploadDao.DefaultWriteOptions)(implicit mat: Materializer): Future[List[Path]] = {
+    def writeDown(inputFiles: List[Upload], options: Set[OpenOption] = UploadDao.DefaultWriteOptions)(
+        implicit mat: Materializer): Future[List[Path]] = {
       import mat._
 
       /**

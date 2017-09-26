@@ -49,16 +49,17 @@ class RaftSteps extends ScalaDsl with EN with Matchers with TestData with ScalaF
     state.verifyNodeState(nodeId, expected)
 
   }
-  When("""^Node (.*) receives its RequestVote message, it should reply with$""") { (receivingNode: NodeId, responseTable: DataTable) =>
-    val List(row) = responseTable.toMap
-    val toNode    = row("to node")
+  When("""^Node (.*) receives its RequestVote message, it should reply with$""") {
+    (receivingNode: NodeId, responseTable: DataTable) =>
+      val List(row) = responseTable.toMap
+      val toNode    = row("to node")
 
-    state = state.flushSingleRequestVoteSentTo(receivingNode)
-    val resp = RequestVoteResponse(
-      Term(row("term").toInt),
-      row("granted").toBoolean
-    )
-    state.verifyHasResponse(toNode, receivingNode, resp)
+      state = state.flushSingleRequestVoteSentTo(receivingNode)
+      val resp = RequestVoteResponse(
+        Term(row("term").toInt),
+        row("granted").toBoolean
+      )
+      state.verifyHasResponse(toNode, receivingNode, resp)
   }
   When("""^Node (.*) receives its responses$""") { (nodeId: NodeId) =>
     state = state.flushResponsesTo(nodeId)
@@ -75,8 +76,9 @@ class RaftSteps extends ScalaDsl with EN with Matchers with TestData with ScalaF
     val expected = logTable.toMap.map(logFromTableRow)
     state.verifyLogForNode(nodeId, expected)
   }
-  When("""^Node (.*) receives its AppendEntries message, it should reply with$""") { (nodeId: String, appendEntriesReplyTable: DataTable) =>
-    state = state.flushAppendEntityMessageTo(nodeId)
+  When("""^Node (.*) receives its AppendEntries message, it should reply with$""") {
+    (nodeId: String, appendEntriesReplyTable: DataTable) =>
+      state = state.flushAppendEntityMessageTo(nodeId)
   }
   Then("""^Node (.*) should send the AppendEntries messages?$""") { (nodeId: String, appendTable: DataTable) =>
     val messagesByReceiver: List[(String, AppendEntries[String])] = appendTable.toMap.map { row =>
@@ -102,7 +104,8 @@ class RaftSteps extends ScalaDsl with EN with Matchers with TestData with ScalaF
     state = RaftTestState(Nil, Map.empty)
   }
 
-  implicit override def patienceConfig = PatienceConfig(timeout = scaled(Span(30.seconds.toSeconds, Seconds)), interval = scaled(Span(500, Millis)))
+  implicit override def patienceConfig =
+    PatienceConfig(timeout = scaled(Span(30.seconds.toSeconds, Seconds)), interval = scaled(Span(500, Millis)))
 }
 
 object RaftSteps {
@@ -146,7 +149,8 @@ object RaftSteps {
     rs.role match {
       case Candidate(c) =>
         val me = rs.persistentState.votedFor
-          .getOrElse(sys.error(s"Invalid step config: candidates always have to vote for themselves. rs.persistentState.votedFor was ${rs.persistentState.votedFor}"))
+          .getOrElse(sys.error(
+            s"Invalid step config: candidates always have to vote for themselves. rs.persistentState.votedFor was ${rs.persistentState.votedFor}"))
         require(
           c.votedFor.contains(me),
           "Attempt to put a candidate node in an invalid state, " +

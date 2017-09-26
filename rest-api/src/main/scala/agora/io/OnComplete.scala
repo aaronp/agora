@@ -18,7 +18,8 @@ object OnComplete {
   }
 }
 
-class OnComplete[In, Out](upstreamCallback: Option[Throwable] => Unit, downstreamCallback: () => Unit) extends GraphStage[FlowShape[In, Out]] {
+class OnComplete[In, Out](upstreamCallback: Option[Throwable] => Unit, downstreamCallback: () => Unit)
+    extends GraphStage[FlowShape[In, Out]] {
   val in: Inlet[In]    = Inlet[In]("OnComplete.in")
   val out: Outlet[Out] = Outlet[Out]("OnComplete.out")
 

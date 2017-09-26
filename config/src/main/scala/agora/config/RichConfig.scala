@@ -60,7 +60,10 @@ object RichConfig {
 
   private[config] object FilePathConfig {
     def unapply(path: String): Option[Config] = {
-      Option(Paths.get(path)).filter(p => Files.exists(p)).map(_.toFile).map(ConfigFactory.parseFileAnySyntax)
+      Option(Paths.get(path))
+        .filter(p => Files.exists(p))
+        .map(_.toFile)
+        .map(ConfigFactory.parseFileAnySyntax)
     }
   }
 

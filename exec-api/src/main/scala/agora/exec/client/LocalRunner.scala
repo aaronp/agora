@@ -13,7 +13,9 @@ import scala.util.{Failure, Success, Try}
 /**
   * Something which can execute [[RunProcess]]
   */
-case class LocalRunner(val workDir: Option[Path] = None)(implicit ec: ExecutionContext) extends ProcessRunner with StrictLogging {
+case class LocalRunner(val workDir: Option[Path] = None)(implicit ec: ExecutionContext)
+    extends ProcessRunner
+    with StrictLogging {
 
   override def toString = s"LocalRunner($workDir)"
 

@@ -40,7 +40,8 @@ abstract class SelectionMode(override val toString: String) {
 
 // sends the work to the first matching eligible worker
 case class SelectionFirst() extends SelectionMode("select-first") {
-  override def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
+  override def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(
+      implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
     values.take(1)
   }
   override val selectsMultiple: Boolean = false
@@ -48,7 +49,8 @@ case class SelectionFirst() extends SelectionMode("select-first") {
 
 // sends the work to all eligible workers
 case class SelectionAll() extends SelectionMode("select-all") {
-  override def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
+  override def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(
+      implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
     values
   }
 }
@@ -56,7 +58,8 @@ case class SelectionAll() extends SelectionMode("select-all") {
 // sends the work to all eligible workers
 case class SelectN(n: Int, fanOut: Boolean) extends SelectionMode(s"select-$n") {
 
-  override def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
+  override def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(
+      implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
     if (fanOut) {
       values.distinct.take(n)
     } else {
@@ -68,7 +71,8 @@ case class SelectN(n: Int, fanOut: Boolean) extends SelectionMode(s"select-$n") 
 // sends work to whichever has the maximum int value for the given property
 case class SelectIntMax(path: JPath) extends SelectionMode("select-int-nax") {
 
-  override def select[Coll <: SeqLike[Candidate, Coll]](collection: Coll)(implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
+  override def select[Coll <: SeqLike[Candidate, Coll]](collection: Coll)(
+      implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
     val values = collection.flatMap {
       case pear @ Candidate(_, work, n) =>
         path.apply(work.details.aboutMe).flatMap { value =>
@@ -105,7 +109,8 @@ object SelectionMode {
   implicit object SelectionModeFormat extends Encoder[SelectionMode] with Decoder[SelectionMode] {
     override def apply(mode: SelectionMode): Json = {
       mode match {
-        case SelectN(n, fanOut) => Json.obj("select" -> Json.fromInt(n), "fanOut" -> Json.fromBoolean(fanOut))
+        case SelectN(n, fanOut) =>
+          Json.obj("select" -> Json.fromInt(n), "fanOut" -> Json.fromBoolean(fanOut))
         case SelectIntMax(path) => Json.obj("max" -> path.json)
         case _                  => Json.fromString(mode.toString)
       }

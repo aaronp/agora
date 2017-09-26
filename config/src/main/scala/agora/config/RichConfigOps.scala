@@ -6,6 +6,7 @@ import com.typesafe.config._
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.language.implicitConversions
+import scala.language.postfixOps
 import scala.util.Try
 
 /**
@@ -65,12 +66,14 @@ trait RichConfigOps extends RichConfig.LowPriorityImplicits {
     }
 
     val configs: Array[Config] = args.map {
-      case KeyValue(k, v) if isSimpleList(k) => asConfig(k, java.util.Arrays.asList(v.split(",", -1): _*))
-      case KeyValue(k, v) if isObjectList(k) => sys.error(s"Path '$k' tried to override an object list with '$v'")
-      case KeyValue(k, v)                    => asConfig(k, v)
-      case FilePathConfig(c)                 => c
-      case UrlPathConfig(c)                  => c
-      case other                             => unrecognizedArg(other)
+      case KeyValue(k, v) if isSimpleList(k) =>
+        asConfig(k, java.util.Arrays.asList(v.split(",", -1): _*))
+      case KeyValue(k, v) if isObjectList(k) =>
+        sys.error(s"Path '$k' tried to override an object list with '$v'")
+      case KeyValue(k, v)    => asConfig(k, v)
+      case FilePathConfig(c) => c
+      case UrlPathConfig(c)  => c
+      case other             => unrecognizedArg(other)
     }
 
     (configs :+ config).reduce(_ withFallback _)
@@ -114,7 +117,8 @@ trait RichConfigOps extends RichConfig.LowPriorityImplicits {
 
   def filterNot(path: String => Boolean) = without(paths.filter(path))
 
-  def describe(implicit opts: ConfigRenderOptions = concise().setFormatted(true)) = config.root.render(opts)
+  def describe(implicit opts: ConfigRenderOptions = concise().setFormatted(true)) =
+    config.root.render(opts)
 
   def json = config.root.render(ConfigRenderOptions.concise().setJson(true))
 

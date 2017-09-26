@@ -11,7 +11,8 @@ import scala.reflect.ClassTag
 object SentRequest {
 
   val VoteRequestHeader = List("type", "to node", "term", "last log index", "last log term")
-  val AppendHeader      = List("type", "to node", "term", "leader id", "commit index", "prev log index", "prev log term", "entry")
+  val AppendHeader =
+    List("type", "to node", "term", "leader id", "commit index", "prev log index", "prev log term", "entry")
 }
 
 case class SentRequest(from: NodeId, to: NodeId, req: RaftRequest) {
@@ -42,7 +43,8 @@ case class SentRequest(from: NodeId, to: NodeId, req: RaftRequest) {
         val data = List[Any]("RequestVote", to, term, lastLogIndex, lastLogTerm)
         fmt(VoteRequestHeader, data :: Nil)
       case AppendEntries(Term(term), leaderId, commitIndex, prevLogIndex, Term(prevLogTerm), entries) =>
-        val data = List[Any]("AppendEntries", to, term, leaderId, commitIndex, prevLogIndex, prevLogTerm, entries.getOrElse(""))
+        val data =
+          List[Any]("AppendEntries", to, term, leaderId, commitIndex, prevLogIndex, prevLogTerm, entries.getOrElse(""))
         fmt(AppendHeader, data :: Nil)
     }
   }
@@ -54,7 +56,9 @@ case class SentResponse(sent: SentRequest, resp: RaftResponse) {
   }
 }
 
-case class RaftTestState(nodes: List[TestNodeLogic], transportById: Map[NodeId, BufferedTransport], clientResponses: List[UpdateResponse] = Nil)
+case class RaftTestState(nodes: List[TestNodeLogic],
+                         transportById: Map[NodeId, BufferedTransport],
+                         clientResponses: List[UpdateResponse] = Nil)
     extends Matchers
     with AppendedClues
     with ScalaFutures {
@@ -233,7 +237,8 @@ case class RaftTestState(nodes: List[TestNodeLogic], transportById: Map[NodeId, 
     val server                    = serverForId(nodeId)
     val actual: RaftState[String] = server.logic.raftState
 
-    withClue(s"\n===== EXPECTED ======\n\n${expected}\n\n===== ACTUAL ====\n${actual}\n\n=================\n${toString}\n\n") {
+    withClue(
+      s"\n===== EXPECTED ======\n\n${expected}\n\n===== ACTUAL ====\n${actual}\n\n=================\n${toString}\n\n") {
       actual shouldBe expected
     }
   }

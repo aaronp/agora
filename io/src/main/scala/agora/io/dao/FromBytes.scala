@@ -6,12 +6,14 @@ import scala.util.{Success, Try}
   * Typeclass to serialize a type from a byte array
   *
   * TODO - replace this with a better FP typeclass
+  *
   * @tparam T
   */
 trait FromBytes[T] {
 
   /**
     * Unmarshalls the byte array into the given type
+    *
     * @param bytes the bytes to unmarshall
     * @return the T wrapped in a Try
     */
@@ -27,7 +29,9 @@ trait FromBytes[T] {
 
 object FromBytes {
 
-  def instance[T](f: Array[Byte] => Try[T]) = new FromBytes[T] {
+  def instance[T: FromBytes] = implicitly[FromBytes[T]]
+
+  def lift[T](f: Array[Byte] => Try[T]) = new FromBytes[T] {
     override def read(bytes: Array[Byte]) = f(bytes)
   }
 

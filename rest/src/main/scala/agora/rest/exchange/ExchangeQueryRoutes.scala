@@ -44,7 +44,11 @@ trait ExchangeQueryRoutes extends FailFastCirceSupport {
   )
   @ApiImplicitParams(
     Array(
-      new ApiImplicitParam(name = "body", value = "a queue filter", required = true, dataTypeClass = classOf[QueueState], paramType = "body")
+      new ApiImplicitParam(name = "body",
+                           value = "a queue filter",
+                           required = true,
+                           dataTypeClass = classOf[QueueState],
+                           paramType = "body")
     ))
   @ApiResponses(
     Array(
@@ -60,7 +64,8 @@ trait ExchangeQueryRoutes extends FailFastCirceSupport {
     }
   }
 
-  private implicit def listSubscriptionEncoder: Encoder[List[PendingSubscription]] = exportEncoder[List[PendingSubscription]].instance
+  private implicit def listSubscriptionEncoder: Encoder[List[PendingSubscription]] =
+    exportEncoder[List[PendingSubscription]].instance
 
   @Path("/rest/exchange/subscriptions")
   @ApiOperation(

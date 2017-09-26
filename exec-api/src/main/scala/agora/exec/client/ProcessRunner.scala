@@ -3,12 +3,11 @@ package agora.exec.client
 import java.nio.file.Path
 
 import agora.api.exchange.Exchange
+import agora.exec.ExecApiConfig
 import agora.exec.model._
 import agora.exec.workspace.WorkspaceId
-import agora.rest.ClientConfig
-import agora.rest.exchange.ExchangeRestClient
+import akka.stream.Materializer
 
-import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.reflectiveCalls
 
@@ -58,12 +57,12 @@ trait ProcessRunner {
     future.mapTo[StreamingResult]
   }
 
-  final def stream(command: String, args: String*): Future[StreamingResult] = stream(RunProcess(command :: args.toList))
+  final def stream(command: String, args: String*): Future[StreamingResult] =
+    stream(RunProcess(command :: args.toList))
 
 }
 
 object ProcessRunner {
-  //type ProcessOutput = Future[Iterator[String]]
 
   /**
     * Creates a local runner.
@@ -84,8 +83,8 @@ object ProcessRunner {
     * @param exchange the worker client used to send requests
     * @return a runner which executes stuff remotely
     */
-  def apply(exchange: Exchange, clientConfig: ClientConfig, defaultFrameLen: Int) = {
-    RemoteRunner(exchange, clientConfig, defaultFrameLen)
+  def apply(exchange: Exchange, execApiConfig: ExecApiConfig)(implicit mat: Materializer) = {
+    RemoteRunner(exchange, execApiConfig)
   }
 
 }

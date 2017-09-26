@@ -27,15 +27,23 @@ trait ExchangeSpec extends BaseSpec with Eventually with Implicits {
 
   s"$exchangeName.submit" should {
 
-    def newSubscription(name: String) = WorkSubscription.forDetails(WorkerDetails(HostLocation.localhost(1234))).append("name", name)
+    def newSubscription(name: String) =
+      WorkSubscription.forDetails(WorkerDetails(HostLocation.localhost(1234))).append("name", name)
 
     "match against orElse clauses if the original match criteria doesn't match" in {
 
-      val job        = "some job".asJob.matching("topic" === "primary").orElse("topic" === "secondary").orElse("topic" === "tertiary").withId("someJobId")
-      val anotherJob = "another job".asJob.matching(JMatcher.matchNone).withId("anotherId").withAwaitMatch(false)
+      val job = "some job".asJob
+        .matching("topic" === "primary")
+        .orElse("topic" === "secondary")
+        .orElse("topic" === "tertiary")
+        .withId("someJobId")
+      val anotherJob =
+        "another job".asJob.matching(JMatcher.matchNone).withId("anotherId").withAwaitMatch(false)
 
-      val primary  = newSubscription("primary").append("topic", "primary").withSubscriptionKey("primary key")
-      val tertiary = newSubscription("tertiary").append("topic", "tertiary").withSubscriptionKey("tertiary key")
+      val primary =
+        newSubscription("primary").append("topic", "primary").withSubscriptionKey("primary key")
+      val tertiary =
+        newSubscription("tertiary").append("topic", "tertiary").withSubscriptionKey("tertiary key")
 
       // verify some preconditions
       withClue("precondition proof that the subscriptions match the jobs as expected") {
@@ -68,19 +76,20 @@ trait ExchangeSpec extends BaseSpec with Eventually with Implicits {
       // submit our 'fallback' job. For tests w/ local exchanges (e.g. ones where 'supportsObserverNotifications' is
       // true), The 'awaitMatch' has no effect, and we use the observerr directly. For remote cases (where
       // 'supportsObserverNotifications' is false), we can block and case the response future as a BlockingSubmitJobResponse
-      val BlockingSubmitJobResponse(_, _, _, workerCoords, workerDetails) = if (supportsObserverNotifications) {
-        // await our match...
-        val matchFuture = obs.onJob(job)
+      val BlockingSubmitJobResponse(_, _, _, workerCoords, workerDetails) =
+        if (supportsObserverNotifications) {
+          // await our match...
+          val matchFuture = obs.onJob(job)
 
-        // submit the job
-        val submitResponse = exchange.submit(job).futureValue
-        submitResponse shouldBe SubmitJobResponse(job.jobId.get)
+          // submit the job
+          val submitResponse = exchange.submit(job).futureValue
+          submitResponse shouldBe SubmitJobResponse(job.jobId.get)
 
-        matchFuture.futureValue
-      } else {
-        val submitResponse = exchange.submit(job.withAwaitMatch(true)).futureValue
-        submitResponse.asInstanceOf[BlockingSubmitJobResponse]
-      }
+          matchFuture.futureValue
+        } else {
+          val submitResponse = exchange.submit(job.withAwaitMatch(true)).futureValue
+          submitResponse.asInstanceOf[BlockingSubmitJobResponse]
+        }
 
       workerCoords should contain only (WorkerRedirectCoords(HostLocation("localhost", 1234), "tertiary key", 2))
       workerDetails should contain only (tertiary.details)
@@ -95,7 +104,9 @@ trait ExchangeSpec extends BaseSpec with Eventually with Implicits {
 
       // we should've matched tertiary
       if (supportsObserverNotifications) {
-        notifications should contain only (MatchNotification("someJobId", job, List(Candidate(tertiary.key.get, tertiary, 2))))
+        notifications should contain only (MatchNotification("someJobId",
+                                                             job,
+                                                             List(Candidate(tertiary.key.get, tertiary, 2))))
       }
     }
   }
@@ -104,14 +115,17 @@ trait ExchangeSpec extends BaseSpec with Eventually with Implicits {
       val obs          = MatchObserver()
       val ex: Exchange = newExchange(obs)
 
-      val subscription: WorkSubscriptionAck = ex.subscribe(WorkSubscription(HostLocation.localhost(1234))).futureValue
+      val subscription: WorkSubscriptionAck =
+        ex.subscribe(WorkSubscription(HostLocation.localhost(1234))).futureValue
 
       // check out queue
       val subscriptions = ex.queueState().futureValue.subscriptions.map(_.key)
       subscriptions should contain only (subscription.id)
 
       // call the method under test
-      ex.cancelSubscriptions(subscription.id, "unknown").futureValue.canceledSubscriptions shouldBe Map(subscription.id -> true, "unknown" -> false)
+      ex.cancelSubscriptions(subscription.id, "unknown").futureValue.canceledSubscriptions shouldBe Map(
+        subscription.id -> true,
+        "unknown"       -> false)
 
       // check out queue
       val afterCancel = ex.queueState().futureValue.subscriptions
@@ -148,7 +162,11 @@ trait ExchangeSpec extends BaseSpec with Eventually with Implicits {
         }
         val ex: Exchange = newExchange(obs)
 
-        val jobId   = ex.submit(DoubleMe(11).asJob.withAwaitMatch(false)).futureValue.asInstanceOf[SubmitJobResponse].id
+        val jobId = ex
+          .submit(DoubleMe(11).asJob.withAwaitMatch(false))
+          .futureValue
+          .asInstanceOf[SubmitJobResponse]
+          .id
         val jobPath = ("value" gt 7) and ("value" lt 17)
 
         val sub = WorkSubscription(HostLocation.localhost(1234), jobMatcher = jobPath)

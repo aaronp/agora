@@ -27,13 +27,20 @@ class MultipartBuilder(defaultSourceContentType: ContentType) {
 
   def parts: List[FormData.BodyPart] = partsList
 
-  def fromPath(file: Path, chunkSize: Int = -1, contentType: ContentType = defaultSourceContentType, fileName: String = null): MultipartBuilder = {
+  def fromPath(file: Path,
+               chunkSize: Int = -1,
+               contentType: ContentType = defaultSourceContentType,
+               fileName: String = null): MultipartBuilder = {
     val entity  = HttpEntity.fromPath(contentType, file, chunkSize)
     val fileKey = Option(fileName).orElse(Option(file.getFileName.toString))
     add(fileKey.get, entity, fileKey)
   }
 
-  def fromStrictSource(key: String, length: Long, data: Source[ByteString, Any], contentType: ContentType = defaultSourceContentType, fileName: String = null): MultipartBuilder = {
+  def fromStrictSource(key: String,
+                       length: Long,
+                       data: Source[ByteString, Any],
+                       contentType: ContentType = defaultSourceContentType,
+                       fileName: String = null): MultipartBuilder = {
     val entity: BodyPartEntity = HttpEntity.Default(contentType, length, data)
     add(key, entity, Option(fileName))
   }
@@ -72,6 +79,7 @@ class MultipartBuilder(defaultSourceContentType: ContentType) {
 }
 
 object MultipartBuilder {
-  def apply(defaultSourceContentType: ContentType = `text/plain(UTF-8)`): MultipartBuilder = new MultipartBuilder(defaultSourceContentType)
+  def apply(defaultSourceContentType: ContentType = `text/plain(UTF-8)`): MultipartBuilder =
+    new MultipartBuilder(defaultSourceContentType)
 
 }

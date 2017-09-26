@@ -29,7 +29,8 @@ trait RaftNode[T] extends RaftEndpoint[T] {
 
 object RaftNode {
 
-  def apply[T: ClassTag](logic: RaftNodeLogic[T], protocol: ClusterProtocol)(implicit factory: ActorRefFactory): async.RaftNodeActorClient[T] = {
+  def apply[T: ClassTag](logic: RaftNodeLogic[T], protocol: ClusterProtocol)(
+      implicit factory: ActorRefFactory): async.RaftNodeActorClient[T] = {
     val nodeProps = async.nodeProps[T](logic, protocol)
     val actor     = factory.actorOf(nodeProps)
     async[T](logic.id, actor)
@@ -42,11 +43,15 @@ object RaftNode {
     * @tparam T the command message type represented by the raft node
     * @return a [[miniraft.state.RaftNode.async.RaftNodeActorClient]]
     */
-  def apply[T: ClassTag](logic: RaftNodeLogic[T], clusterNodesById: Map[NodeId, RaftEndpoint[T]], electionTimer: RaftTimer, heartbeatTimer: RaftTimer)(
+  def apply[T: ClassTag](logic: RaftNodeLogic[T],
+                         clusterNodesById: Map[NodeId, RaftEndpoint[T]],
+                         electionTimer: RaftTimer,
+                         heartbeatTimer: RaftTimer)(
       implicit factory: ActorRefFactory): (async.RaftNodeActorClient[T], async.ActorNodeProtocol[T]) = {
 
     // chicken/egg ... a protocol which has to know about the node/actor, and the actor needs the protocol
-    val protocol = new async.ActorNodeProtocol[T](logic.id, clusterNodesById, electionTimer, heartbeatTimer)(factory.dispatcher)
+    val protocol =
+      new async.ActorNodeProtocol[T](logic.id, clusterNodesById, electionTimer, heartbeatTimer)(factory.dispatcher)
     // egg...
     val actor = factory.actorOf(async.nodeProps[T](logic, protocol))
     protocol.initialise(actor)
@@ -65,7 +70,8 @@ object RaftNode {
 
   object async {
 
-    def apply[T](id: NodeId, raftNodeActor: ActorRef): RaftNodeActorClient[T] = new RaftNodeActorClient[T](id, raftNodeActor)
+    def apply[T](id: NodeId, raftNodeActor: ActorRef): RaftNodeActorClient[T] =
+      new RaftNodeActorClient[T](id, raftNodeActor)
 
     sealed trait RaftNodeMessage
 
@@ -128,7 +134,9 @@ object RaftNode {
       Props(new RaftNodeActor[T](logic, protocol))
     }
 
-    class RaftNodeActor[T: ClassTag](logic: RaftNodeLogic[T], protocol: ClusterProtocol) extends Actor with StrictLogging {
+    class RaftNodeActor[T: ClassTag](logic: RaftNodeLogic[T], protocol: ClusterProtocol)
+        extends Actor
+        with StrictLogging {
       implicit def ec = context.dispatcher
 
       def onMessage(msg: RaftNodeMessage): Unit = msg match {
@@ -164,9 +172,15 @@ object RaftNode {
       override def receive: Receive = handler()
     }
 
-    private[state] class ActorNodeProtocol[T](ourNodeId: NodeId, clusterNodesById: Map[NodeId, RaftEndpoint[T]], raftElectionTimer: RaftTimer, raftHeartbeatTimer: RaftTimer)(
-        override implicit val executionContext: ExecutionContext)
-        extends ClusterProtocol.BaseProtocol[T](ourNodeId: NodeId, clusterNodesById: Map[NodeId, RaftEndpoint[T]], raftElectionTimer: RaftTimer, raftHeartbeatTimer)
+    private[state] class ActorNodeProtocol[T](
+        ourNodeId: NodeId,
+        clusterNodesById: Map[NodeId, RaftEndpoint[T]],
+        raftElectionTimer: RaftTimer,
+        raftHeartbeatTimer: RaftTimer)(override implicit val executionContext: ExecutionContext)
+        extends ClusterProtocol.BaseProtocol[T](ourNodeId: NodeId,
+                                                clusterNodesById: Map[NodeId, RaftEndpoint[T]],
+                                                raftElectionTimer: RaftTimer,
+                                                raftHeartbeatTimer)
         with StrictLogging {
       private var raftNodeActor: ActorRef = null
 
@@ -175,7 +189,10 @@ object RaftNode {
         raftNodeActor = ref
       }
 
-      override def onResponse(from: NodeId, endpoint: RaftEndpoint[T], raftRequest: RaftRequest, response: RaftResponse): Unit = {
+      override def onResponse(from: NodeId,
+                              endpoint: RaftEndpoint[T],
+                              raftRequest: RaftRequest,
+                              response: RaftResponse): Unit = {
         logger.debug(s"$from replied to $ourNodeId with $response")
         raftNodeActor ! OnResponse(from, response)
       }

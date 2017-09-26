@@ -1,11 +1,11 @@
 package agora.api.exchange
 
+import agora.BaseSpec
 import agora.api.Implicits._
-import org.scalatest.{Matchers, WordSpec}
 
 import scala.language.reflectiveCalls
 
-class SubmitJobTest extends WordSpec with Matchers {
+class SubmitJobTest extends BaseSpec {
 
   "SubmitJob.withId" should {
     "overwrite previous values" in {

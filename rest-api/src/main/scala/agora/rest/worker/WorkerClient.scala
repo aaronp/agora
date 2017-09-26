@@ -24,9 +24,11 @@ import scala.concurrent.{ExecutionContext, Future}
   *
   * @param rest
   */
-case class WorkerClient(rest: RestClient, path: String, matchDetails: MatchDetails, workerDetails: WorkerDetails) {
+case class WorkerClient(rest: RestClient, matchDetails: MatchDetails, workerDetails: WorkerDetails) {
 
   import WorkerClient._
+
+  def path = workerDetails.path
 
   protected implicit def mat = rest.materializer
 
@@ -38,7 +40,8 @@ case class WorkerClient(rest: RestClient, path: String, matchDetails: MatchDetai
     sendDirect(newRequest(request))
   }
 
-  def send(req: HttpRequest): Future[HttpResponse] = sendDirect(req.withHeaders(MatchDetailsExtractor.headersFor(matchDetails)))
+  def send(req: HttpRequest): Future[HttpResponse] =
+    sendDirect(req.withHeaders(MatchDetailsExtractor.headersFor(matchDetails)))
 
   private def sendDirect(req: HttpRequest): Future[HttpResponse] = rest.send(req)
 
@@ -55,7 +58,7 @@ object WorkerClient extends FailFastCirceSupport with LazyLogging {
 
   def apply(conf: ClientConfig, dispatch: Dispatch[_]): WorkerClient = {
     val rest = conf.clientFor(dispatch.location)
-    new WorkerClient(rest, dispatch.path, dispatch.matchDetails, dispatch.matchedWorker)
+    new WorkerClient(rest, dispatch.matchDetails, dispatch.matchedWorker)
   }
 
   def health(restClient: RestClient): Future[HealthDto] = {
@@ -65,20 +68,23 @@ object WorkerClient extends FailFastCirceSupport with LazyLogging {
     }
   }
 
-  def multipartRequest(path: String, matchDetails: MatchDetails, multipart: Multipart)(implicit ec: ExecutionContext): HttpRequest = {
+  def multipartRequest(path: String, matchDetails: MatchDetails, multipart: Multipart)(
+      implicit ec: ExecutionContext): HttpRequest = {
     val httpRequest: HttpRequest = WorkerHttp(path, multipart)
     val headers                  = MatchDetailsExtractor.headersFor(matchDetails)
     httpRequest.withHeaders(headers ++ httpRequest.headers)
   }
 
-  def dispatchRequest[T: ToEntityMarshaller](path: String, matchDetails: MatchDetails, request: T)(implicit ec: ExecutionContext): HttpRequest = {
+  def dispatchRequest[T: ToEntityMarshaller](path: String, matchDetails: MatchDetails, request: T)(
+      implicit ec: ExecutionContext): HttpRequest = {
     val httpRequest: HttpRequest = WorkerHttp(path, request)
     val headers                  = MatchDetailsExtractor.headersFor(matchDetails)
     httpRequest.withHeaders(headers)
   }
 
   def anEncoder[T](req: T)(implicit encoder: Encoder[T]): Marshaller[T, MessageEntity] = {
-    val sm: Marshaller[Json, MessageEntity] = Marshaller.StringMarshaller.wrap(MediaTypes.`application/json`)((_: Json).noSpaces)
+    val sm: Marshaller[Json, MessageEntity] =
+      Marshaller.StringMarshaller.wrap(MediaTypes.`application/json`)((_: Json).noSpaces)
     sm.compose(encoder.apply)
   }
 

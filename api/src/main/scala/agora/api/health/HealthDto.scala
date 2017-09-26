@@ -3,15 +3,20 @@ package agora.api.health
 import java.lang.management.{ManagementFactory, MemoryMXBean}
 import java.time.{LocalDateTime, ZoneOffset}
 
-import agora.api.exchange.{Exchange, UpdateSubscriptionAck}
-import agora.api.worker.{SubscriptionKey, WorkerDetails}
+import agora.api.exchange.{Exchange, UpdateSubscription, UpdateSubscriptionAck}
+import agora.api.worker.SubscriptionKey
 import io.circe.generic.auto.{exportDecoder, exportEncoder}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-case class HealthDto(asOf: LocalDateTime, system: SystemDto, heapMemoryUsage: MemoryDto, nonHeapMemoryUsage: MemoryDto, objectPendingFinalizationCount: Int) {
+case class HealthDto(asOf: LocalDateTime,
+                     system: SystemDto,
+                     heapMemoryUsage: MemoryDto,
+                     nonHeapMemoryUsage: MemoryDto,
+                     objectPendingFinalizationCount: Int) {
 
-  def updateHealth(exchange: Exchange, key: SubscriptionKey)(implicit ec: ExecutionContext): Future[UpdateSubscriptionAck] = {
+  def updateHealth(exchange: Exchange, key: SubscriptionKey)(
+      implicit ec: ExecutionContext): Future[UpdateSubscriptionAck] = {
     HealthDto.updateHealth(exchange, key, this)
   }
 
@@ -38,7 +43,8 @@ object HealthDto extends io.circe.java8.time.TimeInstances {
     *
     * @return the update ack
     */
-  def updateHealth(exchange: Exchange, key: SubscriptionKey, health: HealthDto = HealthDto())(implicit ec: ExecutionContext): Future[UpdateSubscriptionAck] = {
-    exchange.updateSubscriptionDetails(key, WorkerDetails.empty.append("health", health))
+  def updateHealth(exchange: Exchange, key: SubscriptionKey, health: HealthDto = HealthDto())(
+      implicit ec: ExecutionContext): Future[UpdateSubscriptionAck] = {
+    exchange.updateSubscriptionDetails(UpdateSubscription.append(key, "health", health))
   }
 }

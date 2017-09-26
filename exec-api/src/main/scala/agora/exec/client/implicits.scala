@@ -21,8 +21,8 @@ trait ExecConversionImplicits extends RestConversionImplicits {
 
     new AsClient[RunProcess, RunProcessResult] {
       override def dispatch(dispatch: Dispatch[RunProcess]) = {
-        val rest                       = config.clientConfig.clientFor(dispatch.matchedWorker.location)
-        val client                     = ExecutionClient(rest, config.defaultFrameLength)(config.uploadTimeout)
+        val rest   = config.clientConfig.clientFor(dispatch.matchedWorker.location)
+        val client = ExecutionClient(rest, config.defaultFrameLength)(config.uploadTimeout)
         client.run(dispatch.request)
       }
     }

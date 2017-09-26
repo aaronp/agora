@@ -2,7 +2,7 @@ package agora.api.json
 
 import io.circe.Decoder.Result
 import io.circe._
-import io.circe.generic.auto.{exportDecoder, exportEncoder}
+import io.circe.generic.auto.exportEncoder
 import io.circe.syntax._
 
 /**
@@ -33,7 +33,7 @@ sealed trait JMatcher {
 
   final def or(other: JPath): JMatcher = or(other.asMatcher)
 
-  final def asNot = MatchNot(this)
+  def asNot: JMatcher = MatchNot(this)
 }
 
 object JMatcher {
@@ -56,6 +56,7 @@ object JMatcher {
       }
     }
   }
+
   implicit object JMatcherJson extends Encoder[JMatcher] with Decoder[JMatcher] {
     override def apply(jsonMatcher: JMatcher): Json = {
       jsonMatcher match {
@@ -77,19 +78,26 @@ object JMatcher {
 
       def asMatchAll: Result[JMatcher] = c.as[String] match {
         case Right("match-all") => Right(MatchAll): Result[JMatcher]
-        case Right(other)       => Left(DecodingFailure(s"Expected 'match-all', but got '$other'", c.history)): Result[JMatcher]
-        case left: Result[_]    => left.asInstanceOf[Result[JMatcher]]
+        case Right(other) =>
+          Left(DecodingFailure(s"Expected 'match-all', but got '$other'", c.history)): Result[JMatcher]
+        case left: Result[_] => left.asInstanceOf[Result[JMatcher]]
       }
 
       def asMatchNone: Result[JMatcher] = c.as[String] match {
         case Right("match-none") => Right(MatchNone): Result[JMatcher]
-        case Right(other)        => Left(DecodingFailure(s"Expected 'match-all', but got '$other'", c.history)): Result[JMatcher]
-        case left: Result[_]     => left.asInstanceOf[Result[JMatcher]]
+        case Right(other) =>
+          Left(DecodingFailure(s"Expected 'match-all', but got '$other'", c.history)): Result[JMatcher]
+        case left: Result[_] => left.asInstanceOf[Result[JMatcher]]
       }
 
       import io.circe.generic.auto._
       val exists: Result[JMatcher] = c.downField("exists").as[JPath].map(p => ExistsMatcher(p))
-      exists.orElse(asMatchAll).orDecode[MatchAnd](c).orDecode[MatchOr](c).orDecode[MatchNot](c).orElse(asMatchNone)
+      exists
+        .orElse(asMatchAll)
+        .orDecode[MatchAnd](c)
+        .orDecode[MatchOr](c)
+        .orDecode[MatchNot](c)
+        .orElse(asMatchNone)
     }
   }
 
@@ -108,11 +116,20 @@ case class MatchNot(not: JMatcher) extends JMatcher {
     !not.matches(json)
   }
 
+  override def asNot = not match {
+    case MatchNot(twoNots) => twoNots
+    case _                 => super.asNot
+  }
+
   override def toString = s"not($not)"
 }
 
 object MatchAll extends JMatcher {
   override def matches(json: Json): Boolean = true
+
+  override def and(other: JMatcher): JMatcher = other
+
+  override def or(other: JMatcher): JMatcher = this
 }
 
 object MatchNone extends JMatcher {
@@ -122,11 +139,14 @@ object MatchNone extends JMatcher {
 case class MatchOr(or: List[JMatcher]) extends JMatcher {
   override def matches(json: Json): Boolean = or.exists(_.matches(json))
 
+  override def or(other: JMatcher): JMatcher = copy(other :: or)
+
   override def toString = or.mkString("(", " || ", "")
 }
 
 object MatchOr {
-  def apply(first: JMatcher, second: JMatcher, theRest: JMatcher*): MatchOr = MatchOr(first :: second :: theRest.toList)
+  def apply(first: JMatcher, second: JMatcher, theRest: JMatcher*): MatchOr =
+    MatchOr(first :: second :: theRest.toList)
 
   implicit object Format extends Encoder[MatchOr] with Decoder[MatchOr] {
     override def apply(a: MatchOr): Json = {
@@ -138,16 +158,19 @@ object MatchOr {
       c.downField("or").as[List[JMatcher]].right.map(list => MatchOr(list.toList))
     }
   }
+
 }
 
 case class MatchAnd(and: List[JMatcher]) extends JMatcher {
   override def matches(json: Json): Boolean = and.forall(_.matches(json))
 
-  override def toString = and.mkString("(", " && ", "")
+  override def and(other: JMatcher): JMatcher = copy(other :: and)
+  override def toString                       = and.mkString("(", " && ", "")
 }
 
 object MatchAnd {
-  def apply(first: JMatcher, second: JMatcher, theRest: JMatcher*): MatchAnd = MatchAnd(first :: second :: theRest.toList)
+  def apply(first: JMatcher, second: JMatcher, theRest: JMatcher*): MatchAnd =
+    MatchAnd(first :: second :: theRest.toList)
 
   implicit object Format extends Encoder[MatchAnd] with Decoder[MatchAnd] {
     override def apply(a: MatchAnd): Json = {
@@ -159,4 +182,5 @@ object MatchAnd {
       c.downField("and").as[List[JMatcher]].right.map(list => MatchAnd(list.toList))
     }
   }
+
 }

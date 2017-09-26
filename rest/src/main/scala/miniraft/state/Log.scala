@@ -49,14 +49,16 @@ trait Log[Command] {
     }
   }
 
-  override def toString = s"Log(lastTerm: ${lastTerm}, unapplied:${lastUnappliedIndex}, committed:${lastCommittedIndex})"
+  override def toString =
+    s"Log(lastTerm: ${lastTerm}, unapplied:${lastUnappliedIndex}, committed:${lastCommittedIndex})"
 
   def lastTerm = latestUnappliedEntry.map(_.term).getOrElse(Term(0))
 }
 
 object Log {
 
-  def apply[T](dir: Path)(applyToStateMachine: LogEntry[T] => Unit)(implicit asBytes: Formatter[T, Array[Byte]]) = new FileBasedLog[T](dir, asBytes, applyToStateMachine)
+  def apply[T](dir: Path)(applyToStateMachine: LogEntry[T] => Unit)(implicit asBytes: Formatter[T, Array[Byte]]) =
+    new FileBasedLog[T](dir, asBytes, applyToStateMachine)
 
   def apply[T](applyToStateMachine: LogEntry[T] => Unit) = new InMemoryLog[T](applyToStateMachine)
 
@@ -103,7 +105,11 @@ object Log {
 
   }
 
-  class FileBasedLog[Command](dir: Path, asBytes: Formatter[Command, Array[Byte]], applyToStateMachine: LogEntry[Command] => Unit) extends Log[Command] with StrictLogging {
+  class FileBasedLog[Command](dir: Path,
+                              asBytes: Formatter[Command, Array[Byte]],
+                              applyToStateMachine: LogEntry[Command] => Unit)
+      extends Log[Command]
+      with StrictLogging {
     // both servers as a file containing the most recent committed index, a well as a marker
     // file in a log entry directory to indicate the entry is committed (e.g. applied to the state machine)
     private val CommittedFlagFileName = ".committed"

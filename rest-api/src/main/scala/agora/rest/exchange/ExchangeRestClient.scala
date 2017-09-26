@@ -20,7 +20,11 @@ import scala.concurrent.Future
   *
   * @param rest
   */
-class ExchangeRestClient(val rest: RestClient) extends Exchange with FailFastCirceSupport with AutoCloseable with StrictLogging {
+class ExchangeRestClient(val rest: RestClient)
+    extends Exchange
+    with FailFastCirceSupport
+    with AutoCloseable
+    with StrictLogging {
 
   override def toString = s"ExchangeRestClient($rest)"
 
@@ -48,7 +52,9 @@ class ExchangeRestClient(val rest: RestClient) extends Exchange with FailFastCir
       case client: RetryClient =>
         handlerErr: HandlerError =>
           val (bodyOpt, resp, err) = handlerErr
-          logger.error(s"$client retrying after getting response w/ '${resp.status}' $err ($bodyOpt). Checking the queue...", err)
+          logger.error(
+            s"$client retrying after getting response w/ '${resp.status}' $err ($bodyOpt). Checking the queue...",
+            err)
           client.reset(Option(err))
           queueState().flatMap { state =>
             logger.error(state.description, err)
@@ -71,9 +77,9 @@ class ExchangeRestClient(val rest: RestClient) extends Exchange with FailFastCir
     }
   }
 
-  override def updateSubscriptionDetails(subscriptionKey: SubscriptionKey, details: WorkerDetails): Future[UpdateSubscriptionAck] = {
-    rest.send(ExchangeHttp(subscriptionKey, details)).flatMap { exchangeResp =>
-      exchangeResp.as[UpdateSubscriptionAck](retryOnError(updateSubscriptionDetails(subscriptionKey, details)))
+  override def updateSubscriptionDetails(update: UpdateSubscription): Future[UpdateSubscriptionAck] = {
+    rest.send(ExchangeHttp(update)).flatMap { exchangeResp =>
+      exchangeResp.as[UpdateSubscriptionAck](retryOnError(updateSubscriptionDetails(update)))
     }
   }
 
@@ -113,7 +119,9 @@ class ExchangeRestClient(val rest: RestClient) extends Exchange with FailFastCir
   }
 
   override def cancelSubscriptions(request: CancelSubscriptions): Future[CancelSubscriptionsResponse] = {
-    rest.send(ExchangeHttp(request)).flatMap(_.as[CancelSubscriptionsResponse](retryOnError(cancelSubscriptions(request))))
+    rest
+      .send(ExchangeHttp(request))
+      .flatMap(_.as[CancelSubscriptionsResponse](retryOnError(cancelSubscriptions(request))))
   }
 }
 

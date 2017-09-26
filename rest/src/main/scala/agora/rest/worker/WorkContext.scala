@@ -1,21 +1,21 @@
 package agora.rest
 package worker
 
-import akka.http.scaladsl.marshalling.{Marshal, ToResponseMarshaller}
-import akka.http.scaladsl.model.ContentTypes._
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.server.RequestContext
-import akka.http.scaladsl.util.FastFuture
-import akka.stream.scaladsl.Source
-import akka.util.ByteString
-import io.circe.{Decoder, Encoder, Json}
 import agora.api.SubscriptionKey
 import agora.api.`match`.MatchDetails
 import agora.api.exchange.{WorkSubscription, _}
 import agora.api.worker.WorkerDetails
 import agora.rest.multipart.MultipartFormImplicits._
 import agora.rest.multipart.MultipartInfo
+import akka.http.scaladsl.marshalling.{Marshal, ToResponseMarshaller}
+import akka.http.scaladsl.model.ContentTypes._
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.server.RequestContext
 import akka.http.scaladsl.unmarshalling.FromRequestUnmarshaller
+import akka.http.scaladsl.util.FastFuture
+import akka.stream.scaladsl.Source
+import akka.util.ByteString
+import io.circe.{Decoder, Encoder, Json}
 
 import scala.collection.immutable
 import scala.concurrent.{Future, Promise}
@@ -42,6 +42,16 @@ case class WorkContext[T: FromRequestUnmarshaller](exchange: Exchange,
                                                    subscription: WorkSubscription,
                                                    requestContext: RequestContext,
                                                    request: T) {
+
+  /**
+    * update the subscription which made this request using the given name/data value
+    *
+    * @param update the subscription update
+    * @return a future of the update
+    */
+  def updateSubscription(update: UpdateSubscription): Future[UpdateSubscriptionAck] = {
+    exchange.updateSubscriptionDetails(update)
+  }
 
   import requestContext._
 
@@ -112,7 +122,8 @@ case class WorkContext[T: FromRequestUnmarshaller](exchange: Exchange,
     */
   def completeWithJson[A](value: => A)(implicit enc: Encoder[A]): WorkContext[T] = completeWith {
     val response: Json = enc(value)
-    val resp           = Marshal(HttpEntity(`application/json`, response.noSpaces)).toResponseFor(requestContext.request)
+    val resp = Marshal(HttpEntity(`application/json`, response.noSpaces))
+      .toResponseFor(requestContext.request)
     resp
   }
 
@@ -123,7 +134,9 @@ case class WorkContext[T: FromRequestUnmarshaller](exchange: Exchange,
     * @param contentType
     * @return
     */
-  def completeWithSource(dataSource: Source[ByteString, Any], contentType: ContentType = `application/octet-stream`, numberToRequest: Int = 1) = {
+  def completeWithSource(dataSource: Source[ByteString, Any],
+                         contentType: ContentType = `application/octet-stream`,
+                         numberToRequest: Int = 1) = {
     val entity = HttpEntity(contentType, dataSource)
     val resp   = Marshal(entity).toResponseFor(requestContext.request)
     completeWith(resp, numberToRequest)
@@ -145,6 +158,7 @@ case class WorkContext[T: FromRequestUnmarshaller](exchange: Exchange,
 
   /**
     * completes this request, but doesn't request any more work from the exchange
+    *
     * @param compute the result
     * @tparam A
     * @return this work context
@@ -191,7 +205,8 @@ case class WorkContext[T: FromRequestUnmarshaller](exchange: Exchange,
     * @param n the number of work items to request (typically 1, as we take one for each one we compute)
     * @return the Ack (if we indeed had a subscription key)
     */
-  def request(n: Int): Option[Future[RequestWorkAck]] = subscriptionKey.map(s => exchange.take(s, n))
+  def request(n: Int): Option[Future[RequestWorkAck]] =
+    subscriptionKey.map(s => exchange.take(s, n))
 
   /** @return the subscription details
     */
@@ -214,16 +229,19 @@ ___  ___      _ _   _                  _    ___  ___     _   _               _
 
   /** @return a value 'A' for each multipart info/source pair to which this partial function applies
     */
-  def foreachMultipart[A](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), A])(implicit ev: T =:= Multipart.FormData): Future[immutable.Seq[A]] = {
+  def foreachMultipart[A](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), A])(
+      implicit ev: T =:= Multipart.FormData): Future[immutable.Seq[A]] = {
     mapMultipart(f)
   }
 
-  def mapMultipart[A](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), A])(implicit ev: T =:= Multipart.FormData): Future[immutable.Seq[A]] = {
+  def mapMultipart[A](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), A])(
+      implicit ev: T =:= Multipart.FormData): Future[immutable.Seq[A]] = {
     val fd: Multipart.FormData = request
     fd.mapMultipart(f)
   }
 
-  def flatMapMultipart[A](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), Future[A]])(implicit ev: T =:= Multipart.FormData): Future[immutable.Seq[A]] = {
+  def flatMapMultipart[A](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), Future[A]])(
+      implicit ev: T =:= Multipart.FormData): Future[immutable.Seq[A]] = {
     val fd: Multipart.FormData           = request
     val futures: Future[List[Future[A]]] = fd.mapMultipart(f)
     futures.flatMap { list =>
@@ -231,7 +249,8 @@ ___  ___      _ _   _                  _    ___  ___     _   _               _
     }
   }
 
-  def mapFirstMultipart[A](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), A])(implicit ev: T =:= Multipart.FormData): Future[A] = {
+  def mapFirstMultipart[A](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), A])(
+      implicit ev: T =:= Multipart.FormData): Future[A] = {
     val fd: Multipart.FormData = request
     fd.mapFirstMultipart(f)
   }

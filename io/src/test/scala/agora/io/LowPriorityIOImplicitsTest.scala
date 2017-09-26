@@ -1,8 +1,18 @@
 package agora.io
 
-import agora.BaseSpec
+import agora.BaseIOSpec
 
-class LowPriorityIOImplicitsTest extends BaseSpec with LowPriorityIOImplicits {
+class LowPriorityIOImplicitsTest extends BaseIOSpec with LowPriorityIOImplicits {
+  "RichPath.text_=" should {
+    "truncate existing text" in {
+      withDir { dir =>
+        dir.resolve("file").text = "first\nsecond\tthird"
+        dir.resolve("file").text shouldBe "first\nsecond\tthird"
+        dir.resolve("file").text = "fourth"
+        dir.resolve("file").text shouldBe "fourth"
+      }
+    }
+  }
   "RichPath.nestedFiles" should {
     "list all nested files" in {
       withDir { dir =>

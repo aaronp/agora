@@ -56,7 +56,11 @@ object ClusterProtocol {
     override def toString = s"Delegate to: $cluster"
   }
 
-  class LoggingProtocol[T: Encoder: Decoder](p: ClusterProtocol, saveUnder: Path, counter: AtomicInteger, numberOfMessageToKeep: Int) extends DelegateProtocol(p) {
+  class LoggingProtocol[T: Encoder: Decoder](p: ClusterProtocol,
+                                             saveUnder: Path,
+                                             counter: AtomicInteger,
+                                             numberOfMessageToKeep: Int)
+      extends DelegateProtocol(p) {
 
     import io.circe.generic.auto._
     import io.circe.syntax._

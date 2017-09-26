@@ -1,5 +1,6 @@
 package agora.api.json
 
+import agora.api.json.JPath.select
 import io.circe._
 
 /**
@@ -14,8 +15,10 @@ case class JPath(parts: List[JPart]) {
   import io.circe.syntax._
 
   def ++(other: JPath) = copy(parts = parts ++ other.parts)
-  def +:(other: JPart) = copy(parts = other +: parts)
-  def :+(other: JPart) = copy(parts = parts :+ other)
+
+  def +:[T](other: T)(implicit ev: T => JPart) = copy(parts = ev(other) +: parts)
+
+  def :+[T](other: T)(implicit ev: T => JPart) = copy(parts = parts :+ ev(other))
 
   def json: Json = {
     new EncoderOps(this).asJson
@@ -24,6 +27,31 @@ case class JPath(parts: List[JPart]) {
   def apply(json: Json): Option[Json] = {
     JPath.select(parts, json.hcursor).focus
   }
+
+  /**
+    * The json w/ the value appended, if the path existed in the target json
+    *
+    * @param json  the target json to which the value will be appended at this path
+    * @param value the value to append
+    * @tparam T the value type which can be encoded to json
+    * @return the updated json if the path existed in the target json
+    */
+  def appendTo[T: Encoder](json: Json, value: T): Option[Json] = {
+    val opt = JPath.select(parts, json.hcursor).withFocus { json =>
+      deepMergeWithArrayConcat(json, implicitly[Encoder[T]].apply(value))
+    }
+    opt.top
+  }
+
+  /**
+    * removes the entry from the given json. any 'array contains' filters
+    * are negated, as the intention is to _remove_ matching values, not
+    * select (match) them.
+    *
+    * @param json the target json to which the value will be removed
+    * @return the updated json if the path existed in the target json
+    */
+  def removeFrom(json: Json): Option[Json] = select(parts, json.hcursor).delete.top
 
   def asMatcher = JMatcher(this)
 }
@@ -34,9 +62,13 @@ object JPath {
 
   def apply(first: JPart, parts: JPart*): JPath = JPath(first :: parts.toList)
 
-  def apply(only: String): JPath = forParts(only.split("\\.", -1).map(_.trim).filterNot(_.isEmpty).toList)
+  def apply(only: String): JPath =
+    forParts(only.split("\\.", -1).map(_.trim).filterNot(_.isEmpty).toList)
 
-  def apply(first: String, second: String, parts: String*): JPath = forParts(first :: second :: parts.toList)
+  def apply(first: String, second: String, parts: String*): JPath =
+    forParts(first :: second :: parts.toList)
+
+  def forParts(first: String, theRest: String*): JPath = forParts(first :: theRest.toList)
 
   def forParts(parts: List[String]): JPath =
     JPath(parts.map {
@@ -71,13 +103,16 @@ object JPath {
         cursor.downArray.withHCursor { ac =>
           ac.rightN(pos).withHCursor(select(tail, _))
         }
+      case JArrayFind(predicate) :: tail =>
+        cursor.downArray.withHCursor { c =>
+          val found = c.find(predicate.matches)
+          found.withHCursor(select(tail, _))
+        }
       case JFilter(field, predicate) :: tail =>
-        val a = cursor.downField(field)
-        a.withHCursor { c =>
+        cursor.downField(field).withHCursor { c =>
           if (c.focus.exists(predicate.matches)) {
             select(tail, c)
           } else {
-            //            Left(DecodingFailure(s"$c didn't match $predicate", c.history))
             new FailedCursor(c, CursorOp.DownField(field))
           }
         }

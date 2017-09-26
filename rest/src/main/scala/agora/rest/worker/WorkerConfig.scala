@@ -4,13 +4,14 @@ package worker
 import java.util.concurrent.TimeUnit
 
 import agora.api.exchange.Exchange
+import agora.config._
 import agora.rest.exchange.{ExchangeRestClient, ExchangeRoutes, ExchangeServerConfig}
 import agora.rest.support.SupportRoutes
 import agora.rest.swagger.SwaggerDocRoutes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import com.typesafe.config.{Config, ConfigFactory}
-import agora.config._
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
@@ -49,7 +50,7 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
     val support = when(enableSupportRoutes)(SupportRoutes(config).routes)
 
     val swaggerRoutes = if (includeSwaggerRoutes) {
-      val svc = SwaggerDocRoutes(location.asHostPort, swaggerApiClasses)
+      val svc = SwaggerDocRoutes(location.resolveLocalhost.asHostPort, swaggerApiClasses)
       List(svc.routes ~ svc.site)
     } else {
       Nil

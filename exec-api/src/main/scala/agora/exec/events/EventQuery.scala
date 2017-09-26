@@ -52,7 +52,10 @@ case class FindJob(id: JobId) extends EventQuery {
   override type Response = FindJobResponse
 }
 
-case class FindJobResponse(job: Option[ReceivedJob], started: Option[StartedJob], completed: Option[CompletedJob], tookInMillis: Option[Long])
+case class FindJobResponse(job: Option[ReceivedJob],
+                           started: Option[StartedJob],
+                           completed: Option[CompletedJob],
+                           tookInMillis: Option[Long])
 
 /**
   * Jobs which are were started but not completed within the time range
@@ -85,7 +88,8 @@ case class StartTimesBetweenResponse(starts: List[StartedSystem])
   * Jobs which are were received but not started within the time range
   */
 case class FindFirst private (eventName: String) extends EventQuery {
-  require(FindFirst.validValues.contains(eventName), s"$eventName expected to be one of ${FindFirst.validValues.mkString(",")}")
+  require(FindFirst.validValues.contains(eventName),
+          s"$eventName expected to be one of ${FindFirst.validValues.mkString(",")}")
   override type Response = FindFirstResponse
 }
 

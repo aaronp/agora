@@ -21,7 +21,10 @@ import scala.language.reflectiveCalls
   * @param ec
   * @tparam T
   */
-case class RaftRoutes[T: Encoder: Decoder](endpoint: RaftEndpoint[T])(implicit ec: ExecutionContext) extends RaftJson with FailFastCirceSupport with StrictLogging {
+case class RaftRoutes[T: Encoder: Decoder](endpoint: RaftEndpoint[T])(implicit ec: ExecutionContext)
+    extends RaftJson
+    with FailFastCirceSupport
+    with StrictLogging {
 
   def routes: Route = {
     pathPrefix("rest") {

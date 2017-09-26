@@ -1,11 +1,11 @@
 package agora.api.exchange
 
+import agora.BaseSpec
 import agora.api.Implicits._
-import org.scalatest.{Matchers, WordSpec}
 
 import scala.language.reflectiveCalls
 
-class MatchObserverTest extends WordSpec with Matchers {
+class MatchObserverTest extends BaseSpec {
 
   "MatchObserver.onceWhen" should {
     "remove the observer after one event" in {

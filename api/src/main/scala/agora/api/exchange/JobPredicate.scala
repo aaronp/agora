@@ -57,7 +57,8 @@ object JobPredicate extends StrictLogging {
       subscription.jobMatcher.matches(job)
     }
 
-    def jobSubmissionDetailsMatchesWorkSubscription(submissionDetails: SubmissionDetails, subscription: WorkSubscription) = {
+    def jobSubmissionDetailsMatchesWorkSubscription(submissionDetails: SubmissionDetails,
+                                                    subscription: WorkSubscription) = {
       submissionDetails.workMatcher.matches(subscription.details.aboutMe)
     }
 

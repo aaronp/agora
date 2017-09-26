@@ -1,8 +1,8 @@
 package agora.io
 
-import org.scalatest.{Matchers, WordSpec}
+import agora.BaseIOSpec
 
-class HexTest extends WordSpec with Matchers {
+class HexTest extends BaseIOSpec {
 
   "Hex" should {
 

@@ -19,7 +19,9 @@ import scala.util.{Failure, Success}
   * @param system
   * @param materializer
   */
-class AkkaClient(val location: HostLocation, system: ActorSystem, override implicit val materializer: Materializer) extends RestClient with StrictLogging {
+class AkkaClient(val location: HostLocation, system: ActorSystem, override implicit val materializer: Materializer)
+    extends RestClient
+    with StrictLogging {
 
   private val hostPort = location.asURL
 
@@ -32,7 +34,8 @@ class AkkaClient(val location: HostLocation, system: ActorSystem, override impli
 
   private lazy val remoteServiceConnectionFlow: Flow[HttpRequest, HttpResponse, Any] = {
     logger.info(s"Connecting to $hostPort")
-    val flow: Flow[HttpRequest, HttpResponse, Future[Http.OutgoingConnection]] = http.outgoingConnection(location.host, location.port) //.map(decodeResponse)
+    val flow: Flow[HttpRequest, HttpResponse, Future[Http.OutgoingConnection]] =
+      http.outgoingConnection(location.host, location.port) //.map(decodeResponse)
     flow.mapError {
       case err => onError(err)
     }

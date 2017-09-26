@@ -1,121 +1,116 @@
 package agora.api.json
 
-import org.scalatest.{Matchers, WordSpec}
+import agora.BaseSpec
 
-class JMatcherTest extends WordSpec with Matchers {
+class JMatcherTest extends BaseSpec {
 
   import JPredicate.implicits._
   import io.circe.syntax._
 
-  implicit def asRichString(str: String) = new {
-    def asJson = {
-      _root_.io.circe.parser.parse(str.stripMargin).right.get
-    }
-  }
-
   "JMatcher.decoder" should {
     "unmarshal simple paths json" in {
       val json =
-        """{
-          |  "exists" : {
-          |    "parts" : [
-          |      { "name" : "command" }
-          |    ]
-          |  }
-          |}""".asJson
+        json"""{
+              |  "exists" : {
+              |    "parts" : [
+              |      { "name" : "command" }
+              |    ]
+              |  }
+              |}""" //.asJson
       json.as[JMatcher].right.get shouldBe JPath("command").asMatcher
     }
     "unmarshal complex paths json" in {
       val json =
-        """{
-          |  "exists" : {
-          |    "parts" : [
-          |      { "name" : "list" },
-          |      { "pos" : 2 },
-          |      { "name" : "next" }
-          |    ]
-          |  }
-          |}""".asJson
-      json.as[JMatcher].right.get shouldBe JPath(JPart("list"), JPos(2), JPart("next")).asMatcher
+        json"""{
+              |  "exists" : {
+              |    "parts" : [
+              |      { "name" : "list" },
+              |      { "pos" : 2 },
+              |      { "name" : "next" }
+              |    ]
+              |  }
+              |}"""
+      json.as[JMatcher].right.get shouldBe JPath.forParts("list", "2", "next").asMatcher
     }
     "unmarshal paths with a filter" in {
       val json =
-        """{
-          |  "exists" : {
-          |    "parts" : [
-          |      { "name" : "rute" },
-          |      {
-          |        "field" : "someField",
-          |        "predicate" : {
-          |          "eq" : 4
-          |        }
-          |      }
-          |    ]
-          |  }
-          |}""".asJson
+        json"""{
+              |  "exists" : {
+              |    "parts" : [
+              |      { "name" : "rute" },
+              |      {
+              |        "field" : "someField",
+              |        "predicate" : {
+              |          "eq" : 4
+              |        }
+              |      }
+              |    ]
+              |  }
+              |}"""
       val expected = JPath(JPart("rute"), ("someField" === 4))
       json.as[JMatcher].right.get shouldBe expected.asMatcher
     }
     "unmarshal paths with conjunctions" in {
 
       val json =
-        """{
-          |  "or" : [
-          |    {
-          |      "and" : [
-          |        {
-          |          "exists" : {
-          |            "parts" : [
-          |              {
-          |                "field" : "array",
-          |                "predicate" : {
-          |                  "elements" : [
-          |                    9,
-          |                    8
-          |                  ]
-          |                }
-          |              }
-          |            ]
-          |          }
-          |        },
-          |        {
-          |          "exists" : {
-          |            "parts" : [
-          |              {
-          |                "field" : "foo",
-          |                "predicate" : {
-          |                  "gte" : 3
-          |                }
-          |              }
-          |            ]
-          |          }
-          |        }
-          |      ]
-          |    },
-          |    {
-          |      "exists" : {
-          |        "parts" : [
-          |          {
-          |            "name" : "x"
-          |          },
-          |          {
-          |            "name" : "y"
-          |          },
-          |          {
-          |            "field" : "values",
-          |            "predicate" : {
-          |              "regex" : "subtext"
-          |            }
-          |          }
-          |        ]
-          |      }
-          |    }
-          |  ]
-          |}""".asJson
+        json"""{
+              |  "or" : [
+              |    {
+              |      "and" : [
+              |        {
+              |          "exists" : {
+              |            "parts" : [
+              |              {
+              |                "field" : "array",
+              |                "predicate" : {
+              |                  "elements" : [
+              |                    9,
+              |                    8
+              |                  ]
+              |                }
+              |              }
+              |            ]
+              |          }
+              |        },
+              |        {
+              |          "exists" : {
+              |            "parts" : [
+              |              {
+              |                "field" : "foo",
+              |                "predicate" : {
+              |                  "gte" : 3
+              |                }
+              |              }
+              |            ]
+              |          }
+              |        }
+              |      ]
+              |    },
+              |    {
+              |      "exists" : {
+              |        "parts" : [
+              |          {
+              |            "name" : "x"
+              |          },
+              |          {
+              |            "name" : "y"
+              |          },
+              |          {
+              |            "field" : "values",
+              |            "predicate" : {
+              |              "regex" : "subtext"
+              |            }
+              |          }
+              |        ]
+              |      }
+              |    }
+              |  ]
+              |}"""
 
       import agora.api.Implicits._
 
-      val expected: JMatcher = ("array" includes (8, 9)).and("foo" gte 3).or(JPath("x", "y") :+ ("values" ~= ("subtext")))
+      val expected: JMatcher =
+        ("array" includes (8, 9)).and("foo" gte 3).or(JPath("x", "y") :+ ("values" ~= ("subtext")))
       json.as[JMatcher].right.get shouldBe expected
     }
   }

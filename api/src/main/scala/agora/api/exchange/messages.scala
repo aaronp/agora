@@ -2,12 +2,11 @@ package agora.api.exchange
 
 import java.time.LocalDateTime
 
-import agora.api.json.JMatcher
+import agora.api.json.{JMatcher, JPath, JsonDelta, MatchAll}
 import agora.api.worker.{HostLocation, SubscriptionKey, WorkerDetails, WorkerRedirectCoords}
 import agora.api.{JobId, MatchId}
 import io.circe.generic.auto._
 import io.circe.{Encoder, Json}
-import io.circe.java8.time._
 
 import scala.language.implicitConversions
 
@@ -46,9 +45,11 @@ case class QueueStateResponse(jobs: List[SubmitJob], subscriptions: List[Pending
   def isEmpty = jobs.isEmpty && subscriptions.isEmpty
 
   def description = {
-    def fmtJob(job: SubmitJob) = s"${job.job.noSpaces} ;; aboutMe :${job.submissionDetails.aboutMe.noSpaces}"
+    def fmtJob(job: SubmitJob) =
+      s"${job.job.noSpaces} ;; aboutMe :${job.submissionDetails.aboutMe.noSpaces}"
 
-    def fmtSubscription(subscription: PendingSubscription) = s"${subscription.key} w/ ${subscription.requested} requested: ${subscription.subscription.details.aboutMe.noSpaces}"
+    def fmtSubscription(subscription: PendingSubscription) =
+      s"${subscription.key} w/ ${subscription.requested} requested: ${subscription.subscription.details.aboutMe.noSpaces}"
 
     s"""QUEUE {
        |  ${jobs.size} Jobs {
@@ -146,7 +147,8 @@ case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends Cl
     *                   or follow fire-and-forget semantics (when false)
     * @return a copy of the submitjob with the 'awaitMatch' flag set
     */
-  def withAwaitMatch(awaitMatch: Boolean): SubmitJob = withDetails(submissionDetails.copy(awaitMatch = awaitMatch))
+  def withAwaitMatch(awaitMatch: Boolean): SubmitJob =
+    withDetails(submissionDetails.copy(awaitMatch = awaitMatch))
 
   /** @param newDetails
     * @return a copy of the submitjob with the given submission details
@@ -183,14 +185,18 @@ object SubmitJobResponse {
   implicit val decoder = exportDecoder[SubmitJobResponse].instance
 }
 
-case class BlockingSubmitJobResponse(matchId: MatchId, jobId: JobId, matchedAt: LocalDateTime, workerCoords: List[WorkerRedirectCoords], workers: List[WorkerDetails])
+case class BlockingSubmitJobResponse(matchId: MatchId,
+                                     jobId: JobId,
+                                     matchedAt: LocalDateTime,
+                                     workerCoords: List[WorkerRedirectCoords],
+                                     workers: List[WorkerDetails])
     extends ClientResponse {
   def firstWorkerUrl: Option[String] = workers.collectFirst {
     case w if w.url.isDefined => w.url.get
   }
 }
 
-object BlockingSubmitJobResponse {
+object BlockingSubmitJobResponse extends io.circe.java8.time.TimeInstances {
   implicit val encoder = exportEncoder[BlockingSubmitJobResponse].instance
   implicit val decoder = exportDecoder[BlockingSubmitJobResponse].instance
 }
@@ -212,7 +218,35 @@ sealed trait SubscriptionRequest
 
 sealed trait SubscriptionResponse
 
-case class UpdateSubscription(id: SubscriptionKey, details: WorkerDetails) extends SubscriptionRequest
+/**
+  * Updates the subscription's work details if the 'condition' matches
+  *
+  * The condition can be used to assert the update it is about to perform.
+  * For instance, it could be used to check the value 'version == foo' to ensure it's updating the
+  * latest version, or to only add/remove values should some other condition hold. Basically I'm
+  * just trying to say the same thing over and over again.
+  *
+  * @param id        the subscription to update
+  * @param condition the condition to check on the current WorkDetails data before performing the update
+  * @param delta     the changes to apply
+  */
+case class UpdateSubscription(id: SubscriptionKey, condition: JMatcher = MatchAll, delta: JsonDelta = JsonDelta())
+    extends SubscriptionRequest
+
+object UpdateSubscription {
+  def remove(id: SubscriptionKey, path: JPath, theRest: JPath*) = {
+    UpdateSubscription(id, delta = JsonDelta(remove = path :: theRest.toList))
+  }
+
+  def append(id: SubscriptionKey, json: Json) =
+    UpdateSubscription(id, delta = JsonDelta(append = json))
+
+  def append[T: Encoder](id: SubscriptionKey, name: String, value: T): UpdateSubscription = {
+    val json = implicitly[Encoder[T]].apply(value)
+    append(id, Json.obj(name -> json))
+  }
+
+}
 
 /**
   * The details contain info about the worker subscribing to work, such as it's location (where work should be sent to),
@@ -225,7 +259,11 @@ case class UpdateSubscription(id: SubscriptionKey, details: WorkerDetails) exten
   * @param submissionMatcher      the criteria used to match submitted jobs' submission details
   * @param subscriptionReferences If non-empty, changes to the number of work items requested for this subscription will be performed on the referenced subscriptions
   */
-case class WorkSubscription(details: WorkerDetails, jobMatcher: JMatcher, submissionMatcher: JMatcher, subscriptionReferences: Set[SubscriptionKey]) extends SubscriptionRequest {
+case class WorkSubscription(details: WorkerDetails,
+                            jobMatcher: JMatcher,
+                            submissionMatcher: JMatcher,
+                            subscriptionReferences: Set[SubscriptionKey])
+    extends SubscriptionRequest {
   def matches(job: SubmitJob)(implicit m: JobPredicate): Boolean = m.matches(job, this)
 
   def key = details.subscriptionKey
@@ -244,7 +282,8 @@ case class WorkSubscription(details: WorkerDetails, jobMatcher: JMatcher, submis
 
   def withReferences(references: Set[SubscriptionKey]) = copy(subscriptionReferences = references)
 
-  def referencing(reference: SubscriptionKey, theRest: SubscriptionKey*) = withReferences(theRest.toSet + reference)
+  def referencing(reference: SubscriptionKey, theRest: SubscriptionKey*) =
+    withReferences(theRest.toSet + reference)
 
   def addReference(reference: SubscriptionKey) = withReferences(subscriptionReferences + reference)
 
@@ -255,6 +294,16 @@ case class WorkSubscription(details: WorkerDetails, jobMatcher: JMatcher, submis
   def append[T: Encoder](name: String, data: T) = withDetails(_.append(name, data))
 
   def append(data: Json) = withDetails(_.append(data))
+
+  /**
+    * @param update the update to apply
+    * @return either a new WorkSubscription or None if the update had no effect
+    */
+  def update(update: JsonDelta): Option[WorkSubscription] = {
+    details.update(update).map { newDetails =>
+      copy(details = newDetails)
+    }
+  }
 
   def withSubscriptionKey(id: SubscriptionKey) = withDetails(_.withSubscriptionKey(id))
 
@@ -291,8 +340,12 @@ object WorkSubscription {
   implicit val decoder = exportDecoder[WorkSubscription].instance
 }
 
-case class WorkSubscriptionAck(id: SubscriptionKey)                                                                         extends SubscriptionResponse
-case class UpdateSubscriptionAck(id: SubscriptionKey, oldDetails: Option[WorkerDetails], newDetails: Option[WorkerDetails]) extends SubscriptionResponse
+case class WorkSubscriptionAck(id: SubscriptionKey) extends SubscriptionResponse
+
+case class UpdateSubscriptionAck(id: SubscriptionKey,
+                                 oldDetails: Option[WorkerDetails],
+                                 newDetails: Option[WorkerDetails])
+    extends SubscriptionResponse
 
 object WorkSubscriptionAck {
   implicit val encoder = exportEncoder[WorkSubscriptionAck].instance
@@ -311,7 +364,8 @@ object RequestWork {
   implicit val decoder = exportDecoder[RequestWork].instance
 }
 
-case class RequestWorkAck(id: SubscriptionKey, previousItemsPending: Int, totalItemsPending: Int) extends SubscriptionResponse {
+case class RequestWorkAck(id: SubscriptionKey, previousItemsPending: Int, totalItemsPending: Int)
+    extends SubscriptionResponse {
   private[exchange] def withNewTotal(remaining: Int) = copy(totalItemsPending = remaining)
 
   /** @return true if a subscription previously had 0 pending subscriptions
@@ -323,5 +377,6 @@ object RequestWorkAck {
   implicit val encoder = exportEncoder[RequestWorkAck].instance
   implicit val decoder = exportDecoder[RequestWorkAck].instance
 
-  def apply(id: SubscriptionKey, requested: Int): RequestWorkAck = new RequestWorkAck(id, 0, requested)
+  def apply(id: SubscriptionKey, requested: Int): RequestWorkAck =
+    new RequestWorkAck(id, 0, requested)
 }

@@ -15,7 +15,8 @@ sealed trait NodeStateSummary {
 
 object NodeStateSummary {
 
-  def apply(node: RaftNodeLogic[_], cluster: ClusterProtocol)(implicit ec: ExecutionContext): Future[NodeStateSummary] = {
+  def apply(node: RaftNodeLogic[_], cluster: ClusterProtocol)(
+      implicit ec: ExecutionContext): Future[NodeStateSummary] = {
     val role: NodeRole = node.raftState.role
 
     val electTimerStateF     = cluster.electionTimer.status
@@ -49,9 +50,10 @@ object NodeStateSummary {
       }
 
       role match {
-        case Leader(view)       => LeaderSnapshot(snapshot, view)
-        case Candidate(counter) => CandidateSnapshot(snapshot, counter.votedFor, counter.votedAgainst, counter.clusterSize)
-        case Follower           => snapshot
+        case Leader(view) => LeaderSnapshot(snapshot, view)
+        case Candidate(counter) =>
+          CandidateSnapshot(snapshot, counter.votedFor, counter.votedAgainst, counter.clusterSize)
+        case Follower => snapshot
       }
     }
   }
@@ -78,14 +80,19 @@ object NodeStateSummary {
 
   type FollowerSummary = NodeSnapshot
 
-  case class LeaderSnapshot(override val summary: NodeSnapshot, clusterViewByNodeId: Map[NodeId, ClusterPeer]) extends NodeStateSummary {
+  case class LeaderSnapshot(override val summary: NodeSnapshot, clusterViewByNodeId: Map[NodeId, ClusterPeer])
+      extends NodeStateSummary {
     override def withState(updatedState: Map[String, String]): NodeStateSummary = {
       val newSummary = summary.copy(state = updatedState)
       copy(summary = newSummary)
     }
   }
 
-  case class CandidateSnapshot(override val summary: NodeSnapshot, votedFor: Set[NodeId], votedAgainst: Set[NodeId], expectedVotes: Int) extends NodeStateSummary {
+  case class CandidateSnapshot(override val summary: NodeSnapshot,
+                               votedFor: Set[NodeId],
+                               votedAgainst: Set[NodeId],
+                               expectedVotes: Int)
+      extends NodeStateSummary {
     override def withState(updatedState: Map[String, String]): NodeStateSummary = {
       val newSummary = summary.copy(state = updatedState)
       copy(summary = newSummary)

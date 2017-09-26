@@ -57,9 +57,11 @@ private[workspace] class WorkspaceActor(val id: WorkspaceId, potentiallyNotExist
         val kids = files
         val ok   = kids.contains(file)
         if (!ok) {
-          logger.error(s"Upload to ${workspaceDir}/$file completed w/ ${uploadResult}, but ${kids.mkString(",")} doesn't contain $file!")
+          logger.error(
+            s"Upload to ${workspaceDir}/$file completed w/ ${uploadResult}, but ${kids.mkString(",")} doesn't contain $file!")
         } else {
-          logger.debug(s"Upload to ${workspaceDir}/$file completed w/ ${uploadResult}, workspace now contains ${kids.mkString(",")}")
+          logger.debug(
+            s"Upload to ${workspaceDir}/$file completed w/ ${uploadResult}, workspace now contains ${kids.mkString(",")}")
         }
 
         self ! TriggerUploadCheck(id)
@@ -98,7 +100,10 @@ private[workspace] class WorkspaceActor(val id: WorkspaceId, potentiallyNotExist
         context.system.scheduler.scheduleOnce(timeout.millis, self, AwaitUploadsTimeout(msg))
       case msg @ UploadFile(`id`, _, _, _) => onUpload(msg, pendingRequests)
       case closeMsg @ Close(`id`, ifNotModifiedSince, failPendingDependencies, promise) =>
-        val ok = WorkspaceActor.closeWorkspace(potentiallyNotExistentDir, ifNotModifiedSince, failPendingDependencies, pendingRequests)
+        val ok = WorkspaceActor.closeWorkspace(potentiallyNotExistentDir,
+                                               ifNotModifiedSince,
+                                               failPendingDependencies,
+                                               pendingRequests)
         promise.tryComplete(Success(ok))
         if (ok) {
           context.parent ! WorkspaceEndpointActor.RemoveWorkspace(id)
@@ -127,7 +132,9 @@ private[workspace] class WorkspaceActor(val id: WorkspaceId, potentiallyNotExist
         true
       } else {
         logger
-          .debug(s"Can't run ${dependencies} under $potentiallyNotExistentDir as it's missing ${missing.size} dependencies : ${missing.mkString(",")}")
+          .debug(
+            s"Can't run ${dependencies} under $potentiallyNotExistentDir as it's missing ${missing.size} dependencies : ${missing
+              .mkString(",")}")
         false
       }
     }
@@ -172,7 +179,8 @@ object WorkspaceActor extends StrictLogging {
       }
     }
 
-    val ok: Try[Boolean] = Try(canRemove && potentiallyNotExistentDir.exists).map(_ && Try(potentiallyNotExistentDir.delete()).isSuccess)
+    val ok: Try[Boolean] =
+      Try(canRemove && potentiallyNotExistentDir.exists).map(_ && Try(potentiallyNotExistentDir.delete()).isSuccess)
     ok == Success(true)
   }
 }

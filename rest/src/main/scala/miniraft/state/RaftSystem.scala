@@ -114,11 +114,13 @@ object RaftSystem extends StrictLogging {
     * @tparam T
     * @return the raft node for this system and a cluster protocol (the transport to use to access the rest of the cluster)
     */
-  def apply[T: Encoder: Decoder: ClassTag](config: RaftConfig)(applyToStateMachine: LogEntry[T] => Unit): RaftSystem[T] = {
+  def apply[T: Encoder: Decoder: ClassTag](config: RaftConfig)(
+      applyToStateMachine: LogEntry[T] => Unit): RaftSystem[T] = {
     apply[T](config, config.clusterNodes)(applyToStateMachine)
   }
 
-  def apply[T: Encoder: Decoder: ClassTag](config: RaftConfig, initialNodes: Map[NodeId, RaftEndpoint[T]])(applyToStateMachine: LogEntry[T] => Unit): RaftSystem[T] = {
+  def apply[T: Encoder: Decoder: ClassTag](config: RaftConfig, initialNodes: Map[NodeId, RaftEndpoint[T]])(
+      applyToStateMachine: LogEntry[T] => Unit): RaftSystem[T] = {
 
     /**
       * Create our node, which needs a cluster protocol to be injected to do its work
@@ -127,7 +129,8 @@ object RaftSystem extends StrictLogging {
     val logic: RaftNodeLogic[T] = RaftNodeLogic[T](nodeId, config.logDir)(applyToStateMachine)
 
     import config.serverImplicits._
-    val (node, nodeProtocol: async.ActorNodeProtocol[T]) = RaftNode[T](logic, initialNodes, config.election.timer, config.heartbeat.timer)
+    val (node, nodeProtocol: async.ActorNodeProtocol[T]) =
+      RaftNode[T](logic, initialNodes, config.election.timer, config.heartbeat.timer)
 
     /**
       * optionally set up a directory and unique id counters for tracking messages if we've turned on that sort of thing

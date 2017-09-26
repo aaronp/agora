@@ -29,7 +29,8 @@ object DynamicWorkerRoutes {
 // see http://doc.akka.io/docs/akka-stream-and-http-experimental/1.0/scala/http/routing-dsl/index.html
 @Api(value = "Dynamic Worker", produces = "application/json")
 @Path("/")
-case class DynamicWorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscription, defaultInitialRequest: Int)(implicit mat: Materializer) { self =>
+case class DynamicWorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubscription, defaultInitialRequest: Int)(
+    implicit mat: Materializer) { self =>
   implicit val ec = mat.executionContext
 
   private object HandlerWriteLock
@@ -99,10 +100,9 @@ case class DynamicWorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubs
   def workerRoutes: Route = handleWorkRoute ~ listSubscriptions
   @Path("/{workerPath}")
   @ApiOperation(value = "Executes a dynamically added worker endpoint", httpMethod = "POST")
-  @ApiResponses(
-    Array(
-      new ApiResponse(code = 200, message = "Return the result of a dynamically added worker", response = classOf[Json])
-    ))
+  @ApiResponses(Array(
+    new ApiResponse(code = 200, message = "Return the result of a dynamically added worker", response = classOf[Json])
+  ))
   def handleWorkRoute: Route = {
     post {
       path(Remaining) { remaining =>
@@ -251,7 +251,9 @@ case class DynamicWorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubs
   /**
     * Captures the 'handler' logic for a subscription.
     */
-  protected class OnWork[T](val subscription: WorkSubscription, unmarshaller: FromRequestUnmarshaller[T], onReq: WorkContext[T] => Unit) {
+  protected class OnWork[T](val subscription: WorkSubscription,
+                            unmarshaller: FromRequestUnmarshaller[T],
+                            onReq: WorkContext[T] => Unit) {
     def withSubscription(newSubscription: WorkSubscription) = {
       new OnWork[T](newSubscription, unmarshaller, onReq)
     }

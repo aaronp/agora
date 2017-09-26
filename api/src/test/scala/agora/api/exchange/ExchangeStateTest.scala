@@ -1,24 +1,29 @@
 package agora.api.exchange
 
+import agora.BaseSpec
 import agora.api.Implicits._
 import agora.api.exchange.instances.ExchangeState
 import agora.api.json.JMatcher
 import agora.api.worker.{HostLocation, SubscriptionKey, WorkerDetails}
-import org.scalatest.{Matchers, WordSpec}
 
 import scala.util.Success
 
-class ExchangeStateTest extends WordSpec with Matchers {
+class ExchangeStateTest extends BaseSpec {
 
   "ExchangeState.updateSubscription" should {
     "append additional subscription details" in {
       implicit def intAsRequested(n: Int): Requested = Requested(n)
 
-      val original     = WorkSubscription.forDetails(WorkerDetails(HostLocation.localhost(1234)).append("someArray", List(1, 2)), JMatcher.matchNone, JMatcher.matchNone)
-      val initialState = new ExchangeState(subscriptionsById = Map("a" -> (original, Requested(11)), "b" -> (original, Requested(12))))
+      val original =
+        WorkSubscription.forDetails(WorkerDetails(HostLocation.localhost(1234)).append("someArray", List(1, 2)),
+                                    JMatcher.matchNone,
+                                    JMatcher.matchNone)
+      val initialState =
+        new ExchangeState(subscriptionsById = Map("a" -> (original, Requested(11)), "b" -> (original, Requested(12))))
 
       // call the method under test
-      val newState = initialState.updateSubscription("a", mkDetails().append("someArray", List(3, 4)).append("appended", true))
+      val json     = mkDetails().append("someArray", List(3, 4)).append("appended", true).aboutMe
+      val newState = initialState.updateSubscription(UpdateSubscription.append("a", json)).get
 
       implicit def pimpedDetails(wd: WorkerDetails) = new {
         def someArray = wd.aboutMe.hcursor.downField("someArray").as[List[Int]].right.get
@@ -37,19 +42,22 @@ class ExchangeStateTest extends WordSpec with Matchers {
     }
 
     "return None if the subscription doesn't exist" in {
-
       val initialState = new ExchangeState()
-      val sameState    = initialState.updateSubscription("doesn't exist", mkDetails().append("foo", "bar"))
-      sameState shouldBe initialState
+      initialState.updateSubscription(UpdateSubscription.append("doesn't exist", "foo", "bar")) shouldBe None
     }
   }
 
   "ExchangeState.subscribe" should {
 
     "updated existing subscriptions when given the same id" in {
-      val original        = mkSubscription().append("name", "first").append("removed", false).withSubscriptionKey("static key")
-      val initialState    = new ExchangeState(subscriptionsById = Map("static key" -> (original, Requested(1))))
-      val newSubscription = mkSubscription().append("name", "updated name").withSubscriptionKey("static key")
+      val original = mkSubscription()
+        .append("name", "first")
+        .append("removed", false)
+        .withSubscriptionKey("static key")
+      val initialState =
+        new ExchangeState(subscriptionsById = Map("static key" -> (original, Requested(1))))
+      val newSubscription =
+        mkSubscription().append("name", "updated name").withSubscriptionKey("static key")
 
       // call the method under test
       val (ack, newState) = initialState.subscribe(newSubscription)
@@ -68,11 +76,16 @@ class ExchangeStateTest extends WordSpec with Matchers {
 
     "return an exchange state with the 'orElse' jobs and non-empty work subscriptions" in {
 
-      val orElseJob1 = "orElseJob1".asJob.orElse("foo" gte "bar").ensuring(_.submissionDetails.orElse.size == 1)
-      val orElseJob2 = "orElseJob2".asJob.orElse("a" === "b").orElse("c" === "d").ensuring(_.submissionDetails.orElse.size == 2)
-      val basicJob   = "basicJob".asJob
+      val orElseJob1 =
+        "orElseJob1".asJob.orElse("foo" gte "bar").ensuring(_.submissionDetails.orElse.size == 1)
+      val orElseJob2 = "orElseJob2".asJob
+        .orElse("a" === "b")
+        .orElse("c" === "d")
+        .ensuring(_.submissionDetails.orElse.size == 2)
+      val basicJob = "basicJob".asJob
       val initialState = new ExchangeState(
-        subscriptionsById = Map("one left" -> (mkSubscription(), Requested(1)), "empty" -> (mkSubscription(), Requested(0))),
+        subscriptionsById =
+          Map("one left" -> (mkSubscription(), Requested(1)), "empty" -> (mkSubscription(), Requested(0))),
         jobsById = Map(
           "orElseJob1" -> orElseJob1,
           "orElseJob2" -> orElseJob2,
@@ -102,8 +115,10 @@ class ExchangeStateTest extends WordSpec with Matchers {
       initialState.orElseState.get.orElseState.get.orElseState shouldBe empty
     }
     "return None if there are no pending subscriptions" in {
-      val orElseJob    = "orElseJob1".asJob.orElse("foo" gte "bar").ensuring(_.submissionDetails.orElse.size == 1)
-      val initialState = new ExchangeState(subscriptionsById = Map("empty" -> (mkSubscription(), Requested(0))), jobsById = Map("orElseJob" -> orElseJob))
+      val orElseJob =
+        "orElseJob1".asJob.orElse("foo" gte "bar").ensuring(_.submissionDetails.orElse.size == 1)
+      val initialState = new ExchangeState(subscriptionsById = Map("empty" -> (mkSubscription(), Requested(0))),
+                                           jobsById = Map("orElseJob" -> orElseJob))
 
       initialState.orElseState shouldBe empty
     }
@@ -111,7 +126,8 @@ class ExchangeStateTest extends WordSpec with Matchers {
 
   "ExchangeState.cancel" should {
     "cancel known subscriptions" in {
-      val state           = new ExchangeState(subscriptionsById = Map("a" -> (mkSubscription(), Requested(1)), "b" -> (mkSubscription(), Requested(1))))
+      val state = new ExchangeState(
+        subscriptionsById = Map("a" -> (mkSubscription(), Requested(1)), "b" -> (mkSubscription(), Requested(1))))
       val (ack, newState) = state.cancelSubscriptions(Set("b", "c"))
       state.subscriptionsById.keySet shouldBe Set("a", "b")
       newState.subscriptionsById.keySet shouldBe Set("a")
@@ -188,7 +204,8 @@ class ExchangeStateTest extends WordSpec with Matchers {
 
     "decrement referenced subscriptions" in new ReferencedTestData {
 
-      val (SubmitJobResponse(jobId), stateWithJob) = newState.submit("123".asJob.add("topic", "exec"))
+      val (SubmitJobResponse(jobId), stateWithJob) =
+        newState.submit("123".asJob.add("topic", "exec"))
 
       val (List(notification), matchedState) = stateWithJob.matches
 
@@ -205,9 +222,10 @@ class ExchangeStateTest extends WordSpec with Matchers {
       val (matches, newState) = state.matches
 
       // both work subscriptions should match and thus be decremented
-      newState.subscriptionsById shouldBe Map[SubscriptionKey, (WorkSubscription, Requested)]("s1"              -> (s1, Requested(0)),
-                                                                                              "s2"              -> (s2, Requested(1)),
-                                                                                              "never match sub" -> (neverMatchSubscription, Requested(10)))
+      newState.subscriptionsById shouldBe Map[SubscriptionKey, (WorkSubscription, Requested)](
+        "s1"              -> (s1, Requested(0)),
+        "s2"              -> (s2, Requested(1)),
+        "never match sub" -> (neverMatchSubscription, Requested(10)))
 
       newState.jobsById shouldBe Map("never match job" -> neverMatchJob)
       matches should contain only (
@@ -217,15 +235,20 @@ class ExchangeStateTest extends WordSpec with Matchers {
     }
 
     "not match subscriptions with no available slots" in new TestData {
-      val empty = Map[SubscriptionKey, (WorkSubscription, Requested)]("just has the one" -> (s1, Requested(1)), "exhausted" -> (s2, Requested(0)))
+      val empty = Map[SubscriptionKey, (WorkSubscription, Requested)]("just has the one" -> (s1, Requested(1)),
+                                                                      "exhausted" -> (s2, Requested(0)))
 
       // call the method under test
       val (matches, newState) = state.copy(subscriptionsById = empty).matches
       val newSubscriptions    = newState.subscriptionsById
 
       // only 'just has the one' should match
-      newSubscriptions shouldBe Map[SubscriptionKey, (WorkSubscription, Requested)]("just has the one" -> (s1, Requested(0)), "exhausted" -> (s2, Requested(0)))
-      newState.jobsById shouldBe Map("j2"                                                              -> j2, "never match job"           -> neverMatchJob, "never match job" -> neverMatchJob)
+      newSubscriptions shouldBe Map[SubscriptionKey, (WorkSubscription, Requested)](
+        "just has the one"                             -> (s1, Requested(0)),
+        "exhausted"                                    -> (s2, Requested(0)))
+      newState.jobsById shouldBe Map("j2"              -> j2,
+                                     "never match job" -> neverMatchJob,
+                                     "never match job" -> neverMatchJob)
       matches should contain only (
         MatchNotification("j1",
                           j1,
@@ -279,8 +302,10 @@ class ExchangeStateTest extends WordSpec with Matchers {
       }
     }
 
-    val jobs          = Map("j1" -> j1, "j2"                 -> j2, "never match job"                 -> neverMatchJob)
-    val subscriptions = Map("s1" -> (s1, Requested(1)), "s2" -> (s2, Requested(2)), "never match sub" -> (neverMatchSubscription, Requested(10)))
+    val jobs = Map("j1" -> j1, "j2" -> j2, "never match job" -> neverMatchJob)
+    val subscriptions = Map("s1" -> (s1, Requested(1)),
+                            "s2"              -> (s2, Requested(2)),
+                            "never match sub" -> (neverMatchSubscription, Requested(10)))
 
     val state = new ExchangeState(subscriptionsById = subscriptions, jobsById = jobs)
   }
@@ -288,14 +313,19 @@ class ExchangeStateTest extends WordSpec with Matchers {
   trait ReferencedTestData {
 
     // start out just being able to execute stuff
-    val vanillaExec = WorkSubscription.forDetails(mkDetails().withPath("/execute").withSubscriptionKey("vanilla")).matchingSubmission(("topic" === "exec").asMatcher)
+    val vanillaExec = WorkSubscription
+      .forDetails(mkDetails().withPath("/execute").withSubscriptionKey("vanilla"))
+      .matchingSubmission(("topic" === "exec").asMatcher)
 
     val initialState = new ExchangeState(subscriptionsById = Map("vanilla" -> (vanillaExec, Requested(2))))
 
     // now we make available some data to a workspace, but w/ the same endpoint.
     // We reference the 'vanilla' subscription though, so matches will decrement 'vanilla', and 'take' requests will
     // increment it
-    val workspace = vanillaExec.withSubscriptionKey("workspace").append("files", List("foo.txt", "bar.txt")).referencing("vanilla")
+    val workspace = vanillaExec
+      .withSubscriptionKey("workspace")
+      .append("files", List("foo.txt", "bar.txt"))
+      .referencing("vanilla")
 
     val (WorkSubscriptionAck("workspace"), newState) = initialState.subscribe(workspace)
 

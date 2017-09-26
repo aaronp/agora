@@ -42,9 +42,10 @@ case class SubscriptionConfig(subscriptionConfig: Config) {
   }
 
   def asMatcher(at: String): Either[circe.Error, JMatcher] = {
-    val fromConfig: Option[Either[circe.Error, JMatcher]] = Try(subscriptionConfig.getConfig(at)).toOption.map { subConf =>
-      val json = asJson(subConf)
-      json.as[JMatcher]
+    val fromConfig: Option[Either[circe.Error, JMatcher]] = Try(subscriptionConfig.getConfig(at)).toOption.map {
+      subConf =>
+        val json = asJson(subConf)
+        json.as[JMatcher]
     }
 
     val fromString = asJson(subscriptionConfig).hcursor.downField(at).as[JMatcher]

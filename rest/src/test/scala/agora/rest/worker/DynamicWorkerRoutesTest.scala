@@ -42,20 +42,21 @@ class DynamicWorkerRoutesTest extends BaseRoutesSpec with Eventually {
       def invocations(ctxt: WorkContext[_]) = JsonPath.root.invoked.int.getOption(ctxt.details.aboutMe).getOrElse(0)
 
       // start off with an initial subscription containing some details...
-      wr.usingSubscription(_.withPath("original").withSubscriptionKey("firstKey").append("someValue", "hello")).addHandler[Int] { ctxt =>
-        // now within the handler, update the details ... inc a counter and set a new path
-        val b4 = invocations(ctxt)
+      wr.usingSubscription(_.withPath("original").withSubscriptionKey("firstKey").append("someValue", "hello"))
+        .addHandler[Int] { ctxt =>
+          // now within the handler, update the details ... inc a counter and set a new path
+          val b4 = invocations(ctxt)
 
-        val calls   = b4 + 1
-        val ctxtFut = ctxt.updateSubscription(_.withPath("updated").append("invoked", calls))
+          val calls   = b4 + 1
+          val ctxtFut = ctxt.updateSubscription(_.withPath("updated").append("invoked", calls))
 
-        ctxtFut.foreach { newCtxt =>
-          newCtxt.request(1)
+          ctxtFut.foreach { newCtxt =>
+            newCtxt.request(1)
+          }
+
+          val nrToRequest = 1 // b4.min(1)
+          ctxt.completeWith(ctxt.asResponse(calls), nrToRequest)
         }
-
-        val nrToRequest = 1 // b4.min(1)
-        ctxt.completeWith(ctxt.asResponse(calls), nrToRequest)
-      }
 
       // verify our initial subscription
       val originalSubscription = eventually {
@@ -178,9 +179,13 @@ class DynamicWorkerRoutesTest extends BaseRoutesSpec with Eventually {
         workContext.completeWith(respFuture)
       }
 
-      val expectedContent = "It was the best of times\nIt was the worst of times\nAs I write this, Trump just fired James Comey\n"
+      val expectedContent =
+        "It was the best of times\nIt was the worst of times\nAs I write this, Trump just fired James Comey\n"
       val upload = {
-        Multipart.FormData(Multipart.FormData.BodyPart.Strict("csv", HttpEntity(ContentTypes.`text/plain(UTF-8)`, expectedContent), Map("filename" -> "some.file")))
+        Multipart.FormData(
+          Multipart.FormData.BodyPart.Strict("csv",
+                                             HttpEntity(ContentTypes.`text/plain(UTF-8)`, expectedContent),
+                                             Map("filename" -> "some.file")))
       }
 
       val httpRequest = WorkerClient.multipartRequest("uploadTest", matchDetails, upload)
@@ -293,6 +298,10 @@ object DynamicWorkerRoutesTest {
 
   case class SomeData(foo: String, bar: Int)
 
-  val matchDetails = MatchDetails(nextMatchId(), nextSubscriptionKey(), nextJobId(), 3, LocalDateTime.ofEpochSecond(1234567, 0, ZoneOffset.UTC))
+  val matchDetails = MatchDetails(nextMatchId(),
+                                  nextSubscriptionKey(),
+                                  nextJobId(),
+                                  3,
+                                  LocalDateTime.ofEpochSecond(1234567, 0, ZoneOffset.UTC))
 
 }

@@ -11,7 +11,11 @@ import com.typesafe.config.ConfigFactory
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import org.scalatest.BeforeAndAfterEach
 
-abstract class BaseIntegrationTest extends BaseSpec with FailFastCirceSupport with BeforeAndAfterEach with HasMaterializer {
+abstract class BaseIntegrationTest
+    extends BaseSpec
+    with FailFastCirceSupport
+    with BeforeAndAfterEach
+    with HasMaterializer {
 
   import BaseIntegrationTest._
 
@@ -39,6 +43,7 @@ abstract class BaseIntegrationTest extends BaseSpec with FailFastCirceSupport wi
     workerConfig = WorkerConfig(s"port=${workerPort}", s"exchange.port=${exchangePort}")
     exchangeService = exchangeConfig.start().futureValue
     exchangeClient = workerConfig.exchangeClient
+    workerConfig.exchangeConfig.port shouldBe exchangeConfig.port
     worker = workerConfig.startWorker().futureValue
   }
 

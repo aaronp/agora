@@ -1,8 +1,8 @@
 package agora.rest.exchange
 
-import org.scalatest.{Matchers, WordSpec}
+import agora.BaseSpec
 
-class ExchangeConfigTest extends WordSpec with Matchers {
+class ExchangeConfigTest extends BaseSpec {
 
   "ExchangeConfig()" should {
     "reflect the server host in the client host" in {

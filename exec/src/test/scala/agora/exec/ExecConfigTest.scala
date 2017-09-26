@@ -14,7 +14,9 @@ class ExecConfigTest extends BaseSpec {
 
   "ExecConfig()" should {
     "resolve" in {
-      ExecConfig().subscription.details.runUser shouldBe Properties.userName
+      val conf = ExecConfig()
+      conf.subscription.details.runUser shouldBe Properties.userName
+      conf.eventMonitorConfig.enabled shouldBe true
     }
     "ExecConfig(strings...)" should {
       "resolve local config strings" in {
@@ -33,30 +35,6 @@ class ExecConfigTest extends BaseSpec {
         val actual = conf.subscription.details.location
         actual shouldBe HostLocation("meh", 6666)
       }
-    }
-  }
-
-  "ExecConfig.runSubscription" should {
-    "match RunProcess jobs with a subscription ID" in {
-
-      val sub1 = ExecConfig().runSubscription.withSubscriptionKey("123")
-      val sub2 = ExecConfig().runSubscription.withSubscriptionKey("456")
-      val job1 = RemoteRunner.execAsJob(RunProcess("hello"), Option("123"))
-      val job2 = RemoteRunner.execAsJob(RunProcess("hello"), Option("456"))
-
-      JobPredicate().matches(job1, sub1) shouldBe true
-      JobPredicate().matches(job1, sub2) shouldBe false
-      JobPredicate().matches(job2, sub1) shouldBe false
-      JobPredicate().matches(job2, sub2) shouldBe true
-
-      val differentJob = RemoteRunner.execAsJob(RunProcess("hello"), Option("456"))
-      JobPredicate().matches(differentJob, sub1) shouldBe false
-      JobPredicate().matches(differentJob, sub2) shouldBe true
-    }
-    "match RunProcess jobs without a subscription ID" in {
-      val sub = ExecConfig().runSubscription.withSubscriptionKey("foo")
-      val job = RemoteRunner.execAsJob(RunProcess("hello"), None)
-      JobPredicate().matches(job, sub) shouldBe true
     }
   }
 

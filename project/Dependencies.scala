@@ -19,9 +19,9 @@ object Dependencies {
   val akkaCirce = "de.heikoseeberger" %% "akka-http-circe" % "1.17.0"
   val circe     = List("core", "generic", "parser", "optics", "java8").map(name => "io.circe" %% s"circe-$name" % "0.8.0")
 
-  val akkaHttp = List("", "-core", "-testkit").map { suffix =>
+  val akkaHttp = List("", "-core").map { suffix =>
     "com.typesafe.akka" %% s"akka-http$suffix" % "10.0.9"
-  } :+ akkaCirce
+  } :+ akkaCirce :+ ("com.typesafe.akka" %% s"akka-http-testkit" % "10.0.9" % "test")
 
   val pprint     = "com.lihaoyi"         %% "pprint"              % "0.5.2"
   val streamsTck = "org.reactivestreams" % "reactive-streams-tck" % "1.0.0" % "test"

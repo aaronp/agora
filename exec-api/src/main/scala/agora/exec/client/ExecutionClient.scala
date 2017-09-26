@@ -21,7 +21,8 @@ import io.circe.java8.time._
   *
   * @param client
   */
-case class ExecutionClient(override val client: RestClient, defaultFrameLength: Int)(implicit uploadTimeout: FiniteDuration)
+case class ExecutionClient(override val client: RestClient, defaultFrameLength: Int)(
+    implicit uploadTimeout: FiniteDuration)
     extends UploadClient
     with FailFastCirceSupport
     with AutoCloseable {

@@ -33,7 +33,9 @@ trait WorkspaceClient {
     *                                pending depdendencies
     * @return a future which completes once the workspace has been cleaned up, with the boolean value signalling if it was a known/valid workspace
     */
-  def close(workspaceId: WorkspaceId, ifNotModifiedSince: Option[Timestamp] = None, failPendingDependencies: Boolean = true): Future[Boolean]
+  def close(workspaceId: WorkspaceId,
+            ifNotModifiedSince: Option[Timestamp] = None,
+            failPendingDependencies: Boolean = true): Future[Boolean]
 
   /**
     * Saves a files to the given workspace
@@ -68,7 +70,8 @@ trait WorkspaceClient {
     */
   def await(dependencies: UploadDependencies): Future[Path]
 
-  final def await(workspace: WorkspaceId, dependsOnFiles: Set[String], timeoutInMillis: Long): Future[Path] = await(UploadDependencies(workspace, dependsOnFiles, timeoutInMillis))
+  final def await(workspace: WorkspaceId, dependsOnFiles: Set[String], timeoutInMillis: Long): Future[Path] =
+    await(UploadDependencies(workspace, dependsOnFiles, timeoutInMillis))
 
   /**
     * @return all known workspace ids
@@ -105,7 +108,9 @@ object WorkspaceClient {
       promise.future
     }
 
-    override def close(workspaceId: WorkspaceId, ifNotModifiedSince: Option[Timestamp] = None, failPendingDependencies: Boolean = true) = {
+    override def close(workspaceId: WorkspaceId,
+                       ifNotModifiedSince: Option[Timestamp] = None,
+                       failPendingDependencies: Boolean = true) = {
       val promise = Promise[Boolean]()
       endpointActor ! Close(workspaceId, ifNotModifiedSince, failPendingDependencies, promise)
       promise.future

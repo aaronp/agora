@@ -10,7 +10,8 @@ import scala.collection.immutable
 import scala.concurrent.ExecutionContext
 
 private[state] object RaftNodeLogic {
-  def apply[T](id: NodeId, workingDir: Path)(applyToStateMachine: LogEntry[T] => Unit)(implicit fmt: Formatter[T, Array[Byte]]): RaftNodeLogic[T] = {
+  def apply[T](id: NodeId, workingDir: Path)(applyToStateMachine: LogEntry[T] => Unit)(
+      implicit fmt: Formatter[T, Array[Byte]]): RaftNodeLogic[T] = {
     val ps: PersistentState[T] = PersistentState[T](workingDir)(applyToStateMachine)
     apply(id, ps)
   }
@@ -55,7 +56,8 @@ private[state] class RaftNodeLogic[T](val id: NodeId, initialState: RaftState[T]
     }
   }
 
-  private[state] def onClientRequestToAdd(command: T, protocol: ClusterProtocol)(implicit ec: ExecutionContext): UpdateResponse.Appendable = {
+  private[state] def onClientRequestToAdd(command: T, protocol: ClusterProtocol)(
+      implicit ec: ExecutionContext): UpdateResponse.Appendable = {
     val matchIndex = lastUnappliedIndex
     val index      = matchIndex + 1
 
@@ -130,7 +132,8 @@ private[state] class RaftNodeLogic[T](val id: NodeId, initialState: RaftState[T]
         logger.warn(s"ignoring election timeout while already the leader w/ ${cluster}")
       case Leader(view) =>
         becomeCandidate()
-        logger.info(s"Election timeout while leader w/ ${view} which doesn't match our current cluster view ${expectedView}. we are now $raftState")
+        logger.info(
+          s"Election timeout while leader w/ ${view} which doesn't match our current cluster view ${expectedView}. we are now $raftState")
       case other =>
         becomeCandidate()
         logger.debug(s"Election timeout while in state ${other.name}, starting election... we are now $raftState")
@@ -151,7 +154,8 @@ private[state] class RaftNodeLogic[T](val id: NodeId, initialState: RaftState[T]
   private def recentLogReport(limit: Int = 10): String = {
     recentLogs(limit)
       .map {
-        case (entry, committed) => f"${entry.term.t}%3s | ${entry.index}%3s | ${if (committed) "committed" else " pending "}%10s | ${entry.command}"
+        case (entry, committed) =>
+          f"${entry.term.t}%3s | ${entry.index}%3s | ${if (committed) "committed" else " pending "}%10s | ${entry.command}"
       }
       .mkString("\n")
   }
@@ -233,7 +237,9 @@ private[state] class RaftNodeLogic[T](val id: NodeId, initialState: RaftState[T]
     case ae: AppendEntries[T] => onAppendEntries(ae, cluster)
   }
 
-  private def commitLogOnMajority(ourLatestIndex: LogIndex, newView: Map[NodeId, ClusterPeer], cluster: ClusterProtocol) = {
+  private def commitLogOnMajority(ourLatestIndex: LogIndex,
+                                  newView: Map[NodeId, ClusterPeer],
+                                  cluster: ClusterProtocol) = {
     val nodesWithMatchIndex = newView.collect {
       case (nodeId, view) if view.matchIndex == ourLatestIndex => nodeId
     }
@@ -287,7 +293,8 @@ private[state] class RaftNodeLogic[T](val id: NodeId, initialState: RaftState[T]
         // ... and do we need to send any updates?
         val nextIndex = (resp.matchIndex + 1) //.min(ourLatestLogIndex)
 
-        assert(resp.matchIndex <= ourLatestLogIndex, s"Match index '${resp.matchIndex}' from $from is >= our (leader's) largest index $ourLatestLogIndex")
+        assert(resp.matchIndex <= ourLatestLogIndex,
+               s"Match index '${resp.matchIndex}' from $from is >= our (leader's) largest index $ourLatestLogIndex")
 
         // do we need to send another append entries?
         if (resp.matchIndex < ourLatestLogIndex) {

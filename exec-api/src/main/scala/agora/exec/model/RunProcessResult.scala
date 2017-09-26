@@ -18,14 +18,22 @@ sealed trait RunProcessResult
 object RunProcessResult {
   def apply(iter: Iterator[String]) = StreamingResult(iter)
 
-  def apply(exitCode: Int, workspaceId: WorkspaceId, stdOutFile: Option[String] = None, stdErrFile: Option[String] = None, matchDetails: Option[MatchDetails] = None) = {
+  def apply(exitCode: Int,
+            workspaceId: WorkspaceId,
+            stdOutFile: Option[String] = None,
+            stdErrFile: Option[String] = None,
+            matchDetails: Option[MatchDetails] = None) = {
     FileResult(exitCode, workspaceId, stdOutFile, stdErrFile, matchDetails)
   }
 }
 
 case class StreamingResult(output: Iterator[String]) extends RunProcessResult
 
-case class FileResult(exitCode: Int, workspaceId: WorkspaceId, stdOutFile: Option[String] = None, stdErrFile: Option[String] = None, matchDetails: Option[MatchDetails] = None)
+case class FileResult(exitCode: Int,
+                      workspaceId: WorkspaceId,
+                      stdOutFile: Option[String] = None,
+                      stdErrFile: Option[String] = None,
+                      matchDetails: Option[MatchDetails] = None)
     extends RunProcessResult
 
 object FileResult extends FailFastCirceSupport {

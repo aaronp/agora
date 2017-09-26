@@ -73,7 +73,9 @@ class RaftConfig(c: Config) extends ServerConfig(c) {
   def messageRequestsDir: Option[Path] = {
 
     import agora.io.implicits._
-    Option(config.getString("messageRequestsDir")).filterNot(d => d.isEmpty || d == "off" || numberOfMessageToKeep <= 0).map(_.asPath)
+    Option(config.getString("messageRequestsDir"))
+      .filterNot(d => d.isEmpty || d == "off" || numberOfMessageToKeep <= 0)
+      .map(_.asPath)
   }
 
   def clusterNodes[T: Encoder]: Map[NodeId, RaftEndpoint[T]] = {
@@ -97,11 +99,13 @@ class RaftConfig(c: Config) extends ServerConfig(c) {
 
   def leaderClient[T: Encoder: Decoder]: LeaderClient[T] = leaderClientFor(clientConfig.clientFor(location))
 
-  def leaderClientFor[T: Encoder: Decoder](client: RestClient): LeaderClient[T] = LeaderClient[T](client, clientConfig.clientForUri)
+  def leaderClientFor[T: Encoder: Decoder](client: RestClient): LeaderClient[T] =
+    LeaderClient[T](client, clientConfig.clientForUri)
 
   def supportClient[T: Encoder: Decoder]: RaftSupportClient[T] = supportClientFor(clientConfig.clientFor(location))
 
-  def supportClientFor[T: Encoder: Decoder](client: RestClient): RaftSupportClient[T] = new RaftSupportClient[T](client)
+  def supportClientFor[T: Encoder: Decoder](client: RestClient): RaftSupportClient[T] =
+    new RaftSupportClient[T](client)
 
   def heartbeat = new TimerConfig("heartbeat")
 

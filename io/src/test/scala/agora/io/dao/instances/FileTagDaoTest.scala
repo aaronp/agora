@@ -1,15 +1,16 @@
 package agora.io.dao.instances
 
-import agora.BaseSpec
+import agora.BaseIOSpec
 import agora.io.dao.{FromBytes, Persist}
 
-class FileTagDaoTest extends BaseSpec {
+class FileTagDaoTest extends BaseIOSpec {
   "FileTagDao.setTag" should {
     "create a ROOT/tags/*tag*/*value*/*id*/.data entry for alphanumeric tag values" in {
       withDao { dao =>
         dao.setTag("entry", "some tag", "someValue")
 
-        val entityDir = dao.rootDir.resolve("tags").resolve("some tag").resolve("someValue").resolve("entry")
+        val entityDir =
+          dao.rootDir.resolve("tags").resolve("some tag").resolve("someValue").resolve("entry")
         entityDir.resolve(".data").exists shouldBe true
         entityDir.resolve(".data").text shouldBe "entry"
         entityDir.resolve(".value").exists shouldBe false
@@ -20,7 +21,11 @@ class FileTagDaoTest extends BaseSpec {
         val value = "`weird` non-alphanumeric * value"
         dao.setTag("first", "TAG", value)
 
-        val idDir = dao.rootDir.resolve("tags").resolve("TAG").resolve(value.hashCode.toString).resolve("first")
+        val idDir = dao.rootDir
+          .resolve("tags")
+          .resolve("TAG")
+          .resolve(value.hashCode.toString)
+          .resolve("first")
         idDir.resolve(".value").text shouldBe value
         idDir.resolve(".data").text shouldBe "first"
       }
@@ -36,8 +41,9 @@ class FileTagDaoTest extends BaseSpec {
         dao.setTag("entry1", "sameTag", value1)
         dao.setTag("entry2", "sameTag", value2)
 
-        val valueDir = dao.rootDir.resolve("tags").resolve("sameTag").resolve(value1.hashCode.toString)
-        val ids      = valueDir.children.map(_.fileName).toList
+        val valueDir =
+          dao.rootDir.resolve("tags").resolve("sameTag").resolve(value1.hashCode.toString)
+        val ids = valueDir.children.map(_.fileName).toList
         ids should contain only ("entry1", "entry2")
         valueDir.resolve("entry1").resolve(".value").text shouldBe value1
         valueDir.resolve("entry1").resolve(".data").text shouldBe "entry1"
@@ -76,7 +82,8 @@ class FileTagDaoTest extends BaseSpec {
         dao.setTag("first", "TAG", "first value")
         dao.setTag("second", "TAG", "first value")
 
-        val firstValueDir = dao.rootDir.resolve("tags").resolve("TAG").resolve("first value".hashCode.toString)
+        val firstValueDir =
+          dao.rootDir.resolve("tags").resolve("TAG").resolve("first value".hashCode.toString)
         firstValueDir.exists shouldBe true
         firstValueDir.resolve("first").exists shouldBe true
         firstValueDir.resolve("second").exists shouldBe true
@@ -85,7 +92,12 @@ class FileTagDaoTest extends BaseSpec {
         firstValueDir.resolve("first").exists shouldBe false
         firstValueDir.resolve("second").exists shouldBe true
 
-        dao.rootDir.resolve("tags").resolve("TAG").resolve("updated value".hashCode.toString).resolve("first").exists shouldBe true
+        dao.rootDir
+          .resolve("tags")
+          .resolve("TAG")
+          .resolve("updated value".hashCode.toString)
+          .resolve("first")
+          .exists shouldBe true
       }
     }
   }

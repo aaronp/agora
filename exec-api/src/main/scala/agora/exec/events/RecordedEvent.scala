@@ -17,7 +17,8 @@ import scala.util.Try
   */
 sealed trait RecordedEvent
 
-case class ReceivedJob(id: JobId, details: Option[MatchDetails], job: RunProcess, received: Timestamp = now()) extends RecordedEvent
+case class ReceivedJob(id: JobId, details: Option[MatchDetails], job: RunProcess, received: Timestamp = now())
+    extends RecordedEvent
 
 object ReceivedJob {
 
@@ -49,7 +50,8 @@ object CompletedJob {
 
 }
 
-case class StartedSystem(config: Json, jvmId: String = StartedSystem.jvmId, startTime: Timestamp = now()) extends RecordedEvent {
+case class StartedSystem(config: Json, jvmId: String = StartedSystem.jvmId, startTime: Timestamp = now())
+    extends RecordedEvent {
   def id = s"${jvmId}_${startTime}"
 }
 

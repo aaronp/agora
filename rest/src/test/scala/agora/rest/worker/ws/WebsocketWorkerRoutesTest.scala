@@ -22,7 +22,8 @@ class WebsocketWorkerRoutesTest extends BaseRoutesSpec {
 
       val request = WS("/rest/websocket/create", wsClient.flow)
         .withMethod(HttpMethods.POST)
-        .withEntity(HttpEntity(ContentTypes.`application/json`, WorkSubscription(HostLocation.localhost(1234)).asJson.noSpaces))
+        .withEntity(
+          HttpEntity(ContentTypes.`application/json`, WorkSubscription(HostLocation.localhost(1234)).asJson.noSpaces))
 
       request ~> route ~> check {
 

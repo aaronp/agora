@@ -65,12 +65,14 @@ trait MatchObserver extends Exchange.OnMatch with StrictLogging {
   /**
     * Invoke the partial function when it applies, then remove it
     */
-  def onceWhen(pf: PartialFunction[MatchNotification, Unit]): PartialHandler = +=(new PartialHandler(this, pf, true))
+  def onceWhen(pf: PartialFunction[MatchNotification, Unit]): PartialHandler =
+    +=(new PartialHandler(this, pf, true))
 
   /**
     * Always invoke the partial function whenever it applies
     */
-  def alwaysWhen(pf: PartialFunction[MatchNotification, Unit]): PartialHandler = +=(new PartialHandler(this, pf, false))
+  def alwaysWhen(pf: PartialFunction[MatchNotification, Unit]): PartialHandler =
+    +=(new PartialHandler(this, pf, false))
 
   override def apply(jobMatch: MatchNotification): Unit = {
     observers.foreach { obs =>
@@ -101,7 +103,8 @@ object MatchObserver {
     }
   }
 
-  class PartialHandler(mo: MatchObserver, pf: PartialFunction[MatchNotification, Unit], removeAfterInvocation: Boolean) extends BaseHandler {
+  class PartialHandler(mo: MatchObserver, pf: PartialFunction[MatchNotification, Unit], removeAfterInvocation: Boolean)
+      extends BaseHandler {
     override def apply(jobMatch: MatchNotification): Unit = {
       if (pf.isDefinedAt(jobMatch)) {
         pf(jobMatch)

@@ -19,6 +19,8 @@ package object rest {
     */
   trait RestImplicits extends agora.api.Implicits with RestConversionImplicits with HttpHeaderImplicits
 
+  object RestImplicits extends RestImplicits
+
   // TODO - have this extend RestImplicits
   object implicits extends RestConversionImplicits with HttpHeaderImplicits
 

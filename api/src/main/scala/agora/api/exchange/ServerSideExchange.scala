@@ -15,11 +15,14 @@ import scala.concurrent.{ExecutionContext, Future}
   * @param underlying
   * @param observer
   */
-case class ServerSideExchange(underlying: Exchange, val observer: MatchObserver = MatchObserver())(implicit ec: ExecutionContext) extends Exchange {
+case class ServerSideExchange(underlying: Exchange, val observer: MatchObserver = MatchObserver())(
+    implicit ec: ExecutionContext)
+    extends Exchange {
 
   override def onClientRequest(request: ClientRequest) = underlying.onClientRequest(request)
 
-  override def onSubscriptionRequest(req: SubscriptionRequest) = underlying.onSubscriptionRequest(req)
+  override def onSubscriptionRequest(req: SubscriptionRequest) =
+    underlying.onSubscriptionRequest(req)
 
   override def submit(req: SubmitJob): Future[ClientResponse] = {
     if (req.submissionDetails.awaitMatch) {
@@ -35,7 +38,8 @@ case class ServerSideExchange(underlying: Exchange, val observer: MatchObserver 
     * @param submitJob
     * @return a future BlockSubmitJobResponse
     */
-  def submitJobAndAwaitMatch(submitJob: SubmitJob)(implicit submitCtxt: ExecutionContext): Future[BlockingSubmitJobResponse] = {
+  def submitJobAndAwaitMatch(submitJob: SubmitJob)(
+      implicit submitCtxt: ExecutionContext): Future[BlockingSubmitJobResponse] = {
     val jobWithId                                      = submitJob.jobId.fold(submitJob.withId(nextJobId()))(_ => submitJob)
     val matchFuture: Future[BlockingSubmitJobResponse] = observer.onJob(jobWithId)(submitCtxt)
     underlying.submit(jobWithId)

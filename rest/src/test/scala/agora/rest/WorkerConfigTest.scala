@@ -1,12 +1,13 @@
 package agora.api.io
 
 import com.typesafe.config.{Config, ConfigFactory}
-import agora.api.json.JMatcher
+import agora.api.json.{JMatcher, MatchAnd, MatchOr}
 import agora.rest.worker.WorkerConfig
 import _root_.io.circe.optics.JsonPath
+import agora.BaseSpec
 import org.scalatest.{Matchers, WordSpec}
 
-class WorkerConfigTest extends WordSpec with Matchers {
+class WorkerConfigTest extends BaseSpec {
   "WorkerConfig(args)" should {
     "produce a worker config from user args" in {
       val wc: WorkerConfig = WorkerConfig("subscription.details.path=foo", "port=1122", "exchange.port=567")
@@ -48,8 +49,9 @@ class WorkerConfigTest extends WordSpec with Matchers {
           |  }
           |}""".stripMargin)
       val sub     = default.subscription
-      sub.jobMatcher shouldBe JMatcher.matchAll.and(JMatcher.matchNone)
-      sub.submissionMatcher shouldBe JMatcher.matchNone.or(JMatcher.matchAll)
+      import JMatcher._
+      sub.jobMatcher shouldBe MatchAnd(List(matchAll, matchNone))
+      sub.submissionMatcher shouldBe MatchOr(List(matchNone, matchAll))
     }
   }
 

@@ -34,7 +34,11 @@ import scala.language.reflectiveCalls
   */
 @Api(value = "Exchange", consumes = "application/json", produces = "application/json")
 @Path("/")
-case class ExchangeRoutes(exchange: ServerSideExchange) extends ExchangeSubmissionRoutes with ExchangeWorkerRoutes with ExchangeQueryRoutes with RouteLoggingSupport {
+case class ExchangeRoutes(exchange: ServerSideExchange)
+    extends ExchangeSubmissionRoutes
+    with ExchangeWorkerRoutes
+    with ExchangeQueryRoutes
+    with RouteLoggingSupport {
 
   import ExchangeRoutes._
 
@@ -69,7 +73,8 @@ case class ExchangeRoutes(exchange: ServerSideExchange) extends ExchangeSubmissi
   /**
     * subscription routes called from workers requesting work
     */
-  protected def jsonRouteFor[T, B](name: String)(handle: T => Future[_ >: B])(implicit um: FromRequestUnmarshaller[T], dec: Decoder[T], enc: Encoder[B]) = {
+  protected def jsonRouteFor[T, B](name: String)(
+      handle: T => Future[_ >: B])(implicit um: FromRequestUnmarshaller[T], dec: Decoder[T], enc: Encoder[B]) = {
     (path(name) & pathEnd) {
       extractMaterializer { implicit mat =>
         import mat.executionContext

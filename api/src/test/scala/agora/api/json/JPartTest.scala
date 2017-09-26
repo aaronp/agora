@@ -64,12 +64,14 @@ class JPartTest extends WordSpec with Matchers {
   "JFilter.~=" should {
     Seq("start and finish", "startfinish").foreach { expected =>
       s"""value ~= ^start.*finish$$ should match $expected""" in {
-        ("value" ~= "^start.*finish$").asMatcher.matches(Map("value" -> expected).asJson) shouldBe (true)
+        ("value" ~= "^start.*finish$").asMatcher
+          .matches(Map("value" -> expected).asJson) shouldBe (true)
       }
     }
     Seq("Startfinish", "will start then finish", "start finish soup").foreach { expected =>
       s"""value ~= ^start.*finish$$ should not match $expected""" in {
-        ("value" ~= "^start.*finish$").asMatcher.matches(Map("value" -> expected).asJson) shouldBe (false)
+        ("value" ~= "^start.*finish$").asMatcher
+          .matches(Map("value" -> expected).asJson) shouldBe (false)
       }
     }
   }

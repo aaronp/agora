@@ -1,40 +1,71 @@
 package agora.rest
 
-import agora.api.exchange.{Dispatch, AsClient}
+import agora.api.exchange.{AsClient, Dispatch}
 import agora.io.IterableSubscriber
 import agora.rest.worker.WorkerClient
 import akka.http.scaladsl.marshalling.ToEntityMarshaller
-import akka.http.scaladsl.model.HttpResponse
-import akka.http.scaladsl.unmarshalling.{FromResponseUnmarshaller, Unmarshal}
+import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
+import akka.http.scaladsl.unmarshalling.{FromEntityUnmarshaller, FromResponseUnmarshaller, Unmarshal}
 import akka.stream.Materializer
+import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 
 import scala.concurrent.Future
 
 /**
   * Contains implicits for creating [[AsClient]] instances
   */
-trait RestConversionImplicits {
+trait RestConversionImplicits extends FailFastCirceSupport {
+
   import RestConversionImplicits._
 
-  implicit def asWorkerClientDispatchable[T](implicit conf: ClientConfig, ev: ToEntityMarshaller[T]): AsClient[T, HttpResponse] = {
-    asRichClientConfig(conf)
+  implicit def asWorkerClient(implicit conf: ClientConfig): AsClient[HttpRequest, HttpResponse] = {
+    ClientConfigOps(conf).asClient
   }
 
-  def asRichClientConfig[T: ToEntityMarshaller](conf: ClientConfig): AsClient[T, HttpResponse] = {
-    new ClientConfigOps(conf).asDispatchable[T]
+  implicit def asMarshalledClient[T: ToEntityMarshaller](implicit conf: ClientConfig): AsClient[T, HttpResponse] = {
+    ClientConfigOps(conf).asClientForEntity[T]
   }
 
-  implicit def asRichDispatchable[A](asClient: AsClient[A, HttpResponse]) = new AsClientOps(asClient)
+  implicit def asInferredClient[A: ToEntityMarshaller, B: FromEntityUnmarshaller](
+      implicit conf: ClientConfig,
+      mat: Materializer): AsClient[A, B] = {
+    ClientConfigOps(conf).asInferredClient[A, B]
+  }
+
+  implicit def asRichAsClientHttpResponse[A](implicit asClient: AsClient[A, HttpResponse]): AsClientOps[A] = {
+    new AsClientOps[A](asClient)
+  }
 }
 
 object RestConversionImplicits {
 
-  class ClientConfigOps(conf: ClientConfig) {
+  case class ClientConfigOps(conf: ClientConfig) {
 
-    def asDispatchable[T: ToEntityMarshaller]: AsClient[T, HttpResponse] = {
+    def asClient: AsClient[HttpRequest, HttpResponse] = {
+      new AsClient[HttpRequest, HttpResponse] {
+        override def dispatch(dispatch: Dispatch[HttpRequest]): Future[HttpResponse] = {
+          WorkerClient(conf, dispatch).send(dispatch.request)
+        }
+      }
+    }
+
+    def asClientForEntity[T: ToEntityMarshaller]: AsClient[T, HttpResponse] = {
       new AsClient[T, HttpResponse] {
         override def dispatch(dispatch: Dispatch[T]): Future[HttpResponse] = {
           WorkerClient(conf, dispatch).sendRequest(dispatch.request)
+        }
+      }
+    }
+    def asInferredClient[A: ToEntityMarshaller, B: FromResponseUnmarshaller](
+        implicit mat: Materializer): AsClient[A, B] = {
+      import mat._
+      import akka.http.scaladsl.util.FastFuture._
+      new AsClient[A, B] {
+        override def dispatch(dispatch: Dispatch[A]): Future[B] = {
+          val future = WorkerClient(conf, dispatch).sendRequest(dispatch.request)
+          future.fast.flatMap { resp =>
+            Unmarshal(resp).to[B]
+          }
         }
       }
     }
@@ -58,7 +89,8 @@ object RestConversionImplicits {
       }
     }
 
-    def iterate(maximumFrameLength: Int = 1000, allowTruncation: Boolean = true)(implicit mat: Materializer): AsClient[A, Iterator[String]] = {
+    def iterate(maximumFrameLength: Int = 1000, allowTruncation: Boolean = true)(
+        implicit mat: Materializer): AsClient[A, Iterator[String]] = {
       import mat.executionContext
       asClient.map { resp =>
         IterableSubscriber.iterate(resp.entity.dataBytes, maximumFrameLength, allowTruncation)

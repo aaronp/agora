@@ -19,7 +19,9 @@ import scala.language.reflectiveCalls
   * for examining the current Raft state
   *
   */
-case class RaftSupportRoutes[T: Encoder: Decoder](logic: RaftNodeLogic[T], cluster: ClusterProtocol, messageLogDir: Option[Path])(implicit ec: ExecutionContext)
+case class RaftSupportRoutes[T: Encoder: Decoder](logic: RaftNodeLogic[T],
+                                                  cluster: ClusterProtocol,
+                                                  messageLogDir: Option[Path])(implicit ec: ExecutionContext)
     extends RaftJson
     with FailFastCirceSupport {
 
@@ -74,7 +76,8 @@ case class RaftSupportRoutes[T: Encoder: Decoder](logic: RaftNodeLogic[T], clust
 
           val limit = limitOpt.map(_.toInt).getOrElse(100)
 
-          val latestMessages: Array[(NodeId, Either[ParsingFailure, Json])] = msgDir.children.reverse.take(limit).map(file => file.fileName -> io.circe.parser.parse(file.text))
+          val latestMessages: Array[(NodeId, Either[ParsingFailure, Json])] =
+            msgDir.children.reverse.take(limit).map(file => file.fileName -> io.circe.parser.parse(file.text))
 
           val found = latestMessages.map {
             case (fileName, Right(json)) => Json.obj(fileName -> json)

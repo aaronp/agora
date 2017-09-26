@@ -21,6 +21,6 @@ class WorkerClientTest extends BaseRoutesSpec {
     val worker        = DynamicWorkerRoutes(WorkSubscription.forDetails(workerDetails))
     val restClient    = DirectRestClient(worker.routes)
     val matchDetails  = MatchDetails.empty
-    WorkerClient(restClient, "multipart", matchDetails, workerDetails)
+    WorkerClient(restClient, matchDetails, workerDetails)
   }
 }

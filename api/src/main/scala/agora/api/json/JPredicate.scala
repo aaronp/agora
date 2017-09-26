@@ -28,29 +28,32 @@ sealed trait JPredicate { self =>
     */
   def json: Json
 
-  def and(other: JPredicate, theRest: JPredicate*): JPredicate = new And(self :: other :: theRest.toList)
+  def and(other: JPredicate, theRest: JPredicate*): JPredicate =
+    new And(self :: other :: theRest.toList)
 
-  def or(other: JPredicate, theRest: JPredicate*): JPredicate = new Or(self :: other :: theRest.toList)
+  def or(other: JPredicate, theRest: JPredicate*): JPredicate =
+    new Or(self :: other :: theRest.toList)
+
+  def unary_! : JPredicate = Not(this)
+
+  /** @return an 'array contains' JPart for this predicate
+    */
+  def inArray = JArrayFind(this)
 }
 
 object JPredicate {
 
-  object implicits extends LowPriorityPredicateImplicits {
-
-    implicit class JsonHelper(private val sc: StringContext) extends AnyVal {
-      def json(args: Any*): Json = {
-        val jsonString = ConfigFactory.parseString(sc.s(args: _*)).root.render(ConfigRenderOptions.concise().setJson(true))
-        io.circe.parser.parse(jsonString).right.get
-      }
-    }
-
-  }
+  object implicits extends LowPriorityPredicateImplicits
 
   trait LowPriorityPredicateImplicits {
 
     implicit def stringAsJson(s: String) = Json.fromString(s)
 
     implicit def intAsJson(i: Int) = Json.fromInt(i)
+
+    implicit def jsonInArray[T](value: T)(implicit ev: T => Json) = new {
+      def inArray = Eq(ev(value)).inArray
+    }
 
     implicit class RichJson(field: String) {
       private implicit def predAsJFilter(p: JPredicate): JFilter = JFilter(field, p)
@@ -91,7 +94,8 @@ object JPredicate {
         */
       def includes[J](items: Set[J])(implicit ev: J => Json): JFilter = JIncludes(items.map(ev))
 
-      def includes[J](first: J, theRest: J*)(implicit ev: J => Json): JFilter = includes(theRest.toSet + first)
+      def includes[J](first: J, theRest: J*)(implicit ev: J => Json): JFilter =
+        includes(theRest.toSet + first)
     }
 
   }
@@ -143,7 +147,8 @@ case class Or(or: List[JPredicate]) extends JPredicate {
 }
 
 object Or {
-  def apply(first: JPredicate, second: JPredicate, theRest: JPredicate*): Or = Or(first :: second :: theRest.toList)
+  def apply(first: JPredicate, second: JPredicate, theRest: JPredicate*): Or =
+    Or(first :: second :: theRest.toList)
 }
 
 case class And(and: List[JPredicate]) extends JPredicate {
@@ -153,11 +158,14 @@ case class And(and: List[JPredicate]) extends JPredicate {
 }
 
 object And {
-  def apply(first: JPredicate, second: JPredicate, theRest: JPredicate*): And = And(first :: second :: theRest.toList)
+  def apply(first: JPredicate, second: JPredicate, theRest: JPredicate*): And =
+    And(first :: second :: theRest.toList)
 }
 
 case class Not(not: JPredicate) extends JPredicate {
   override def matches(json: Json) = !(not.matches(json))
+
+  override def unary_! = not
 
   override def json: Json = this.asJson
 }
@@ -225,7 +233,10 @@ case class JIncludes(elements: Set[Json]) extends JPredicate {
   * @param bdCompare
   * @param longCompare
   */
-sealed abstract class ComparablePredicate(value: Json, bdCompare: (BigDecimal, BigDecimal) => Boolean, longCompare: (Long, Long) => Boolean) extends JPredicate {
+sealed abstract class ComparablePredicate(value: Json,
+                                          bdCompare: (BigDecimal, BigDecimal) => Boolean,
+                                          longCompare: (Long, Long) => Boolean)
+    extends JPredicate {
   //  TODO - we could compare the (private) Json instance types instead of using this 'toString' hack
   val requiresDec        = value.asNumber.map(_.toString).exists(_.contains("."))
   lazy val refLong       = asLong(value)

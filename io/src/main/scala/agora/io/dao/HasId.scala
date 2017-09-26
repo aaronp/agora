@@ -8,7 +8,18 @@ trait HasId[T] {
 }
 
 object HasId {
-  def instance[T](f: T => String) = new HasId[T] {
+  def instance[T: HasId]: HasId[T] = implicitly[HasId[T]]
+
+  trait LowPriorityHasIdImplicits {
+    implicit def hasIdIdentity: HasId[String] = HasId.identity
+  }
+  object implicits extends LowPriorityHasIdImplicits
+
+  case object identity extends HasId[String] {
+    override def id(value: String): String = value
+  }
+
+  def lift[T](f: T => String) = new HasId[T] {
     override def id(value: T) = f(value)
   }
 }

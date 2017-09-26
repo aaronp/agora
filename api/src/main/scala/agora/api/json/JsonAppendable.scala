@@ -27,5 +27,6 @@ trait JsonAppendable {
     }
   }
 
-  protected def namespace[T](c1ass: Class[T], name: String) = Option(name).getOrElse(c1ass.getSimpleName)
+  protected def namespace[T](c1ass: Class[T], name: String) =
+    Option(name).getOrElse(c1ass.getSimpleName)
 }

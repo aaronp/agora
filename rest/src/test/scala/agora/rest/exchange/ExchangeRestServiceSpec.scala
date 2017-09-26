@@ -2,9 +2,10 @@ package agora.rest.exchange
 
 import agora.api.Implicits._
 import agora.api.exchange.{AsClient, QueueStateResponse}
-import agora.rest.integration.BaseIntegrationTest
 import agora.io.IterableSubscriber
+import agora.rest.ClientConfig
 import agora.rest.implicits._
+import agora.rest.integration.BaseIntegrationTest
 import agora.rest.worker.{WorkContext, WorkerClient}
 import akka.http.scaladsl.model.HttpResponse
 import akka.stream.scaladsl.Source
@@ -30,12 +31,14 @@ trait ExchangeRestServiceSpec { self: BaseIntegrationTest =>
       }
       subscriptionAckFuture.futureValue
 
-      val mkRequest = AsClient[Int, HttpResponse] { dispatchJob =>
-        val client = WorkerClient(workerConfig.clientConfig, dispatchJob)
-        client.sendRequest(dispatchJob.request)
-      }
-      implicit val strResp: AsClient[Int, Iterator[String]] = mkRequest.map { resp =>
-        IterableSubscriber.iterate(resp.entity.dataBytes, 1000, true)
+      implicit val strResp: AsClient[Int, Iterator[String]] = {
+        val mkRequest = AsClient.lift[Int, HttpResponse] { dispatchJob =>
+          val client = WorkerClient(workerConfig.clientConfig, dispatchJob)
+          client.sendRequest(dispatchJob.request)
+        }
+        mkRequest.map { resp =>
+          IterableSubscriber.iterate(resp.entity.dataBytes, 1000, true)
+        }
       }
 
       val strings = 12345.enqueueIn[Iterator[String]](exchangeClient).futureValue
@@ -72,9 +75,8 @@ trait ExchangeRestServiceSpec { self: BaseIntegrationTest =>
       ourSubscription.key shouldBe subscriptionKey
       ourSubscription.requested shouldBe worker.service.defaultInitialRequest
 
-      implicit val sendStringsAndReturnJson = {
-        asRichClientConfig[String](workerConfig.clientConfig).unmarshalledTo[Json]
-      }
+      implicit val clientConf: ClientConfig = workerConfig.clientConfig
+      val sendStringsAndReturnJson          = AsClient.instance[String, Json]
 
       val jsonResp = "hello world!".enqueueIn[Json](exchangeClient).futureValue
       //      resp.onlyWorker.subscriptionKey shouldBe subscriptionKey

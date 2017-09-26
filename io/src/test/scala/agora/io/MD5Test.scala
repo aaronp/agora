@@ -1,8 +1,8 @@
 package agora.io
 
-import org.scalatest.{Matchers, WordSpec}
+import agora.BaseIOSpec
 
-class MD5Test extends WordSpec with Matchers {
+class MD5Test extends BaseIOSpec {
 
   "MD5" should {
     val inputs = List("hello", "", "foo +{bar}", "meh")

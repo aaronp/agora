@@ -21,7 +21,10 @@ class IteratorPublisher[T](mkIter: () => Iterator[T], consumeOnCancel: Boolean =
 
 object IteratorPublisher {
 
-  case class IteratorSubscription[T](s: Subscriber[_ >: T], iterator: Iterator[T], consumeOnCancel: Boolean, maxLimitToConsumeOnCancel: Option[Int] = Option(10000))
+  case class IteratorSubscription[T](s: Subscriber[_ >: T],
+                                     iterator: Iterator[T],
+                                     consumeOnCancel: Boolean,
+                                     maxLimitToConsumeOnCancel: Option[Int] = Option(10000))
       extends Subscription {
     override def cancel(): Unit = {
       if (consumeOnCancel) {

@@ -16,8 +16,11 @@ import agora.io.implicits._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
-case class LoggingEndpoint[T: Encoder: Decoder](ourNodeId: NodeId, underlying: RaftEndpoint[T], saveUnder: Path, counter: AtomicInteger, numberOfMessageToKeep: Int)(
-    implicit ec: ExecutionContext)
+case class LoggingEndpoint[T: Encoder: Decoder](ourNodeId: NodeId,
+                                                underlying: RaftEndpoint[T],
+                                                saveUnder: Path,
+                                                counter: AtomicInteger,
+                                                numberOfMessageToKeep: Int)(implicit ec: ExecutionContext)
     extends RaftEndpoint[T]
     with StrictLogging {
 

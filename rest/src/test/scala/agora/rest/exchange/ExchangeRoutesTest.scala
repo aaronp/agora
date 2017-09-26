@@ -44,8 +44,12 @@ class ExchangeRoutesTest extends BaseRoutesSpec {
     "return an empty ack of the subscription does not exist" in {
       val obs            = MatchObserver()
       val routeUnderTest = exchangeRoutes(obs)
-      val original       = WorkSubscription.localhost(1234).withSubscriptionKey("testing").append("original", "alpha").append("unchanged", "constant")
-      val ack            = routeUnderTest.exchange.subscribe(original).futureValue
+      val original = WorkSubscription
+        .localhost(1234)
+        .withSubscriptionKey("testing")
+        .append("original", "alpha")
+        .append("unchanged", "constant")
+      val ack = routeUnderTest.exchange.subscribe(original).futureValue
       ack.id shouldBe "testing"
 
       val newDetails = WorkerDetails(Json.Null).append("original", "beta").append("appended", "true")
@@ -56,7 +60,7 @@ class ExchangeRoutesTest extends BaseRoutesSpec {
         JsonPath.root.unchanged.string.getOption(json) shouldBe Some("constant")
       }
 
-      ExchangeHttp("testing", newDetails) ~> routeUnderTest.routes ~> check {
+      ExchangeHttp(UpdateSubscription.append("testing", newDetails.aboutMe)) ~> routeUnderTest.routes ~> check {
         val UpdateSubscriptionAck("testing", Some(oldDetails), Some(updated)) = responseAs[UpdateSubscriptionAck]
         oldDetails shouldBe original.details
 
@@ -101,7 +105,8 @@ class ExchangeRoutesTest extends BaseRoutesSpec {
       val matchFuture: Future[BlockingSubmitJobResponse] = obs.onJob(job)
 
       // subscribe to work
-      val ws = WorkSubscription(HostLocation.localhost(1234)).withSubscriptionKey("i'll tell you the key, thank you very much!")
+      val ws = WorkSubscription(HostLocation.localhost(1234))
+        .withSubscriptionKey("i'll tell you the key, thank you very much!")
       //ws.details.id should not be(None)
       ExchangeHttp(ws) ~> route.routes ~> check {
         val resp = responseAs[WorkSubscriptionAck]

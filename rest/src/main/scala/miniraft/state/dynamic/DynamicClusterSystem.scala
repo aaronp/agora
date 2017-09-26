@@ -68,8 +68,9 @@ object DynamicClusterSystem extends FailFastCirceSupport with StrictLogging {
     val clusterNodesFile: Path = config.logDir.resolve("cluster.nodes").createIfNotExists()
     val svc                    = DynamicHostService(config, clusterNodesFile)
 
-    val raftSystem: RaftSystem[DynamicClusterMessage] = RaftSystem[DynamicClusterMessage](config, svc.clusterNodes()) { (entry: LogEntry[DynamicClusterMessage]) =>
-      svc.onDynamicClusterMessage(entry.command)
+    val raftSystem: RaftSystem[DynamicClusterMessage] = RaftSystem[DynamicClusterMessage](config, svc.clusterNodes()) {
+      (entry: LogEntry[DynamicClusterMessage]) =>
+        svc.onDynamicClusterMessage(entry.command)
     }
 
     import config.serverImplicits._

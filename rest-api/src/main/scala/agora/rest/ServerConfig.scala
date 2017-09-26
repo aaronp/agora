@@ -49,7 +49,7 @@ class ServerConfig(val config: Config) extends RichConfigOps {
     * resolution, we allow the client to take on 'default' host and port values (empty string and 0, respectively)
     * so that we can fall-back to (resolved) server host/port values.
     */
-  lazy val clientConfig: ClientConfig = {
+  implicit lazy val clientConfig: ClientConfig = {
     val clientConf: Config = config.getConfig("client")
     val fixedPort          = Array(s"port=${port}").filter(_ => clientConf.getInt("port") <= 0)
 

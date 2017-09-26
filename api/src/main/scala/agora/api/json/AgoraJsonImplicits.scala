@@ -17,13 +17,13 @@ import io.circe.parser._
 trait AgoraJsonImplicits extends TimeInstances {
 
   implicit def toBytesForJson[T: Encoder](implicit charset: Charset = Charset.defaultCharset()): ToBytes[T] = {
-    ToBytes.instance { value =>
+    ToBytes.lift { value =>
       implicitly[Encoder[T]].apply(value).noSpaces.getBytes(charset)
     }
   }
 
   implicit def fromBytesForJson[T: Decoder](implicit charset: Charset = Charset.defaultCharset()): FromBytes[T] = {
-    FromBytes.instance { (bytes: Array[Byte]) =>
+    FromBytes.lift { (bytes: Array[Byte]) =>
       val src: Source = scala.io.Source.fromBytes(bytes, charset.name())
       val jsonString = try {
         src.getLines.mkString("")

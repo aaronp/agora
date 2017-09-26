@@ -79,13 +79,38 @@ object AsClient {
     override def dispatch(details: Dispatch[In]): Future[T] = f(details)
   }
 
-  def pure[T] = new identity[T]
+  /**
+    * Ability to summon an 'AsClient' from implicit scope
+    * @param asClient the implicit asClient
+    * @tparam A
+    * @tparam B
+    * @return the implicit instance
+    */
+  def instance[A, B](implicit asClient: AsClient[A, B]): AsClient[A, B] = asClient
 
-  def apply[In, T](f: Dispatch[In] => Future[T]): AsClient[In, T] = new AsClientFunction(f)
+  /** lifts the function into an 'AsClient' instance
+    * @param f the function to wrap
+    * @tparam In the input type
+    * @tparam Out the output type
+    * @return an AsClient instance for the given function
+    */
+  def lift[In, Out](f: Dispatch[In] => Future[Out]): AsClient[In, Out] = new AsClientFunction(f)
 
-  def sync[In, T](f: Dispatch[In] => T): AsClient[In, T] = apply(f.andThen(Future.successful))
+  /** lifts the function into an 'AsClient' instance using Future.successful
+    * @param f the function to wrap
+    * @tparam In the input type
+    * @tparam Out the output type
+    * @return an AsClient instance for the given function
+    */
+  def sync[In, Out](f: Dispatch[In] => Out): AsClient[In, Out] = lift(f.andThen(Future.successful))
 
-  def async[In, T](f: Dispatch[In] => T)(implicit ec: ExecutionContext): AsClient[In, T] = {
-    apply(f.andThen(r => Future(r)))
+  /** lifts the function into an 'AsClient' instance using Future.apply
+    * @param f the function to wrap
+    * @tparam In the input type
+    * @tparam Out the output type
+    * @return an AsClient instance for the given function
+    */
+  def async[In, Out](f: Dispatch[In] => Out)(implicit ec: ExecutionContext): AsClient[In, Out] = {
+    lift(f.andThen(r => Future(r)))
   }
 }

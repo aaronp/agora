@@ -22,7 +22,8 @@ class ProcessLoggersTest extends BaseSpec {
     }
     "propagate exceptions when given failure return codes" in {
 
-      val proc   = RunProcess("hi").withStreamingSettings(StreamingSettings(successExitCodes = Set(3), errorMarker = "Bang!"))
+      val proc =
+        RunProcess("hi").withStreamingSettings(StreamingSettings(successExitCodes = Set(3), errorMarker = "Bang!"))
       val logger = IterableLogger(proc)
       logger.err("std err 1")
       logger.out("std out")

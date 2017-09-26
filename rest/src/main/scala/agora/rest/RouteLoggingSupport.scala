@@ -24,7 +24,8 @@ trait RouteLoggingSupport {
     def myLoggingFunction(logger: LoggingAdapter)(req: HttpRequest)(res: Any): Unit = {
       val entry = res match {
         case Complete(resp) =>
-          entityAsString(resp.entity).map(data ⇒ LogEntry(s"${req.method} ${req.uri}: ${resp.status} \n entity: $data", level))
+          entityAsString(resp.entity).map(data ⇒
+            LogEntry(s"${req.method} ${req.uri}: ${resp.status} \n entity: $data", level))
         case other =>
           Future.successful(LogEntry(s"$other", level))
       }

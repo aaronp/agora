@@ -9,17 +9,24 @@ import agora.io.implicits._
 import scala.util.Try
 
 /**
-  * Writes stuff down in the directory structures:
   *
-  * <dir>/dates/<date>/<hour>/<minute>/<second>_<nano>_<id>
+  * Writes stuff (T values) down under the given directory structures:
   *
-  * and
+  * <dir>/dates/<date>/<hour>/<minute>/<second>_<nano>_<id> = *data*
   *
-  * <dir>/ids/<id> = <timestamp>
+  * where *data* is determined by the given [[Persist]], which is either the data itself
+  * or a linked file.
   *
   * The implicit Persist may only link to the former instead of serializing the data
+  *
+  * @param rootDir   the directory under which all the data will be stored
+  * @param saveValue the Persist instance to use in saving (or linking) the data.
+  * @param fromBytes a means of deserializing a T from bytes
+  * @param idFor     the ability to name the T values w/ an ID (as multiple Ts can exist for the same instant)
+  * @tparam T the value to save/retrieve
   */
-class FileTimestampDao[T](rootDir: Path)(implicit saveValue: Persist[T], fromBytes: FromBytes[T], idFor: HasId[T]) extends TimestampDao[T] {
+case class FileTimestampDao[T](rootDir: Path)(implicit saveValue: Persist[T], fromBytes: FromBytes[T], idFor: HasId[T])
+    extends TimestampDao[T] {
   def removeBefore(timestamp: Timestamp) = {
     dateDirs.flatMap(_.removeEntriesBefore(timestamp))
   }
@@ -47,7 +54,10 @@ class FileTimestampDao[T](rootDir: Path)(implicit saveValue: Persist[T], fromByt
   }
 
   private def resolveDir(timestamp: Timestamp): Path = {
-    dateRootDir.resolve(dateDir(timestamp)).resolve(timestamp.getHour.toString).resolve(timestamp.getMinute.toString)
+    dateRootDir
+      .resolve(dateDir(timestamp))
+      .resolve(timestamp.getHour.toString)
+      .resolve(timestamp.getMinute.toString)
   }
 
   private def dateDir(timestamp: Timestamp): String = {
@@ -137,8 +147,9 @@ object FileTimestampDao {
 
     def unapply(dir: Path): Option[DateDir] = {
       dir.fileName match {
-        case YearMonthDayR(y, m, d) => Option(DateDir(LocalDate.of(y.toInt, m.toInt, d.toInt), dir))
-        case _                      => None
+        case YearMonthDayR(y, m, d) =>
+          Option(DateDir(LocalDate.of(y.toInt, m.toInt, d.toInt), dir))
+        case _ => None
       }
     }
   }

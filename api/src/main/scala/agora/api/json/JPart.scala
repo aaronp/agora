@@ -46,6 +46,8 @@ object JPart {
 
   import cats.syntax.either._
 
+  implicit def intAsPos(pos: Int) = JPos(pos)
+
   import JPredicate._
 
   object JFilterDec extends Decoder[JFilter] {
@@ -62,9 +64,14 @@ object JPart {
 
   implicit object JPartFormat extends Decoder[JPart] with Encoder[JPart] {
     override def apply(c: HCursor): Result[JPart] = {
-      val jposDec   = implicitly[Decoder[JPos]]
-      val jfieldDec = implicitly[Decoder[JField]]
-      jfieldDec.tryDecode(c).orElse(jposDec.tryDecode(c)).orElse(JFilterDec.tryDecode(c))
+      val jposDec          = implicitly[Decoder[JPos]]
+      val arrayContainsDec = implicitly[Decoder[JArrayFind]]
+      val jfieldDec        = implicitly[Decoder[JField]]
+      jfieldDec
+        .tryDecode(c)
+        .orElse(jposDec.tryDecode(c))
+        .orElse(arrayContainsDec.tryDecode(c))
+        .orElse(JFilterDec.tryDecode(c))
 
     }
 
@@ -72,8 +79,9 @@ object JPart {
       part match {
         case filter: JFilter =>
           Json.obj("field" -> Json.fromString(filter.field), "predicate" -> filter.predicate.json)
-        case field: JField => field.asJson
-        case pos: JPos     => pos.asJson
+        case field: JField   => field.asJson
+        case pos: JPos       => pos.asJson
+        case pos: JArrayFind => pos.asJson
       }
     }
   }
@@ -91,6 +99,12 @@ case class JField(name: String) extends JPart
   * @param pos the array index
   */
 case class JPos(pos: Int) extends JPart
+
+/**
+  * Represents a json value within an array
+  * @param arrayFind the value to find within an array
+  */
+case class JArrayFind(arrayFind: JPredicate) extends JPart
 
 /**
   * Represents a predicate for a particular field

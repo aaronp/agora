@@ -2,7 +2,7 @@ package agora.exec
 
 import java.util.concurrent.TimeUnit
 
-import agora.api.exchange.WorkSubscription
+import agora.api.exchange.{SubmissionDetails, WorkSubscription}
 import agora.exec.client.{ExecutionClient, ProcessRunner, RemoteRunner}
 import agora.exec.events.HousekeepingConfig
 import agora.exec.rest.{ExecutionRoutes, QueryRoutes, UploadRoutes}
@@ -10,6 +10,7 @@ import agora.exec.workspace.WorkspaceClient
 import agora.rest.worker.{SubscriptionConfig, SubscriptionGroup, WorkerConfig}
 import agora.rest.RunningService
 import agora.config.configForArgs
+import akka.stream.Materializer
 import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.concurrent.Future
@@ -77,8 +78,8 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) with ExecA
 
   /** @return a client which will execute commands via the [[agora.api.exchange.Exchange]]
     */
-  def remoteRunner(): RemoteRunner = {
-    ProcessRunner(exchangeClient, clientConfig, defaultFrameLength)
+  def remoteRunner(implicit mat: Materializer = serverImplicits.materializer): RemoteRunner = {
+    ProcessRunner(exchangeClient, this)
   }
 
   /**

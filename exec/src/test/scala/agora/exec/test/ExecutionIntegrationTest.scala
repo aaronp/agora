@@ -40,20 +40,6 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
       val result = client.stream("echo", "this", "is", "a", "test").futureValue.output
       result.mkString("") shouldBe "this is a test"
     }
-    "be able to target an execution service after submitting a job to the exchange" in {
-
-      // determine summat which can run our request
-      val selection                        = client.runAndSelect("whoami").futureValue
-      val StreamingResult(selectionOutput) = selection.result.futureValue
-      selectionOutput.mkString("") shouldBe Properties.userName
-
-      // upload something to that client
-      selection.upload("someTestDir", Upload.forText("hello.txt", "there")).futureValue shouldBe true
-
-      // execute something which uses needs that upload
-      val StreamingResult(result) = client.run(RunProcess("cat", "hello.txt").withDependencies("someTestDir", Set("hello.txt"), testTimeout)).futureValue
-      result.mkString("") shouldBe "there"
-    }
   }
 
   /**
@@ -86,7 +72,7 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
     // 1) execute req 1
     val workspace1       = UUID.randomUUID().toString
     val workspace2       = UUID.randomUUID().toString
-    val selectionFuture1 = client.runAndSelect(RunProcess("cat", "file1.txt").withDependencies(workspace1, Set("file1.txt"), testTimeout))
+    val selectionFuture1 = client.run(RunProcess("cat", "file1.txt").withDependencies(workspace1, Set("file1.txt"), testTimeout))
 
     val portWhichFirstJobTakenByService: Int = eventually {
       val queueAfterOneJobSubmitted = subscriptionsByServerPort
@@ -102,7 +88,7 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
 
     // 2) execute req 2. Note we use the same exchange client for both requests ... one will be routed to our first
     // worker, the second request to the other (anotherServer...)
-    val selectionFuture2 = client.runAndSelect(RunProcess("cat", "file2.txt").withDependencies(workspace2, Set("file2.txt"), testTimeout))
+    val selectionFuture2 = client.run(RunProcess("cat", "file2.txt").withDependencies(workspace2, Set("file2.txt"), testTimeout))
 
     selectionFuture1.isCompleted shouldBe false
     selectionFuture2.isCompleted shouldBe false
@@ -119,21 +105,15 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
     firstClient.upload(workspace1, file1).futureValue shouldBe true
 
     // request 1 should now complete, as we've made sure both workers have file1.txt in workspace x
-    val result1                        = selectionFuture1.futureValue
-    val StreamingResult(result1Output) = result1.result.futureValue
+
+    val StreamingResult(result1Output) = selectionFuture1.futureValue
     result1Output.mkString("") shouldBe "I'm file one"
 
     // 4) upload file2.
     val file2 = Upload.forText("file2.txt", "I'm file two")
     theOtherClient.upload(workspace2, file2).futureValue shouldBe true
-    val result2                        = selectionFuture2.futureValue
-    val StreamingResult(result2Output) = result2.result.futureValue
+    val StreamingResult(result2Output) = selectionFuture2.futureValue
     result2Output.mkString("") shouldBe "I'm file two"
-
-    withClue("each worker just subscribed to one work item at a time, so each request should've gone to a different worker") {
-      result1.subscription should not be (result2.subscription)
-      locationForClient(result1.client) should not be locationForClient(result2.client)
-    }
   }
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -144,7 +124,6 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
   override def afterAll(): Unit = {
     super.afterAll()
     server.stop()
-    client.close()
     server = null
     client = null
   }

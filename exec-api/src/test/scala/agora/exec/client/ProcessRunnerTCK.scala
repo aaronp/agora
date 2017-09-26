@@ -34,7 +34,8 @@ trait ProcessRunnerTCK { self: BaseSpec =>
       // like the above test, but doesn't include the stderr as '123' is our success code
       val newSettings = StreamingSettings(successExitCodes = Set(123))
 
-      val StreamingResult(firstResults) = runner.run(RunProcess(List("throwError.sh".executable, "123")).withStreamingSettings(newSettings)).futureValue
+      val StreamingResult(firstResults) =
+        runner.run(RunProcess(List("throwError.sh".executable, "123")).withStreamingSettings(newSettings)).futureValue
       firstResults.toList shouldBe List("first info output", "second info output", "stdout: about to exit with 123")
     }
 
@@ -43,7 +44,8 @@ trait ProcessRunnerTCK { self: BaseSpec =>
       res.mkString(" ") shouldBe "testing 123"
     }
     "run commands which operate on environment variables" in {
-      val StreamingResult(res) = runner.run(RunProcess("bash", "-c", "echo FOO is $FOO").withEnv("FOO", "bar")).futureValue
+      val StreamingResult(res) =
+        runner.run(RunProcess("bash", "-c", "echo FOO is $FOO").withEnv("FOO", "bar")).futureValue
       res.mkString("\n") shouldBe "FOO is bar"
     }
   }

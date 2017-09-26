@@ -13,13 +13,16 @@ import scala.io.StdIn
   * Represents a running service - something which can be returning from starting a service that contains both
   * the binding and the config/service which was started
   */
-case class RunningService[C <: ServerConfig, Service](conf: C, service: Service, binding: Http.ServerBinding) extends AutoCloseable with LazyLogging {
+case class RunningService[C <: ServerConfig, Service](conf: C, service: Service, binding: Http.ServerBinding)
+    extends AutoCloseable
+    with LazyLogging {
 
   def localAddress: InetSocketAddress = binding.localAddress
 
   private val shutdownPromise = Promise[Unit]()
   private lazy val shutdown = {
-    logger.info(s"Unbinding RunningService '${conf.actorSystemName}-server' on ${conf.location} (running on ${localAddress})")
+    logger.info(
+      s"Unbinding RunningService '${conf.actorSystemName}-server' on ${conf.location} (running on ${localAddress})")
     val future: Future[Unit] = binding.unbind()
     shutdownPromise.tryCompleteWith(future)
     future

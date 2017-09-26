@@ -10,7 +10,9 @@ import akka.stream.Materializer
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 
-class WebSocketWorkerRoutes(workerConfig: WorkerConfig)(implicit mat: Materializer) extends StrictLogging with FailFastCirceSupport { self =>
+class WebSocketWorkerRoutes(workerConfig: WorkerConfig)(implicit mat: Materializer)
+    extends StrictLogging
+    with FailFastCirceSupport { self =>
   implicit val ec = mat.executionContext
 
   def routes: Route = {

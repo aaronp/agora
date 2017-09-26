@@ -34,7 +34,8 @@ trait UploadClient extends FailFastCirceSupport {
     * @param timeout     the timeout used to marshal the request
     * @return a future containing a success flag
     */
-  final def upload(workspaceId: WorkspaceId, file: Upload)(implicit mat: Materializer, timeout: FiniteDuration): Future[Boolean] = {
+  final def upload(workspaceId: WorkspaceId, file: Upload)(implicit mat: Materializer,
+                                                           timeout: FiniteDuration): Future[Boolean] = {
     import mat.executionContext
     Sources.sizeOf(file.source).flatMap { len =>
       upload(workspaceId, file.name, len, file.source)
@@ -52,7 +53,11 @@ trait UploadClient extends FailFastCirceSupport {
     * @param timeout     the timeout used to marshal the data into a request
     * @return a future of a success flag
     */
-  def upload(workspaceId: WorkspaceId, fileName: String, len: Long, src: Source[ByteString, Any], contentType: ContentType = ContentTypes.`text/plain(UTF-8)`)(
+  def upload(workspaceId: WorkspaceId,
+             fileName: String,
+             len: Long,
+             src: Source[ByteString, Any],
+             contentType: ContentType = ContentTypes.`text/plain(UTF-8)`)(
       implicit timeout: FiniteDuration): Future[Boolean] = {
     val c = client
     import c.{executionContext, materializer}
@@ -85,8 +90,11 @@ object UploadClient extends RequestBuilding {
     Delete(uri)
   }
 
-  def asRequest(workspaceId: WorkspaceId, fileName: String, len: Long, src: Source[ByteString, Any], contentType: ContentType)(implicit mat: Materializer,
-                                                                                                                               timeout: FiniteDuration) = {
+  def asRequest(workspaceId: WorkspaceId,
+                fileName: String,
+                len: Long,
+                src: Source[ByteString, Any],
+                contentType: ContentType)(implicit mat: Materializer, timeout: FiniteDuration) = {
 
     import mat._
 

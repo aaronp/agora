@@ -3,6 +3,14 @@ package agora.api.worker
 case class HostLocation(host: String, port: Int) {
   def asHostPort = s"$host:$port"
 
+  /**
+    * @return 'localhost:port' if the host is set to 0.0.0.0 then use, this instance otherwise
+    */
+  def resolveLocalhost = host match {
+    case "0.0.0.0" => HostLocation("localhost", port)
+    case _         => this
+  }
+
   def asURL = s"http://$asHostPort"
 }
 

@@ -1,32 +1,54 @@
 package agora.exec.client
 
-import agora.api.exchange.{AsClient, Exchange, SubmissionDetails, SubmitJob}
+import agora.api.Implicits._
+import agora.api.exchange.{Exchange, SubmissionDetails}
+import agora.exec.ExecApiConfig
 import agora.exec.model.{RunProcess, RunProcessResult}
-import agora.rest.ClientConfig
-import akka.http.scaladsl.model.HttpResponse
-import akka.http.scaladsl.unmarshalling.FromResponseUnmarshaller
+import akka.stream.Materializer
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.generic.auto._
 
-case class RemoteRunner(exchange: Exchange, clientConfig: ClientConfig, defaultFrameLen: Int) extends ProcessRunner with ExecConversionImplicits with FailFastCirceSupport {
+/**
+  * An facade for ProcessRunner which will submit [[RunProcess]] jobs
+  * via an exchange
+  *
+  * @param exchange
+  * @param execApiConfig
+  * @param defaultDetails
+  * @param mat
+  */
+case class RemoteRunner(exchange: Exchange,
+                        execApiConfig: ExecApiConfig,
+                        defaultDetails: SubmissionDetails = SubmissionDetails())(implicit mat: Materializer)
+    extends ProcessRunner
+    with ExecConversionImplicits
+    with FailFastCirceSupport {
+
+  import mat._
+
+  private implicit def confAndFrame = execApiConfig.clientConfig
 
   override def run(proc: RunProcess) = {
-    import agora.api.Implicits._
-    implicit val confAndFrame = (clientConfig, defaultFrameLen)
+    val details = RemoteRunner.prepare(proc, defaultDetails)
+    proc.asJob(details).enqueueIn[RunProcessResult](exchange)
+  }
+}
 
-    val base = SubmissionDetails().matchingPath("/rest/exec/run")
-    val details = if (proc.hasDependencies) {
+object RemoteRunner {
+
+  /**
+    * sets up additional matching criteria on the rest endpoint and a workspace
+    *
+    * @param defaultDetails
+    * @param proc
+    * @return
+    */
+  def prepare(proc: RunProcess, defaultDetails: SubmissionDetails = SubmissionDetails()): SubmissionDetails = {
+    val base = defaultDetails.matchingPath("rest/exec/run")
+    if (proc.hasDependencies) {
       base.andMatching("workspaces" includes proc.workspace)
     } else {
       base
     }
-
-    val x = implicitly[FromResponseUnmarshaller[RunProcessResult]]
-
-    implicit def asDispatcher[T: FromResponseUnmarshaller](implicit d: AsClient[SubmitJob, HttpResponse]): AsClient[SubmitJob, T] = {
-      ???
-    }
-
-    proc.asJob(details).enqueueIn[RunProcessResult](exchange)
   }
 }

@@ -3,6 +3,7 @@ package agora.exec.client
 import java.util.UUID
 
 import agora.BaseSpec
+import agora.api.exchange.{JobPredicate, WorkSubscription}
 import agora.exec.ExecConfig
 import agora.exec.model.RunProcess
 import agora.exec.rest.ExecutionRoutes
@@ -13,7 +14,7 @@ import scala.util.Properties
 class RemoteRunnerTest extends BaseSpec with ProcessRunnerTCK {
 
   var runningWorker: RunningService[ExecConfig, ExecutionRoutes] = null
-  var remoteRunner: ProcessRunner = null
+  var remoteRunner: ProcessRunner                                = null
 
   def runner: ProcessRunner = remoteRunner
 
@@ -28,6 +29,34 @@ class RemoteRunnerTest extends BaseSpec with ProcessRunnerTCK {
       expectedOutputFile.exists shouldBe true
       expectedOutputFile.text.lines.mkString(" ").trim shouldBe Properties.userName
     }
+  }
+
+  "RemoteRunner.prepare" should {
+    "match RunProcess jobs with a subscription ID" in {
+
+      val baseSubscription: WorkSubscription = ExecConfig().runSubscription
+      val details                            = baseSubscription.details
+      details.append("workspaces", List("foo"))
+
+      val sub1: WorkSubscription = baseSubscription.copy(details = details.append("workspaces", List("foo")))
+      val sub2                   = baseSubscription.copy(details = details.append("workspaces", List("fizz", "bar")))
+      val job1                   = RemoteRunner.prepare(RunProcess("hello").withWorkspace("foo"))
+      val job2                   = RemoteRunner.prepare(RunProcess("hello").withWorkspace("bar"))
+
+      JobPredicate().jobSubmissionDetailsMatchesWorkSubscription(job1, sub1) shouldBe true
+      JobPredicate().jobSubmissionDetailsMatchesWorkSubscription(job1, sub2) shouldBe false
+      JobPredicate().jobSubmissionDetailsMatchesWorkSubscription(job2, sub1) shouldBe false
+      JobPredicate().jobSubmissionDetailsMatchesWorkSubscription(job2, sub2) shouldBe true
+//
+//      val differentJob = RemoteRunner.execAsJob(RunProcess("hello"), Option("456"))
+//      JobPredicate().matches(differentJob, sub1) shouldBe false
+//      JobPredicate().matches(differentJob, sub2) shouldBe true
+    }
+//    "match RunProcess jobs without a subscription ID" in {
+//      val sub = ExecConfig().runSubscription.withSubscriptionKey("foo")
+//      val job = RemoteRunner.execAsJob(RunProcess("hello"), None)
+//      JobPredicate().matches(job, sub) shouldBe true
+//    }
   }
 
   override def beforeAll = startAll

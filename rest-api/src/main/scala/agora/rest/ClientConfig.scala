@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import agora.api.worker.HostLocation
 import agora.rest.client._
 import akka.http.scaladsl.model.Uri
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.concurrent.duration._
 
@@ -87,6 +87,8 @@ class ClientConfig(config: Config) {
 
 }
 object ClientConfig {
+
+  def load() = new ClientConfig(ConfigFactory.load("client.conf"))
 
   def asLocation(uri: Uri): HostLocation = {
     val addresses = uri.authority.host.inetAddresses.toList

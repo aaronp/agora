@@ -39,7 +39,8 @@ object SystemEventMonitor {
   object DevNull extends SystemEventMonitor {
     override def accept(event: RecordedEvent): Unit = {}
 
-    override def query(query: EventQuery): Future[query.Response] = Future.failed(new Exception(s"dev/null ignoring $query"))
+    override def query(query: EventQuery): Future[query.Response] =
+      Future.failed(new Exception(s"dev/null ignoring $query"))
   }
 
   /**

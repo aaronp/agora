@@ -1,11 +1,11 @@
 package agora.api.exchange
 
+import agora.BaseSpec
 import agora.api.json.{JPart, JPath}
-import agora.api.worker.WorkerDetails
 import agora.api.nextSubscriptionKey
-import org.scalatest.{Matchers, WordSpec}
+import agora.api.worker.WorkerDetails
 
-class SelectionModeTest extends WordSpec with Matchers {
+class SelectionModeTest extends BaseSpec {
 
   import SelectionModeTest._
   import io.circe.generic.auto._

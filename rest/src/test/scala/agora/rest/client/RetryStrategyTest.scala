@@ -26,7 +26,9 @@ class RetryStrategyTest extends BaseSpec with RequestBuilding {
 
     "remove exceptions which occurred outside the window" in {
       strategy.filter(Crashes(jan1Crash :: Nil), jan1.plusHours(25)).size shouldBe 0
-      strategy.filter(Crashes(jan1Crash :: jan1Crash.plus(1.day) :: jan1Crash.minus(1.day) :: Nil), jan1.plusHours(25)).size shouldBe 1
+      strategy
+        .filter(Crashes(jan1Crash :: jan1Crash.plus(1.day) :: jan1Crash.minus(1.day) :: Nil), jan1.plusHours(25))
+        .size shouldBe 1
     }
     "leave empty crashes alone" in {
       strategy.filter(Crashes(Nil), jan1).size shouldBe 0

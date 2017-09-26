@@ -15,6 +15,17 @@ class SubmitableTest extends BaseSpec {
 
   import SubmitableTest._
 
+  "Submitable.withDetails" should {
+    "be able to specify an implicit submitable based on another's low-priority submitable" in {
+
+      val foo: Submitable[Add] = Submitable.instance[Add].withDetails(_.matchingPath("foo"))
+
+      foo
+        .asSubmitJob(Add(1, 2))
+        .submissionDetails
+        .workMatcher shouldBe ("path" === "foo").asMatcher
+    }
+  }
   "Submitable" should {
     "use the work subscription in scope" in {
       implicit val details: SubmissionDetails = SubmissionDetails().matchingPath("/rest/foo")
@@ -41,7 +52,9 @@ class SubmitableTest extends BaseSpec {
       val three = Add(1, 2).enqueueIn[Int](exchange).futureValue
       val seven = Add(3, 4).enqueueIn[Int](exchange).futureValue
 
-      SubmitableTest.Add.AddAsClient.callsByLocation.mapValues(_.get()).toList should contain only (HostLocation.localhost(1234) -> 1, HostLocation.localhost(2345) -> 1)
+      SubmitableTest.Add.AddAsClient.callsByLocation
+        .mapValues(_.get())
+        .toList should contain only (HostLocation.localhost(1234) -> 1, HostLocation.localhost(2345) -> 1)
 
       val queue = exchange.queueState().futureValue
       queue.jobs shouldBe empty
@@ -62,7 +75,9 @@ object SubmitableTest {
       val callsByLocation = mutable.HashMap[HostLocation, AtomicInteger]()
 
       override def dispatch(dispatch: Dispatch[Add]): Future[Int] = {
-        callsByLocation.getOrElseUpdate(dispatch.matchedWorker.location, new AtomicInteger(0)).incrementAndGet()
+        callsByLocation
+          .getOrElseUpdate(dispatch.matchedWorker.location, new AtomicInteger(0))
+          .incrementAndGet()
         val add = dispatch.request
         Future.successful(new Calculator(dispatch.matchedWorker.location).add(add))
       }
