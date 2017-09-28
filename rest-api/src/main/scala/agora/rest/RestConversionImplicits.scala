@@ -13,11 +13,24 @@ import scala.concurrent.Future
 
 /**
   * Contains implicits for creating [[AsClient]] instances
+  *
+  * In an implicit [[ClientConfig]] is in scope, then we can know how to connect to workers from [[Dispatch]] responses
+  * and so can provide an [[AsClient]] instance.
+  *
+  * Furthermore, if the right marshallers/unmarshallers are in scope, then we can further refine the requests/responses
+  * to more specific types
   */
 trait RestConversionImplicits extends FailFastCirceSupport {
 
   import RestConversionImplicits._
 
+  /**
+    * In an implicit [[ClientConfig]] is in scope, then we can know how to connect to workers from [[Dispatch]] responses
+    * and so can provide an [[AsClient]] instance
+    *
+    * @param conf the client config
+    * @return an AsClient for generic http requests/responses
+    */
   implicit def asWorkerClient(implicit conf: ClientConfig): AsClient[HttpRequest, HttpResponse] = {
     ClientConfigOps(conf).asClient
   }
@@ -26,9 +39,8 @@ trait RestConversionImplicits extends FailFastCirceSupport {
     ClientConfigOps(conf).asClientForEntity[T]
   }
 
-  implicit def asInferredClient[A: ToEntityMarshaller, B: FromEntityUnmarshaller](
-      implicit conf: ClientConfig,
-      mat: Materializer): AsClient[A, B] = {
+  implicit def asInferredClient[A: ToEntityMarshaller, B: FromEntityUnmarshaller](implicit conf: ClientConfig,
+                                                                                  mat: Materializer): AsClient[A, B] = {
     ClientConfigOps(conf).asInferredClient[A, B]
   }
 
@@ -56,10 +68,11 @@ object RestConversionImplicits {
         }
       }
     }
+
     def asInferredClient[A: ToEntityMarshaller, B: FromResponseUnmarshaller](
         implicit mat: Materializer): AsClient[A, B] = {
-      import mat._
       import akka.http.scaladsl.util.FastFuture._
+      import mat._
       new AsClient[A, B] {
         override def dispatch(dispatch: Dispatch[A]): Future[B] = {
           val future = WorkerClient(conf, dispatch).sendRequest(dispatch.request)

@@ -70,7 +70,8 @@ object ProcessRunner {
     * @param workDir    the working directory to run the process under
     * @param defaultEnv environment variables to be made available to all processes run
     */
-  def apply(workDir: Option[Path] = None, defaultEnv: Map[String, String] = Map.empty)(implicit ec: ExecutionContext) = {
+  def apply(workDir: Option[Path] = None, defaultEnv: Map[String, String] = Map.empty)(
+      implicit ec: ExecutionContext) = {
     LocalRunner(workDir).withDefaultEnv(defaultEnv)
   }
 
@@ -84,7 +85,7 @@ object ProcessRunner {
     * @return a runner which executes stuff remotely
     */
   def apply(exchange: Exchange, execApiConfig: ExecApiConfig)(implicit mat: Materializer) = {
-    RemoteRunner(exchange, execApiConfig)
+    new RemoteRunner(exchange, execApiConfig)
   }
 
 }

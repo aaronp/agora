@@ -1,35 +1,47 @@
 package agora.exec.client
 
 import agora.api.Implicits._
-import agora.api.exchange.{Exchange, SubmissionDetails}
-import agora.exec.ExecApiConfig
+import agora.api.exchange._
 import agora.exec.model.{RunProcess, RunProcessResult}
+import agora.exec.{ExecApiConfig, WorkspacesKey}
 import akka.stream.Materializer
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.generic.auto._
 
 /**
   * An facade for ProcessRunner which will submit [[RunProcess]] jobs
-  * via an exchange
+  * via an exchange. The runner may specify matching criteria such as the existence of
+  * a workspace or a health value under a given threshold.
+  *
+  * Subclasses may override the [[submissionDetailsForJob]] method to provide their own match criteria.
   *
   * @param exchange
   * @param execApiConfig
   * @param defaultDetails
   * @param mat
   */
-case class RemoteRunner(exchange: Exchange,
-                        execApiConfig: ExecApiConfig,
-                        defaultDetails: SubmissionDetails = SubmissionDetails())(implicit mat: Materializer)
+class RemoteRunner(val exchange: Exchange,
+                   val execApiConfig: ExecApiConfig,
+                   val defaultDetails: SubmissionDetails = SubmissionDetails())(implicit mat: Materializer)
     extends ProcessRunner
     with ExecConversionImplicits
     with FailFastCirceSupport {
 
   import mat._
 
-  private implicit def confAndFrame = execApiConfig.clientConfig
+  /**
+    * with an implicit client config in scope, the [[agora.rest.RestConversionImplicits]]
+    * are able to produce an 'AsClient' from the exchange's response
+    *
+    * @return the client config
+    */
+  private implicit def clientConfig = execApiConfig.clientConfig
+
+  def submissionDetailsForJob(job: RunProcess) = defaultDetails
 
   override def run(proc: RunProcess) = {
-    val details = RemoteRunner.prepare(proc, defaultDetails)
+    val submissionDetails = submissionDetailsForJob(proc)
+    val details           = RemoteRunner.prepare(proc, submissionDetails)
     proc.asJob(details).enqueueIn[RunProcessResult](exchange)
   }
 }
@@ -46,7 +58,7 @@ object RemoteRunner {
   def prepare(proc: RunProcess, defaultDetails: SubmissionDetails = SubmissionDetails()): SubmissionDetails = {
     val base = defaultDetails.matchingPath("rest/exec/run")
     if (proc.hasDependencies) {
-      base.andMatching("workspaces" includes proc.workspace)
+      base.andMatching(WorkspacesKey includes proc.workspace)
     } else {
       base
     }

@@ -6,7 +6,7 @@ import agora.api.exchange.{SubmissionDetails, WorkSubscription}
 import agora.exec.client.{ExecutionClient, ProcessRunner, RemoteRunner}
 import agora.exec.events.HousekeepingConfig
 import agora.exec.rest.{ExecutionRoutes, QueryRoutes, UploadRoutes}
-import agora.exec.workspace.WorkspaceClient
+import agora.exec.workspace.{UpdatingWorkspaceClient, WorkspaceClient}
 import agora.rest.worker.{SubscriptionConfig, SubscriptionGroup, WorkerConfig}
 import agora.rest.RunningService
 import agora.config.configForArgs
@@ -92,7 +92,9 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) with ExecA
 
   def workspaceClient: WorkspaceClient = defaultWorkspaceClient
 
-  private lazy val defaultWorkspaceClient: WorkspaceClient = WorkspaceClient(uploadsDir, serverImplicits.system)
+  private lazy val defaultWorkspaceClient: WorkspaceClient = {
+    WorkspaceClient(uploadsDir, serverImplicits.system)
+  }
 
   def eventMonitorConfig: EventMonitorConfig = defaultEventMonitor
 

@@ -1,7 +1,7 @@
 package agora.exec.workspace
 
 import java.nio.file.Path
-
+import agora.exec.WorkspacesKey
 import agora.api.exchange.{Exchange, UpdateSubscription, UpdateSubscriptionAck}
 import agora.api.json.{JPath, JsonDelta}
 import agora.api.worker.SubscriptionKey
@@ -13,7 +13,10 @@ import akka.util.ByteString
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
-  * A workspace client which will append/remove workspaces from the given subscription
+  * A workspace client which will append/remove workspaces from the given subscription.
+  *
+  * This is meant to work along side [[agora.exec.client.RemoteRunner]] which may specify match criteria based
+  * on a workspace
   *
   * @param underlying
   * @param exchange
@@ -54,23 +57,22 @@ object UpdatingWorkspaceClient {
   import agora.api.Implicits._
 
   /**
-    *
-    * @param exchange
-    * @param subscriptionKey
-    * @param workspaceId
-    * @return
+    * appends a 'workspaces : [ ... , <workspaceId> ] ' to the subscription
     */
   def appendWorkspaceToSubscription(exchange: Exchange, subscriptionKey: SubscriptionKey, workspaceId: WorkspaceId) = {
-    val newDetails = UpdateSubscription.append(subscriptionKey, "workspaces", List(workspaceId))
+    val newDetails = UpdateSubscription.append(subscriptionKey, WorkspacesKey, List(workspaceId))
     exchange.updateSubscriptionDetails(newDetails)
   }
 
+  /**
+    * removes the 'workspaces : [ ... , <workspaceId> ] ' from the subscription
+    */
   def removeWorkspaceFromSubscription(exchange: Exchange,
                                       subscriptionKey: SubscriptionKey,
                                       workspaceId: WorkspaceId): Future[UpdateSubscriptionAck] = {
     val update = UpdateSubscription(subscriptionKey,
-                                    condition = "workspaces" includes workspaceId,
-                                    delta = JsonDelta.remove(JPath("workspaces") :+ workspaceId.inArray))
+                                    condition = WorkspacesKey includes workspaceId,
+                                    delta = JsonDelta.remove(JPath(WorkspacesKey) :+ workspaceId.inArray))
     exchange.updateSubscriptionDetails(update)
   }
 }

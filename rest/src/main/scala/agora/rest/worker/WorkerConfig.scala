@@ -64,7 +64,16 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
     Set[Class[_]](classOf[SupportRoutes], classOf[DynamicWorkerRoutes], classOf[ExchangeRoutes])
   }
 
-  def includeExchangeRoutes = config.getBoolean("includeExchangeRoutes")
+  def includeExchangeRoutes = {
+    val onInConfig            = config.getBoolean("includeExchangeRoutes")
+    val exchangeConfigSetToUs = exchangeConfig.clientConfig.location == location
+    if (exchangeConfigSetToUs && !onInConfig) {
+      val msg = "Invalid configuration - 'includeExchangeRoutes' is not set, " +
+        "and the exchange client is set to the same location"
+      throw new IllegalStateException(msg)
+    }
+    onInConfig && exchangeConfigSetToUs
+  }
 
   /** @return exchange pointed at by this worker
     */
