@@ -43,7 +43,7 @@ class ExecConfigTest extends BaseSpec {
       val ec = ExecConfig()
       import ec.serverImplicits._
       val exchange = Exchange.instance()
-      val ids      = ec.execSubscriptions.createSubscriptions(exchange).futureValue
+      val ids      = ec.execSubscriptions(ec.location).createSubscriptions(exchange).futureValue
 
       ids.size shouldBe 1
     }

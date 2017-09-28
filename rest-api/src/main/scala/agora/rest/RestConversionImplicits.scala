@@ -39,8 +39,9 @@ trait RestConversionImplicits extends FailFastCirceSupport {
     ClientConfigOps(conf).asClientForEntity[T]
   }
 
-  implicit def asInferredClient[A: ToEntityMarshaller, B: FromEntityUnmarshaller](implicit conf: ClientConfig,
-                                                                                  mat: Materializer): AsClient[A, B] = {
+  implicit def asInferredClient[A: ToEntityMarshaller, B: FromEntityUnmarshaller](
+      implicit conf: ClientConfig,
+      mat: Materializer): AsClient[A, B] = {
     ClientConfigOps(conf).asInferredClient[A, B]
   }
 

@@ -2,14 +2,15 @@ package agora.exec
 
 import java.util.concurrent.TimeUnit
 
-import agora.api.exchange.{SubmissionDetails, WorkSubscription}
+import agora.api.exchange.WorkSubscription
+import agora.api.worker.HostLocation
+import agora.config.configForArgs
 import agora.exec.client.{ExecutionClient, ProcessRunner, RemoteRunner}
 import agora.exec.events.HousekeepingConfig
 import agora.exec.rest.{ExecutionRoutes, QueryRoutes, UploadRoutes}
-import agora.exec.workspace.{UpdatingWorkspaceClient, WorkspaceClient}
-import agora.rest.worker.{SubscriptionConfig, SubscriptionGroup, WorkerConfig}
+import agora.exec.workspace.WorkspaceClient
 import agora.rest.RunningService
-import agora.config.configForArgs
+import agora.rest.worker.{SubscriptionConfig, SubscriptionGroup, WorkerConfig}
 import akka.stream.Materializer
 import com.typesafe.config.{Config, ConfigFactory}
 
@@ -44,16 +45,19 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) with ExecA
     */
   def start(): Future[RunningService[ExecConfig, ExecutionRoutes]] = ExecBoot(this).start()
 
-  def execSubscriptions: SubscriptionGroup = {
+  def execSubscriptions(resolvedLocation: HostLocation): SubscriptionGroup = {
     import scala.collection.JavaConverters._
     val subscriptionList = execConfig.getConfigList("execSubscriptions").asScala.map { conf =>
-      SubscriptionConfig(conf).subscription(location)
+      SubscriptionConfig(conf).subscription(resolvedLocation)
     }
     SubscriptionGroup(subscriptionList.toList, initialRequest)
   }
 
-  lazy val runSubscription: WorkSubscription =
-    SubscriptionConfig(config.getConfig("runSubscription")).subscription(location)
+  /** @param resolvedLocation the resolve host location
+    * @return a work subscription based on the resolved host
+    */
+  def runSubscription(resolvedLocation: HostLocation): WorkSubscription =
+    SubscriptionConfig(config.getConfig("runSubscription")).subscription(resolvedLocation)
 
   override def withFallback(fallback: Config): ExecConfig = new ExecConfig(config.withFallback(fallback))
 

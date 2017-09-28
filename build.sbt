@@ -90,13 +90,14 @@ val baseScalcSettings = List(
 
 val scalacSettings = baseScalcSettings
 
-lazy val docSettings = site.settings ++ ghpages.settings ++ Seq(
-  autoAPIMappings := true,
-//  unidocProjectFilter in (ScalaUnidoc, unidoc) := inProjects(core, akka),
-  SiteKeys.siteSourceDirectory := file("site"),
-  site.addMappingsToSiteDir(mappings in (packageDoc), "latest/api"),
-  git.remoteRepo := s"git@github.com:$username/$repo.git"
-)
+//site.settings ++ 
+// lazy val docSettings = ghpages.settings ++ Seq(
+//   autoAPIMappings := true,
+// //  unidocProjectFilter in (ScalaUnidoc, unidoc) := inProjects(core, akka),
+//   SiteKeys.siteSourceDirectory := file("site"),
+//   site.addMappingsToSiteDir(mappings in (packageDoc), "latest/api"),
+//   git.remoteRepo := s"git@github.com:$username/$repo.git"
+// )
 
 val commonSettings: Seq[Def.Setting[_]] = Seq(
   //version := parentProject.settings.ver.value,

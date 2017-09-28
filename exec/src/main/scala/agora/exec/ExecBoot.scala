@@ -5,9 +5,9 @@ import agora.exec.events.{DeleteBefore, Housekeeping, StartedSystem}
 import agora.exec.rest.{ExecutionRoutes, ExecutionWorkflow, QueryRoutes, UploadRoutes}
 import agora.exec.workspace.WorkspaceClient
 import agora.health.HealthUpdate
-import agora.rest.RunningService
 import agora.rest.exchange.ExchangeRoutes
 import agora.rest.worker.SubscriptionConfig
+import agora.rest.{HostResolver, RunningService}
 import akka.http.scaladsl.model.HttpMethods
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
@@ -115,9 +115,12 @@ case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes
     eventMonitor.accept(StartedSystem(SubscriptionConfig.asJson(conf.config)))
 
     for {
-      rs <- startFuture
+      rs: RunningService[ExecConfig, ExecutionRoutes] <- startFuture
+
+      resolvedLocation = conf.hostResolver.resolveHostname(rs.localAddress)
+
       // only subscribe once the service has started
-      ids <- conf.execSubscriptions.createSubscriptions(exchange)
+      ids <- conf.execSubscriptions(resolvedLocation).createSubscriptions(exchange)
     } yield {
       if (conf.healthUpdateFrequency.toMillis > 0) {
         HealthUpdate.schedule(exchange, ids.toSet, conf.healthUpdateFrequency)

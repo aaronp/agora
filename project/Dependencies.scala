@@ -10,8 +10,8 @@ object Dependencies {
   val cucumber = List("core", "jvm", "junit").map(suffix => "info.cukes" % s"cucumber-$suffix" % "1.2.5" % "test") :+ ("info.cukes" %% "cucumber-scala" % "1.2.5" % "test")
 
   val testDependencies = List(
-    "org.scalactic" %% "scalactic" % "3.0.3" % "test",
-    "org.scalatest" %% "scalatest" % "3.0.3" % ("test->*"),
+    "org.scalactic" %% "scalactic" % "3.0.4" % "test",
+    "org.scalatest" %% "scalatest" % "3.0.4" % ("test->*"),
     "org.pegdown"   % "pegdown"    % "1.6.0" % ("test->*"),
     "junit"         % "junit"      % "4.12"  % "test"
   )
@@ -20,14 +20,14 @@ object Dependencies {
   val circe     = List("core", "generic", "parser", "optics", "java8").map(name => "io.circe" %% s"circe-$name" % "0.8.0")
 
   val akkaHttp = List("", "-core").map { suffix =>
-    "com.typesafe.akka" %% s"akka-http$suffix" % "10.0.9"
-  } :+ akkaCirce :+ ("com.typesafe.akka" %% s"akka-http-testkit" % "10.0.9" % "test")
+    "com.typesafe.akka" %% s"akka-http$suffix" % "10.0.10"
+  } :+ akkaCirce :+ ("com.typesafe.akka" %% s"akka-http-testkit" % "10.0.10" % "test")
 
   val pprint     = "com.lihaoyi"         %% "pprint"              % "0.5.2"
   val streamsTck = "org.reactivestreams" % "reactive-streams-tck" % "1.0.0" % "test"
 //  val betterFiles = "com.github.pathikrit"         %% "better-files"        % "2.17.1"
-  val swagger = "com.github.swagger-akka-http" %% "swagger-akka-http" % "0.10.0"
-  val cors    = "ch.megard"                    %% "akka-http-cors"    % "0.2.1"
+  val swagger = "com.github.swagger-akka-http" %% "swagger-akka-http" % "0.11.0"
+  val cors    = "ch.megard"                    %% "akka-http-cors"    % "0.2.2"
 
   val Config: List[ModuleID]      = config :: testDependencies
   val IO: List[ModuleID]      = logging ::: testDependencies

@@ -36,7 +36,8 @@ class RemoteRunnerTest extends BaseSpec with ProcessRunnerTCK {
   "RemoteRunner.prepare" should {
     "match RunProcess jobs with a subscription ID" in {
 
-      val baseSubscription: WorkSubscription = ExecConfig().runSubscription
+      val conf                               = ExecConfig()
+      val baseSubscription: WorkSubscription = conf.runSubscription(conf.location)
       val details                            = baseSubscription.details
       details.append("workspaces", List("foo"))
 

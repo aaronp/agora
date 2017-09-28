@@ -26,7 +26,6 @@ case class SubscriptionGroup(subscriptions: List[WorkSubscription], initialExecu
     * @return the subscription ids
     */
   def createSubscriptions(exchange: Exchange)(implicit ec: ExecutionContext): Future[List[SubscriptionKey]] = {
-    //    import conf.serverImplicits._
 
     subscriptions match {
       case Nil => Future.successful(Nil)

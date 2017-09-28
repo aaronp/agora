@@ -16,7 +16,7 @@ object TurkServer {
 
   def run(worker: RunningWorker) = {
     worker.service.usingSubscription(_.withPath("ask")).addHandler[AskQuestion] { ctxt =>
-      ctxt.updateSubscriptionDetails(ctxt.request.uses)
+//      ctxt.updateSubscription(ctxt.request.uses)
       ctxt.complete {
         val answer = StdIn.readLine(s"${ctxt.request.question} > ")
         answer

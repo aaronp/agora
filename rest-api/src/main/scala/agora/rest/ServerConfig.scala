@@ -10,13 +10,17 @@ import com.typesafe.config.{Config, ConfigFactory}
 import scala.concurrent.Future
 
 /**
-  * A parsed configuration for our agora app
+  * A base parsed configuration based on an 'agora-defaults' configuration
   */
 class ServerConfig(val config: Config) extends RichConfigOps {
 
   def actorSystemName: String = config.getString("actorSystemName")
 
   def host = config.getString("host")
+
+  def hostResolver: HostResolver = {
+    HostResolver(config.getString("resolvedHost"), location)
+  }
 
   def port = config.getInt("port")
 
