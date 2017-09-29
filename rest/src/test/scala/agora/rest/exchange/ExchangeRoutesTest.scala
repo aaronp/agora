@@ -34,7 +34,7 @@ class ExchangeRoutesTest extends BaseRoutesSpec {
   "PUT /rest/exchange/submit" should {
     "submit jobs" in {
       val obs = MatchObserver()
-      ExchangeHttp(123.asJob().withAwaitMatch(false)) ~> routes(obs) ~> check {
+      ExchangeHttp(123.asJob.withAwaitMatch(false)) ~> routes(obs) ~> check {
         val resp = responseAs[SubmitJobResponse]
         resp.id should not be (null)
       }
@@ -76,7 +76,7 @@ class ExchangeRoutesTest extends BaseRoutesSpec {
     }
     "update subscriptions" in {
       val obs = MatchObserver()
-      ExchangeHttp(123.asJob().withAwaitMatch(false)) ~> routes(obs) ~> check {
+      ExchangeHttp(123.asJob.withAwaitMatch(false)) ~> routes(obs) ~> check {
         val resp = responseAs[SubmitJobResponse]
         resp.id should not be (null)
       }

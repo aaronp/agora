@@ -1,6 +1,6 @@
 package agora.api.exchange.dsl
 
-import agora.api.exchange.{SubmissionDetails, SubmitJob, Submitable}
+import agora.api.exchange.{Exchange, SubmissionDetails, SubmitJob, Submitable}
 import io.circe.Encoder
 
 trait LowPriorityCirceSubmitable {
@@ -19,6 +19,16 @@ trait LowPriorityCirceSubmitable {
     }
   }
 
-  implicit def asJobSyntax[T](value: T)(implicit asSubmitable: Submitable[T]) =
-    new AsJob(value, asSubmitable)
+  implicit class AsJobSyntax[T](value: T) {
+    implicit def asJob(implicit s: Submitable[T]) = s.asSubmitJob(value)
+    implicit def asJob(details: SubmissionDetails)(implicit s: Submitable[T]) = {
+      s.asSubmitJob(value).withDetails(details)
+    }
+  }
+
+  /**
+    * Adds 'enqueue' methods to an exchange
+    */
+  implicit class RichExchange(override val exchange: Exchange) extends JobSyntax
+
 }

@@ -26,7 +26,6 @@ git.gitTagToVersionNumber := { tag: String =>
   } else None
 }
 
-scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-language:implicitConversions", "-language:reflectiveCalls")
 
 // see http://scalameta.org/scalafmt/
 scalafmtOnCompile in ThisBuild := true
@@ -88,7 +87,7 @@ val baseScalcSettings = List(
   "-Xfuture" // Turn on future language features.
 )
 
-val scalacSettings = baseScalcSettings
+val scalacSettings = Nil //baseScalcSettings
 
 //site.settings ++ 
 // lazy val docSettings = ghpages.settings ++ Seq(
@@ -103,7 +102,7 @@ val commonSettings: Seq[Def.Setting[_]] = Seq(
   //version := parentProject.settings.ver.value,
   organization := s"com.github.${username}",
   scalaVersion := "2.11.11",
-  javacOptions ++= Seq("-source", "1.8", "-target", "1.8"),
+  javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-XX:MaxMetaspaceSize=1g"),
   scalacOptions ++= scalacSettings,
   buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
   buildInfoPackage := s"${repo}.build",

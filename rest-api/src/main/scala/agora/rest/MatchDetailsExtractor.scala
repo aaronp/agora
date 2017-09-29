@@ -11,7 +11,7 @@ object MatchDetailsExtractor {
 
   def headersFor(matchDetails: MatchDetails): List[HttpHeader] = {
     List(
-      //EncodingHeaders,
+//      EncodingHeaders,
       MatchIdHeader.asHeader(matchDetails.matchId),
       SubscriptionKeyHeader.asHeader(matchDetails.subscriptionKey),
       JobIdHeader.asHeader(matchDetails.jobId),

@@ -1,30 +1,26 @@
 package agora.exec.client
 
-import agora.api.exchange.{Dispatch, AsClient}
-import agora.exec.ExecApiConfig
+import agora.api.exchange.{AsClient, Dispatch}
 import agora.exec.model.{RunProcess, RunProcessResult}
-import agora.rest.{ClientConfig, RestConversionImplicits}
+import agora.exec.{ExecApiConfig, client}
+import agora.rest.RestConversionImplicits
 
 object implicits extends ExecConversionImplicits
 
 trait ExecConversionImplicits extends RestConversionImplicits {
 
-  //  override def run(input: RunProcess) = {
-  //    input.output.streaming match {
-  //      case None    => runAndSave(input)
-  //      case Some(_) => runAndSelect(input).flatMap(_.result)
-  //    }
-  //  }
-  type ConfAndDefaultFrameLen = (ClientConfig, Int)
+  implicit def asClient(implicit config: ExecApiConfig): AsClient[RunProcess, RunProcessResult] = {
+    new client.ExecConversionImplicits.ExecAsClient(config)
+  }
+}
 
-  implicit def asDispatchable(implicit config: ExecApiConfig): AsClient[RunProcess, RunProcessResult] = {
+object ExecConversionImplicits {
 
-    new AsClient[RunProcess, RunProcessResult] {
-      override def dispatch(dispatch: Dispatch[RunProcess]) = {
-        val rest   = config.clientConfig.clientFor(dispatch.matchedWorker.location)
-        val client = ExecutionClient(rest, config.defaultFrameLength)(config.uploadTimeout)
-        client.run(dispatch.request)
-      }
+  class ExecAsClient(config: ExecApiConfig) extends AsClient[RunProcess, RunProcessResult] {
+    override def dispatch(dispatch: Dispatch[RunProcess]) = {
+      val rest   = config.clientConfig.clientFor(dispatch.matchedWorker.location)
+      val client = ExecutionClient(rest, config.defaultFrameLength)(config.uploadTimeout)
+      client.run(dispatch.request)
     }
   }
 }

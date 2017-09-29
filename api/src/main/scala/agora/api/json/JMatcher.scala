@@ -33,7 +33,7 @@ sealed trait JMatcher {
 
   final def or(other: JPath): JMatcher = or(other.asMatcher)
 
-  def asNot: JMatcher = MatchNot(this)
+  def unary_! : JMatcher = MatchNot(this)
 }
 
 object JMatcher {
@@ -116,9 +116,9 @@ case class MatchNot(not: JMatcher) extends JMatcher {
     !not.matches(json)
   }
 
-  override def asNot = not match {
+  override def unary_! = not match {
     case MatchNot(twoNots) => twoNots
-    case _                 => super.asNot
+    case _                 => super.unary_!
   }
 
   override def toString = s"not($not)"

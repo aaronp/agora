@@ -2,7 +2,7 @@ package agora.exec.client
 
 import java.nio.file.Path
 
-import agora.api.exchange.Exchange
+import agora.api.exchange.{Exchange, SubmissionDetails}
 import agora.exec.ExecApiConfig
 import agora.exec.model._
 import agora.exec.workspace.WorkspaceId
@@ -83,8 +83,9 @@ object ProcessRunner {
     * @param exchange the worker client used to send requests
     * @return a runner which executes stuff remotely
     */
-  def apply(exchange: Exchange, execApiConfig: ExecApiConfig)(implicit mat: Materializer) = {
-    new RemoteRunner(exchange, execApiConfig)
+  def apply(exchange: Exchange, defaultDetails: SubmissionDetails, execApiConfig: ExecApiConfig)(
+      implicit mat: Materializer) = {
+    new RemoteRunner(exchange, defaultDetails)(execApiConfig, mat)
   }
 
 }

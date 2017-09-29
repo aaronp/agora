@@ -10,7 +10,15 @@ import agora.rest.test.TestUtils._
 trait ProcessRunnerTCK { self: BaseSpec =>
 
   def runner: ProcessRunner
-
+//
+//  "debug" should {
+//    "work" in {
+//
+//      val StreamingResult(firstResults) = runner.run("bigOutput.sh".executable, srcDir.toString, "2").futureValue
+//      val all                           = firstResults.toList
+//      all.size should be > 10
+//    }
+//  }
   "ProcessRunner" should {
 
     "stream results" in {

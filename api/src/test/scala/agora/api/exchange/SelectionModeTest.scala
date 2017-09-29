@@ -1,6 +1,7 @@
 package agora.api.exchange
 
 import agora.BaseSpec
+import agora.api.Implicits._
 import agora.api.json.{JPart, JPath}
 import agora.api.nextSubscriptionKey
 import agora.api.worker.WorkerDetails
@@ -14,8 +15,9 @@ class SelectionModeTest extends BaseSpec {
   Seq(
     SelectionMode.first(),
     SelectionMode.all(),
-    SelectionMode(3, false),
-    SelectionMode.max(JPath(JPart("field"), JPart(1), JPart("meh")))
+    SelectionMode(3),
+    SelectionMode.max(JPath(JPart("field"), JPart(1), JPart("meh"))),
+    SelectionMode.min(JPath(JPart("field"), JPart(1), JPart("meh")))
   ).foreach { selMode =>
     selMode.toString should {
       "be serializable to/from json" in {
@@ -28,6 +30,30 @@ class SelectionModeTest extends BaseSpec {
     }
   }
 
+  "SelectionMode.json" should {
+    "deserialize select-max" in {
+      verifySerde(SelectIntMax("hi".asJPath))
+      verifySerde(SelectIntMax("list".asJPath :+ ("foo".inArray)))
+    }
+    "deserialize select-all" in {
+      verifySerde(SelectionAll())
+    }
+    "deserialize select-first" in {
+      verifySerde(SelectionFirst())
+    }
+    "deserialize select-min" in {
+      verifySerde(SelectIntMin("hi".asJPath))
+      verifySerde(SelectIntMin("list".asJPath :+ ("foo".inArray)))
+    }
+    "deserialize select-N" in {
+      verifySerde(SelectN(3))
+      verifySerde(SelectN(4))
+    }
+
+    def verifySerde(mode: SelectionMode) = {
+      mode.asJson.as[SelectionMode] shouldBe Right(mode)
+    }
+  }
   "max selection mode" should {
     "pick the one with the biggest value at a given json path" in {
 

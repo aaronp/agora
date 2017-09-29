@@ -9,6 +9,7 @@ trait CommonRequestBuilding extends RequestBuilding {
 
   implicit class RichHttpMessage(msg: HttpRequest) {
     def withCommonHeaders: HttpRequest = {
+      // TODO
       msg //.withHeaders(CommonRequestBuilding.EncodingHeaders)
     }
   }

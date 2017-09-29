@@ -52,7 +52,10 @@ object JPredicate {
     implicit def intAsJson(i: Int) = Json.fromInt(i)
 
     implicit def jsonInArray[T](value: T)(implicit ev: T => Json) = new {
-      def inArray = Eq(ev(value)).inArray
+
+      /**@return a [[JPart]] which matches a value within an array
+        */
+      def inArray: JArrayFind = Eq(ev(value)).inArray
     }
 
     implicit class RichJson(field: String) {

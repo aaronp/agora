@@ -3,6 +3,7 @@ package agora.api.exchange
 import agora.api._
 import _root_.io.circe._
 import agora.api.`match`.MatchDetails
+import agora.api.exchange.dsl.JobSyntax
 import agora.api.exchange.instances.{ExchangeInstance, ExchangeState}
 import agora.api.json.{JMatcher, JPath, MatchAll}
 import agora.api.worker.{SubscriptionKey, WorkerDetails, WorkerRedirectCoords}
@@ -13,7 +14,9 @@ import scala.concurrent.Future
   * An exchange supports both 'client' requests (e.g. offering and cancelling work to be done)
   * and work subscriptions
   */
-trait Exchange {
+trait Exchange extends JobSyntax {
+
+  override protected def exchange = this
 
   /**
     * A convenience method where client requests can be sent through this single function which

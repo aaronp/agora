@@ -2,7 +2,7 @@ language: scala
 scala:
    - 2.11.11
 script:
-  - sbt test cucumber
+  - sbt ++$TRAVIS_SCALA_VERSION -jvm-opts travis/jvmopts test cucumber
 jdk:
     - oraclejdk8
 cache:

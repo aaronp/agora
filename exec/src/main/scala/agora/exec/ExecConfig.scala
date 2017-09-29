@@ -84,7 +84,7 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) with ExecA
   /** @return a client which will execute commands via the [[agora.api.exchange.Exchange]]
     */
   def remoteRunner(implicit mat: Materializer = serverImplicits.materializer): RemoteRunner = {
-    ProcessRunner(exchangeClient, this)
+    ProcessRunner(exchangeClient, clientConfig.submissionDetails, this)
   }
 
   /**

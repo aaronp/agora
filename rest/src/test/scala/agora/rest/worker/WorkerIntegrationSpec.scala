@@ -32,30 +32,29 @@ trait WorkerIntegrationSpec extends FailFastCirceSupport { self: BaseIntegration
       // have the client send a multipart request of bytes
       val job: SubmitJob = "some small job".asJob.matching("path".equalTo("basic").asMatcher)
 
-      implicit val dispatchInts: AsClient[SubmitJob, HttpResponse] = AsClient.lift[SubmitJob, HttpResponse] {
-        dispatch =>
-          val src = Source.fromIterator { () =>
-            Iterator
-              .from(1)
-              .map { x =>
-                ByteString(x.toString)
-              }
-              .take(10)
-          }
-          val len = Sources.sizeOf(src).futureValue
-          val fd =
-            MultipartBuilder().fromStrictSource("ints", len, src, ContentTypes.`application/json`).formData.futureValue
-          val client = WorkerClient(worker.conf.clientConfig, dispatch)
+      val dispatchInts: AsClient[SubmitJob, HttpResponse] = AsClient.lift[SubmitJob, HttpResponse] { dispatch =>
+        val src = Source.fromIterator { () =>
+          Iterator
+            .from(1)
+            .map { x =>
+              ByteString(x.toString)
+            }
+            .take(10)
+        }
+        val len = Sources.sizeOf(src).futureValue
+        val fd =
+          MultipartBuilder().fromStrictSource("ints", len, src, ContentTypes.`application/json`).formData.futureValue
+        val client = WorkerClient(worker.conf.clientConfig, dispatch)
 
-          client.sendRequest(fd)
+        client.sendRequest(fd)
       }
 
-      implicit val strResp = dispatchInts.map { resp =>
+      implicit val strResp: AsClient[SubmitJob, String] = dispatchInts.map { resp =>
         IterableSubscriber.iterate(resp.entity.dataBytes, 1000, true).mkString("")
       }
 
-      val textResponse = job.enqueueIn[String](exchangeClient)
-      val readBack     = textResponse.futureValue
+      val textResponse: Future[String] = exchangeClient.enqueue(job)
+      val readBack                     = textResponse.futureValue
       readBack shouldBe "12345678910"
     }
 
@@ -79,24 +78,23 @@ trait WorkerIntegrationSpec extends FailFastCirceSupport { self: BaseIntegration
           }
           .take(1000)
 
-      implicit val DispatchBiguns: AsClient[SubmitJob, HttpResponse] = AsClient.lift[SubmitJob, HttpResponse] {
-        dispatch =>
-          val src = Source.fromIterator { () =>
-            numbers
-          }
-          val len = Sources.sizeOf(src).futureValue
-          val fd  = MultipartBuilder().fromStrictSource("ints", len, src).formData.futureValue
+      val DispatchBiguns: AsClient[SubmitJob, HttpResponse] = AsClient.lift[SubmitJob, HttpResponse] { dispatch =>
+        val src = Source.fromIterator { () =>
+          numbers
+        }
+        val len = Sources.sizeOf(src).futureValue
+        val fd  = MultipartBuilder().fromStrictSource("ints", len, src).formData.futureValue
 
-          WorkerClient(worker.conf.clientConfig, dispatch).sendRequest(fd)
+        WorkerClient(worker.conf.clientConfig, dispatch).sendRequest(fd)
       }
 
       // have the client send a multipart request of bytes
       val job = "doesn't matter".asJob.add("topic" -> "biguns").matching("path".equalTo("largeuploads").asMatcher)
 
-      implicit val replyWithStrings =
+      implicit val replyWithStrings: AsClient[SubmitJob, String] =
         asRichAsClientHttpResponse(DispatchBiguns).iterate().map(_.mkString("", "\n", "\n"))
 
-      val readBack: Future[String] = job.enqueueIn[String](exchangeClient)
+      val readBack: Future[String] = exchangeClient.enqueue(job)
       readBack.futureValue shouldBe numbers.map(_.utf8String).mkString("")
     }
   }

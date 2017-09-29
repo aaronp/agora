@@ -8,6 +8,7 @@ import agora.rest.implicits._
 import agora.rest.integration.BaseIntegrationTest
 import agora.rest.worker.{WorkContext, WorkerClient}
 import akka.http.scaladsl.model.HttpResponse
+import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import io.circe.Json
@@ -41,7 +42,7 @@ trait ExchangeRestServiceSpec { self: BaseIntegrationTest =>
         }
       }
 
-      val strings = 12345.enqueueIn[Iterator[String]](exchangeClient).futureValue
+      val strings = exchangeClient.enqueue(12345).futureValue
 
       val stringList = strings.toList
       stringList.head shouldBe "12345"
@@ -55,7 +56,6 @@ trait ExchangeRestServiceSpec { self: BaseIntegrationTest =>
       var workerRequests = List[Json]()
 
       // verify preconditions
-
       val initialQueue: QueueStateResponse = exchangeClient.queueState().futureValue
       initialQueue.isEmpty shouldBe true
 
@@ -76,9 +76,12 @@ trait ExchangeRestServiceSpec { self: BaseIntegrationTest =>
       ourSubscription.requested shouldBe worker.service.defaultInitialRequest
 
       implicit val clientConf: ClientConfig = workerConfig.clientConfig
-      val sendStringsAndReturnJson          = AsClient.instance[String, Json]
+//      implicit val sendStringsAndReturnJson = AsClient.instance[String, HttpResponse].flatMap { resp =>
+//        Unmarshal(resp).to[Json]
+//      }
+//      implicit val s = AsClient.instance[String, HttpResponse].returning[Json]
 
-      val jsonResp = "hello world!".enqueueIn[Json](exchangeClient).futureValue
+      val jsonResp = exchangeClient.enqueue[String, Json]("hello world!").futureValue
       //      resp.onlyWorker.subscriptionKey shouldBe subscriptionKey
       //      val Right(jsonResp) = resp.jsonResponse.futureValue
       val found  = gotPath.getOption(jsonResp)

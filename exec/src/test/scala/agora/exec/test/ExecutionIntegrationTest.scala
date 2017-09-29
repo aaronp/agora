@@ -22,7 +22,8 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
   var client: RemoteRunner                                = null
 
   "RemoteRunner" should {
-    "execute requests on different servers" in {
+    // TODO - reinstance w/ workspaces dependency
+    "execute requests on different servers" ignore {
       withDir { dir =>
         val anotherConf: ExecConfig =
           ExecConfig("port=8888", s"uploads.dir=${dir.toAbsolutePath.toString}", "initialRequest=1")

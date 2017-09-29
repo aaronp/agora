@@ -30,8 +30,8 @@ class SubmitableTest extends BaseSpec {
     "use the work subscription in scope" in {
       implicit val details: SubmissionDetails = SubmissionDetails().matchingPath("/rest/foo")
       // enqueues the add request. The asClient is picked up from the Add's companion object
-      Add(1, 2).asJob.submissionDetails shouldBe details
-
+      val job = Submitable.instance[Add].asSubmitJob(Add(1, 2))
+      job.submissionDetails shouldBe details
     }
   }
 
@@ -49,8 +49,8 @@ class SubmitableTest extends BaseSpec {
       exchange.take(sub2.id, 1)
 
       // enqueues the add request. The asClient is picked up from the Add's companion object
-      val three = Add(1, 2).enqueueIn[Int](exchange).futureValue
-      val seven = Add(3, 4).enqueueIn[Int](exchange).futureValue
+      val three: Int = exchange.enqueue(Add(1, 2)).futureValue
+      val seven: Int = exchange.enqueue(Add(3, 4)).futureValue
 
       SubmitableTest.Add.AddAsClient.callsByLocation
         .mapValues(_.get())

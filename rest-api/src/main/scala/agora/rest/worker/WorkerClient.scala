@@ -78,8 +78,8 @@ object WorkerClient extends FailFastCirceSupport with LazyLogging {
   def dispatchRequest[T: ToEntityMarshaller](path: String, matchDetails: MatchDetails, request: T)(
       implicit ec: ExecutionContext): HttpRequest = {
     val httpRequest: HttpRequest = WorkerHttp(path, request)
-    val headers                  = MatchDetailsExtractor.headersFor(matchDetails)
-    httpRequest.withHeaders(headers)
+    val newHeaders               = MatchDetailsExtractor.headersFor(matchDetails)
+    httpRequest.withHeaders(httpRequest.headers ++ newHeaders)
   }
 
   def anEncoder[T](req: T)(implicit encoder: Encoder[T]): Marshaller[T, MessageEntity] = {

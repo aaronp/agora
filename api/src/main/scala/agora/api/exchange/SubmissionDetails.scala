@@ -36,7 +36,8 @@ case class SubmissionDetails(override val aboutMe: Json,
   def withMatcher(newMatcher: JMatcher) = copy(workMatcher = newMatcher)
 
   def andMatching(andCriteria: JMatcher) = copy(workMatcher = workMatcher.and(andCriteria))
-  def orMatching(orCriteria: JMatcher)   = copy(workMatcher = workMatcher.or(orCriteria))
+
+  def orMatching(orCriteria: JMatcher) = copy(workMatcher = workMatcher.or(orCriteria))
 
   def submittedBy: User = SubmissionDetails.submissionUser.getOption(aboutMe).getOrElse {
     sys.error(s"Invalid json, 'submissionUser' not set in $aboutMe")
@@ -45,6 +46,7 @@ case class SubmissionDetails(override val aboutMe: Json,
   /**
     * If 'orElse' lists another work subscription, then a [[SubmissionDetails]] is returned using that
     * as the work matcher with the remaining 'orElse' tail as it's 'orElse'
+    *
     * @return a [[SubmissionDetails]] referring to the orElse list if it's non-empty
     */
   private[exchange] def next(): Option[SubmissionDetails] = orElse match {
@@ -62,7 +64,11 @@ case class SubmissionDetails(override val aboutMe: Json,
   def withData[T: Encoder](data: T, name: String = null): SubmissionDetails = {
     val json: Json = implicitly[Encoder[T]].apply(data)
     val qualified  = Json.obj(namespace(data.getClass, name) -> json)
-    copy(aboutMe = aboutMe.deepMerge(qualified))
+    append(qualified)
+  }
+
+  def append(json: Json): SubmissionDetails = {
+    copy(aboutMe = aboutMe.deepMerge(json))
   }
 
 }
@@ -71,15 +77,12 @@ object SubmissionDetails {
 
   def submissionUser = JsonPath.root.submissionUser.string
 
-  def apply( // format:off
-            submittedBy: User = Properties.userName,
+  def apply(submissionUser: User = Properties.userName,
             matchMode: SelectionMode = SelectionFirst(),
             awaitMatch: Boolean = true,
             workMatcher: JMatcher = JMatcher.matchAll,
-            orElse: List[JMatcher] = Nil
-            // format:on
-  ) = {
-    val json = Json.obj("submissionUser" -> Json.fromString(submittedBy))
+            orElse: List[JMatcher] = Nil) = {
+    val json = Json.obj("submissionUser" -> Json.fromString(submissionUser))
     new SubmissionDetails(json, matchMode, awaitMatch, workMatcher, orElse)
   }
 }

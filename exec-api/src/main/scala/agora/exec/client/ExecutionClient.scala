@@ -1,7 +1,9 @@
 package agora.exec.client
 
+import agora.api.exchange.{AsClient, Dispatch}
 import agora.exec.model.{FileResult, RunProcess, RunProcessResult}
 import agora.io.IterableSubscriber
+import agora.rest.ClientConfig
 import agora.rest.client.RestClient
 import akka.http.scaladsl.client.RequestBuilding
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse}
@@ -11,7 +13,6 @@ import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.{implicitConversions, reflectiveCalls}
-
 import io.circe.generic.auto._
 import io.circe.syntax._
 import io.circe.java8.time._
@@ -67,4 +68,11 @@ object ExecutionClient extends RequestBuilding {
   def asRequest(job: RunProcess)(implicit ec: ExecutionContext) = {
     Post("/rest/exec/run", HttpEntity(ContentTypes.`application/json`, job.asJson.noSpaces))
   }
+//
+//  implicit class ExecAsClient(implicit conf : ClientConfig) extends AsClient[RunProcess, RunProcessResult] {
+//    override def dispatch(dispatch: Dispatch[RunProcess]): Future[RunProcessResult] = {
+//      val restClient = conf.clientFor(dispatch.location)
+//      ExecutionClient(restClient)
+//    }
+//  }
 }

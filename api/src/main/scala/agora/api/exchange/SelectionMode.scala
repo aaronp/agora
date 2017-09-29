@@ -3,7 +3,7 @@ package agora.api.exchange
 import agora.api.SubscriptionKey
 import agora.api.json.JPath
 import io.circe.Decoder.Result
-import io.circe.{Decoder, Encoder, HCursor, Json}
+import io.circe._
 
 import scala.collection.SeqLike
 import scala.collection.generic.CanBuildFrom
@@ -44,6 +44,7 @@ case class SelectionFirst() extends SelectionMode("select-first") {
       implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
     values.take(1)
   }
+
   override val selectsMultiple: Boolean = false
 }
 
@@ -56,34 +57,62 @@ case class SelectionAll() extends SelectionMode("select-all") {
 }
 
 // sends the work to all eligible workers
-case class SelectN(n: Int, fanOut: Boolean) extends SelectionMode(s"select-$n") {
+/**
+  * @param n
+  */
+case class SelectN(n: Int) extends SelectionMode(s"select-$n") {
 
   override def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(
       implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
-    if (fanOut) {
-      values.distinct.take(n)
-    } else {
-      values.take(n)
-    }
+
+    values.take(n)
   }
 }
 
-// sends work to whichever has the maximum int value for the given property
-case class SelectIntMax(path: JPath) extends SelectionMode("select-int-nax") {
+// sends work to whichever has the maximum value for the given property
+case class SelectIntMax(path: JPath) extends SelectionMode("select-max") with SelectComparable {
+
+  override def chooseOne(candidates: TraversableOnce[(Candidate, JsonNumber)]): Candidate = {
+    val (res, _) = asIntCandidates(candidates).maxBy(_._2)
+    res
+  }
+}
+
+case class SelectIntMin(path: JPath) extends SelectionMode("select-min") with SelectComparable {
+
+  override def chooseOne(candidates: TraversableOnce[(Candidate, JsonNumber)]): Candidate = {
+    val (res, _) = asIntCandidates(candidates).minBy(_._2)
+    res
+  }
+}
+
+trait SelectComparable extends SelectionMode {
+  def path: JPath
+
+  def withNumericValues[Coll <: SeqLike[Candidate, Coll]](collection: Coll) = collection.flatMap {
+    case pear @ Candidate(_, work, _) =>
+      path.apply(work.details.aboutMe).flatMap { value =>
+        value.asNumber.map { num =>
+          (pear, num)
+        }
+      }
+  }
+
+  def asIntCandidates(candidates: TraversableOnce[(Candidate, JsonNumber)]): TraversableOnce[(Candidate, Int)] = {
+    candidates.flatMap {
+      case (c, jsNum) => jsNum.toInt.map(x => (c, x))
+    }
+  }
+
+  def chooseOne(candidates: TraversableOnce[(Candidate, JsonNumber)]): Candidate
 
   override def select[Coll <: SeqLike[Candidate, Coll]](collection: Coll)(
       implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
-    val values = collection.flatMap {
-      case pear @ Candidate(_, work, n) =>
-        path.apply(work.details.aboutMe).flatMap { value =>
-          value.asNumber.flatMap(_.toInt).map { num =>
-            (pear, num)
-          }
-        }
-    }
+
+    val values: TraversableOnce[(Candidate, JsonNumber)] = withNumericValues(collection)
 
     if (values.nonEmpty) {
-      val (res, _) = values.maxBy(_._2)
+      val res = chooseOne(values)
       (bf() += res).result()
 
     } else {
@@ -102,16 +131,18 @@ object SelectionMode {
 
   def all(): SelectionMode = SelectionAll()
 
-  def apply(n: Int, fanOut: Boolean = true): SelectionMode = SelectN(n, fanOut)
+  def apply(n: Int): SelectionMode = SelectN(n)
 
   def max(path: JPath): SelectionMode = SelectIntMax(path)
+
+  def min(path: JPath): SelectionMode = SelectIntMin(path)
 
   implicit object SelectionModeFormat extends Encoder[SelectionMode] with Decoder[SelectionMode] {
     override def apply(mode: SelectionMode): Json = {
       mode match {
-        case SelectN(n, fanOut) =>
-          Json.obj("select" -> Json.fromInt(n), "fanOut" -> Json.fromBoolean(fanOut))
+        case SelectN(n)         => Json.obj("select" -> Json.fromInt(n))
         case SelectIntMax(path) => Json.obj("max" -> path.json)
+        case SelectIntMin(path) => Json.obj("min" -> path.json)
         case _                  => Json.fromString(mode.toString)
       }
     }
@@ -121,10 +152,9 @@ object SelectionMode {
 
       def asSelectN: Result[SelectN] = {
         for {
-          n      <- c.downField("select").as[Int]
-          fanOut <- c.downField("fanOut").as[Boolean]
+          n <- c.downField("select").as[Int]
         } yield {
-          SelectN(n.toInt, fanOut.booleanValue())
+          SelectN(n.toInt)
         }
       }
 
@@ -138,7 +168,11 @@ object SelectionMode {
             // FIXME - remove this cast
             SelectIntMax(path).asInstanceOf[SelectionMode]
           }
-          max.orElse(asSelectN)
+          val min = implicitly[Decoder[JPath]].tryDecode(c.downField("min")).map { path =>
+            // FIXME - remove this cast
+            SelectIntMin(path).asInstanceOf[SelectionMode]
+          }
+          max.orElse(min).orElse(asSelectN)
       }
     }
   }

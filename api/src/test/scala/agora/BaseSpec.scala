@@ -1,7 +1,7 @@
 package agora
 
 import _root_.io.circe.parser.parse
-import com.typesafe.config.{ConfigFactory, ConfigRenderOptions}
+import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions}
 
 /**
   * Adds json string context to the base spec:
@@ -26,6 +26,11 @@ abstract class BaseSpec extends BaseIOSpec {
         .root
         .render(ConfigRenderOptions.concise().setJson(true))
       _root_.io.circe.parser.parse(jsonString).right.get
+    }
+  }
+  implicit class ConfigHelper(sc: StringContext) {
+    def conf(args: Any*): Config = {
+      ConfigFactory.parseString(sc.s(args: _*))
     }
   }
 }

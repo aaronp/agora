@@ -50,7 +50,8 @@ object HostResolver {
         case "from-inet-hoststring"         => socketAddress.getHostString
         case "from-inet-hostaddress"        => address.getHostAddress
         case "from-inet-canonical-hostname" => address.getCanonicalHostName
-        case FromEnvR(envVar)               => sys.env.getOrElse(envVar, sys.error(s"cannot resolve host as env '${envVar}' not set"))
+        case FromEnvR(envVar) =>
+          sys.env.getOrElse(envVar, sys.error(s"cannot resolve host as env '${envVar}' not set"))
         case FromPropR(propVar) =>
           Properties
             .propOrNone(propVar)

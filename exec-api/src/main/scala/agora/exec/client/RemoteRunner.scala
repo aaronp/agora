@@ -20,9 +20,9 @@ import io.circe.generic.auto._
   * @param defaultDetails
   * @param mat
   */
-class RemoteRunner(val exchange: Exchange,
-                   val execApiConfig: ExecApiConfig,
-                   val defaultDetails: SubmissionDetails = SubmissionDetails())(implicit mat: Materializer)
+class RemoteRunner(val exchange: Exchange, val defaultDetails: SubmissionDetails = SubmissionDetails())(
+    implicit execApiConfig: ExecApiConfig,
+    mat: Materializer)
     extends ProcessRunner
     with ExecConversionImplicits
     with FailFastCirceSupport {
@@ -41,8 +41,8 @@ class RemoteRunner(val exchange: Exchange,
 
   override def run(proc: RunProcess) = {
     val submissionDetails = submissionDetailsForJob(proc)
-    val details           = RemoteRunner.prepare(proc, submissionDetails)
-    proc.asJob(details).enqueueIn[RunProcessResult](exchange)
+    implicit val details  = RemoteRunner.prepare(proc, submissionDetails)
+    exchange.enqueue(proc)
   }
 }
 
