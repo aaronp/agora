@@ -39,7 +39,8 @@ trait ExecutionWorkflow {
     * @param inputProcess the unmarshalled input process
     * @return the eventual [[HttpResponse]]
     */
-  def onExecutionRequest(httpRequest: HttpRequest, inputProcess: RunProcess)(implicit ec: ExecutionContext): Future[HttpResponse]
+  def onExecutionRequest(httpRequest: HttpRequest, inputProcess: RunProcess)(
+      implicit ec: ExecutionContext): Future[HttpResponse]
 }
 
 object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
@@ -51,7 +52,8 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
     * @param underlying
     */
   class CachingWorkflow(workspaces: WorkspaceClient, underlying: ExecutionWorkflow) extends ExecutionWorkflow {
-    override def onExecutionRequest(httpRequest: HttpRequest, inputProcess: RunProcess)(implicit ec: ExecutionContext): Future[HttpResponse] = {
+    override def onExecutionRequest(httpRequest: HttpRequest, inputProcess: RunProcess)(
+        implicit ec: ExecutionContext): Future[HttpResponse] = {
       if (inputProcess.output.useCachedValueWhenAvailable) {
         checkCache(httpRequest, inputProcess)
       } else {
@@ -68,7 +70,8 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
       workspaces.await(inputProcess.dependencies.copy(dependsOnFiles = Set.empty, timeoutInMillis = 0))
     }
 
-    def checkCache(httpRequest: HttpRequest, inputProcess: RunProcess)(implicit ec: ExecutionContext): Future[HttpResponse] = {
+    def checkCache(httpRequest: HttpRequest, inputProcess: RunProcess)(
+        implicit ec: ExecutionContext): Future[HttpResponse] = {
 
       import akka.http.scaladsl.util.FastFuture._
       workDirFuture(inputProcess).fast.flatMap { workingDir =>
@@ -89,7 +92,10 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
     * @param eventMonitor a monitor which we can alert w/ job notifications and other interesting events
     * @return an ExecutionWorkflow for handling jobs originating from [[HttpRequest]]s
     */
-  def apply(defaultEnv: Map[String, String], workspaces: WorkspaceClient, eventMonitor: SystemEventMonitor, enableCacheCheck: Boolean = false): ExecutionWorkflow = {
+  def apply(defaultEnv: Map[String, String],
+            workspaces: WorkspaceClient,
+            eventMonitor: SystemEventMonitor,
+            enableCacheCheck: Boolean = false): ExecutionWorkflow = {
     val instance = new Instance(defaultEnv, workspaces, eventMonitor, enableCacheCheck)
     if (enableCacheCheck) {
       new CachingWorkflow(workspaces, instance)
@@ -119,9 +125,14 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
     * @param eventMonitor a monitor to notify of system events
     * @return the HttpResponse in a future
     */
-  class Instance(val defaultEnv: Map[String, String], val workspaces: WorkspaceClient, val eventMonitor: SystemEventMonitor, cacheEnabled: Boolean) extends ExecutionWorkflow {
+  class Instance(val defaultEnv: Map[String, String],
+                 val workspaces: WorkspaceClient,
+                 val eventMonitor: SystemEventMonitor,
+                 cacheEnabled: Boolean)
+      extends ExecutionWorkflow {
 
-    override def onExecutionRequest(httpRequest: HttpRequest, inputProcess: RunProcess)(implicit ec: ExecutionContext): Future[HttpResponse] = {
+    override def onExecutionRequest(httpRequest: HttpRequest, inputProcess: RunProcess)(
+        implicit ec: ExecutionContext): Future[HttpResponse] = {
 
       /** 1) Add any system (configuration) wide environment properties to the input request */
       val runProcess: RunProcess = {
@@ -150,8 +161,11 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
       }
     }
 
-    protected def onJob(httpRequest: HttpRequest, workingDir: Path, jobId: JobId, detailsOpt: Option[MatchDetails], runProcess: RunProcess)(
-        implicit ec: ExecutionContext): Future[HttpResponse] = {
+    protected def onJob(httpRequest: HttpRequest,
+                        workingDir: Path,
+                        jobId: JobId,
+                        detailsOpt: Option[MatchDetails],
+                        runProcess: RunProcess)(implicit ec: ExecutionContext): Future[HttpResponse] = {
       val processLogger: ProcessLoggers = loggerForJob(runProcess, detailsOpt, workingDir)
 
       /** actually execute the [[RunProcess]] and return the Future[Int] of the exit code */
@@ -180,7 +194,8 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
       prepareHttpResponse(jobId, workingDir, httpRequest, runProcess, processLogger, exitCodeFuture)
     }
 
-    protected def invokeJob(jobId: JobId, workingDir: Path, runProcess: RunProcess, processLogger: ProcessLoggers)(implicit ec: ExecutionContext): Future[Int] = {
+    protected def invokeJob(jobId: JobId, workingDir: Path, runProcess: RunProcess, processLogger: ProcessLoggers)(
+        implicit ec: ExecutionContext): Future[Int] = {
       processLogger.exitCodeFuture.onComplete {
         case tri => eventMonitor.accept(CompletedJob(jobId, tri))
       }
@@ -200,17 +215,20 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
       * @param exitCodeFuture the future of the exit code
       * @return an HttpResposne
       */
-    protected def prepareHttpResponse(jobId: JobId,
-                                      workingDir: Path,
-                                      httpRequest: HttpRequest,
-                                      runProcess: RunProcess,
-                                      processLogger: ProcessLoggers,
-                                      exitCodeFuture: Future[Int])(implicit ec: ExecutionContext): Future[HttpResponse] = {
+    protected def prepareHttpResponse(
+        jobId: JobId,
+        workingDir: Path,
+        httpRequest: HttpRequest,
+        runProcess: RunProcess,
+        processLogger: ProcessLoggers,
+        exitCodeFuture: Future[Int])(implicit ec: ExecutionContext): Future[HttpResponse] = {
 
       formatHttpResponse(httpRequest, runProcess, processLogger)
     }
 
-    protected def loggerForJob(runProcess: RunProcess, detailsOpt: Option[MatchDetails], workingDir: Path): ProcessLoggers = {
+    protected def loggerForJob(runProcess: RunProcess,
+                               detailsOpt: Option[MatchDetails],
+                               workingDir: Path): ProcessLoggers = {
       val iterableLogger = IterableLogger(runProcess, detailsOpt)
 
       runProcess.output.stdOutFileName.foreach { stdOutFileName =>
@@ -230,8 +248,10 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
     HttpResponse(status = InternalServerError, entity = HttpEntity(`application/json`, exp.json.noSpaces))
   }
 
-  def streamBytes(bytes: Source[ByteString, Any], runProc: RunProcess, matchDetails: Option[MatchDetails], request: HttpRequest)(
-      implicit ec: ExecutionContext): Future[HttpResponse] = {
+  def streamBytes(bytes: Source[ByteString, Any],
+                  runProc: RunProcess,
+                  matchDetails: Option[MatchDetails],
+                  request: HttpRequest)(implicit ec: ExecutionContext): Future[HttpResponse] = {
 
     // TODO - extract from request header
     val outputContentType: ContentType = `text/plain(UTF-8)`
@@ -248,7 +268,8 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
     }
   }
 
-  private def formatHttpResponse(httpRequest: HttpRequest, runProcess: RunProcess, processLogger: ProcessLoggers)(implicit ec: ExecutionContext): Future[HttpResponse] = {
+  private def formatHttpResponse(httpRequest: HttpRequest, runProcess: RunProcess, processLogger: ProcessLoggers)(
+      implicit ec: ExecutionContext): Future[HttpResponse] = {
     val basic = runProcess.output.streaming match {
       case Some(_) =>
         // TODO - this source will only run the iterator once, as it has potential side-effects.

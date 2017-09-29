@@ -41,7 +41,8 @@ object CachedOutput extends FailFastCirceSupport with AutoDerivation {
     * @param ec
     * @return an optionally cached response
     */
-  def cachedResponse(workingDir: Path, httpRequest: HttpRequest, inputProcess: RunProcess)(implicit ec: ExecutionContext): Option[Future[HttpResponse]] = {
+  def cachedResponse(workingDir: Path, httpRequest: HttpRequest, inputProcess: RunProcess)(
+      implicit ec: ExecutionContext): Option[Future[HttpResponse]] = {
     val dir = cacheDir(workingDir, inputProcess)
 
     val exitCodeFile = dir.resolve(ExitCodeFileName)
@@ -58,12 +59,13 @@ object CachedOutput extends FailFastCirceSupport with AutoDerivation {
     }
   }
 
-  private def asCachedStreamingResponse(workingDir: Path,
-                                        cacheDir: Path,
-                                        streamingSettings: StreamingSettings,
-                                        cachedExitCode: Int,
-                                        httpRequest: HttpRequest,
-                                        inputProcess: RunProcess)(implicit ec: ExecutionContext): Option[Future[HttpResponse]] = {
+  private def asCachedStreamingResponse(
+      workingDir: Path,
+      cacheDir: Path,
+      streamingSettings: StreamingSettings,
+      cachedExitCode: Int,
+      httpRequest: HttpRequest,
+      inputProcess: RunProcess)(implicit ec: ExecutionContext): Option[Future[HttpResponse]] = {
     val successResult = streamingSettings.successExitCodes.contains(cachedExitCode)
 
     val stdOutFileName = cacheDir.resolve(StdOutFileName).text
@@ -110,7 +112,10 @@ object CachedOutput extends FailFastCirceSupport with AutoDerivation {
     }
   }
 
-  private def asFileResultResponse(workspace: WorkspaceId, cacheDir: Path, cachedExitCode: Int, httpRequest: HttpRequest)(implicit ec: ExecutionContext): Future[HttpResponse] = {
+  private def asFileResultResponse(workspace: WorkspaceId,
+                                   cacheDir: Path,
+                                   cachedExitCode: Int,
+                                   httpRequest: HttpRequest)(implicit ec: ExecutionContext): Future[HttpResponse] = {
 
     def asFileName(storedUnder: String) = {
       Option(cacheDir.resolve(storedUnder).text).filterNot(_.isEmpty)

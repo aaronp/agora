@@ -20,7 +20,13 @@ class UploadRoutesTest extends BaseRoutesSpec {
         dir.children shouldBe empty
 
         val contentBytes = ByteString("hello world")
-        val req          = UploadClient.asRequest("some workspace", "foo.bar", contentBytes.length, Source.single(contentBytes), `text/plain(UTF-8)`).futureValue
+        val req = UploadClient
+          .asRequest("some workspace",
+                     "foo.bar",
+                     contentBytes.length,
+                     Source.single(contentBytes),
+                     `text/plain(UTF-8)`)
+          .futureValue
 
         req ~> routesUnderTest ~> check {
           responseAs[Boolean] shouldBe true

@@ -34,10 +34,17 @@ case class UploadRoutes(workspaces: WorkspaceClient) extends FailFastCirceSuppor
     * @return a Route used to update
     */
   @javax.ws.rs.Path("/rest/exec/upload")
-  @ApiOperation(value = "Uploads the multipart file to the specified workspace", httpMethod = "POST", produces = "application/json", consumes = "multipart/form-data")
+  @ApiOperation(value = "Uploads the multipart file to the specified workspace",
+                httpMethod = "POST",
+                produces = "application/json",
+                consumes = "multipart/form-data")
   @ApiImplicitParams(
     Array(
-      new ApiImplicitParam(name = "body", required = true, paramType = "form", dataType = "file", value = "The upload contents"),
+      new ApiImplicitParam(name = "body",
+                           required = true,
+                           paramType = "form",
+                           dataType = "file",
+                           value = "The upload contents"),
       new ApiImplicitParam(name = "workspace", required = true, paramType = "query", value = "The workspace name")
     ))
   @ApiResponses(
@@ -58,10 +65,15 @@ case class UploadRoutes(workspaces: WorkspaceClient) extends FailFastCirceSuppor
   }
 
   @javax.ws.rs.Path("/rest/exec/upload")
-  @ApiOperation(value = "Deletes the specified workspace and all files in it", httpMethod = "DELETE", produces = "application/json")
+  @ApiOperation(value = "Deletes the specified workspace and all files in it",
+                httpMethod = "DELETE",
+                produces = "application/json")
   @ApiImplicitParams(
     Array(
-      new ApiImplicitParam(name = "workspace", required = true, paramType = "query", value = "The workspace name to delete")
+      new ApiImplicitParam(name = "workspace",
+                           required = true,
+                           paramType = "query",
+                           value = "The workspace name to delete")
     ))
   @ApiResponses(
     Array(
@@ -75,7 +87,8 @@ case class UploadRoutes(workspaces: WorkspaceClient) extends FailFastCirceSuppor
     }
   }
 
-  def uploadToWorkspace(workspace: WorkspaceId, formData: Multipart.FormData)(implicit mat: Materializer): Future[Boolean] = {
+  def uploadToWorkspace(workspace: WorkspaceId, formData: Multipart.FormData)(
+      implicit mat: Materializer): Future[Boolean] = {
     import agora.rest.multipart.MultipartFormImplicits._
     import mat._
 

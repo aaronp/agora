@@ -49,13 +49,16 @@ object ExecBoot {
 /**
   * Provides functions for setting up the exec service functions
   */
-case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes: Option[Route]) extends FailFastCirceSupport with StrictLogging {
+case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes: Option[Route])
+    extends FailFastCirceSupport
+    with StrictLogging {
 
   lazy val housekeeping = Housekeeping.every(conf.housekeeping.checkEvery)(conf.serverImplicits.system)
 
   lazy val workspaceClient: WorkspaceClient = conf.workspaceClient
 
-  def workflow: ExecutionWorkflow = ExecutionWorkflow(conf.defaultEnv, workspaceClient, conf.eventMonitor, conf.enableCache)
+  def workflow: ExecutionWorkflow =
+    ExecutionWorkflow(conf.defaultEnv, workspaceClient, conf.eventMonitor, conf.enableCache)
 
   /** @return a future of the ExecutionRoutes once the exec subscription completes
     */

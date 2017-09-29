@@ -52,7 +52,8 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) with ExecA
     SubscriptionGroup(subscriptionList.toList, initialRequest)
   }
 
-  lazy val runSubscription: WorkSubscription = SubscriptionConfig(config.getConfig("runSubscription")).subscription(location)
+  lazy val runSubscription: WorkSubscription =
+    SubscriptionConfig(config.getConfig("runSubscription")).subscription(location)
 
   override def withFallback(fallback: Config): ExecConfig = new ExecConfig(config.withFallback(fallback))
 

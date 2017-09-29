@@ -24,7 +24,8 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
   "RemoteRunner" should {
     "execute requests on different servers" in {
       withDir { dir =>
-        val anotherConf: ExecConfig = ExecConfig("port=8888", s"uploads.dir=${dir.toAbsolutePath.toString}", "initialRequest=1")
+        val anotherConf: ExecConfig =
+          ExecConfig("port=8888", s"uploads.dir=${dir.toAbsolutePath.toString}", "initialRequest=1")
         anotherConf.initialRequest shouldBe 1
         val anotherServerConnectedToServer1Exchange = {
           anotherConf.start().futureValue
@@ -70,9 +71,10 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
     subscriptionsByServerPort() shouldBe Map(7770 -> 1, 8888 -> 1)
 
     // 1) execute req 1
-    val workspace1       = UUID.randomUUID().toString
-    val workspace2       = UUID.randomUUID().toString
-    val selectionFuture1 = client.run(RunProcess("cat", "file1.txt").withDependencies(workspace1, Set("file1.txt"), testTimeout))
+    val workspace1 = UUID.randomUUID().toString
+    val workspace2 = UUID.randomUUID().toString
+    val selectionFuture1 =
+      client.run(RunProcess("cat", "file1.txt").withDependencies(workspace1, Set("file1.txt"), testTimeout))
 
     val portWhichFirstJobTakenByService: Int = eventually {
       val queueAfterOneJobSubmitted = subscriptionsByServerPort
@@ -88,7 +90,8 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
 
     // 2) execute req 2. Note we use the same exchange client for both requests ... one will be routed to our first
     // worker, the second request to the other (anotherServer...)
-    val selectionFuture2 = client.run(RunProcess("cat", "file2.txt").withDependencies(workspace2, Set("file2.txt"), testTimeout))
+    val selectionFuture2 =
+      client.run(RunProcess("cat", "file2.txt").withDependencies(workspace2, Set("file2.txt"), testTimeout))
 
     selectionFuture1.isCompleted shouldBe false
     selectionFuture2.isCompleted shouldBe false

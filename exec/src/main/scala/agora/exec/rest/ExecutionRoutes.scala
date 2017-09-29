@@ -51,7 +51,10 @@ case class ExecutionRoutes(
   }
 
   @javax.ws.rs.Path("/rest/exec/run")
-  @ApiOperation(value = "Execute a job and optionally stream the output", httpMethod = "POST", produces = "text/plain; charset=UTF-8", consumes = "application/json")
+  @ApiOperation(value = "Execute a job and optionally stream the output",
+                httpMethod = "POST",
+                produces = "text/plain; charset=UTF-8",
+                consumes = "application/json")
   @ApiImplicitParams(
     Array(
       new ApiImplicitParam(name = "body", required = true, dataTypeClass = classOf[RunProcess], paramType = "body")
@@ -59,7 +62,9 @@ case class ExecutionRoutes(
   @ApiResponses(
     Array(
       new ApiResponse(code = 200, message = "the output of the command is returned w/ UTF-8 text encoding"),
-      new ApiResponse(code = 200, message = "The file output summary when output streaming is not requested", response = classOf[FileResult])
+      new ApiResponse(code = 200,
+                      message = "The file output summary when output streaming is not requested",
+                      response = classOf[FileResult])
     ))
   def executeRoute = {
     (post & path("rest" / "exec" / "run")) {
@@ -81,7 +86,10 @@ case class ExecutionRoutes(
 
 object ExecutionRoutes {
   def apply(execConfig: ExecConfig, exchange: Exchange = Exchange.instance()): ExecutionRoutes = {
-    val workflow = ExecutionWorkflow(execConfig.defaultEnv, execConfig.workspaceClient, execConfig.eventMonitor, execConfig.enableCache)
+    val workflow = ExecutionWorkflow(execConfig.defaultEnv,
+                                     execConfig.workspaceClient,
+                                     execConfig.eventMonitor,
+                                     execConfig.enableCache)
     new ExecutionRoutes(execConfig, exchange, workflow)
   }
 }

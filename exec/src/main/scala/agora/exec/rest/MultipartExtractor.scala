@@ -26,7 +26,8 @@ object MultipartExtractor extends LazyLogging {
     * @param mat
     * @return the RunProcess command to run and any uploads
     */
-  def apply(formData: Multipart.FormData, saveUnderDir: => Path, chunkSize: Int)(implicit mat: Materializer): Future[List[Upload]] = {
+  def apply(formData: Multipart.FormData, saveUnderDir: => Path, chunkSize: Int)(
+      implicit mat: Materializer): Future[List[Upload]] = {
 
     import mat.executionContext
     import agora.rest.multipart.MultipartFormImplicits._

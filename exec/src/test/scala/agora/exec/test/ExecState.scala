@@ -28,7 +28,9 @@ case class ExecState(serviceByName: Map[String, ExecState.Service] = Map.empty,
 
     resultsByClient.contains(clientName) shouldBe false
 
-    val client = clientsByName.getOrElse(clientName, sys.error(s"Couldn't find client '$clientName' in ${clientsByName.keySet}"))._2
+    val client = clientsByName
+      .getOrElse(clientName, sys.error(s"Couldn't find client '$clientName' in ${clientsByName.keySet}"))
+      ._2
     val future = client.run(proc)
     copy(resultsByClient = resultsByClient.updated(clientName, future))
   }

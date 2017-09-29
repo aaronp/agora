@@ -74,7 +74,8 @@ class ExecutionWorkflowTest extends BaseSpec with FailFastCirceSupport with HasM
     "be able to access env variables" in {
 
       withDir { dir =>
-        val runProcess = RunProcess("/bin/bash", "-c", "echo FOO is $FOO").withEnv("FOO", "bar").withStdOutTo("foo.txt")
+        val runProcess =
+          RunProcess("/bin/bash", "-c", "echo FOO is $FOO").withEnv("FOO", "bar").withStdOutTo("foo.txt")
 
         val client   = WorkspaceClient(dir, system)
         val workflow = ExecutionWorkflow(Map.empty, client, SystemEventMonitor.DevNull)
@@ -129,7 +130,8 @@ class ExecutionWorkflowTest extends BaseSpec with FailFastCirceSupport with HasM
 
       // and another depends on it... we run the dependency one first (out of order) to exercise
       // the WorkspaceClient
-      val catHelloWorld = f(RunProcess("cat", "hello.world").withDependencies(echoHelloWorld.workspace, Set("hello.world"), testTimeout))
+      val catHelloWorld =
+        f(RunProcess("cat", "hello.world").withDependencies(echoHelloWorld.workspace, Set("hello.world"), testTimeout))
 
       // call the method under test
       val catFuture = workflow.onExecutionRequest(HttpRequest(), catHelloWorld)

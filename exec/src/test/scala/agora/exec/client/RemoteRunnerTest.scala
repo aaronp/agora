@@ -23,7 +23,9 @@ class RemoteRunnerTest extends BaseSpec with ProcessRunnerTCK {
     "write down the output to a file" in {
       val workspace = UUID.randomUUID().toString
 
-      val firstResults = runner.save(RunProcess("whoami").withWorkspace(workspace).withStdOutTo("whoami.out").withoutStreaming()).futureValue
+      val firstResults = runner
+        .save(RunProcess("whoami").withWorkspace(workspace).withStdOutTo("whoami.out").withoutStreaming())
+        .futureValue
       firstResults.exitCode shouldBe 0
       val expectedOutputFile = conf.uploadsDir.resolve(workspace).resolve("whoami.out")
       expectedOutputFile.exists shouldBe true

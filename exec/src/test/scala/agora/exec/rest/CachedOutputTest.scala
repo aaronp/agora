@@ -27,7 +27,10 @@ class CachedOutputTest extends BaseSpec with HasMaterializer {
     }
     "return None if the cached output files don't exist for streaming requests" in {
       withDir { workingDir =>
-        val inputProcess = RunProcess(List("hello", "world")).withCaching(true).withStreamingSettings(StreamingSettings()).ensuringCacheOutputs
+        val inputProcess = RunProcess(List("hello", "world"))
+          .withCaching(true)
+          .withStreamingSettings(StreamingSettings())
+          .ensuringCacheOutputs
 
         val cacheDir = CachedOutput.cacheDir(workingDir, inputProcess)
         CachedOutput.cachedResponse(cacheDir, HttpRequest(), inputProcess) shouldBe None
@@ -45,7 +48,11 @@ class CachedOutputTest extends BaseSpec with HasMaterializer {
 
         val cachedResponseOpt = CachedOutput.cachedResponse(workingDir, HttpRequest(), inputProcess)
         val fileResult        = asFileResult(cachedResponseOpt)
-        fileResult shouldBe FileResult(123, workingDir.fileName, inputProcess.output.stdOutFileName, inputProcess.output.stdErrFileName, None)
+        fileResult shouldBe FileResult(123,
+                                       workingDir.fileName,
+                                       inputProcess.output.stdOutFileName,
+                                       inputProcess.output.stdErrFileName,
+                                       None)
       }
     }
     "return the stdout when the cached output files exist for streaming requests" in {
@@ -73,8 +80,11 @@ class CachedOutputTest extends BaseSpec with HasMaterializer {
   }
 
   def getCachedStreamingResults(workingDir: Path, exitCode: Int, successExitCode: Int) = {
-    val inputProcess = RunProcess(List("hello", "world")).withCaching(true).withStreamingSettings(StreamingSettings(successExitCodes = Set(successExitCode))).ensuringCacheOutputs
-    val cacheDir     = CachedOutput.cacheDir(workingDir, inputProcess)
+    val inputProcess = RunProcess(List("hello", "world"))
+      .withCaching(true)
+      .withStreamingSettings(StreamingSettings(successExitCodes = Set(successExitCode)))
+      .ensuringCacheOutputs
+    val cacheDir = CachedOutput.cacheDir(workingDir, inputProcess)
     CachedOutput.cache(cacheDir, inputProcess, exitCode)
 
     // actually create the files so they exist:
