@@ -9,10 +9,13 @@ import org.scalatest.concurrent.Eventually
 import org.scalatest.time.{Millis, Seconds, Span}
 
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 import scala.language.{postfixOps, reflectiveCalls}
 
 trait ExchangeSpec extends BaseSpec with Eventually with Implicits {
+
+  implicit def executionContext: ExecutionContext = ExecutionContext.Implicits.global
 
   import ExchangeSpec._
 
@@ -24,6 +27,59 @@ trait ExchangeSpec extends BaseSpec with Eventually with Implicits {
   def newExchange(observer: MatchObserver): Exchange
 
   def exchangeName = getClass.getSimpleName.filter(_.isLetter).replaceAllLiterally("Test", "")
+
+  s"${exchangeName}.take" should {
+    "reduce the requested items when given a negative number" in {
+      val exchange                                      = ServerSideExchange()
+      val (ack, _)                                      = exchange.subscribe(WorkSubscription.localhost(1), 3).futureValue
+      val QueueStateResponse(Nil, List(initialPending)) = exchange.queueState().futureValue
+      initialPending.requested shouldBe 3
+
+      // call the method under test
+      exchange.take(ack.id, -1).futureValue shouldBe RequestWorkAck(ack.id, 3, 2)
+      val QueueStateResponse(Nil, List(reducedPending)) = exchange.queueState().futureValue
+      reducedPending.requested shouldBe 2
+    }
+    "reduce the requested items when given a negative number for a dependent subscription" in {
+      val exchange                                      = ServerSideExchange()
+      val (ack, _)                                      = exchange.subscribe(WorkSubscription.localhost(1), 3).futureValue
+      val QueueStateResponse(Nil, List(initialPending)) = exchange.queueState().futureValue
+      initialPending.requested shouldBe 3
+
+      // call the method under test
+      exchange.take(ack.id, -101).futureValue shouldBe RequestWorkAck(ack.id, 3, 0)
+      val QueueStateResponse(Nil, List(reducedPending)) = exchange.queueState().futureValue
+      reducedPending.requested shouldBe 0
+    }
+    "reduce the requested items to zero when asked to reduce the requested items by more than there are remaining" in {
+
+      val exchange = ServerSideExchange()
+      val (ack, _) = exchange.subscribe(WorkSubscription.localhost(1), 10).futureValue
+
+      val QueueStateResponse(Nil, List(initialPending)) = exchange.queueState().futureValue
+      initialPending.requested shouldBe 10
+
+      // create some another subscriptions with dependencies on others
+      val subscriptionIds = (0 to 4).foldLeft(List(ack.id)) {
+        case (subscriptionIds, _) =>
+          val sub   = WorkSubscription.localhost(1).withReferences(Set(subscriptionIds.head))
+          val newId = exchange.subscribe(sub).futureValue.id
+          newId :: subscriptionIds
+      }
+
+      subscriptionIds.foldLeft(9) {
+        case (expectedRemaining, id) =>
+          // call the method under test
+          exchange.take(id, -1).futureValue shouldBe RequestWorkAck(id, expectedRemaining + 1, expectedRemaining)
+          val QueueStateResponse(Nil, pendingSubscriptions) = exchange.queueState().futureValue
+          pendingSubscriptions.foreach { reducedPending =>
+            reducedPending.requested shouldBe expectedRemaining
+          }
+
+          expectedRemaining - 1
+      }
+    }
+  }
 
   s"$exchangeName.submit" should {
 

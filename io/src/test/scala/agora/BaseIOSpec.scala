@@ -42,6 +42,7 @@ abstract class BaseIOSpec
   def srcDir: Path = BaseSpec.srcDir
 
   def withDir[T](f: Path => T): T = BaseSpec.withDir(getClass.getSimpleName)(f)
+
 }
 
 object BaseSpec extends LowPriorityIOImplicits {
@@ -50,7 +51,7 @@ object BaseSpec extends LowPriorityIOImplicits {
 
   def withDir[T](name: String)(f: Path => T): T = {
     val dir: Path = s"target/test/${name}-${dirCounter.incrementAndGet()}".asPath
-    if (dir.exists) {
+    if (dir.exists()) {
       dir.delete()
     }
     dir.mkDirs()

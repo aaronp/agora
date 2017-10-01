@@ -20,7 +20,7 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
         client
           .upload("foo", "bar", Source.single(ByteString("hi")))
           .futureValue
-          .exists shouldBe true
+          .exists() shouldBe true
 
         client.list().futureValue should contain only ("foo")
 
@@ -36,8 +36,8 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
         client.list().futureValue shouldBe empty
 
         val before = agora.api.time.now()
-        client.upload("x", Upload.forText("file", "content")).futureValue.exists shouldBe true
-        client.upload("y", Upload.forText("file", "content")).futureValue.exists shouldBe true
+        client.upload("x", Upload.forText("file", "content")).futureValue.exists() shouldBe true
+        client.upload("y", Upload.forText("file", "content")).futureValue.exists() shouldBe true
 
         client.list(createdAfter = Option(before.minusSeconds(2))).futureValue should contain only ("x", "y")
         client.list(createdAfter = Option(before.plusSeconds(2))).futureValue shouldBe empty
@@ -50,8 +50,8 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
         client.list().futureValue shouldBe empty
 
         val before = agora.api.time.now()
-        client.upload("x", Upload.forText("file", "content")).futureValue.exists shouldBe true
-        client.upload("y", Upload.forText("file", "content")).futureValue.exists shouldBe true
+        client.upload("x", Upload.forText("file", "content")).futureValue.exists() shouldBe true
+        client.upload("y", Upload.forText("file", "content")).futureValue.exists() shouldBe true
 
         client.list(createdBefore = Option(before)).futureValue shouldBe empty
         client.list(createdBefore = Option(before.plusSeconds(2))).futureValue should contain only ("x", "y")
@@ -65,7 +65,7 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
         client.list().futureValue shouldBe empty
 
         val before = agora.api.time.now()
-        client.upload("x", Upload.forText("file", "content")).futureValue.exists shouldBe true
+        client.upload("x", Upload.forText("file", "content")).futureValue.exists() shouldBe true
 
         client
           .list(createdAfter = Option(before.minusSeconds(2)), createdBefore = Option(before.plusSeconds(2)))
@@ -178,8 +178,8 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
         // await call, we have a better certainty that the first has been received
         val neverGonnaFuture = client.await("ws1", Set("never.gonna.appear"), testTimeout.toMillis)
         val fileOne          = client.await("ws1", Set("file.one"), testTimeout.toMillis)
-        client.upload("ws1", Upload.forText("file.one", "y")).futureValue.exists shouldBe true
-        fileOne.futureValue.exists shouldBe true
+        client.upload("ws1", Upload.forText("file.one", "y")).futureValue.exists() shouldBe true
+        fileOne.futureValue.exists() shouldBe true
         neverGonnaFuture.isCompleted shouldBe false
 
         // call the method under test
@@ -221,10 +221,10 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
     "delete the files in a workspace" in {
       withDir { containerDir =>
         val client = WorkspaceClient(containerDir, system)
-        client.upload("meh", Upload.forText("file", "content")).futureValue.exists shouldBe true
+        client.upload("meh", Upload.forText("file", "content")).futureValue.exists() shouldBe true
         containerDir.children.size shouldBe 1
 
-        client.upload("foo", Upload.forText("file", "content")).futureValue.exists shouldBe true
+        client.upload("foo", Upload.forText("file", "content")).futureValue.exists() shouldBe true
         containerDir.children.size shouldBe 2
 
         // call the method under test
@@ -244,7 +244,7 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
         client
           .upload("some id", Upload.forText("i.wasUploaded", "123"))
           .futureValue
-          .exists shouldBe true
+          .exists() shouldBe true
         val awaitFuture = client.await("some id", Set("i.wasUploaded", "i.wasnt"), 1)
         val err = intercept[Exception] {
           Await.result(awaitFuture, testTimeout)
@@ -265,28 +265,28 @@ class WorkspaceClientTest extends BaseSpec with HasMaterializer {
         client
           .upload("some id", Upload.forText("file.one", "first file"))
           .futureValue
-          .exists shouldBe true
+          .exists() shouldBe true
         dirFuture.isCompleted shouldBe false
 
         // upload a second, but with a different name
         client
           .upload("some id", Upload.forText("file.three", "another file"))
           .futureValue
-          .exists shouldBe true
+          .exists() shouldBe true
         dirFuture.isCompleted shouldBe false
 
         // upload file.two, but to a different session
         client
           .upload("wrong session", Upload.forText("file.two", "different session"))
           .futureValue
-          .exists shouldBe true
+          .exists() shouldBe true
         dirFuture.isCompleted shouldBe false
 
         // finally upload the file we expect in our 'some id' session.
         client
           .upload("some id", Upload.forText("file.two", "finally ready!"))
           .futureValue
-          .exists shouldBe true
+          .exists() shouldBe true
         val sessionDir = dirFuture.futureValue
         sessionDir.children.map(_.fileName) should contain only ("file.one", "file.two", "file.three")
 

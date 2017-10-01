@@ -36,10 +36,13 @@ class SelectionModeTest extends BaseSpec {
       verifySerde(SelectIntMax("list".asJPath :+ ("foo".inArray)))
     }
     "deserialize select-all" in {
-      verifySerde(SelectionAll())
+      verifySerde(SelectionAll)
     }
     "deserialize select-first" in {
       verifySerde(SelectionFirst())
+    }
+    "deserialize select-one" in {
+      verifySerde(SelectionOne)
     }
     "deserialize select-min" in {
       verifySerde(SelectIntMin("hi".asJPath))

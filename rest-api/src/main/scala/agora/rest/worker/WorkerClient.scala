@@ -13,7 +13,7 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import com.typesafe.scalalogging.LazyLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.{Encoder, Json}
-
+import cats.syntax.option._
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -70,14 +70,14 @@ object WorkerClient extends FailFastCirceSupport with LazyLogging {
 
   def multipartRequest(path: String, matchDetails: MatchDetails, multipart: Multipart)(
       implicit ec: ExecutionContext): HttpRequest = {
-    val httpRequest: HttpRequest = WorkerHttp(path, multipart)
+    val httpRequest: HttpRequest = WorkerHttp(path, multipart, matchDetails.some)
     val headers                  = MatchDetailsExtractor.headersFor(matchDetails)
     httpRequest.withHeaders(headers ++ httpRequest.headers)
   }
 
   def dispatchRequest[T: ToEntityMarshaller](path: String, matchDetails: MatchDetails, request: T)(
       implicit ec: ExecutionContext): HttpRequest = {
-    val httpRequest: HttpRequest = WorkerHttp(path, request)
+    val httpRequest: HttpRequest = WorkerHttp(path, request, matchDetails.some)
     val newHeaders               = MatchDetailsExtractor.headersFor(matchDetails)
     httpRequest.withHeaders(httpRequest.headers ++ newHeaders)
   }

@@ -25,7 +25,7 @@ import agora.api.worker.WorkerDetails
   * @param matchedWorker the worker details matched to the [[SubmitJob]]
   * @tparam T the original request type before it was serialised into json in the submit job
   */
-case class Dispatch[T](request: T, job: SubmitJob, matchDetails: MatchDetails, matchedWorker: WorkerDetails) {
+case class Dispatch[+T](request: T, job: SubmitJob, matchDetails: MatchDetails, matchedWorker: WorkerDetails) {
   def path = matchedWorker.path
 
   def location = matchedWorker.location

@@ -17,6 +17,7 @@ class ExchangeRestClientTest extends ExchangeSpec with BeforeAndAfter {
   override val supportsObserverNotifications = false
 
   var client: ExchangeRestClient = null
+
   before {
     config = ExchangeServerConfig()
     runningServer = Await.result(config.start(), 5.seconds)
@@ -24,13 +25,15 @@ class ExchangeRestClientTest extends ExchangeSpec with BeforeAndAfter {
 
   after {
     runningServer.stop()
-    client.close()
+
+    if (client != null) {
+      client.close()
+    }
   }
 
   override def newExchange(observer: MatchObserver): Exchange = {
     client = config.client
     client
-
   }
 
   implicit override def patienceConfig =

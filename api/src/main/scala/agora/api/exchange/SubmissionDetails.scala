@@ -33,6 +33,10 @@ case class SubmissionDetails(override val aboutMe: Json,
     copy(workMatcher = workMatcher.and("path" === path))
   }
 
+  def withSelection(mode: SelectionMode) = copy(selection = mode)
+
+  def orElseMatch(other: JMatcher) = copy(orElse = orElse :+ other)
+
   def withMatcher(newMatcher: JMatcher) = copy(workMatcher = newMatcher)
 
   def andMatching(andCriteria: JMatcher) = copy(workMatcher = workMatcher.and(andCriteria))
@@ -78,7 +82,7 @@ object SubmissionDetails {
   def submissionUser = JsonPath.root.submissionUser.string
 
   def apply(submissionUser: User = Properties.userName,
-            matchMode: SelectionMode = SelectionFirst(),
+            matchMode: SelectionMode = SelectionOne,
             awaitMatch: Boolean = true,
             workMatcher: JMatcher = JMatcher.matchAll,
             orElse: List[JMatcher] = Nil) = {

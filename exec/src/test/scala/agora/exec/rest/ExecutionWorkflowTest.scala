@@ -1,5 +1,6 @@
 package agora.exec.rest
 
+import java.nio.file.Path
 import java.util.UUID
 
 import agora.BaseSpec
@@ -9,14 +10,165 @@ import agora.exec.workspace.WorkspaceClient
 import agora.rest.HasMaterializer
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
+import org.scalatest.concurrent.Eventually
 
-class ExecutionWorkflowTest extends BaseSpec with FailFastCirceSupport with HasMaterializer {
+class ExecutionWorkflowTest extends BaseSpec with FailFastCirceSupport with HasMaterializer with Eventually {
+
+  implicit def richPath(file: Path) = new {
+    def trimmedText = file.text.lines.mkString("")
+  }
+
+  implicit def richRunProcess(runProcess: RunProcess) = new {
+    def asText(resp: HttpResponse): String = {
+      val StreamingResult(result) = runProcess.output.streaming.get.asResult(resp)
+      val List(dateResult)        = result.toList
+      dateResult
+    }
+  }
 
   implicit def runnerAsJob(rp: RunProcess): ReceivedJob = {
     ReceivedJob("", None, rp)
   }
 
-  "ExecutionHandler.apply" should {
+  val randomJob = RunProcess("uptime").withWorkspace("ws").withStdOutTo("first.result")
+
+  "CachingWorkflow" should {
+    "notify workspaces of file dependencies for results making use of cached results" in {
+
+      /**
+        * This test covers the scenario where we run a job which writes down the cached response
+        * 'foo'.
+        *
+        * Given we run a second job which is to produce the result 'bar', but can also use the cached result 'foo',
+        * Any jobs which have a dependency on 'bar' should still be triggered when the second job "runs" (I say 'runs',
+        * 'cause it won't actually -- it'll just create a symobolic link to the result 'foo')
+        */
+      withDir { dir =>
+        val workspaces = WorkspaceClient(dir, system)
+
+        // create a dependency on 'second.result'
+        val secondResultFuture = workspaces.await("ws", Set("second.result"), testTimeout.toMillis)
+
+        val cachingWorkflow = ExecutionWorkflow(Map.empty, workspaces, SystemEventMonitor.DevNull, true)
+
+        val runProcess: RunProcess = randomJob.withCaching(true)
+
+        // call the method under test. The first time the process should execute
+        val firstResponse = cachingWorkflow.onExecutionRequest(HttpRequest(), runProcess).futureValue
+
+        // verify first execution/result
+        val wsDir = withClue("The first execution should run and cache the result") {
+          val text = runProcess.asText(firstResponse)
+
+          // we should get an integer result
+          text should not be empty
+          val firstResultDir = workspaces.await(runProcess.workspace, Set("first.result"), 0).futureValue
+
+          val outputFile     = firstResultDir.resolve("first.result")
+          val outputFileText = outputFile.trimmedText
+
+          outputFileText shouldBe text
+          firstResultDir
+        }
+
+        withClue("our workspace future should not yet be complete") {
+          secondResultFuture.isCompleted shouldBe false
+        }
+
+        withClue("the second execution should return the cached result") {
+
+          val secondProcess  = runProcess.withStdOutTo("second.result").useCachedValueWhenAvailable(true)
+          val secondResponse = cachingWorkflow.onExecutionRequest(HttpRequest(), secondProcess).futureValue
+
+          // check we get the same result
+          secondProcess.asText(secondResponse) shouldBe wsDir.resolve("first.result").trimmedText
+
+          // and second.result exists, and the workspaces are notified
+          secondResultFuture.futureValue.resolve("second.result").trimmedText shouldBe wsDir
+            .resolve("first.result")
+            .trimmedText
+        }
+      }
+    }
+    "not return cached results from a previously successful process if enableCacheCheck is not set on the workflow" in {
+      withDir { dir =>
+        val workspaces = WorkspaceClient(dir, system)
+
+        // we use 'false' to disable cache checks
+        val nonCachingWorkflow = ExecutionWorkflow(Map.empty, workspaces, SystemEventMonitor.DevNull, false)
+
+        val runProcess: RunProcess = randomJob.withCaching(true).useCachedValueWhenAvailable(true)
+
+        // execute the job which returns a random result
+        val firstResponse = nonCachingWorkflow.onExecutionRequest(HttpRequest(), runProcess).futureValue
+
+        val firstResult = runProcess.asText(firstResponse)
+
+        // execute the same thing again -- caching is switched off though, so we should get a different answer
+        // there's a non-zero chance the same random number will be returned a second time, so we put this in
+        // an eventually
+        eventually {
+          val secondResponse = nonCachingWorkflow.onExecutionRequest(HttpRequest(), runProcess).futureValue
+          firstResult should not be runProcess.asText(secondResponse)
+        }
+      }
+    }
+    "not return cached results from a previously successful process if useCache is not set on the request" in {
+      withDir { dir =>
+        val workspaces = WorkspaceClient(dir, system)
+
+        val cachingWorkflow = ExecutionWorkflow(Map.empty, workspaces, SystemEventMonitor.DevNull, true)
+
+        val runProcess: RunProcess = randomJob.withCaching(true).useCachedValueWhenAvailable(true)
+
+        // execute the job which returns a random result
+        val firstResponse = cachingWorkflow.onExecutionRequest(HttpRequest(), runProcess).futureValue
+
+        val firstResult = runProcess.asText(firstResponse)
+
+        // execute the same thing again -- caching is enabled, but the job's not using it
+        eventually {
+          val dontCache      = runProcess.useCachedValueWhenAvailable(false)
+          val secondResponse = cachingWorkflow.onExecutionRequest(HttpRequest(), dontCache).futureValue
+          firstResult should not be runProcess.asText(secondResponse)
+        }
+      }
+    }
+    "return the cached error results from a previous process if it exited unsuccessfully" in {
+
+      import agora.rest.test.TestUtils._
+
+      withDir { dir =>
+        val workspaces      = WorkspaceClient(dir, system)
+        val cachingWorkflow = ExecutionWorkflow(Map.empty, workspaces, SystemEventMonitor.DevNull, true)
+
+        val throwError: RunProcess = {
+          RunProcess("throwError.sh".executable, "7").withCaching(true).useCachedValueWhenAvailable(true)
+        }
+
+        // execute the job which returns a random result
+        val firstResponse = cachingWorkflow.onExecutionRequest(HttpRequest(), throwError).futureValue
+
+        val exp1 = intercept[ProcessException] {
+          throwError.asText(firstResponse)
+        }
+
+        exp1.error.exitCode shouldBe Some(7)
+        exp1.error.stdErr shouldBe List("first error output", "second error output", "stderr: about to exit with 7")
+
+        val secondResponse = cachingWorkflow.onExecutionRequest(HttpRequest(), throwError).futureValue
+
+        val exp2 = intercept[ProcessException] {
+          throwError.asText(secondResponse)
+        }
+        exp1.error.exitCode shouldBe exp2.error.exitCode
+        exp1.error.stdErr shouldBe exp2.error.stdErr
+        secondResponse.getHeader("x-cache-out").isPresent shouldBe true
+        secondResponse.getHeader("x-cache-err").isPresent shouldBe true
+      }
+    }
+  }
+  "ExecutionWorkflow" should {
 
     "both stream and write output to a file" in {
 
@@ -114,7 +266,7 @@ class ExecutionWorkflowTest extends BaseSpec with FailFastCirceSupport with HasM
         response.workspaceId shouldBe workspaceId
         response.exitCode shouldBe 0
 
-        wsDir.resolve("bar").exists shouldBe true
+        wsDir.resolve("bar").exists() shouldBe true
         wsDir.resolve("bar").text shouldBe "content"
       }
     }

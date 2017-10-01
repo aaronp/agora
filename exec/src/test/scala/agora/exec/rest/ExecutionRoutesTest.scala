@@ -30,12 +30,12 @@ class ExecutionRoutesTest extends BaseRoutesSpec {
         val workspaces = WorkspaceClient(dir, system)
 
         val execConfig = ExecConfig()
-        val workflow   = ExecutionWorkflow(execConfig.defaultEnv, workspaces, execConfig.eventMonitor, false)
+        val workflow   = ExecutionWorkflow(execConfig.defaultEnv, workspaces, execConfig.eventMonitor)
         val er         = ExecutionRoutes(execConfig, Exchange.instance(), workflow)
 
         val request = ExecutionClient.asRequest(RunProcess("cp", "x", "y").withoutStreaming().withWorkspace("ws"))
         // upload file 'x'
-        workspaces.upload("ws", Upload.forText("x", "text")).futureValue.exists shouldBe true
+        workspaces.upload("ws", Upload.forText("x", "text")).futureValue.exists() shouldBe true
 
         request ~> er.executeRoute ~> check {
           val resp = responseAs[FileResult]

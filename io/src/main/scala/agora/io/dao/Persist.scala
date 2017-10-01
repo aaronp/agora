@@ -35,7 +35,7 @@ object Persist {
   }
   case class Linker[T](linkToThisFile: Path) extends Persist[T] {
     override def write(file: Path, value: T): Unit = {
-      linkToThisFile.createLinkFrom(file)
+      linkToThisFile.createSymbolicLinkFrom(file)
     }
   }
 }

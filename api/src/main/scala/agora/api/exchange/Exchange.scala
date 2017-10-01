@@ -8,7 +8,7 @@ import agora.api.exchange.instances.{ExchangeInstance, ExchangeState}
 import agora.api.json.{JMatcher, JPath, MatchAll}
 import agora.api.worker.{SubscriptionKey, WorkerDetails, WorkerRedirectCoords}
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 /**
   * An exchange supports both 'client' requests (e.g. offering and cancelling work to be done)
@@ -76,8 +76,25 @@ trait Exchange extends JobSyntax {
     * @param request the work subscription
     * @return an ack containing the key needed to request work items
     */
-  def subscribe(request: WorkSubscription) =
+  def subscribe(request: WorkSubscription): Future[WorkSubscriptionAck] = {
     onSubscriptionRequest(request).mapTo[WorkSubscriptionAck]
+  }
+
+  /**
+    * Convenience method to subscribe and immediately request work items
+    * @param request the work subscription
+    * @param initialRequest the number of work items to request
+    * @param ec the execution context
+    * @return a tuple of the subscribe ack and request ack
+    */
+  def subscribe(request: WorkSubscription, initialRequest: Int)(
+      implicit ec: ExecutionContext): Future[(WorkSubscriptionAck, RequestWorkAck)] = {
+    subscribe(request).flatMap { ack =>
+      take(ack.id, initialRequest).map { takeAck =>
+        ack -> takeAck
+      }
+    }
+  }
 
   /**
     * Updates the json subscription details referred to by the subscription key.

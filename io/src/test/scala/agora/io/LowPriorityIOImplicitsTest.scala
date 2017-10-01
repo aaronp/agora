@@ -37,23 +37,28 @@ class LowPriorityIOImplicitsTest extends BaseIOSpec with LowPriorityIOImplicits 
       }
     }
   }
-  "RichPath.linkToFrom" should {
+  "RichPath.createLinkFrom" should {
     "create symbolic links" in {
       withDir { dir =>
         val file = dir.resolve("file.txt").text = "Some file data"
-        val link = file.createLinkFrom(dir.resolve("file.link"))
+        val link = file.createSymbolicLinkFrom(dir.resolve("file.a"))
+
         link.text shouldBe "Some file data"
+        file.delete()
+
+        // the file linked to is now gone - the link should be empty
+        link.text shouldBe ""
       }
     }
     "keep the source file when the link is deleted" in {
       withDir { dir =>
         val file = dir.resolve("file.txt").text = "Some file data"
-        val link = file.createLinkFrom(dir.resolve("file.link"))
-        file.exists shouldBe true
-        link.exists shouldBe true
+        val link = file.createSymbolicLinkFrom(dir.resolve("file.link"))
+        file.exists() shouldBe true
+        link.exists() shouldBe true
         link.delete()
-        file.exists shouldBe true
-        link.exists shouldBe false
+        file.exists() shouldBe true
+        link.exists() shouldBe false
       }
     }
   }

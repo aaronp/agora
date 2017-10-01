@@ -15,8 +15,6 @@ import scala.concurrent.{ExecutionContext, Future}
   */
 case class SubscriptionGroup(subscriptions: List[WorkSubscription], initialExecutionSubscription: Int) {
 
-  //
-
   /**
     * Creates the subscriptions on the exchange
     *

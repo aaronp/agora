@@ -71,7 +71,7 @@ case class FileTimestampDao[T](rootDir: Path)(implicit saveValue: Persist[T], fr
   }
 
   private def read(file: Path): Option[T] = {
-    if (file.exists) {
+    if (file.exists()) {
       fromBytes.read(file.bytes).toOption
     } else {
       None

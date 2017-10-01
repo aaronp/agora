@@ -7,7 +7,7 @@ import scala.concurrent.{ExecutionContext, Future}
   * the intent)
   *
   */
-trait AsClient[In, Out] {
+trait AsClient[-In, +Out] {
 
   /**
     * Make a request based on the worker details outlined in [[Dispatch]]
@@ -15,7 +15,7 @@ trait AsClient[In, Out] {
     * @param dispatch
     * @return the result of the request
     */
-  def dispatch(dispatch: Dispatch[In]): Future[Out]
+  def dispatch[T <: In](dispatch: Dispatch[T]): Future[Out]
 
   /**
     * Mapping of the input parameter
@@ -28,7 +28,7 @@ trait AsClient[In, Out] {
   final def contramap[A](f: A => In)(implicit ec: ExecutionContext): AsClient[A, Out] = {
     val parent = this
     new AsClient[A, Out] {
-      override def dispatch(details: Dispatch[A]): Future[Out] = {
+      override def dispatch[T <: A](details: Dispatch[T]): Future[Out] = {
         parent.dispatch(details.copy(request = f(details.request)))
       }
     }
@@ -45,7 +45,7 @@ trait AsClient[In, Out] {
   final def flatMap[A](f: Out => Future[A])(implicit ec: ExecutionContext): AsClient[In, A] = {
     val parent = this
     new AsClient[In, A] {
-      override def dispatch(details: Dispatch[In]): Future[A] = {
+      override def dispatch[T <: In](details: Dispatch[T]): Future[A] = {
         parent.dispatch(details).flatMap(f)
       }
     }
@@ -62,7 +62,7 @@ trait AsClient[In, Out] {
   final def map[A](f: Out => A)(implicit ec: ExecutionContext): AsClient[In, A] = {
     val parent = this
     new AsClient[In, A] {
-      override def dispatch(details: Dispatch[In]): Future[A] = {
+      override def dispatch[T <: In](details: Dispatch[T]): Future[A] = {
         parent.dispatch(details).map(f)
       }
     }
@@ -71,12 +71,14 @@ trait AsClient[In, Out] {
 
 object AsClient {
 
-  class identity[T] extends AsClient[T, T] {
-    override def dispatch(dispatch: Dispatch[T]): Future[T] = Future.successful(dispatch.request)
+  class Identity[In] extends AsClient[In, In] {
+    override def dispatch[T <: In](dispatch: Dispatch[T]): Future[T] = Future.successful(dispatch.request)
   }
 
-  class AsClientFunction[In, T](f: Dispatch[In] => Future[T]) extends AsClient[In, T] {
-    override def dispatch(details: Dispatch[In]): Future[T] = f(details)
+  def identity[T]: Identity[T] = new Identity[T]
+
+  class AsClientFunction[In, Out](f: Dispatch[In] => Future[Out]) extends AsClient[In, Out] {
+    override def dispatch[T <: In](details: Dispatch[T]): Future[Out] = f(details)
   }
 
   /**
@@ -111,6 +113,8 @@ object AsClient {
     * @return an AsClient instance for the given function
     */
   def async[In, Out](f: Dispatch[In] => Out)(implicit ec: ExecutionContext): AsClient[In, Out] = {
-    lift(f.andThen(r => Future(r)))
+    lift { (dispatch: Dispatch[In]) =>
+      Future(f(dispatch))
+    }
   }
 }

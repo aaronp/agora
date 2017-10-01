@@ -18,7 +18,7 @@ class ProcessLoggers(val proc: RunProcess, override val matchDetails: Option[Mat
     extends IterableLogger
     with LazyLogging {
 
-  private def errorLimit = proc.output.errorLimit
+  private def errorLimit = proc.output.streaming.flatMap(_.errorLimit)
 
   private val stdErrLog = StreamLogger()
   private val limitedErrorLog = errorLimit.fold(stdErrLog: ProcessLogger) { limit =>

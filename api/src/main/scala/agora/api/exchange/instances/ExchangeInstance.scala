@@ -14,8 +14,7 @@ import scala.util.Try
   * @param matcher
   */
 class ExchangeInstance(initialState: ExchangeState, onMatch: OnMatch)(implicit matcher: JobPredicate)
-    extends Exchange
-    with StrictLogging {
+    extends Exchange {
 
   private var state = initialState
 
@@ -66,7 +65,8 @@ class ExchangeInstance(initialState: ExchangeState, onMatch: OnMatch)(implicit m
             case (ack, chosen) => ack.withNewTotal(chosen.remaining)
           }
         } else {
-          logger.debug(s"Not triggering match for subscriptions increase on [${request.id}]")
+          logger.debug(
+            s"Not triggering match for subscription work item change of ${request.itemsRequested} on [${request.id}]")
           state = newState
           ack
         }

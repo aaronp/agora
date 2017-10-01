@@ -11,9 +11,9 @@ class FileTagDaoTest extends BaseIOSpec {
 
         val entityDir =
           dao.rootDir.resolve("tags").resolve("some tag").resolve("someValue").resolve("entry")
-        entityDir.resolve(".data").exists shouldBe true
+        entityDir.resolve(".data").exists() shouldBe true
         entityDir.resolve(".data").text shouldBe "entry"
-        entityDir.resolve(".value").exists shouldBe false
+        entityDir.resolve(".value").exists() shouldBe false
       }
     }
     "create a ROOT/tags/*tag*/*value*/*id*/.value entry for non-alphanumeric tag values" in {
@@ -65,7 +65,7 @@ class FileTagDaoTest extends BaseIOSpec {
         dao.valueForTag("first", "TAG") shouldBe empty
 
         dao.setTag("first", "TAG", "firstvalue")
-        dao.rootDir.resolve("tags").resolve("TAG").resolve("firstvalue").exists shouldBe true
+        dao.rootDir.resolve("tags").resolve("TAG").resolve("firstvalue").exists() shouldBe true
 
         dao.valueForTag("first", "TAG") shouldBe Some("firstvalue")
 
@@ -73,8 +73,8 @@ class FileTagDaoTest extends BaseIOSpec {
         dao.setTag("first", "TAG", "updatedValue")
         dao.valueForTag("first", "TAG") shouldBe Some("updatedValue")
 
-        dao.rootDir.resolve("tags").resolve("TAG").resolve("firstvalue").exists shouldBe false
-        dao.rootDir.resolve("tags").resolve("TAG").resolve("updatedValue").exists shouldBe true
+        dao.rootDir.resolve("tags").resolve("TAG").resolve("firstvalue").exists() shouldBe false
+        dao.rootDir.resolve("tags").resolve("TAG").resolve("updatedValue").exists() shouldBe true
       }
     }
     "keep the old value but remote the id when a removed tag value is still referred to by a different entry" in {
@@ -84,20 +84,20 @@ class FileTagDaoTest extends BaseIOSpec {
 
         val firstValueDir =
           dao.rootDir.resolve("tags").resolve("TAG").resolve("first value".hashCode.toString)
-        firstValueDir.exists shouldBe true
-        firstValueDir.resolve("first").exists shouldBe true
-        firstValueDir.resolve("second").exists shouldBe true
+        firstValueDir.exists() shouldBe true
+        firstValueDir.resolve("first").exists() shouldBe true
+        firstValueDir.resolve("second").exists() shouldBe true
 
         dao.setTag("first", "TAG", "updated value")
-        firstValueDir.resolve("first").exists shouldBe false
-        firstValueDir.resolve("second").exists shouldBe true
+        firstValueDir.resolve("first").exists() shouldBe false
+        firstValueDir.resolve("second").exists() shouldBe true
 
         dao.rootDir
           .resolve("tags")
           .resolve("TAG")
           .resolve("updated value".hashCode.toString)
           .resolve("first")
-          .exists shouldBe true
+          .exists() shouldBe true
       }
     }
   }

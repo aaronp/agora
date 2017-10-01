@@ -36,16 +36,16 @@ object ExchangeHttp extends CommonRequestBuilding {
 
   private def put(path: String, json: Json): HttpRequest = {
     val e = HttpEntity(ContentTypes.`application/json`, json.noSpaces)
-    Put(s"/rest/exchange/$path").withEntity(e).withCommonHeaders
+    Put(s"/rest/exchange/$path").withEntity(e).withCommonHeaders()
   }
 
   private def post(path: String, json: Json): HttpRequest = {
     val e = HttpEntity(ContentTypes.`application/json`, json.noSpaces)
-    Post(s"/rest/exchange/$path").withEntity(e).withCommonHeaders
+    Post(s"/rest/exchange/$path").withEntity(e).withCommonHeaders()
   }
 
   private def delete(path: String, json: Json): HttpRequest = {
     val e = HttpEntity(ContentTypes.`application/json`, json.noSpaces)
-    Delete(s"/rest/exchange/$path").withEntity(e).withCommonHeaders
+    Delete(s"/rest/exchange/$path").withEntity(e).withCommonHeaders()
   }
 }

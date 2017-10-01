@@ -75,9 +75,19 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
 
       import akka.http.scaladsl.util.FastFuture._
       workDirFuture(inputProcess).fast.flatMap { workingDir =>
-        val cacheDir = CachedOutput.cacheDir(workingDir, inputProcess)
-        CachedOutput.cachedResponse(cacheDir, httpRequest, inputProcess).getOrElse {
-          processUncached(httpRequest, inputProcess)
+        val cacheOpt = CachedOutput.cachedResponse(workingDir, httpRequest, inputProcess)
+
+        cacheOpt match {
+          case Some((entry, cachedResponse)) =>
+            // there was a cached entry. If the user has specified to run their job w/
+            // std out or std err outputs, we should link to the cached files
+
+            if (entry.createCacheLinks()) {
+              workspaces.triggerUploadCheck(inputProcess.workspace)
+            }
+
+            cachedResponse
+          case None => processUncached(httpRequest, inputProcess)
         }
       }
     }

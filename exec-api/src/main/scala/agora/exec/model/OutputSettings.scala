@@ -49,7 +49,6 @@ package agora.exec.model
 case class OutputSettings(streaming: Option[StreamingSettings] = Option(StreamingSettings()),
                           stdOutFileName: Option[String] = None,
                           stdErrFileName: Option[String] = None,
-                          errorLimit: Option[Int] = None,
                           canCache: Boolean = false,
                           useCachedValueWhenAvailable: Boolean = true) {
   def withSettings(settings: StreamingSettings): OutputSettings = copy(streaming = Option(settings))

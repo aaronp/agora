@@ -58,7 +58,7 @@ object RemoteRunner {
   def prepare(proc: RunProcess, defaultDetails: SubmissionDetails = SubmissionDetails()): SubmissionDetails = {
     val base = defaultDetails.matchingPath("rest/exec/run")
     if (proc.hasDependencies) {
-      base.andMatching(WorkspacesKey includes proc.workspace)
+      base.andMatching(WorkspacesKey includes proc.workspace).orElseMatch(base.workMatcher)
     } else {
       base
     }

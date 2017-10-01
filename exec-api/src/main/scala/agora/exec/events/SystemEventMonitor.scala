@@ -7,6 +7,7 @@ import agora.io.BaseActor
 import akka.actor.{ActorRef, ActorRefFactory, Props}
 
 import scala.concurrent.{Future, Promise}
+import scala.util.control.NonFatal
 
 /**
   * The event monitor is where we sent event notifications we care about (jobs started, stopped, failed, etc)
@@ -89,7 +90,12 @@ object SystemEventMonitor {
   private class ActorMonitor(monitor: SystemEventMonitor) extends BaseActor {
     override def receive: Receive = {
       case event: RecordedEvent =>
-        monitor.accept(event)
+        try {
+          monitor.accept(event)
+        } catch {
+          case NonFatal(e) =>
+            logger.error(s"Error recording $event: $e", e)
+        }
         context.system.eventStream.publish(event)
       case EventQueryMessage(query, promise) =>
         val future: Future[query.Response] = monitor.query(query)

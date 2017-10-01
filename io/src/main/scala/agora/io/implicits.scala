@@ -11,6 +11,9 @@ import java.util.stream
 
 object implicits extends LowPriorityIOImplicits
 
+/**
+  * Contains some 'pimped' types (adding <string>.asPath), and RichPath
+  */
 trait LowPriorityIOImplicits {
 
   implicit class RichPathString(val path: String) {
@@ -34,19 +37,30 @@ trait LowPriorityIOImplicits {
       path
     }
 
+    def createSymbolicLinkTo(file: Path, atts: FileAttribute[_]*) = {
+      Files.createSymbolicLink(path.toAbsolutePath, file.toAbsolutePath, atts: _*)
+      path
+    }
+
     /**
       * Creates a symbolic link to the link from the path
       * @param link the symbolic link to create
       * @return the link
       */
-    def createLinkFrom(link: Path) = {
-      if (link.parent.exists(!_.exists)) {
+    def createSymbolicLinkFrom(link: Path, atts: FileAttribute[_]*) = {
+      if (link.parent.exists(!_.exists())) {
+        link.mkParentDirs()
+      }
+      Files.createSymbolicLink(link.toAbsolutePath, path.toAbsolutePath, atts: _*)
+    }
+    def createHardLinkFrom(link: Path) = {
+      if (link.parent.exists(!_.exists())) {
         link.mkParentDirs()
       }
       Files.createLink(link, path)
     }
 
-    def bytes = if (exists) Files.readAllBytes(path) else Array.empty[Byte]
+    def bytes = if (exists()) Files.readAllBytes(path) else Array.empty[Byte]
 
     def bytes_=(content: Array[Byte]) = {
       createIfNotExists()
@@ -115,7 +129,7 @@ trait LowPriorityIOImplicits {
     }
 
     def isEmptyDir = {
-      exists && isDir && children.isEmpty
+      isDir && children.isEmpty
     }
 
     def findFirst(depth: Int)(p: Path => Boolean) = {
@@ -135,7 +149,7 @@ trait LowPriorityIOImplicits {
     }
 
     def createIfNotExists(atts: FileAttribute[_]*): Path = {
-      if (!exists) {
+      if (!exists()) {
         mkParentDirs()
         Files.createFile(path, atts: _*)
       }
@@ -147,7 +161,7 @@ trait LowPriorityIOImplicits {
     def mkDirs(atts: FileAttribute[_]*): Path = Files.createDirectories(path, atts: _*)
 
     def mkDir(atts: FileAttribute[_]*): Path = {
-      if (!exists) Files.createDirectory(path, atts: _*) else path
+      if (!exists()) Files.createDirectory(path, atts: _*) else path
     }
 
     def setFilePermissions(permission: PosixFilePermission, theRest: PosixFilePermission*): Path = {
@@ -162,11 +176,11 @@ trait LowPriorityIOImplicits {
 
     def size = Files.size(path)
 
-    def exists = Files.exists(path)
+    def exists(linkOpts: LinkOption*) = Files.exists(path, linkOpts: _*)
 
-    def isDir = exists && Files.isDirectory(path)
+    def isDir = exists() && Files.isDirectory(path)
 
-    def isFile = exists && Files.isRegularFile(path)
+    def isFile = exists() && Files.isRegularFile(path)
 
     /** @return all files under the given directory
       */
@@ -206,7 +220,7 @@ trait LowPriorityIOImplicits {
       if (isDir && recursive) {
         children.foreach(_.delete())
         Files.delete(path)
-      } else if (isFile) {
+      } else if (path.exists(LinkOption.NOFOLLOW_LINKS)) {
         Files.delete(path)
       }
       path

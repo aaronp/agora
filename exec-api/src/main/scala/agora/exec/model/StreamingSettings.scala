@@ -13,6 +13,7 @@ import akka.stream.Materializer
 case class StreamingSettings(successExitCodes: Set[Int] = Set(0),
                              frameLength: Option[Int] = None,
                              allowTruncation: Boolean = true,
+                             errorLimit: Option[Int] = None,
                              // when streaming results, we will already have sent a status code header (success).
                              // if we exit w/ a non-success code, then we need to indicate the start of the error response
                              errorMarker: String = StreamingSettings.DefaultErrorMarker) {

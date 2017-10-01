@@ -19,7 +19,9 @@ import scala.concurrent.Future
 
 @Api(value = "Workspace", produces = "application/json")
 @javax.ws.rs.Path("/")
-case class UploadRoutes(workspaces: WorkspaceClient) extends FailFastCirceSupport with StrictLogging {
+class UploadRoutes(initialWorkspaces: WorkspaceClient) extends FailFastCirceSupport with StrictLogging {
+
+  @volatile private var workspaces = initialWorkspaces
 
   def routes = uploadRoute ~ deleteWorkspace
 
@@ -101,7 +103,7 @@ case class UploadRoutes(workspaces: WorkspaceClient) extends FailFastCirceSuppor
         val future: Future[Path] = workspaces.upload(workspace, fileName, src)
 
         import agora.io.implicits._
-        future.map(_.exists)
+        future.map(_.exists())
     }
 
     val futureOptFuture: Future[Option[Future[Boolean]]] = uploadSource.runWith(Sink.head)
@@ -111,4 +113,8 @@ case class UploadRoutes(workspaces: WorkspaceClient) extends FailFastCirceSuppor
       }
     }
   }
+}
+
+object UploadRoutes {
+  def apply(initialWorkspaces: WorkspaceClient) = new UploadRoutes(initialWorkspaces)
 }

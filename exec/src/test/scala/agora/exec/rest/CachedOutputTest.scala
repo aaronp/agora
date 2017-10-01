@@ -21,8 +21,7 @@ class CachedOutputTest extends BaseSpec with HasMaterializer {
       withDir { workingDir =>
         val inputProcess = RunProcess(List("hello", "world")).withCaching(true).withoutStreaming()
 
-        val cacheDir = CachedOutput.cacheDir(workingDir, inputProcess)
-        CachedOutput.cachedResponse(cacheDir, HttpRequest(), inputProcess) shouldBe None
+        CachedOutput.cachedResponse(workingDir, HttpRequest(), inputProcess) shouldBe None
       }
     }
     "return None if the cached output files don't exist for streaming requests" in {
@@ -32,8 +31,7 @@ class CachedOutputTest extends BaseSpec with HasMaterializer {
           .withStreamingSettings(StreamingSettings())
           .ensuringCacheOutputs
 
-        val cacheDir = CachedOutput.cacheDir(workingDir, inputProcess)
-        CachedOutput.cachedResponse(cacheDir, HttpRequest(), inputProcess) shouldBe None
+        CachedOutput.cachedResponse(workingDir, HttpRequest(), inputProcess) shouldBe None
       }
     }
     "return the stdout when the cached output files exist for non-streaming requests" in {
@@ -46,10 +44,10 @@ class CachedOutputTest extends BaseSpec with HasMaterializer {
         workingDir.resolve(inputProcess.output.stdOutFileName.get).text = "the is std out results"
         workingDir.resolve(inputProcess.output.stdErrFileName.get).text = "the is std err results"
 
-        val cachedResponseOpt = CachedOutput.cachedResponse(workingDir, HttpRequest(), inputProcess)
-        val fileResult        = asFileResult(cachedResponseOpt)
+        val cachedResponseOpt      = CachedOutput.cachedResponse(workingDir, HttpRequest(), inputProcess).map(_._2)
+        val fileResult: FileResult = asFileResult(cachedResponseOpt)
         fileResult shouldBe FileResult(123,
-                                       workingDir.fileName,
+                                       inputProcess.workspace,
                                        inputProcess.output.stdOutFileName,
                                        inputProcess.output.stdErrFileName,
                                        None)
@@ -92,8 +90,8 @@ class CachedOutputTest extends BaseSpec with HasMaterializer {
     workingDir.resolve(inputProcess.output.stdErrFileName.get).text = "the is std err results"
 
     val results = {
-      val cachedResponseOpt = CachedOutput.cachedResponse(workingDir, HttpRequest(), inputProcess)
-      val httpResp          = cachedResponseOpt.get.futureValue
+      val (_, cachedResponseOpt) = CachedOutput.cachedResponse(workingDir, HttpRequest(), inputProcess).get
+      val httpResp               = cachedResponseOpt.futureValue
       inputProcess.output.streaming.get.asResult(httpResp)
     }
 

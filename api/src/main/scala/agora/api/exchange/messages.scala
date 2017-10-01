@@ -94,7 +94,7 @@ case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends Cl
   /** @param mode the new [[SelectionMode]]
     * @return an updated job which uses the given selection mode
     */
-  def withSelection(mode: SelectionMode) = withDetails(submissionDetails.copy(selection = mode))
+  def withSelection(mode: SelectionMode) = withDetails(submissionDetails.withSelection(mode))
 
   /**
     * @param matcher the new submission matcher
@@ -353,7 +353,7 @@ object WorkSubscriptionAck {
 }
 
 case class RequestWork(id: SubscriptionKey, itemsRequested: Int) extends SubscriptionRequest {
-  require(itemsRequested > 0)
+//  require(itemsRequested > 0)
 
   def dec = copy(itemsRequested = itemsRequested - 1)
 }

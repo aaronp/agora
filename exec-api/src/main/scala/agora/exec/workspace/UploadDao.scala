@@ -47,7 +47,7 @@ object UploadDao {
             dir.resolve(name)
           }
 
-          if (!dest.exists) {
+          if (!dest.exists()) {
             val writeFut = src.runWith(FileIO.toPath(dest, options))
             writeFut.onComplete {
               case res => logger.debug(s"Writing to $dest completed w/ $res")

@@ -25,7 +25,7 @@ trait RestConversionImplicits extends FailFastCirceSupport {
 
   import RestConversionImplicits._
 
-  implicit def asConfigOps(implicit conf: ClientConfig): ClientConfigOps = ClientConfigOps(conf)
+  implicit def asConfigOps(implicit conf: ClientConfig): ClientConfigOps = new ClientConfigOps(conf)
 
   /**
     * In an implicit [[ClientConfig]] is in scope, then we can know how to connect to workers from [[Dispatch]] responses
@@ -42,9 +42,10 @@ trait RestConversionImplicits extends FailFastCirceSupport {
     asConfigOps(conf).forEntity[T]
   }
 
-  implicit def asInferredClient[A: ToEntityMarshaller, B: FromEntityUnmarshaller](
-      implicit conf: ClientConfig,
-      mat: Materializer): AsClient[A, B] = {
+  implicit def asInferredClient[A, B](implicit conf: ClientConfig,
+                                      mat: Materializer,
+                                      tem: ToEntityMarshaller[A],
+                                      fem: FromEntityUnmarshaller[B]): AsClient[A, B] = {
     asConfigOps(conf).typed[A, B]
   }
 
@@ -57,7 +58,7 @@ trait RestConversionImplicits extends FailFastCirceSupport {
       import akka.http.scaladsl.util.FastFuture._
       import mat._
       new AsClient[A, B] {
-        override def dispatch(dispatch: Dispatch[A]): Future[B] = {
+        override def dispatch[A1 <: A](dispatch: Dispatch[A1]): Future[B] = {
           asClient.dispatch(dispatch).fast.flatMap { resp =>
             Unmarshal(resp).to[B]
           }
@@ -72,11 +73,11 @@ object RestConversionImplicits {
 
   object implicits extends RestConversionImplicits
 
-  case class ClientConfigOps(conf: ClientConfig) {
+  class ClientConfigOps(val conf: ClientConfig) extends AnyVal {
 
     def httpClient: AsClient[HttpRequest, HttpResponse] = {
       new AsClient[HttpRequest, HttpResponse] {
-        override def dispatch(dispatch: Dispatch[HttpRequest]): Future[HttpResponse] = {
+        override def dispatch[T <: HttpRequest](dispatch: Dispatch[T]): Future[HttpResponse] = {
           WorkerClient(conf, dispatch).send(dispatch.request)
         }
       }
@@ -84,7 +85,7 @@ object RestConversionImplicits {
 
     def forEntity[T: ToEntityMarshaller]: AsClient[T, HttpResponse] = {
       new AsClient[T, HttpResponse] {
-        override def dispatch(dispatch: Dispatch[T]): Future[HttpResponse] = {
+        override def dispatch[T1 <: T](dispatch: Dispatch[T1]): Future[HttpResponse] = {
           WorkerClient(conf, dispatch).sendRequest(dispatch.request)
         }
       }
@@ -98,7 +99,7 @@ object RestConversionImplicits {
       import akka.http.scaladsl.util.FastFuture._
       import mat._
       new AsClient[A, B] {
-        override def dispatch(dispatch: Dispatch[A]) = {
+        override def dispatch[A1 <: A](dispatch: Dispatch[A1]) = {
           WorkerClient(conf, dispatch).sendRequest(dispatch.request).fast.flatMap { resp =>
             Unmarshal(resp).to[B]
           }

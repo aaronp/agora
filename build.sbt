@@ -87,7 +87,7 @@ val baseScalcSettings = List(
   "-Xfuture" // Turn on future language features.
 )
 
-val scalacSettings = Nil //baseScalcSettings
+val scalacSettings = baseScalcSettings
 
 //site.settings ++ 
 // lazy val docSettings = ghpages.settings ++ Seq(

@@ -61,7 +61,7 @@ object HostResolver {
 
       val location = HostLocation(hostName, configLocation.port)
 
-      logger.debug(s"Given config '${configValue}' and conf loation ${configLocation}, resolved\n${HostResolver.debug(
+      logger.debug(s"Given config '${configValue}' and conf location ${configLocation}, resolved\n${HostResolver.debug(
         socketAddress)}\n to ${hostName}\n")
 
       location
@@ -69,6 +69,7 @@ object HostResolver {
   }
 
   def debug(socketAddress: InetSocketAddress) = {
+
     val address = socketAddress.getAddress
     s"""
        |          inet-hostname : ${address.getHostName}

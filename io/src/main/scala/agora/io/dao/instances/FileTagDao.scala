@@ -78,7 +78,7 @@ case class FileTagDao[T](rootDir: Path, maxTagLen: Int, maxTagValueLen: Int)(
 
   override def hasTag(data: T, tag: String): Boolean = {
     val id = hasId.id(data)
-    idsDir.resolve(id).resolve(tag).exists
+    idsDir.resolve(id).resolve(tag).exists()
   }
 
   override def findDataWithTagValue(tag: String, tagValue: String): Iterator[T] = {
@@ -109,14 +109,16 @@ case class FileTagDao[T](rootDir: Path, maxTagLen: Int, maxTagValueLen: Int)(
       valueForTag(data, tag).foreach { tagValue =>
         TagIdDir(id, tag, tagValue).removeId(id)
       }
-      idsDir.resolve(id).resolve(tag).delete()
+
+      val tagFile = idsDir.resolve(id).resolve(tag)
+      tagFile.delete()
     }
   }
 
   override def valueForTag(data: T, tag: String): Option[String] = {
     val id   = hasId.id(data)
     val file = idsDir.resolve(id).resolve(tag)
-    if (file.exists) {
+    if (file.exists()) {
       Try(file.text).toOption
     } else {
       None
@@ -165,7 +167,7 @@ case class FileTagDao[T](rootDir: Path, maxTagLen: Int, maxTagValueLen: Int)(
       */
     def valueDir: Option[Path] = {
       if (usesVerbatim) {
-        Option(idDir).filter(_.exists)
+        Option(idDir).filter(_.exists())
       } else {
         idDir.children.find(_.resolve(".value").text == tagValue)
       }

@@ -130,7 +130,7 @@ object Log {
     }
 
     override def isCommitted(index: Int) = {
-      dir.resolve(index.toString).resolve(CommittedFlagFileName).exists
+      dir.resolve(index.toString).resolve(CommittedFlagFileName).exists()
     }
 
     override def latestUnappliedEntry: Option[LogEntry[Command]] = at(lastUnappliedIndex)

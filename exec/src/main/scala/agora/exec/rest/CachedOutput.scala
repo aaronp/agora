@@ -2,6 +2,7 @@ package agora.exec.rest
 
 import java.nio.file.Path
 
+import agora.api.`match`.MatchDetails
 import agora.exec.model.{FileResult, ProcessException, RunProcess, StreamingSettings}
 import agora.exec.workspace.WorkspaceId
 import agora.io.implicits._
@@ -32,6 +33,10 @@ object CachedOutput extends FailFastCirceSupport with AutoDerivation {
     * given the working (workspace) directory which holds the user's files, the originating httpRequest, and the
     * inputProcess unmarshalled from that request, return an optionally cached future response.
     *
+    *
+    * The [[HttpResponse]] will contain the headers 'x-cache-out' and 'x-cache-err' which will refer to the original
+    * (cached) standard output and standard error results.
+    *
     * Note: If the cached exit code is not a successful one (according to the request) and it's a
     * streaming request, then the std error is returned.
     *
@@ -42,67 +47,49 @@ object CachedOutput extends FailFastCirceSupport with AutoDerivation {
     * @return an optionally cached response
     */
   def cachedResponse(workingDir: Path, httpRequest: HttpRequest, inputProcess: RunProcess)(
-      implicit ec: ExecutionContext): Option[Future[HttpResponse]] = {
-    val dir = cacheDir(workingDir, inputProcess)
+      implicit ec: ExecutionContext): Option[(CacheEntry, Future[HttpResponse])] = {
 
-    val exitCodeFile = dir.resolve(ExitCodeFileName)
-    if (exitCodeFile.exists) {
-      val cachedExitCode = exitCodeFile.text.toInt
-      inputProcess.output.streaming match {
+    val entry: CacheEntry = CacheEntry(workingDir, inputProcess)
+    entry.cachedExitCode.flatMap { cachedExitCode =>
+      val opt = inputProcess.output.streaming match {
         case None =>
-          Option(asFileResultResponse(workingDir.fileName, dir, cachedExitCode, httpRequest))
+          Option(entry.asFileResultResponse(cachedExitCode, httpRequest))
         case Some(streamingSettings) =>
-          asCachedStreamingResponse(workingDir, dir, streamingSettings, cachedExitCode, httpRequest, inputProcess)
+          asCachedStreamingResponse(entry, streamingSettings, cachedExitCode, httpRequest)
       }
-    } else {
-      None
+      opt.map { httpRespFuture =>
+        import agora.rest.RestImplicits._
+        import akka.http.scaladsl.util.FastFuture._
+        val respWithHeaders: Future[HttpResponse] = httpRespFuture.fast.map { httpResp =>
+          val cacheHeaders = {
+            val outFileHeader = entry.stdOutFileName.map("x-cache-out".asHeader)
+            val errFileHeader = entry.stdErrFileName.map("x-cache-err".asHeader)
+
+            List(outFileHeader, errFileHeader).flatten
+          }
+          httpResp.withHeaders(cacheHeaders ++ httpResp.headers)
+        }
+        (entry, respWithHeaders)
+      }
     }
   }
 
   private def asCachedStreamingResponse(
-      workingDir: Path,
-      cacheDir: Path,
+      cache: CacheEntry,
       streamingSettings: StreamingSettings,
       cachedExitCode: Int,
-      httpRequest: HttpRequest,
-      inputProcess: RunProcess)(implicit ec: ExecutionContext): Option[Future[HttpResponse]] = {
+      httpRequest: HttpRequest)(implicit ec: ExecutionContext): Option[Future[HttpResponse]] = {
     val successResult = streamingSettings.successExitCodes.contains(cachedExitCode)
 
-    val stdOutFileName = cacheDir.resolve(StdOutFileName).text
-    val stdErrFileName = cacheDir.resolve(StdErrFileName).text
-
-    val stdOutFile = workingDir.resolve(stdOutFileName)
-    val stdErrFile = workingDir.resolve(stdErrFileName)
-
-    lazy val matchDetails = MatchDetailsExtractor.unapply(httpRequest)
-
-    val stdOutBytesOpt = if (stdOutFile.exists) {
-      Option(FileIO.fromPath(stdOutFile))
-    } else {
-      None
-    }
-
-    def asSrc(text: String) = Source.single(ByteString(text))
-
-    val newLine = asSrc("\n")
-
-    val stdErrBytesOpt: Option[Source[ByteString, NotUsed]] = if (stdErrFile.exists) {
-      // TODO - put in err limit in request
-      val stdErr     = stdErrFile.lines.take(1000)
-      val exp        = ProcessException(inputProcess, Success(cachedExitCode), matchDetails, stdErr.toList)
-      val respSource = asSrc(streamingSettings.errorMarker) ++ newLine ++ asSrc(exp.json.noSpaces)
-
-      Option(respSource)
-    } else {
-      None
-    }
+    val matchDetails = MatchDetailsExtractor.unapply(httpRequest)
 
     def streamResults(bytes: Source[ByteString, Any]) = {
-      val resp: Future[HttpResponse] = ExecutionWorkflow.streamBytes(bytes, inputProcess, matchDetails, httpRequest)
+      val resp: Future[HttpResponse] =
+        ExecutionWorkflow.streamBytes(bytes, cache.inputProcess, matchDetails, httpRequest)
       Option(resp)
     }
 
-    (stdOutBytesOpt, stdErrBytesOpt) match {
+    (cache.stdOutBytesOpt, cache.stdErrBytesOpt(streamingSettings, matchDetails)) match {
       case (Some(out), _) if successResult => streamResults(out)
       case _ if successResult              => streamResults(Source.empty[ByteString])
       case (Some(out), Some(err))          => streamResults(out ++ newLine ++ err)
@@ -112,27 +99,9 @@ object CachedOutput extends FailFastCirceSupport with AutoDerivation {
     }
   }
 
-  private def asFileResultResponse(workspace: WorkspaceId,
-                                   cacheDir: Path,
-                                   cachedExitCode: Int,
-                                   httpRequest: HttpRequest)(implicit ec: ExecutionContext): Future[HttpResponse] = {
+  private def asSrc(text: String) = Source.single(ByteString(text))
 
-    def asFileName(storedUnder: String) = {
-      Option(cacheDir.resolve(storedUnder).text).filterNot(_.isEmpty)
-    }
-
-    val matchDetailsOpt = MatchDetailsExtractor.unapply(httpRequest)
-
-    val result = FileResult(
-      exitCode = cachedExitCode,
-      workspaceId = workspace,
-      stdOutFile = asFileName(StdOutFileName),
-      stdErrFile = asFileName(StdErrFileName),
-      matchDetails = matchDetailsOpt
-    )
-
-    Marshal(result).toResponseFor(httpRequest)
-  }
+  private val newLine = asSrc("\n")
 
   /**
     * @return the cache directory for the given [[RunProcess]] under the workspace (workdingDir)
@@ -149,6 +118,8 @@ object CachedOutput extends FailFastCirceSupport with AutoDerivation {
     * @param exitCode   the job's exit code
     */
   def cache(cacheDir: Path, runProcess: RunProcess, exitCode: Int): Unit = {
+    //cacheDir.resolve(ExitCodeFileName).createIfNotExists()
+
     cacheDir.resolve(ExitCodeFileName).text = exitCode.toString
     runProcess.output.stdOutFileName.foreach { fileName =>
       cacheDir.resolve(StdOutFileName).text = fileName
@@ -159,6 +130,121 @@ object CachedOutput extends FailFastCirceSupport with AutoDerivation {
     cacheDir.resolve(JobFileName).text = {
       runProcess.asJson.noSpaces
     }
+  }
+
+  private[rest] object CacheEntry {
+    private[rest] def apply(workspaceDir: Path, inputProcess: RunProcess): CacheEntry = {
+      val dir = cacheDir(workspaceDir, inputProcess)
+      new CacheEntry(workspaceDir, dir, inputProcess)
+    }
+
+  }
+
+  /**
+    * A CacheEntry represents the contents of the '.cache' directory nested under a given workspace.
+    *
+    * @param workspaceDir the parent workspace directory
+    * @param cacheDir
+    * @param inputProcess
+    */
+  private[rest] case class CacheEntry private (workspaceDir: Path, cacheDir: Path, inputProcess: RunProcess) {
+
+    def createCacheLinks(): Boolean = {
+      val out = createStdOutLink()
+      val err = createStdErrLink()
+      out.isDefined || err.isDefined
+    }
+
+    private[rest] def asFileResultResponse(cachedExitCode: Int, httpRequest: HttpRequest)(
+        implicit ec: ExecutionContext): Future[HttpResponse] = {
+
+      def asFileName(storedUnder: String) = {
+        Option(cacheDir.resolve(storedUnder).text).filterNot(_.isEmpty)
+      }
+
+      val matchDetailsOpt = MatchDetailsExtractor.unapply(httpRequest)
+
+      val result = FileResult(
+        exitCode = cachedExitCode,
+        workspaceId = inputProcess.workspace,
+        stdOutFile = stdOutFileName.orElse(inputProcess.output.stdOutFileName),
+        stdErrFile = stdErrFileName.orElse(inputProcess.output.stdErrFileName),
+        matchDetails = matchDetailsOpt
+      )
+
+      Marshal(result).toResponseFor(httpRequest)
+    }
+
+    /**
+      * If a job was run which cached its results under <workspacedir>/foo, then there will be an
+      * entry:
+      * {{{
+      *   .cache/<JOB MD5 Hash>/.stdout = foo
+      *
+      * If we then run a job which specifies the output file 'bar', and it ends up using the 'foo' cache,
+      * then we should create a link from:
+      * {{{
+      *   <workspacedir>/foo --> <workspacedir>/bar
+      * }}}
+      *
+      * @return a linked file for the input process's std out file to the cached std out file
+      */
+    def createStdOutLink(): Option[Path] = createLink(stdOutFile, inputProcess.output.stdOutFileName)
+
+    /**
+      * @see createStdOutLink
+      */
+    def createStdErrLink(): Option[Path] = createLink(stdErrFile, inputProcess.output.stdErrFileName)
+
+    private def createLink(cachedFileOpt: Option[Path], fileNameOpt: Option[String]): Option[Path] = {
+      for {
+        newName      <- fileNameOpt
+        cachedOutput <- cachedFileOpt
+        newPath = cachedOutput.getParent.resolve(newName)
+        if !newPath.exists()
+      } yield {
+
+        /**
+          * I believe we want to use hard links, as the stdout results returned from cached jobs should
+          * remain even after the original may be deleted
+          */
+        cachedOutput.createHardLinkFrom(newPath)
+      }
+    }
+
+    def exists: Boolean = cachedExitCode.isDefined
+
+    private def file(name: String) = Option(cacheDir.resolve(name)).filter(_.exists())
+
+    private def text(name: String) = file(name).map(_.text)
+
+    def exitCodeFile = file(ExitCodeFileName)
+
+    def cachedExitCode: Option[Int] = text(ExitCodeFileName).map(_.toInt)
+
+    def stdOutFileName: Option[String] = text(StdOutFileName)
+
+    def stdErrFileName: Option[String] = text(StdErrFileName)
+
+    def stdOutFile: Option[Path] = stdOutFileName.map(workspaceDir.resolve)
+
+    def stdErrFile = stdErrFileName.map(workspaceDir.resolve)
+
+    def stdOutBytesOpt = stdOutFile.map { path =>
+      FileIO.fromPath(path)
+    }
+
+    def stdErrBytesOpt(streamingSettings: StreamingSettings,
+                       matchDetails: Option[MatchDetails]): Option[Source[ByteString, NotUsed]] =
+      for {
+        exitCode <- cachedExitCode
+        errFile  <- stdErrFile
+      } yield {
+        val stdErr     = streamingSettings.errorLimit.fold(errFile.lines)(errFile.lines.take)
+        val exp        = ProcessException(inputProcess, Success(exitCode), matchDetails, stdErr.toList)
+        val respSource = asSrc(streamingSettings.errorMarker) ++ newLine ++ asSrc(exp.json.noSpaces)
+        respSource
+      }
   }
 
 }

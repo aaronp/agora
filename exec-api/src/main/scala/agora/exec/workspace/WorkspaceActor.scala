@@ -73,14 +73,14 @@ private[workspace] class WorkspaceActor(val id: WorkspaceId, potentiallyNotExist
   def handler(pendingRequests: List[AwaitUploads]): Receive = {
     case msg: WorkspaceMsg => onWorkspaceMsg(msg, pendingRequests)
     case AwaitUploadsTimeout(AwaitUploads(dependencies, promise)) =>
-      val errMsg = if (potentiallyNotExistentDir.exists) {
-        val kids    = files
-        val missing = dependencies.dependsOnFiles.filterNot(kids.contains)
-        s"Still waiting for ${missing.size} files [${missing.mkString(",")}] in workspace '${dependencies.workspace}' after ${dependencies.timeout}"
+      val err = if (potentiallyNotExistentDir.exists()) {
+        val kids: Array[String]  = files
+        val missing: Set[String] = dependencies.dependsOnFiles.filterNot(kids.contains)
+        WorkspaceDependencyTimeoutException(dependencies, missing)
       } else {
-        s"No files have been uploaded to ${dependencies.workspace} after ${dependencies.timeout}"
+        WorkspaceDependencyTimeoutException(dependencies)
       }
-      promise.tryComplete(Failure(new Exception(errMsg)))
+      promise.tryComplete(Failure(err))
   }
 
   def onWorkspaceMsg(msg: WorkspaceMsg, pendingRequests: List[AwaitUploads]) = {
@@ -180,7 +180,7 @@ object WorkspaceActor extends StrictLogging {
     }
 
     val ok: Try[Boolean] =
-      Try(canRemove && potentiallyNotExistentDir.exists).map(_ && Try(potentiallyNotExistentDir.delete()).isSuccess)
+      Try(canRemove && potentiallyNotExistentDir.exists()).map(_ && Try(potentiallyNotExistentDir.delete()).isSuccess)
     ok == Success(true)
   }
 }

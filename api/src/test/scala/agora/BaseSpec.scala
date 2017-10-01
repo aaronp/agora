@@ -1,5 +1,8 @@
 package agora
 
+import java.util.concurrent.ThreadFactory
+import java.util.concurrent.atomic.AtomicInteger
+
 import _root_.io.circe.parser.parse
 import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions}
 
@@ -33,4 +36,17 @@ abstract class BaseSpec extends BaseIOSpec {
       ConfigFactory.parseString(sc.s(args: _*))
     }
   }
+
+  val daemonicExecutor = java.util.concurrent.Executors.newFixedThreadPool(
+    4,
+    new ThreadFactory {
+      val id = new AtomicInteger(0)
+      override def newThread(r: Runnable): Thread = {
+        val thread = new Thread(r)
+        thread.setDaemon(true)
+        thread.setName(s"${id.incrementAndGet()}-thread")
+        thread
+      }
+    }
+  )
 }

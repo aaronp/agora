@@ -20,7 +20,7 @@ object TestUtils extends LowPriorityIOImplicits {
 
     def asSource = FileIO.fromPath(absolutePath)
 
-    def executable = absolutePath.grantAllPermissions.toString
+    def executable: String = absolutePath.grantAllPermissions.toString
   }
 
 }

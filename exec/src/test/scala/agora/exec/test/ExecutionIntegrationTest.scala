@@ -5,14 +5,12 @@ import java.util.UUID
 import agora.BaseSpec
 import agora.api.exchange.PendingSubscription
 import agora.exec.ExecConfig
+import agora.exec.client.RemoteRunner
 import agora.exec.model.{RunProcess, StreamingResult, Upload}
 import agora.exec.rest.ExecutionRoutes
-import agora.exec.client.RemoteRunner
 import agora.rest.client.{AkkaClient, RestClient, RetryClient}
 import agora.rest.{HasMaterializer, RunningService}
 import org.scalatest.concurrent.Eventually
-
-import scala.util.Properties
 
 class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventually {
 
@@ -22,8 +20,7 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
   var client: RemoteRunner                                = null
 
   "RemoteRunner" should {
-    // TODO - reinstance w/ workspaces dependency
-    "execute requests on different servers" ignore {
+    "execute requests on different servers" in {
       withDir { dir =>
         val anotherConf: ExecConfig =
           ExecConfig("port=8888", s"uploads.dir=${dir.toAbsolutePath.toString}", "initialRequest=1")
@@ -48,14 +45,15 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
     * In this test, we want to check we can run two different jobs which get routed to the 2 different servers.
     *
     * To do this we:
-    * 1) submit a job with a dependency on file 1
+    * 0) start two workers, each asking for only 1 work item
+    * 1) submit a job with a dependency on file 1, which will get picked up by one of the workers (and decrement
+    * that worker's requested count to 0)
     * 2) submit a job with a dependency on file 2. this should get routed to a different worker from #1
     * 3) upload file 1
     * 4) upload file 2
     * 5) verify jobs 1 and 2 complete on different servers
     *
-    * This works because we set up each server to only ask for one work item at a time. The jobs take a work item
-    * from the exchange, but can't complete as they're blocking on their upload file dependencies. This way
+    * We know job #1 can't complete as it's awaiting its upload file dependency on the server. This way
     * when job 2 is submitted it will get directed to the 2nd worker
     */
   def verifyConcurrentServices(anotherConf: ExecConfig) = {
@@ -77,6 +75,7 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
     val selectionFuture1 =
       client.run(RunProcess("cat", "file1.txt").withDependencies(workspace1, Set("file1.txt"), testTimeout))
 
+    // figure out who got job #1
     val portWhichFirstJobTakenByService: Int = eventually {
       val queueAfterOneJobSubmitted = subscriptionsByServerPort
       if (queueAfterOneJobSubmitted == Map(7770 -> 1, 8888 -> 0)) {
@@ -97,8 +96,16 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
     selectionFuture1.isCompleted shouldBe false
     selectionFuture2.isCompleted shouldBe false
 
-    // 3) upload file1.txt dependency. Normally we would get one of these after routing a 'selection' job via the
-    // exchange, but here we just target the workers directly to ensure 'resultFuture1' can now complete
+    withClue("At this point both jobs should've been picked up and the subscriptions drained") {
+      val queueWithTwoJobsPending = client.exchange.queueState().futureValue
+      queueWithTwoJobsPending.jobs shouldBe empty
+      queueWithTwoJobsPending.subscriptions.size shouldBe 2
+      queueWithTwoJobsPending.subscriptions.foreach { pendingSubscription =>
+        pendingSubscription.requested shouldBe 0
+      }
+    }
+
+    // 3) upload file1.txt dependency by targeting the worker directly to ensure 'resultFuture1' can now complete
     val directClient1 = conf.executionClient()
     val directClient2 = anotherConf.executionClient()
     val (firstClient, theOtherClient) = portWhichFirstJobTakenByService match {
@@ -118,7 +125,16 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
     theOtherClient.upload(workspace2, file2).futureValue shouldBe true
     val StreamingResult(result2Output) = selectionFuture2.futureValue
     result2Output.mkString("") shouldBe "I'm file two"
+
+    val readyForMoreWorkQueue = client.exchange.queueState().futureValue
+    readyForMoreWorkQueue.jobs shouldBe empty
+    readyForMoreWorkQueue.subscriptions.size shouldBe 2
+    readyForMoreWorkQueue.subscriptions.foreach { pendingSubscription =>
+      pendingSubscription.requested shouldBe 1
+    }
+
   }
+
   override def beforeAll(): Unit = {
     super.beforeAll()
     server = conf.start().futureValue

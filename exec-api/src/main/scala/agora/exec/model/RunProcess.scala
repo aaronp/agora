@@ -41,6 +41,8 @@ case class RunProcess(command: List[String],
     }
   }
 
+  /** @return the MD5 hash of the command string as a Hex string
+    */
   def commandHash: String = MD5(commandString)
 
   def fileOutputs = output.stdOutFileName.toList ::: output.stdErrFileName.toList

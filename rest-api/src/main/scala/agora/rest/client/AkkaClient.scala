@@ -54,9 +54,12 @@ class AkkaClient(val location: HostLocation, system: ActorSystem, override impli
     def took = s"${Platform.currentTime - started}ms"
 
     future.onComplete {
-      case Success(resp) if resp.status.intValue() == 200 => logger.debug(s"$hostPort${request.uri} took ${took}")
-      case Success(resp)                                  => logger.debug(s"$hostPort${request.uri} took ${took} (status ${resp.status})")
-      case Failure(err)                                   => logger.error(s"$hostPort${request.uri} took ${took} and threw ${err}")
+      case Success(resp) if resp.status.intValue() == 200 =>
+        logger.debug(s"${request.method.name()} $hostPort${request.uri} took ${took}")
+      case Success(resp) =>
+        logger.debug(s"${request.method.name()} $hostPort${request.uri} took ${took} (status ${resp.status})")
+      case Failure(err) =>
+        logger.error(s"${request.method.name()} $hostPort${request.uri} took ${took} and threw ${err}")
     }
     future
   }

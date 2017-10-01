@@ -33,23 +33,36 @@ abstract class SelectionMode(override val toString: String) {
     */
   def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll
 
-  /** @return true if this selection mode may choose multiple workers
+  /** @return true if this selection mode may choose multiple worker [[Candidate]]s
     */
   def selectsMultiple: Boolean = true
 }
 
-// sends the work to the first matching eligible worker
+/**
+  * chooses all the eligible (matched)  workers on the exchange.
+  * The assumption is the work will be sent to all the workers, though the requesting client
+  * will just return the first to finish
+  */
 case class SelectionFirst() extends SelectionMode("select-first") {
+  override def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(
+      implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
+    values
+  }
+}
+
+/**
+  * just chooses one of the eligible workers
+  */
+case object SelectionOne extends SelectionMode("select-one") {
   override def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(
       implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
     values.take(1)
   }
-
   override val selectsMultiple: Boolean = false
 }
 
 // sends the work to all eligible workers
-case class SelectionAll() extends SelectionMode("select-all") {
+case object SelectionAll extends SelectionMode("select-all") {
   override def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(
       implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
     values
@@ -61,6 +74,8 @@ case class SelectionAll() extends SelectionMode("select-all") {
   * @param n
   */
 case class SelectN(n: Int) extends SelectionMode(s"select-$n") {
+
+  override def selectsMultiple: Boolean = n > 1
 
   override def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(
       implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
@@ -106,6 +121,8 @@ trait SelectComparable extends SelectionMode {
 
   def chooseOne(candidates: TraversableOnce[(Candidate, JsonNumber)]): Candidate
 
+  override val selectsMultiple: Boolean = false
+
   override def select[Coll <: SeqLike[Candidate, Coll]](collection: Coll)(
       implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
 
@@ -127,9 +144,12 @@ object SelectionMode {
   type Remaining = Selection
   type Work      = (SubscriptionKey, WorkSubscription, Int)
 
-  def first(): SelectionMode = SelectionFirst()
+  def first(): SelectionMode   = SelectionFirst()
+  def onlyOne(): SelectionMode = SelectionFirst()
 
-  def all(): SelectionMode = SelectionAll()
+  def all(): SelectionMode = SelectionAll
+
+  def one(): SelectionMode = SelectionOne
 
   def apply(n: Int): SelectionMode = SelectN(n)
 
@@ -161,6 +181,7 @@ object SelectionMode {
       c.value.asString match {
         case Some("select-first") => Right(first())
         case Some("select-all")   => Right(all())
+        case Some("select-one")   => Right(one())
         case _ =>
           import io.circe._
           import io.circe.generic.auto._

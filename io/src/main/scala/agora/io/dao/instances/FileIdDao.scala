@@ -39,7 +39,7 @@ class FileIdDao[T: Persist: FromBytes](dir: Path) extends IdDao[String, T] {
     */
   def getFile(id: String): Option[Path] = {
     val file = dir.resolve(id)
-    if (file.exists) {
+    if (file.exists()) {
       Option(file)
     } else {
       None

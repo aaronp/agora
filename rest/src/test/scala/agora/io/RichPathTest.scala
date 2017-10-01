@@ -12,7 +12,7 @@ class RichPathTest extends BaseSpec with LowPriorityIOImplicits {
         foo.createdString should startWith("20")
       } finally {
         foo.delete()
-        foo.exists shouldBe false
+        foo.exists() shouldBe false
       }
     }
   }

@@ -88,7 +88,7 @@ class LocalRunnerTest
         // verify it worked
         runner.execute(runProcess, iter).futureValue
 
-        stdOutFile.exists shouldBe true
+        stdOutFile.exists() shouldBe true
         dir.resolve("newFile").text shouldBe "hello world"
       }
     }

@@ -1,29 +1,28 @@
 package agora.exec.client
 
-import agora.api.exchange.{AsClient, Dispatch}
+import agora.api.`match`.MatchDetails
 import agora.exec.model.{FileResult, RunProcess, RunProcessResult}
-import agora.io.IterableSubscriber
-import agora.rest.ClientConfig
+import agora.rest.{CommonRequestBuilding, MatchDetailsExtractor}
 import agora.rest.client.RestClient
 import akka.http.scaladsl.client.RequestBuilding
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
+import io.circe.generic.auto._
+import io.circe.syntax._
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.{implicitConversions, reflectiveCalls}
-import io.circe.generic.auto._
-import io.circe.syntax._
-import io.circe.java8.time._
 
 /**
   * A client of the ExecutionRoutes and UploadRoutes
   *
   * @param client
   */
-case class ExecutionClient(override val client: RestClient, defaultFrameLength: Int)(
-    implicit uploadTimeout: FiniteDuration)
+case class ExecutionClient(override val client: RestClient,
+                           defaultFrameLength: Int,
+                           matchDetails: Option[MatchDetails] = None)(implicit uploadTimeout: FiniteDuration)
     extends UploadClient
     with FailFastCirceSupport
     with AutoCloseable {
@@ -37,7 +36,8 @@ case class ExecutionClient(override val client: RestClient, defaultFrameLength: 
     * @return the http response whose entity body contains the process output
     */
   def execute(proc: RunProcess): Future[HttpResponse] = {
-    client.send(ExecutionClient.asRequest(proc))
+    val request = ExecutionClient.asRequest(proc, matchDetails)
+    client.send(request)
   }
 
   /**
@@ -64,15 +64,9 @@ case class ExecutionClient(override val client: RestClient, defaultFrameLength: 
   override def close(): Unit = client.close()
 }
 
-object ExecutionClient extends RequestBuilding {
-  def asRequest(job: RunProcess)(implicit ec: ExecutionContext) = {
+object ExecutionClient extends CommonRequestBuilding {
+  def asRequest(job: RunProcess, matchDetails: Option[MatchDetails] = None)(implicit ec: ExecutionContext) = {
     Post("/rest/exec/run", HttpEntity(ContentTypes.`application/json`, job.asJson.noSpaces))
+      .withCommonHeaders(matchDetails)
   }
-//
-//  implicit class ExecAsClient(implicit conf : ClientConfig) extends AsClient[RunProcess, RunProcessResult] {
-//    override def dispatch(dispatch: Dispatch[RunProcess]): Future[RunProcessResult] = {
-//      val restClient = conf.clientFor(dispatch.location)
-//      ExecutionClient(restClient)
-//    }
-//  }
 }

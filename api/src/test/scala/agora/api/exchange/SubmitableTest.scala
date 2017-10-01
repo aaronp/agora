@@ -74,7 +74,7 @@ object SubmitableTest {
     implicit object AddAsClient extends AsClient[Add, Int] {
       val callsByLocation = mutable.HashMap[HostLocation, AtomicInteger]()
 
-      override def dispatch(dispatch: Dispatch[Add]): Future[Int] = {
+      override def dispatch[T <: Add](dispatch: Dispatch[T]): Future[Int] = {
         callsByLocation
           .getOrElseUpdate(dispatch.matchedWorker.location, new AtomicInteger(0))
           .incrementAndGet()

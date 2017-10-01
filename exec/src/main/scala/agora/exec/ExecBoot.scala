@@ -3,11 +3,11 @@ package agora.exec
 import agora.api.exchange.Exchange
 import agora.exec.events.{DeleteBefore, Housekeeping, StartedSystem}
 import agora.exec.rest.{ExecutionRoutes, ExecutionWorkflow, QueryRoutes, UploadRoutes}
-import agora.exec.workspace.WorkspaceClient
+import agora.exec.workspace.{UpdatingWorkspaceClient, WorkspaceClient}
 import agora.health.HealthUpdate
+import agora.rest.RunningService
 import agora.rest.exchange.ExchangeRoutes
 import agora.rest.worker.SubscriptionConfig
-import agora.rest.{HostResolver, RunningService}
 import akka.http.scaladsl.model.HttpMethods
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
@@ -66,7 +66,7 @@ case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes
     new ExecutionRoutes(conf, exchange, workflow)
   }
 
-  def uploadRoutes: Route = UploadRoutes(workspaceClient).routes
+  def uploadRoutes(workspace: WorkspaceClient = workspaceClient) = UploadRoutes(workspace)
 
   lazy val eventMonitor = {
     val monitor = conf.eventMonitor
@@ -83,13 +83,14 @@ case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes
 
   def queryRoutes: Route = QueryRoutes(eventMonitor).routes(conf.enableSupportRoutes)
 
-  def restRoutes: Route = {
+  def restRoutes(uploadRoutes: UploadRoutes): Route = {
+
     val corsSettings = {
       val default = CorsSettings.defaultSettings
       default.copy(allowedMethods = default.allowedMethods ++ List(HttpMethods.PUT, HttpMethods.DELETE))
     }
     val baseRoutes = cors(corsSettings)(
-      uploadRoutes ~ executionRoutes.routes(optionalExchangeRoutes)
+      uploadRoutes.routes ~ executionRoutes.routes(optionalExchangeRoutes)
     )
 
     if (conf.eventMonitorConfig.enabled) {
@@ -110,7 +111,12 @@ case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes
     import conf.serverImplicits._
 
     logger.info(s"Starting Execution Server in ${conf.location}")
-    val startFuture = RunningService.start[ExecConfig, ExecutionRoutes](conf, restRoutes, executionRoutes)
+
+    val updatingClient = UpdatingWorkspaceClient(conf.workspaceClient, exchange)
+    val uploadRoutes   = UploadRoutes(updatingClient)
+
+    val startFuture =
+      RunningService.start[ExecConfig, ExecutionRoutes](conf, restRoutes(uploadRoutes), executionRoutes)
 
     eventMonitor.accept(StartedSystem(SubscriptionConfig.asJson(conf.config)))
 
@@ -122,11 +128,17 @@ case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes
       // only subscribe once the service has started
       ids <- conf.execSubscriptions(resolvedLocation).createSubscriptions(exchange)
     } yield {
+
+      // we now have a work subscription -- have our upload routes update it
+      // when workspaces are created/closed
+      updatingClient.addSubscriptions(ids)
+
       if (conf.healthUpdateFrequency.toMillis > 0) {
         HealthUpdate.schedule(exchange, ids.toSet, conf.healthUpdateFrequency)
       } else {
         logger.warn(s"Not scheduling health updates as healthUpdateFrequency is ${conf.healthUpdateFrequency}")
       }
+
       rs
     }
   }

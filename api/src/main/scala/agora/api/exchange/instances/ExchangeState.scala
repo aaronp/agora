@@ -243,7 +243,6 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
   }
 
   def request(id: SubscriptionKey, n: Int): Try[(RequestWorkAck, ExchangeState)] = {
-    require(n >= 0)
     subscriptionsById.get(id) match {
       case None =>
         Failure(
