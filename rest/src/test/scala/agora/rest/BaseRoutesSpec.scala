@@ -2,11 +2,10 @@ package agora.rest
 
 import agora.BaseSpec
 import agora.rest.client.RestClient
-import akka.actor.ActorSystem
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-import akka.stream.{ActorMaterializer, Materializer}
+import akka.stream.Materializer
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 
 import scala.concurrent.Future

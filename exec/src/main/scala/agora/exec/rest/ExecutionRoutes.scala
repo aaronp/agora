@@ -52,7 +52,7 @@ case class ExecutionRoutes(
   def routes(exchangeRoutes: Option[Route]): Route = {
     val workerRoutes = execConfig.newWorkerRoutes(exchange)
 
-    executeRoute ~ cancelRoute ~ execConfig.routes(exchangeRoutes) ~ workerRoutes.routes
+    executeRoute ~ executeRouteGet ~ cancelRoute ~ execConfig.routes(exchangeRoutes) ~ workerRoutes.routes
   }
 
   @javax.ws.rs.Path("/rest/exec/run")
@@ -75,9 +75,9 @@ case class ExecutionRoutes(
     (post & path("rest" / "exec" / "run")) {
       entity(as[RunProcess]) { inputProcess =>
         extractRequestContext { ctxt =>
+          import ctxt.executionContext
           takeNextOnComplete(exchange) {
             complete {
-              import ctxt.executionContext
               executeHandler.onExecutionRequest(ctxt.request, inputProcess)
             }
           }
@@ -119,6 +119,43 @@ case class ExecutionRoutes(
             }
           }
         }
+      }
+    }
+  }
+
+  @javax.ws.rs.Path("/rest/exec/run")
+  @ApiOperation(value = "Execute a job and optionally stream the output",
+                httpMethod = "GET",
+                produces = "text/plain; charset=UTF-8",
+                consumes = "application/json")
+  @ApiImplicitParams(
+    Array(
+      new ApiImplicitParam(name = "command", required = true, paramType = "query"),
+      new ApiImplicitParam(name = "workspace", required = false, paramType = "query"),
+      new ApiImplicitParam(name = "writeTo", required = false, paramType = "query")
+    ))
+  @ApiResponses(
+    Array(new ApiResponse(code = 200, message = "the output of the command is returned w/ UTF-8 text encoding")))
+  def executeRouteGet = {
+    (get & path("rest" / "exec" / "run")) {
+      (parameter('command) & parameter('workspace.?) & parameter('writeTo.?)) {
+        case (commandString, workspaceOpt, writeToOpt) =>
+          extractRequestContext { ctxt =>
+            import ctxt.executionContext
+            takeNextOnComplete(exchange) {
+              complete {
+                val inputProcess = {
+
+                  val base          = RunProcess(commandString.split(" ", -1).toList)
+                  val withWorkspace = workspaceOpt.map(_.trim).filterNot(_.isEmpty).fold(base)(base.withWorkspace)
+                  val withStdOut =
+                    writeToOpt.map(_.trim).filterNot(_.isEmpty).fold(withWorkspace)(withWorkspace.withStdOutTo)
+                  withStdOut
+                }
+                executeHandler.onExecutionRequest(ctxt.request, inputProcess)
+              }
+            }
+          }
       }
     }
   }

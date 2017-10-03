@@ -28,7 +28,7 @@ abstract class BaseIOSpec
   /**
     * All the timeouts!
     */
-  implicit def testTimeout: FiniteDuration = 5.seconds
+  implicit def testTimeout: FiniteDuration = 12.seconds
 
   def testClassName = getClass.getSimpleName.filter(_.isLetterOrDigit)
 

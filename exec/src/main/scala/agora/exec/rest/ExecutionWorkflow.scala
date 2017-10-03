@@ -43,7 +43,8 @@ trait ExecutionWorkflow {
     * @param waitFor if non-zero, then we will await for the given duration for the job to exit before returning
     * @return an HttpResponse to the cance request
     */
-  def onCancelJob(jobId: JobId, waitFor: FiniteDuration = 0.millis)(implicit ec: ExecutionContext): Future[HttpResponse]
+  def onCancelJob(jobId: JobId, waitFor: FiniteDuration = 0.millis)(
+      implicit ec: ExecutionContext): Future[HttpResponse]
 
   /**
     * The job is received. Do something with it and reply...
