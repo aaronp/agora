@@ -2,13 +2,15 @@ package agora.exec.client
 
 import agora.api.JobId
 import agora.api.`match`.MatchDetails
-import agora.exec.model.{FileResult, RunProcess, RunProcessResult}
+import agora.exec.model.{FileResult, OperationResult, RunProcess, RunProcessResult}
 import agora.rest.CommonRequestBuilding
 import agora.rest.client.RestClient
 import akka.http.scaladsl.model.Uri.Query
-import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse, Uri}
+import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.stream.Materializer
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
+import io.circe.Json
 import io.circe.generic.auto._
 import io.circe.syntax._
 
@@ -41,6 +43,17 @@ case class ExecutionClient(override val client: RestClient,
     client.send(request)
   }
 
+  def cancel(jobId: JobId, waitFor: String = ""): Future[Option[Boolean]] = {
+    cancelHttp(jobId, waitFor).flatMap { resp =>
+      ExecutionClient.parseCancelResponse(resp)
+    }
+  }
+
+  def cancelHttp(jobId: JobId, waitFor: String = ""): Future[HttpResponse] = {
+    val request: HttpRequest = ExecutionClient.asCancelRequest(jobId, waitFor)
+    client.send(request)
+  }
+
   /**
     * like execute, but returns a user-friendly return value
     *
@@ -65,7 +78,17 @@ case class ExecutionClient(override val client: RestClient,
   override def close(): Unit = client.close()
 }
 
-object ExecutionClient extends CommonRequestBuilding {
+object ExecutionClient extends CommonRequestBuilding with FailFastCirceSupport {
+
+  def parseCancelResponse(resp: HttpResponse)(implicit mat: Materializer): Future[Option[Boolean]] = {
+    import mat._
+    if (resp.status == StatusCodes.NotFound) {
+      Future.successful(None)
+    } else {
+      Unmarshal(resp).to[Json].map(_.asBoolean)
+    }
+  }
+
   def asRequest(job: RunProcess, matchDetails: Option[MatchDetails] = None)(implicit ec: ExecutionContext) = {
     Post("/rest/exec/run", HttpEntity(ContentTypes.`application/json`, job.asJson.noSpaces))
       .withCommonHeaders(matchDetails)

@@ -4,15 +4,26 @@ import java.nio.file.Path
 import java.util.UUID
 
 import agora.BaseSpec
+import agora.api.`match`.MatchDetails
+import agora.exec.client.ExecutionClient
 import agora.exec.events.{ReceivedJob, SystemEventMonitor}
 import agora.exec.model._
 import agora.exec.workspace.WorkspaceClient
-import agora.rest.HasMaterializer
+import agora.io.IterableSubscriber
+import agora.rest.test.TestUtils._
+import agora.rest.{CommonRequestBuilding, HasMaterializer}
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import org.scalatest.concurrent.Eventually
 
-class ExecutionWorkflowTest extends BaseSpec with FailFastCirceSupport with HasMaterializer with Eventually {
+import scala.concurrent.Future
+
+class ExecutionWorkflowTest
+    extends BaseSpec
+    with FailFastCirceSupport
+    with HasMaterializer
+    with Eventually
+    with CommonRequestBuilding {
 
   implicit def richPath(file: Path) = new {
     def trimmedText = file.text.lines.mkString("")
@@ -136,8 +147,6 @@ class ExecutionWorkflowTest extends BaseSpec with FailFastCirceSupport with HasM
     }
     "return the cached error results from a previous process if it exited unsuccessfully" in {
 
-      import agora.rest.test.TestUtils._
-
       withDir { dir =>
         val workspaces      = WorkspaceClient(dir, system)
         val cachingWorkflow = ExecutionWorkflow(Map.empty, workspaces, SystemEventMonitor.DevNull, true)
@@ -168,7 +177,48 @@ class ExecutionWorkflowTest extends BaseSpec with FailFastCirceSupport with HasM
       }
     }
   }
-  "ExecutionWorkflow" should {
+
+  "ExecutionWorkflow.cancel" should {
+    "return false when trying to cancel the same job a second time" in {
+      withDir { dir =>
+        val client   = WorkspaceClient(dir, system)
+        val workflow = ExecutionWorkflow(Map.empty, client, SystemEventMonitor.DevNull)
+
+        val runProcess: RunProcess = {
+          RunProcess("yes")
+            .withCaching(false)
+            .useCachedValueWhenAvailable(false)
+            .withStreamingSettings(StreamingSettings())
+        }
+
+        val md               = MatchDetails.empty.copy(jobId = "foo")
+        val requestWithJobId = HttpRequest().withCommonHeaders(Option(md))
+
+        // start the job ...
+        val jobFuture: Future[HttpResponse] = workflow.onExecutionRequest(requestWithJobId, runProcess)
+
+        withClue("We have to start streaming the job output to ensure we don't have a start/cancel race condition") {
+          // ... and ensure it's running as to start streaming the results..
+          val gotOutputFuture: Future[Boolean] = jobFuture.map { resp =>
+            val iter = IterableSubscriber.iterate(resp.entity.dataBytes, 1000)
+            iter.hasNext
+          }
+
+          gotOutputFuture.futureValue shouldBe true
+        }
+
+        // the job is now running, so we call the method under test
+        val cancelFuture = workflow.onCancelJob("foo")
+        val cancelled    = ExecutionClient.parseCancelResponse(cancelFuture.futureValue).futureValue
+        cancelled shouldBe Option(true)
+
+        val cancelled2 = ExecutionClient.parseCancelResponse(workflow.onCancelJob("foo").futureValue).futureValue
+        cancelled2 shouldBe None
+      }
+    }
+  }
+
+  "ExecutionWorkflow.onExecutionRequest" should {
 
     "both stream and write output to a file" in {
 

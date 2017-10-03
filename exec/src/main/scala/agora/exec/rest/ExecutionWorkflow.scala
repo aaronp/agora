@@ -1,11 +1,12 @@
 package agora.exec.rest
 
+import java.lang.{Process => JProcess}
 import java.nio.file.Path
 import java.util.concurrent.TimeUnit
 
 import agora.api.JobId
 import agora.api.`match`.MatchDetails
-import agora.exec.client.LocalRunner
+import agora.exec.client.{AsJProcess, LocalRunner}
 import agora.exec.events.{CompletedJob, ReceivedJob, StartedJob, SystemEventMonitor}
 import agora.exec.log.{IterableLogger, ProcessLoggers}
 import agora.exec.model._
@@ -23,9 +24,9 @@ import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.Json
 import io.circe.generic.auto._
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.sys.process.ProcessLogger
+import scala.sys.process.{Process, ProcessLogger}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
@@ -38,10 +39,11 @@ trait ExecutionWorkflow {
   /**
     * Cancel the job identified by the job ID
     *
-    * @param jobId the job to cancel
+    * @param jobId   the job to cancel
+    * @param waitFor if non-zero, then we will await for the given duration for the job to exit before returning
     * @return an HttpResponse to the cance request
     */
-  def onCancelJob(jobId: JobId, waitFor: FiniteDuration)(implicit ec: ExecutionContext): Future[HttpResponse]
+  def onCancelJob(jobId: JobId, waitFor: FiniteDuration = 0.millis)(implicit ec: ExecutionContext): Future[HttpResponse]
 
   /**
     * The job is received. Do something with it and reply...
@@ -158,6 +160,9 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
       extends ExecutionWorkflow
       with FailFastCirceSupport {
 
+    /**
+      * Used to track processes for cancellation, protected by 'ProcessLock'
+      */
     private var processById = Map[JobId, Process]()
 
     private object ProcessLock
@@ -166,9 +171,18 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
 
       val responseOpt: Option[Try[Process]] = ProcessLock.synchronized {
         processById.get(jobId).map { process =>
-          logger.info(s"Cancelling $jobId")
           processById = processById - jobId
-          Try(process.destroyForcibly())
+          logger.info(s"Cancelling $jobId, there are ${processById.size} jobs running")
+          Try {
+            // we want to always invoke destroy on the scala process, as it will also destroy other resources
+            // associated w/ the process. We then try to destroy forcibly if we can
+            process.destroy()
+            process match {
+              case AsJProcess(jProcess) => jProcess.destroyForcibly()
+              case _                    =>
+            }
+            process
+          }
         }
       }
 
@@ -178,7 +192,12 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
       responseOpt match {
         case Some(Success(process)) =>
           Future {
-            val cancelOk: Boolean = waitFor.toMillis <= 0 || process.waitFor(waitFor.toMillis, TimeUnit.MILLISECONDS)
+            def waitForCancel: Boolean = process match {
+              case AsJProcess(jProcess) => jProcess.waitFor(waitFor.toMillis, TimeUnit.MILLISECONDS)
+              case _                    => true
+            }
+
+            val cancelOk: Boolean = waitFor.toMillis <= 0 || waitForCancel
             HttpResponse(StatusCodes.OK)
               .withEntity(ContentTypes.`application/json`, Json.fromBoolean(cancelOk).noSpaces)
           }
@@ -267,7 +286,30 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
 
       val localRunner = LocalRunner(workDir = Option(workingDir))
       val processTry  = localRunner.startProcess(runProcess, processLogger)
-      localRunner.execute(runProcess, processLogger, processTry)
+      processTry.toOption.foreach { process =>
+        ProcessLock.synchronized {
+
+          // TODO - we need to raise an issue to document/control this workflow... what happens when
+          // the same jobId is started twice?
+          if (processById.contains(jobId)) {
+            logger.error(s"Job '$jobId' is already running !")
+          } else {
+            processById = processById.updated(jobId, process)
+            logger.debug(s"Job '$jobId' started, now tracking ${processById.size} running jobs")
+          }
+        }
+      }
+
+      val resultFuture = localRunner.execute(runProcess, processLogger, processTry)
+
+      resultFuture.onComplete {
+        case _ =>
+          ProcessLock.synchronized {
+            processById = processById - jobId
+            logger.debug(s"Job $jobId completed, now tracking ${processById.size} running jobs")
+          }
+      }
+      resultFuture
     }
 
     /**
@@ -314,6 +356,15 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
     HttpResponse(status = InternalServerError, entity = HttpEntity(`application/json`, exp.json.noSpaces))
   }
 
+  /**
+    * Stream the byte source into a chunked HttpResponse
+    * @param bytes
+    * @param runProc
+    * @param matchDetails
+    * @param request
+    * @param ec
+    * @return
+    */
   def streamBytes(bytes: Source[ByteString, Any],
                   runProc: RunProcess,
                   matchDetails: Option[MatchDetails],

@@ -28,19 +28,27 @@ class ExecutionRoutesTest extends BaseRoutesSpec with CommonRequestBuilding {
         // first cancel
         ExecutionClient.asCancelRequest(jobId) ~> er.routes(None) ~> check {
           response.status.intValue() shouldBe 200
-          responseAs[String] shouldBe "true"
+          val opt = ExecutionClient.parseCancelResponse(response).futureValue
+          opt shouldBe Option(true)
         }
 
         // second cancel
         ExecutionClient.asCancelRequest(jobId) ~> er.routes(None) ~> check {
-          response.status.intValue() shouldBe 200
-          responseAs[String] shouldBe "false"
+          response.status.intValue() shouldBe 404
+          val opt = ExecutionClient.parseCancelResponse(response).futureValue
+          opt shouldBe None
         }
 
-        val yesResponse: HttpResponse = respFuture.futureValue
-        println(yesResponse)
-        val content = Sources.asText(yesResponse.entity.dataBytes).futureValue
-        println(content)
+        withClue("The running job should have produced some output and eventually errored when it was cancelled") {
+          val yesResponse: HttpResponse = respFuture.futureValue
+          val content                   = Sources.asText(yesResponse.entity.dataBytes).futureValue
+          content should startWith("y\ny\ny")
+
+          val err = intercept[ProcessException] {
+            yes.output.streaming.get.filterForErrors(content.lines).size
+          }
+          err.error.exitCode shouldBe Some(143) // SIGTERM of 128 + 15
+        }
       }
     }
     "return a 404 for unknown jobs" in {
@@ -49,7 +57,8 @@ class ExecutionRoutesTest extends BaseRoutesSpec with CommonRequestBuilding {
 
         ExecutionClient.asCancelRequest("doesnt't exist") ~> er.routes(None) ~> check {
           response.status.intValue() shouldBe 404
-          responseAs[String] shouldBe "meh"
+          val opt = ExecutionClient.parseCancelResponse(response).futureValue
+          opt shouldBe None
         }
       }
     }
