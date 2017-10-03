@@ -132,14 +132,15 @@ case class ExecutionRoutes(
     Array(
       new ApiImplicitParam(name = "command", required = true, paramType = "query"),
       new ApiImplicitParam(name = "workspace", required = false, paramType = "query"),
-      new ApiImplicitParam(name = "writeTo", required = false, paramType = "query")
+      new ApiImplicitParam(name = "writeTo", required = false, paramType = "query"),
+      new ApiImplicitParam(name = "env", required = false, paramType = "query")
     ))
   @ApiResponses(
     Array(new ApiResponse(code = 200, message = "the output of the command is returned w/ UTF-8 text encoding")))
   def executeRouteGet = {
     (get & path("rest" / "exec" / "run")) {
-      (parameter('command) & parameter('workspace.?) & parameter('writeTo.?)) {
-        case (commandString, workspaceOpt, writeToOpt) =>
+      (parameter('command) & parameter('workspace.?) & parameter('writeTo.?) & parameter('env.?)) {
+        case (commandString, workspaceOpt, writeToOpt, envOpt) =>
           extractRequestContext { ctxt =>
             import ctxt.executionContext
             takeNextOnComplete(exchange) {
@@ -150,7 +151,15 @@ case class ExecutionRoutes(
                   val withWorkspace = workspaceOpt.map(_.trim).filterNot(_.isEmpty).fold(base)(base.withWorkspace)
                   val withStdOut =
                     writeToOpt.map(_.trim).filterNot(_.isEmpty).fold(withWorkspace)(withWorkspace.withStdOutTo)
-                  withStdOut
+
+                  val withEnv = envOpt.fold(withStdOut) { env =>
+                    env.split(" ", -1).toList match {
+                      case List(k, v) => withStdOut.withEnv(k, v)
+                      case _          => withStdOut
+                    }
+                  }
+
+                  withEnv
                 }
                 executeHandler.onExecutionRequest(ctxt.request, inputProcess)
               }

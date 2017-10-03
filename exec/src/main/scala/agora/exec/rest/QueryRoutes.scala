@@ -235,18 +235,28 @@ case class QueryRoutes(monitor: SystemEventMonitor)
     }
   }
 
-  @javax.ws.rs.Path("/rest/query/first-received")
+  @javax.ws.rs.Path("/rest/query/first")
   @ApiOperation(value = "return the first received job", httpMethod = "GET", produces = "application/json")
+  @ApiImplicitParams(
+    Array(
+      new ApiImplicitParam(name = "event",
+                           example = "received",
+                           defaultValue = "received",
+                           value = "one of received, started, completed",
+                           required = true,
+                           paramType = "query")))
   @ApiResponses(
     Array(
       new ApiResponse(code = 200, message = "the first recorded received job", response = classOf[Option[ReceivedJob]])
     ))
   def firstReceived = {
-    (get & path("rest" / "query" / "first-received")) {
-      parameter('from, 'to.?) {
-        withRange {
-          case (from, to) =>
-            monitor.query(FindFirst.started)
+    (get & path("rest" / "query" / "first")) {
+      parameter('event) { eventName =>
+        complete {
+          val eventOpt = FindFirst.values.find(_.eventName.equalsIgnoreCase(eventName))
+          val event: FindFirst = eventOpt.getOrElse(
+            sys.error(s"Invalid event '$eventName'. Expected one of ${FindFirst.validValues.mkString("[", ",", "]")}"))
+          monitor.query(event)
         }
       }
     }

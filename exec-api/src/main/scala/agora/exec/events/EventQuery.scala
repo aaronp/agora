@@ -88,8 +88,6 @@ case class StartTimesBetweenResponse(starts: List[StartedSystem])
   * Jobs which are were received but not started within the time range
   */
 case class FindFirst private (eventName: String) extends EventQuery {
-  require(FindFirst.validValues.contains(eventName),
-          s"$eventName expected to be one of ${FindFirst.validValues.mkString(",")}")
   override type Response = FindFirstResponse
 }
 
@@ -97,7 +95,8 @@ object FindFirst {
   val started     = FindFirst("started")
   val received    = FindFirst("received")
   val completed   = FindFirst("completed")
-  val validValues = Set("started", "received", "completed")
+  val values      = Set(received, started, completed)
+  def validValues = values.map(_.eventName)
 }
 
 case class FindFirstResponse(timestamp: Option[Timestamp])
