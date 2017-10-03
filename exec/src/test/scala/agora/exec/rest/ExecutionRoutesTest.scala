@@ -2,7 +2,6 @@ package agora.exec.rest
 
 import java.util.UUID
 
-import agora.api.`match`.MatchDetails
 import agora.api.exchange.Exchange
 import agora.exec.ExecConfig
 import agora.exec.client.ExecutionClient
@@ -10,47 +9,10 @@ import agora.exec.model._
 import agora.exec.workspace.WorkspaceClient
 import agora.io.Sources
 import agora.rest.{BaseRoutesSpec, CommonRequestBuilding}
-import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import io.circe.generic.auto._
 
 class ExecutionRoutesTest extends BaseRoutesSpec with CommonRequestBuilding {
   "DELETE /rest/exec/cancel" should {
-    "return false the second time it tries to cancel the same job" in {
-      withDir { dir =>
-        val er = ExecutionRoutes(ExecConfig())
-
-        // start a job
-        val jobId      = "foo"
-        val yes        = RunProcess("yes")
-        val md         = MatchDetails.empty.copy(jobId = jobId)
-        val respFuture = er.executeHandler.onExecutionRequest(HttpRequest().withCommonHeaders(Option(md)), yes)
-
-        // first cancel
-        ExecutionClient.asCancelRequest(jobId) ~> er.routes(None) ~> check {
-          response.status.intValue() shouldBe 200
-          val opt = ExecutionClient.parseCancelResponse(response).futureValue
-          opt shouldBe Option(true)
-        }
-
-        // second cancel
-        ExecutionClient.asCancelRequest(jobId) ~> er.routes(None) ~> check {
-          response.status.intValue() shouldBe 404
-          val opt = ExecutionClient.parseCancelResponse(response).futureValue
-          opt shouldBe None
-        }
-
-        withClue("The running job should have produced some output and eventually errored when it was cancelled") {
-          val yesResponse: HttpResponse = respFuture.futureValue
-          val content                   = Sources.asText(yesResponse.entity.dataBytes).futureValue
-          content should startWith("y\ny\ny")
-
-          val err = intercept[ProcessException] {
-            yes.output.streaming.get.filterForErrors(content.lines).size
-          }
-          err.error.exitCode shouldBe Some(143) // SIGTERM of 128 + 15
-        }
-      }
-    }
     "return a 404 for unknown jobs" in {
       withDir { dir =>
         val er = ExecutionRoutes(ExecConfig())

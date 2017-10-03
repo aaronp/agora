@@ -32,7 +32,7 @@ class EventDaoTest extends BaseSpec {
         val job = ReceivedJob("a", None, RunProcess(Nil))
         dao.receivedDao.save(job, job.received)
 
-        val started = StartedJob(job.id, job.received.plusMinutes(1))
+        val started = StartedJob(job.id, job.received.plusMinutes(1), None)
         dao.startedDao.save(started, started.started)
 
         dao.notStartedBetween(job.received, started.started.minusNanos(1)).toList should contain(job)
@@ -47,10 +47,10 @@ class EventDaoTest extends BaseSpec {
         val job = ReceivedJob("a", None, RunProcess(Nil))
         dao.receivedDao.save(job, job.received)
 
-        val started = StartedJob(job.id, job.received.plusMinutes(1))
+        val started = StartedJob(job.id, job.received.plusMinutes(1), None)
         dao.startedDao.save(started, started.started)
 
-        val finished = CompletedJob(job.id, Success(1), job.received.plusMinutes(2))
+        val finished = CompletedJob(job.id, Success(1), job.received.plusMinutes(2), None)
         dao.completedDao.save(finished, finished.completed)
 
         dao.notFinishedBetween(started.started, finished.completed.minusNanos(1)).toList should contain(started)

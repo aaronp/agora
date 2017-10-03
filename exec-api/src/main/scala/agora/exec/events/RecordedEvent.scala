@@ -28,9 +28,13 @@ object ReceivedJob {
 
 }
 
+/**
+  * An Event which signals the intent to remove records before a given timestamp
+  * @param before
+  */
 case class DeleteBefore(before: Timestamp) extends RecordedEvent
 
-case class StartedJob(id: JobId, started: Timestamp = now()) extends RecordedEvent
+case class StartedJob(id: JobId, started: Timestamp = now(), details: Option[ReceivedJob] = None) extends RecordedEvent
 
 object StartedJob {
 
@@ -40,7 +44,11 @@ object StartedJob {
 
 }
 
-case class CompletedJob(id: JobId, exitCode: Try[Int], completed: Timestamp = now()) extends RecordedEvent
+case class CompletedJob(id: JobId,
+                        exitCode: Try[Int],
+                        completed: Timestamp = now(),
+                        details: Option[ReceivedJob] = None)
+    extends RecordedEvent
 
 object CompletedJob {
 

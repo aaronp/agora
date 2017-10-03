@@ -10,6 +10,25 @@ sealed trait EventQuery {
   type Response
 }
 
+/**
+  * Represents a filter. We may change this to a sealed trait in future
+  * @param contains
+  */
+case class JobFilter(contains: String = "") {
+  def accept(details: Option[ReceivedJob]): Boolean = details.exists(matches)
+  def matches(details: ReceivedJob): Boolean = {
+    details.job.commandString.contains(contains)
+  }
+
+  def isEmpty: Boolean  = contains.isEmpty
+  def nonEmpty: Boolean = contains.nonEmpty
+
+}
+
+object JobFilter {
+  val empty = JobFilter("")
+}
+
 object EventQuery {
   type Aux[T] = EventQuery { type Response = T }
 
@@ -19,27 +38,35 @@ object EventQuery {
 }
 
 /**
-  * Jobs which had fulfilled all their dependencies and thus were started within the time range
-  */
-case class StartedBetween(from: Timestamp, to: Timestamp) extends EventQuery {
-  override type Response = StartedBetweenResponse
-}
-
-case class StartedBetweenResponse(started: List[StartedJob])
-
-/**
   * Received jobs within the time range -- they may not have been started, however
   */
-case class ReceivedBetween(from: Timestamp, to: Timestamp) extends EventQuery {
+case class ReceivedBetween(from: Timestamp, to: Timestamp, filter: JobFilter = JobFilter.empty) extends EventQuery {
   override type Response = ReceivedBetweenResponse
 }
 
 case class ReceivedBetweenResponse(received: List[ReceivedJob])
 
 /**
+  * Jobs which had fulfilled all their dependencies and thus were started within the time range
+  */
+case class StartedBetween(from: Timestamp,
+                          to: Timestamp,
+                          verbose: Boolean = false,
+                          filter: JobFilter = JobFilter.empty)
+    extends EventQuery {
+  override type Response = StartedBetweenResponse
+}
+
+case class StartedBetweenResponse(started: List[StartedJob])
+
+/**
   * Completed jobs within the time range
   */
-case class CompletedBetween(from: Timestamp, to: Timestamp) extends EventQuery {
+case class CompletedBetween(from: Timestamp,
+                            to: Timestamp,
+                            verbose: Boolean = false,
+                            filter: JobFilter = JobFilter.empty)
+    extends EventQuery {
   override type Response = CompletedBetweenResponse
 }
 
@@ -60,7 +87,11 @@ case class FindJobResponse(job: Option[ReceivedJob],
 /**
   * Jobs which are were started but not completed within the time range
   */
-case class NotFinishedBetween(from: Timestamp, to: Timestamp) extends EventQuery {
+case class NotFinishedBetween(from: Timestamp,
+                              to: Timestamp,
+                              verbose: Boolean = false,
+                              filter: JobFilter = JobFilter.empty)
+    extends EventQuery {
   override type Response = NotFinishedBetweenResponse
 }
 
@@ -69,7 +100,7 @@ case class NotFinishedBetweenResponse(jobs: List[StartedJob])
 /**
   * Jobs which are were received but not started within the time range
   */
-case class NotStartedBetween(from: Timestamp, to: Timestamp) extends EventQuery {
+case class NotStartedBetween(from: Timestamp, to: Timestamp, filter: JobFilter = JobFilter.empty) extends EventQuery {
   override type Response = NotStartedBetweenResponse
 }
 

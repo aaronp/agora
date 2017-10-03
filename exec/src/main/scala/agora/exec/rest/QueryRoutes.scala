@@ -45,6 +45,11 @@ case class QueryRoutes(monitor: SystemEventMonitor)
                            value = "the inclusive to date",
                            defaultValue = "now",
                            required = false,
+                           paramType = "query"),
+      new ApiImplicitParam(name = "filter",
+                           value = "when specified, only return results which contain the command text",
+                           defaultValue = "",
+                           required = false,
                            paramType = "query")
     ))
   @ApiResponses(
@@ -55,9 +60,9 @@ case class QueryRoutes(monitor: SystemEventMonitor)
     ))
   def queryReceived = {
     (get & path("rest" / "query" / "received")) {
-      parameter('from, 'to.?) {
-        withRange[ReceivedBetweenResponse] {
-          case (from, to) => monitor.query(ReceivedBetween(from, to))
+      parameter('from, 'to.?, 'verbose.?, 'filter.?) {
+        withRangeAndFilter[ReceivedBetweenResponse] {
+          case (from, to, _, filter) => monitor.query(ReceivedBetween(from, to, filter))
         }
       }
     }
@@ -77,6 +82,16 @@ case class QueryRoutes(monitor: SystemEventMonitor)
                            value = "the inclusive to date",
                            defaultValue = "now",
                            required = false,
+                           paramType = "query"),
+      new ApiImplicitParam(name = "verbose",
+                           value = "whether to load the job details or only return IDs",
+                           defaultValue = "false",
+                           required = false,
+                           paramType = "query"),
+      new ApiImplicitParam(name = "filter",
+                           value = "when specified, only return results which contain the command text",
+                           defaultValue = "",
+                           required = false,
                            paramType = "query")
     ))
   @ApiResponses(
@@ -87,9 +102,9 @@ case class QueryRoutes(monitor: SystemEventMonitor)
     ))
   def queryStarted = {
     (get & path("rest" / "query" / "started")) {
-      parameter('from, 'to.?) {
-        withRange {
-          case (from, to) => monitor.query(StartedBetween(from, to))
+      parameter('from, 'to.?, 'verbose.?, 'filter.?) {
+        withRangeAndFilter {
+          case (from, to, verbose, filter) => monitor.query(StartedBetween(from, to, verbose, filter))
         }
       }
     }
@@ -109,6 +124,16 @@ case class QueryRoutes(monitor: SystemEventMonitor)
                            value = "the inclusive to date",
                            defaultValue = "now",
                            required = false,
+                           paramType = "query"),
+      new ApiImplicitParam(name = "verbose",
+                           value = "whether to load the job details or only return IDs",
+                           defaultValue = "false",
+                           required = false,
+                           paramType = "query"),
+      new ApiImplicitParam(name = "filter",
+                           value = "when specified, only return results which contain the command text",
+                           defaultValue = "",
+                           required = false,
                            paramType = "query")
     ))
   @ApiResponses(
@@ -119,9 +144,9 @@ case class QueryRoutes(monitor: SystemEventMonitor)
     ))
   def queryCompleted = {
     (get & path("rest" / "query" / "completed")) {
-      parameter('from, 'to.?) {
-        withRange {
-          case (from, to) => monitor.query(CompletedBetween(from, to))
+      parameter('from, 'to.?, 'verbose.?, 'filter.?) {
+        withRangeAndFilter {
+          case (from, to, verbose, filter) => monitor.query(CompletedBetween(from, to, verbose, filter))
         }
       }
     }
@@ -143,6 +168,16 @@ case class QueryRoutes(monitor: SystemEventMonitor)
                            value = "the inclusive to date",
                            defaultValue = "now",
                            required = false,
+                           paramType = "query"),
+      new ApiImplicitParam(name = "verbose",
+                           value = "whether to load the job details or only return IDs",
+                           defaultValue = "false",
+                           required = false,
+                           paramType = "query"),
+      new ApiImplicitParam(name = "filter",
+                           value = "when specified, only return results which contain the command text",
+                           defaultValue = "",
+                           required = false,
                            paramType = "query")
     ))
   @ApiResponses(
@@ -153,9 +188,9 @@ case class QueryRoutes(monitor: SystemEventMonitor)
     ))
   def queryRunning = {
     (get & path("rest" / "query" / "running")) {
-      parameter('from, 'to.?) {
-        withRange {
-          case (from, to) => monitor.query(NotFinishedBetween(from, to))
+      parameter('from, 'to.?, 'verbose.?, 'filter.?) {
+        withRangeAndFilter {
+          case (from, to, verbose, filter) => monitor.query(NotFinishedBetween(from, to, verbose, filter))
         }
       }
     }
@@ -180,6 +215,11 @@ case class QueryRoutes(monitor: SystemEventMonitor)
                            value = "the inclusive to date",
                            defaultValue = "now",
                            required = false,
+                           paramType = "query"),
+      new ApiImplicitParam(name = "filter",
+                           value = "when specified, only return results which contain the command text",
+                           defaultValue = "",
+                           required = false,
                            paramType = "query")
     ))
   @ApiResponses(
@@ -192,9 +232,10 @@ case class QueryRoutes(monitor: SystemEventMonitor)
     ))
   def queryBlocked = {
     (get & path("rest" / "query" / "blocked")) {
-      parameter('from, 'to.?) {
-        withRange {
-          case (from, to) => monitor.query(NotStartedBetween(from, to))
+      parameter('from, 'to.?, 'verbose.?, 'filter.?) {
+        withRangeAndFilter {
+          case (from, to, _, filter) =>
+            monitor.query(NotStartedBetween(from, to, filter))
         }
       }
     }
@@ -226,9 +267,9 @@ case class QueryRoutes(monitor: SystemEventMonitor)
     ))
   def querySystem = {
     (get & path("rest" / "query" / "system")) {
-      parameter('from, 'to.?) {
-        withRange {
-          case (from, to) =>
+      parameter('from, 'to.?, 'verbose.?, 'filter.?) {
+        withRangeAndFilter {
+          case (from, to, _, _) =>
             monitor.query(StartTimesBetween(from, to))
         }
       }
@@ -280,23 +321,26 @@ case class QueryRoutes(monitor: SystemEventMonitor)
     }
   }
 
-  private def withRange[T: ToEntityMarshaller](
-      onRange: (Timestamp, Timestamp) => Future[T]): (String, Option[String]) => StandardRoute = {
-    case (TimeCoords(getFrom), opt) =>
+  private def withRangeAndFilter[T: ToEntityMarshaller](
+      onRange: (Timestamp, Timestamp, Boolean, JobFilter) => Future[T])
+    : (String, Option[String], Option[String], Option[String]) => StandardRoute = {
+    case (TimeCoords(getFrom), opt, verboseOpt, filterOpt) =>
+      val verbose   = verboseOpt.exists(_.toLowerCase.trim == "true")
+      val jobFilter = JobFilter(filterOpt.map(_.trim).getOrElse(""))
       opt.getOrElse("now") match {
         case TimeCoords(getTo) =>
           val now  = agora.api.time.now()
           val from = getFrom(now)
           val to   = getTo(now)
           complete {
-            onRange(from, to)
+            onRange(from, to, verbose, jobFilter)
           }
         case other =>
           failWith {
             new Exception(s"Invalid 'to' query parameter: '$other'")
           }
       }
-    case (from, _) =>
+    case (from, _, _, _) =>
       failWith {
         new Exception(s"Invalid 'from' query parameter: '$from'")
       }

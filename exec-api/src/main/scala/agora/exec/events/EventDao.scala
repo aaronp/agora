@@ -68,6 +68,36 @@ case class EventDao(rootDir: Path) extends SystemEventMonitor with AgoraJsonImpl
 
   override def query(msg: EventQuery): Future[msg.Response] = {
 
+    /**
+      * Utility for adding detail/filtering on the results
+      * @return
+      */
+    def prepareResponse[T: HasId](original: List[T], verbose: Boolean, filter: JobFilter)(
+        update: (T, Option[ReceivedJob]) => T): List[T] = {
+      if (verbose || filter.nonEmpty) {
+
+        if (filter.nonEmpty) {
+          original.flatMap { value =>
+            val id                              = HasId.instance[T].id(value)
+            val jobDetails: Option[ReceivedJob] = receivedDao.get(id)
+            if (filter.accept(jobDetails)) {
+              Option(update(value, jobDetails))
+            } else {
+              None
+            }
+          }
+        } else {
+          original.map { value =>
+            val id                              = HasId.instance[T].id(value)
+            val jobDetails: Option[ReceivedJob] = receivedDao.get(id)
+            update(value, jobDetails)
+          }
+        }
+      } else {
+        original
+      }
+    }
+
     def handle = msg match {
       case FindJob(id) =>
         val started   = startedDao.get(id)
@@ -80,21 +110,40 @@ case class EventDao(rootDir: Path) extends SystemEventMonitor with AgoraJsonImpl
           duration.toMillis
         }
         FindJobResponse(receivedDao.get(id), started, completed, took)
-      case ReceivedBetween(from, to) =>
+      case ReceivedBetween(from, to, filter) =>
         val found = receivedDao.findBetween(from, to).toList.sortBy(_.received)
-        ReceivedBetweenResponse(found)
-      case StartedBetween(from, to) =>
-        val found = startedDao.findBetween(from, to).toList.sortBy(_.started)
-        StartedBetweenResponse(found)
-      case CompletedBetween(from, to) =>
+        val response = if (filter.nonEmpty) {
+          found.filter(filter.matches)
+        } else {
+          found
+        }
+        ReceivedBetweenResponse(response)
+      case StartedBetween(from, to, verbose, filter) =>
+        val found: List[StartedJob] = startedDao.findBetween(from, to).toList.sortBy(_.started)
+        val response = prepareResponse(found, verbose, filter) {
+          case (value, detailsOpt) => value.copy(details = detailsOpt)
+        }
+        StartedBetweenResponse(response)
+      case CompletedBetween(from, to, verbose, filter) =>
         val found = completedDao.findBetween(from, to).toList.sortBy(_.completed)
-        CompletedBetweenResponse(found)
-      case NotFinishedBetween(from, to) =>
+        val response = prepareResponse(found, verbose, filter) {
+          case (value, detailsOpt) => value.copy(details = detailsOpt)
+        }
+        CompletedBetweenResponse(response)
+      case NotFinishedBetween(from, to, verbose, filter) =>
         val found = notFinishedBetween(from, to).toList.sortBy(_.started)
-        NotFinishedBetweenResponse(found)
-      case NotStartedBetween(from, to) =>
-        val found = notStartedBetween(from, to).toList.sortBy(_.received)
-        NotStartedBetweenResponse(found)
+        val response = prepareResponse(found, verbose, filter) {
+          case (value, detailsOpt) => value.copy(details = detailsOpt)
+        }
+        NotFinishedBetweenResponse(response)
+      case NotStartedBetween(from, to, filter) =>
+        val found: List[ReceivedJob] = notStartedBetween(from, to).toList.sortBy(_.received)
+        val response = if (filter.nonEmpty) {
+          found.filter(filter.matches)
+        } else {
+          found
+        }
+        NotStartedBetweenResponse(response)
       case StartTimesBetween(from, to) =>
         val found = sysEvents.findBetween(from, to).toList.sortBy(_.startTime)
         StartTimesBetweenResponse(found)
