@@ -1,12 +1,14 @@
 package agora.config
 
+import java.net.URL
+import java.util.Map
+
 import com.typesafe.config.ConfigRenderOptions._
 import com.typesafe.config._
 
-import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.concurrent.duration._
-import scala.language.implicitConversions
-import scala.language.postfixOps
+import scala.language.{implicitConversions, postfixOps}
 import scala.util.Try
 
 /**
@@ -122,7 +124,34 @@ trait RichConfigOps extends RichConfig.LowPriorityImplicits {
 
   def json = config.root.render(ConfigRenderOptions.concise().setJson(true))
 
-  def paths: List[String] = config.entrySet().asScala.map(_.getKey).toList.sorted
+  def paths: List[String] = entries.map(_.getKey).toList.sorted
+
+  def entries: mutable.Set[Map.Entry[String, ConfigValue]] = {
+    import scala.collection.JavaConverters._
+    config.entrySet().asScala
+  }
+
+  /** @return a sorted list of the origins from when the config values come
+    */
+  def origins: List[URL] = {
+    val urls = entries.map(_.getValue.origin().url()).toList
+    urls.flatMap(url => Option(url)).distinct.sortBy(_.toString)
+  }
+
+  /**
+    * Return a property-like summary of the config using the pathFilter to trim property entries
+    * @param pathFilter
+    */
+  def summary(pathFilter: String => Boolean = _ => true) = {
+    collectAsStrings.collect {
+      case (key, stringValue) if pathFilter(key) =>
+        val value  = config.getValue(key)
+        val origin = s"${value.origin.url()}@${value.origin().lineNumber()}"
+        import scala.collection.JavaConverters._
+        val comments = value.origin().comments().asScala.toList
+        StringEntry(comments, origin, key, stringValue)
+    }
+  }
 
   def pathRoots = paths.map { p =>
     ConfigUtil.splitPath(p).get(0)
