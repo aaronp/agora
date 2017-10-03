@@ -1,17 +1,18 @@
 package agora.exec.client
 
+import agora.api.JobId
 import agora.api.`match`.MatchDetails
 import agora.exec.model.{FileResult, RunProcess, RunProcessResult}
-import agora.rest.{CommonRequestBuilding, MatchDetailsExtractor}
+import agora.rest.CommonRequestBuilding
 import agora.rest.client.RestClient
-import akka.http.scaladsl.client.RequestBuilding
-import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse}
+import akka.http.scaladsl.model.Uri.Query
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse, Uri}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.generic.auto._
 import io.circe.syntax._
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.{implicitConversions, reflectiveCalls}
 
@@ -68,5 +69,13 @@ object ExecutionClient extends CommonRequestBuilding {
   def asRequest(job: RunProcess, matchDetails: Option[MatchDetails] = None)(implicit ec: ExecutionContext) = {
     Post("/rest/exec/run", HttpEntity(ContentTypes.`application/json`, job.asJson.noSpaces))
       .withCommonHeaders(matchDetails)
+  }
+
+  def asCancelRequest(jobId: JobId, waitFor: String = "")(implicit ec: ExecutionContext) = {
+    val query = waitFor match {
+      case ""         => Query("jobId" -> jobId)
+      case timeToWait => Query("jobId" -> jobId, "waitFor" -> timeToWait)
+    }
+    Delete(Uri("/rest/exec/cancel").withQuery(query))
   }
 }

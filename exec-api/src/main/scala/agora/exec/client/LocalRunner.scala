@@ -26,6 +26,7 @@ case class LocalRunner(val workDir: Option[Path] = None)(implicit ec: ExecutionC
   override def run(input: RunProcess): Future[RunProcessResult] = {
     val proc   = input.resolveEnv
     val logger = IterableLogger(proc)
+
     execute(proc, logger)
 
     input.output.streaming match {
@@ -36,13 +37,21 @@ case class LocalRunner(val workDir: Option[Path] = None)(implicit ec: ExecutionC
     }
   }
 
-  def execute(proc: RunProcess, iterableLogger: IterableLogger): Future[Int] = {
+  def startProcess(proc: RunProcess, iterableLogger: IterableLogger): Try[Process] = {
     val builder: ProcessBuilder = Process(proc.command, workDir.map(_.toFile), proc.env.toSeq: _*)
+    Try {
+      builder.run(iterableLogger)
+    }
+  }
 
-    val future = {
-      val startedTry: Try[Process] = Try {
-        builder.run(iterableLogger)
-      }
+  def execute(proc: RunProcess, iterableLogger: IterableLogger): Future[Int] = {
+    val process = startProcess(proc, iterableLogger)
+    execute(proc, iterableLogger, process)
+  }
+
+  def execute(proc: RunProcess, iterableLogger: IterableLogger, startedTry: Try[Process]): Future[Int] = {
+
+    val future: Future[Int] = {
       startedTry match {
         case Success(process) => Future(process.exitValue())
         case Failure(err)     => Future.failed(err)

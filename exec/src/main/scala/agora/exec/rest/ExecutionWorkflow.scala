@@ -1,36 +1,47 @@
 package agora.exec.rest
 
 import java.nio.file.Path
+import java.util.concurrent.TimeUnit
 
 import agora.api.JobId
 import agora.api.`match`.MatchDetails
 import agora.exec.client.LocalRunner
 import agora.exec.events.{CompletedJob, ReceivedJob, StartedJob, SystemEventMonitor}
 import agora.exec.log.{IterableLogger, ProcessLoggers}
-import agora.exec.model.{FileResult, ProcessException, RunProcess, StreamingResult}
+import agora.exec.model._
 import agora.exec.workspace.WorkspaceClient
 import agora.rest.MatchDetailsExtractor
 import akka.NotUsed
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model.ContentTypes.{`application/json`, `text/plain(UTF-8)`}
 import akka.http.scaladsl.model.StatusCodes.InternalServerError
-import akka.http.scaladsl.model.{ContentType, HttpEntity, HttpRequest, HttpResponse}
+import akka.http.scaladsl.model._
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
+import io.circe.Json
 import io.circe.generic.auto._
 
+import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 import scala.sys.process.ProcessLogger
-import scala.util.Failure
 import scala.util.control.NonFatal
+import scala.util.{Failure, Success, Try}
 
 /**
   * Represents a handler which will be triggered from the given [[HttpRequest]] when a [[RunProcess]] is received
   *
   */
 trait ExecutionWorkflow {
+
+  /**
+    * Cancel the job identified by the job ID
+    *
+    * @param jobId the job to cancel
+    * @return an HttpResponse to the cance request
+    */
+  def onCancelJob(jobId: JobId, waitFor: FiniteDuration)(implicit ec: ExecutionContext): Future[HttpResponse]
 
   /**
     * The job is received. Do something with it and reply...
@@ -52,6 +63,11 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
     * @param underlying
     */
   class CachingWorkflow(workspaces: WorkspaceClient, underlying: ExecutionWorkflow) extends ExecutionWorkflow {
+
+    override def onCancelJob(jobId: JobId, waitFor: FiniteDuration)(implicit ec: ExecutionContext) = {
+      underlying.onCancelJob(jobId, waitFor)
+    }
+
     override def onExecutionRequest(httpRequest: HttpRequest, inputProcess: RunProcess)(
         implicit ec: ExecutionContext): Future[HttpResponse] = {
       if (inputProcess.output.useCachedValueWhenAvailable) {
@@ -139,7 +155,46 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
                  val workspaces: WorkspaceClient,
                  val eventMonitor: SystemEventMonitor,
                  cacheEnabled: Boolean)
-      extends ExecutionWorkflow {
+      extends ExecutionWorkflow
+      with FailFastCirceSupport {
+
+    private var processById = Map[JobId, Process]()
+
+    private object ProcessLock
+
+    override def onCancelJob(jobId: JobId, waitFor: FiniteDuration)(implicit ec: ExecutionContext) = {
+
+      val responseOpt: Option[Try[Process]] = ProcessLock.synchronized {
+        processById.get(jobId).map { process =>
+          logger.info(s"Cancelling $jobId")
+          processById = processById - jobId
+          Try(process.destroyForcibly())
+        }
+      }
+
+      import io.circe.generic.auto._
+      import io.circe.syntax._
+
+      responseOpt match {
+        case Some(Success(process)) =>
+          Future {
+            val cancelOk: Boolean = waitFor.toMillis <= 0 || process.waitFor(waitFor.toMillis, TimeUnit.MILLISECONDS)
+            HttpResponse(StatusCodes.OK)
+              .withEntity(ContentTypes.`application/json`, Json.fromBoolean(cancelOk).noSpaces)
+          }
+        case Some(Failure(err)) =>
+          Future.successful {
+            HttpResponse(StatusCodes.InternalServerError)
+              .withEntity(ContentTypes.`application/json`,
+                          OperationResult(s"Error canceling $jobId", err.getMessage).asJson.noSpaces)
+          }
+        case None =>
+          val json     = OperationResult(s"Couldn't find job $jobId").asJson.noSpaces
+          val response = HttpResponse(StatusCodes.NotFound).withEntity(ContentTypes.`application/json`, json)
+          Future.successful(response)
+      }
+
+    }
 
     override def onExecutionRequest(httpRequest: HttpRequest, inputProcess: RunProcess)(
         implicit ec: ExecutionContext): Future[HttpResponse] = {
@@ -211,7 +266,8 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
       }
 
       val localRunner = LocalRunner(workDir = Option(workingDir))
-      localRunner.execute(runProcess, processLogger)
+      val processTry  = localRunner.startProcess(runProcess, processLogger)
+      localRunner.execute(runProcess, processLogger, processTry)
     }
 
     /**

@@ -1,10 +1,51 @@
 package agora.api.time
 
-import java.time.{LocalDate, LocalDateTime, LocalTime, ZoneOffset}
+import java.time.{LocalDate, LocalDateTime, LocalTime}
 
 import agora.BaseSpec
 
 class TimeCoordsTest extends BaseSpec {
+  "TimeCoords.AsDuration" should {
+    import concurrent.duration._
+    val Scenarios = List(
+      "2ms"          -> 2.millis,
+      "2milli"       -> 2.millis,
+      "2millis"      -> 2.millis,
+      "2 millis"     -> 2.millis,
+      "3s"           -> 3.seconds,
+      "3 s"          -> 3.seconds,
+      "3 sec"        -> 3.seconds,
+      "3sec"         -> 3.seconds,
+      "3second"      -> 3.seconds,
+      "3seconds"     -> 3.seconds,
+      "4m"           -> 4.minutes,
+      "4min"         -> 4.minutes,
+      "4 min"        -> 4.minutes,
+      "4 minutes"    -> 4.minutes,
+      "4 minute"     -> 4.minutes,
+      "5h"           -> 5.hours,
+      "5hr"          -> 5.hours,
+      "5 hr"         -> 5.hours,
+      "5hours"       -> 5.hours,
+      "5 hour"       -> 5.hours,
+      "5 hours"      -> 5.hours,
+      "1 day"        -> 1.day,
+      "1day"         -> 1.day,
+      "1d"           -> 1.day,
+      "1week"        -> 7.day,
+      "1 week"       -> 7.day,
+      "1 weeks"      -> 7.day,
+      "1 fortnight"  -> 14.day,
+      "1 fortnights" -> 14.day
+    )
+    Scenarios.foreach {
+      case (input, expected) =>
+        s"parse $input" in {
+          val TimeCoords.AsDuration(actual) = input
+          actual shouldBe expected
+        }
+    }
+  }
   "TimeCoords.unapply" should {
     "match now" in {
       val TimeCoords(forTime) = "now"

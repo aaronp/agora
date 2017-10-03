@@ -3,14 +3,16 @@ package agora.exec.rest
 import _root_.io.circe.generic.auto._
 import _root_.io.swagger.annotations._
 import agora.api.exchange.Exchange
+import agora.api.time.TimeCoords
 import agora.exec.ExecConfig
 import agora.exec.model._
 import agora.exec.workspace.UploadDependencies
-import agora.rest.ClientConfig
 import agora.rest.worker.RouteSubscriptionSupport
 import akka.http.scaladsl.server.Directives.{entity, path, _}
 import akka.http.scaladsl.server.Route
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
+
+import scala.concurrent.duration._
 
 /**
   * The execution routes can execute commands on the machine, as well as upload files to workspaces.
@@ -34,7 +36,9 @@ import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
   * NOTE: These routes are separate from the WorkerRoutes which handle
   * jobs that have been redirected from the exchange
   *
-  * @param execConfig
+  * @param execConfig     the config from which worker routes will be built
+  * @param exchange       the echange from which values will be requested should a request arrive with MatchDetails headers
+  * @param executeHandler the request handler for running and cancelling jobs
   */
 @Api(value = "Execute", produces = "application/json")
 @javax.ws.rs.Path("/")
@@ -48,7 +52,7 @@ case class ExecutionRoutes(
   def routes(exchangeRoutes: Option[Route]): Route = {
     val workerRoutes = execConfig.newWorkerRoutes(exchange)
 
-    executeRoute ~ execConfig.routes(exchangeRoutes) ~ workerRoutes.routes
+    executeRoute ~ cancelRoute ~ execConfig.routes(exchangeRoutes) ~ workerRoutes.routes
   }
 
   @javax.ws.rs.Path("/rest/exec/run")
@@ -75,6 +79,43 @@ case class ExecutionRoutes(
             complete {
               import ctxt.executionContext
               executeHandler.onExecutionRequest(ctxt.request, inputProcess)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  @javax.ws.rs.Path("/rest/exec/cancel")
+  @ApiOperation(value = "Cancel a running job",
+                httpMethod = "DELETE",
+                produces = "text/plain; charset=UTF-8",
+                consumes = "application/json")
+  @ApiImplicitParams(
+    Array(
+      new ApiImplicitParam(name = "jobId", required = true, paramType = "query"),
+      new ApiImplicitParam(name = "waitFor", required = false, paramType = "query", example = "100ms")
+    ))
+  @ApiResponses(
+    Array(
+      new ApiResponse(code = 200,
+                      message = "a json boolean value indicating whether the cancel call cancelled the job"),
+      new ApiResponse(code = 404, message = "If the job was not known/found")
+    ))
+  def cancelRoute = {
+    (delete & path("rest" / "exec" / "cancel")) {
+      parameter('jobId) { jobId =>
+        parameter('waitFor.?) { waitForOpt =>
+          val waitFor = waitForOpt match {
+            case Some(TimeCoords.AsDuration(d)) => d
+            case Some(other) =>
+              sys.error(
+                s"Invalid 'waitFor' value '${other}'. Please be sure to specify units (e.g. 100ms or 2 minutes)")
+            case None => 0.millis
+          }
+          extractExecutionContext { implicit ec =>
+            complete {
+              executeHandler.onCancelJob(jobId, waitFor)
             }
           }
         }
