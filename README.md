@@ -5,7 +5,7 @@
 This project provides a means to distribute work items across workers using a work-pulling mechanism.
 
 ```scala
-libraryDependencies += "com.github.aaronp" %% "jabroni-rest" % "0.0.1"
+libraryDependencies += "com.github.aaronp" %% "agora-rest" % "v0.3.0"
 ```
 
 It's a derivation of [Reactive Streams](http://www.reactive-streams.org/), where the difference is publishers also supply data in their subscriptions.
