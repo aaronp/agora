@@ -222,6 +222,15 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
       /** 1) Add any system (configuration) wide environment properties to the input request */
       val runProcess: RunProcess = {
         val withEnv = inputProcess.withEnv(defaultEnv ++ inputProcess.env).resolveEnv
+        logger.trace(s"""Added input process env 
+             |${inputProcess.env} 
+             |to default env 
+             |${defaultEnv} 
+             |to produce 
+             |${withEnv}
+             |for
+             |${inputProcess.commandString}
+           """.stripMargin)
 
         if (cacheEnabled) {
           withEnv.ensuringCacheOutputs

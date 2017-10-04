@@ -1,8 +1,8 @@
-//import com.typesafe.sbt.site
-
 val repo = "agora"
 
 val username = "aaronp"
+
+crossScalaVersions := Seq("2.11.11", "2.12.03")
 
 name := repo
 

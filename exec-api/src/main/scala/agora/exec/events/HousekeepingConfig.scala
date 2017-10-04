@@ -1,6 +1,6 @@
 package agora.exec.events
 
-import agora.config.RichConfig.implicits._
+import agora.config.implicits._
 import com.typesafe.config.Config
 
 case class HousekeepingConfig(config: Config) {

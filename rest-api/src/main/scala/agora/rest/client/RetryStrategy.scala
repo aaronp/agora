@@ -6,7 +6,7 @@ import java.util.concurrent.TimeUnit
 import com.typesafe.scalalogging.StrictLogging
 import org.slf4j.LoggerFactory
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 
 /**
   *  given some crash info, either prune that crash info or throw an exception
@@ -50,8 +50,13 @@ object RetryStrategy {
     * @param nTimes
     * @param in
     */
-  class CountingStrategy(nTimes: Int, in: FiniteDuration) extends RetryStrategy {
-    override def toString = s"RetryStrategy($nTimes in $in)"
+  class CountingStrategy(nTimes: Int, in: FiniteDuration, delay: FiniteDuration = 0.millis) extends RetryStrategy {
+
+    def withDelay(delay: FiniteDuration): CountingStrategy = {
+      new CountingStrategy(nTimes, in, delay)
+    }
+
+    override def toString = s"RetryStrategy($nTimes in $in w/ $delay delay)"
 
     private def logger = LoggerFactory.getLogger(getClass)
 
@@ -62,6 +67,9 @@ object RetryStrategy {
         logger.error(s"Propagating ${crashes.exception}")
         throw crashes.exception
       } else {
+        if (delay.toMillis > 0) {
+          Thread.sleep(delay.toMillis)
+        }
         filtered
       }
     }

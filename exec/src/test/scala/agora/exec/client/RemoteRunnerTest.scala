@@ -41,7 +41,7 @@ class RemoteRunnerTest extends BaseSpec with ProcessRunnerTCK {
     conf.uploadsDir.delete()
   }
 
-  val conf = ExecConfig("port=6666", "exchange.port=6666", "uploads.dir=target/test/RemoteRunnerTest")
+  val conf = ExecConfig("port=6666", "exchange.port=6666", "workspaces.dir=target/test/RemoteRunnerTest")
 
   def startAll = {
     runningWorker = conf.start().futureValue

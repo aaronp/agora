@@ -24,11 +24,13 @@ class ExchangeSteps extends ScalaDsl with EN with Matchers with TestData {
     state = state.startExchangeServer(ExchangeServerConfig())
   }
   Given("""^worker (.*) is started$""") { (name: String) =>
-    val config = WorkerConfig(s"subscription.details.name=$name")
+    val config = WorkerConfig(s"subscription.details.name=$name", "includeExchangeRoutes=false")
     state = state.startWorker(name, config)
   }
   Given("""^worker (.*) is started with command line (.*)$""") { (name: String, commandLine: String) =>
-    val config = WorkerConfig(s"subscription.details.name=$name" +: commandLine.split("\\s+", -1))
+    val config =
+      WorkerConfig(
+        "includeExchangeRoutes=false" +: s"subscription.details.name=$name" +: commandLine.split("\\s+", -1))
     state = state.startWorker(name, config)
   }
   Given("""^worker (.*) is started with config (.*)$""") { (name: String, configString: String) =>

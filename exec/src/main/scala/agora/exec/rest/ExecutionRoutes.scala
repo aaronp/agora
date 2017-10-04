@@ -133,14 +133,17 @@ case class ExecutionRoutes(
       new ApiImplicitParam(name = "command", required = true, paramType = "query"),
       new ApiImplicitParam(name = "workspace", required = false, paramType = "query"),
       new ApiImplicitParam(name = "writeTo", required = false, paramType = "query"),
-      new ApiImplicitParam(name = "env", required = false, paramType = "query")
+      new ApiImplicitParam(name = "env", required = false, paramType = "query"),
+      new ApiImplicitParam(name = "canCache", required = false, paramType = "query", defaultValue = "false"),
+      new ApiImplicitParam(name = "useCache", required = false, paramType = "query", defaultValue = "true")
     ))
   @ApiResponses(
     Array(new ApiResponse(code = 200, message = "the output of the command is returned w/ UTF-8 text encoding")))
   def executeRouteGet = {
     (get & path("rest" / "exec" / "run")) {
-      (parameter('command) & parameter('workspace.?) & parameter('writeTo.?) & parameter('env.?)) {
-        case (commandString, workspaceOpt, writeToOpt, envOpt) =>
+      (parameter('command) & parameter('workspace.?) & parameter('writeTo.?) & parameter('env.?) & parameter(
+        'canCache.?) & parameter('useCache.?)) {
+        case (commandString, workspaceOpt, writeToOpt, envOpt, canCacheOpt, useCacheOpt) =>
           extractRequestContext { ctxt =>
             import ctxt.executionContext
             takeNextOnComplete(exchange) {
@@ -159,7 +162,17 @@ case class ExecutionRoutes(
                     }
                   }
 
-                  withEnv
+                  val withCanCache = canCacheOpt.fold(withEnv) {
+                    case "true" => withEnv.withCaching(true)
+                    case _      => withEnv.withCaching(false)
+                  }
+
+                  val withUseCache = useCacheOpt.fold(withCanCache) {
+                    case "true" => withCanCache.useCachedValueWhenAvailable(true)
+                    case _      => withCanCache.useCachedValueWhenAvailable(false)
+                  }
+
+                  withUseCache
                 }
                 executeHandler.onExecutionRequest(ctxt.request, inputProcess)
               }

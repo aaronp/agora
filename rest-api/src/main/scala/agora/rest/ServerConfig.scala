@@ -12,7 +12,7 @@ import scala.concurrent.Future
 /**
   * A base parsed configuration based on an 'agora-defaults' configuration
   */
-class ServerConfig(val config: Config) extends RichConfigOps {
+class ServerConfig(val config: Config) extends RichConfigOps with AutoCloseable {
 
   def actorSystemName: String = config.getString("actorSystemName")
 
@@ -27,8 +27,6 @@ class ServerConfig(val config: Config) extends RichConfigOps {
   def launchBrowser = config.getBoolean("launchBrowser")
 
   def waitOnUserInput = config.getBoolean("waitOnUserInput")
-
-  def defaultUIPath = config.getString("defaultUIPath")
 
   def includeSwaggerRoutes = config.getBoolean("includeSwaggerRoutes")
 
@@ -54,6 +52,7 @@ class ServerConfig(val config: Config) extends RichConfigOps {
     * so that we can fall-back to (resolved) server host/port values.
     */
   implicit lazy val clientConfig: ClientConfig = {
+    clientConfigCreated = true
     val clientConf: Config = config.getConfig("client")
     val fixedPort          = Array(s"port=${port}").filter(_ => clientConf.getInt("port") <= 0)
 
@@ -61,15 +60,30 @@ class ServerConfig(val config: Config) extends RichConfigOps {
     val sanitized = clientConf.withUserArgs(fixedHost ++ fixedPort)
     new ClientConfig(sanitized)
   }
+  @volatile private[this] var clientConfigCreated = false
+
+  override def close() = {
+    if (serverImplicitsCreated) {
+      serverImplicits.close()
+    }
+    if (clientConfigCreated) {
+      clientConfig.close()
+    }
+  }
 
   private[this] val uniqueActorNameCounter = new AtomicInteger(0)
 
-  def nextActorSystemName() = uniqueActorNameCounter.getAndAdd(1) match {
+  def nextActorSystemName(): String = uniqueActorNameCounter.getAndAdd(1) match {
     case 0 => actorSystemName
     case n => s"$actorSystemName-$n"
   }
 
-  lazy val serverImplicits = newSystem(s"${actorSystemName}-server")
+  @volatile private[this] var serverImplicitsCreated = false
+
+  lazy val serverImplicits = {
+    serverImplicitsCreated = true
+    newSystem(s"${actorSystemName}-server")
+  }
 
   def newSystem(name: String = nextActorSystemName): AkkaImplicits = new AkkaImplicits(name, config)
 

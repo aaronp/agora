@@ -36,14 +36,24 @@ trait RichConfigOps extends RichConfig.LowPriorityImplicits {
   }
 
   /**
-    * If 'show' specified, either by just 'show' on its own or 'show=path.to.config.or.value', then this will return
-    * the configuration at that path
+    * If 'show=X' specified, configuration values which contain X in their path.
+    *
+    * If 'X' is 'all' or 'root', then the entire configuration is rendered.
+    *
+    * This can be useful to debug other command-line args (to ensure they take the desired effect)
+    * or to validate the environment variable replacement
     *
     * @return the optional value of what's pointed to if 'show=<path>' is specified
     */
   def show(options: ConfigRenderOptions = ConfigRenderOptions.concise().setFormatted(true)): Option[String] = {
     if (config.hasPath("show")) {
-      Option(config.withOnlyPath(config.getString("show"))).map(_.root.render(options))
+      val filteredConf = config.getString("show") match {
+        case "all" | "" | "root" => config.root.render()
+        case path =>
+          val lcPath = path.toLowerCase
+          config.summary(_.toLowerCase.contains(lcPath)).mkString("\n\n")
+      }
+      Option(filteredConf)
     } else {
       None
     }

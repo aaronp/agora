@@ -19,6 +19,12 @@ class ExecConfigTest extends BaseSpec {
       conf.eventMonitorConfig.enabled shouldBe true
     }
     "ExecConfig(strings...)" should {
+      "use runnerEnvFromHost to take env settings from the host" in {
+        val conf = ExecConfig("runnerEnvFromHost=USER,HOST")
+        conf.defaultEnv.get("USER") shouldBe agora.config.propOrEnv("USER")
+        conf.defaultEnv.get("HOST") shouldBe agora.config.propOrEnv("HOST")
+
+      }
       "resolve local config strings" in {
         ExecConfig("subscription.details.runUser=foo").subscription.details.runUser shouldBe "foo"
       }
@@ -48,18 +54,20 @@ class ExecConfigTest extends BaseSpec {
       ids.size shouldBe 1
     }
   }
+
   "ExecConfig.defaultConfig" should {
     "contain uploadTimeout" in {
 
       val ec = ExecConfig().withOverrides(ConfigFactory.parseString("""workingDirectory.dir=wd
           |workingDirectory.appendJobId = false
           |logs.dir=logs
-          |uploads.dir=uploads
+          |workspaces.dir=target/data/workspaces
         """.stripMargin))
 
       ec.uploadTimeout shouldBe 10.seconds
 
-      ec.uploads.pathOpt.map(_.resolve("xyz").toAbsolutePath) shouldBe Option("uploads/xyz".asPath.toAbsolutePath)
+      ec.workspacesPathConfig.pathOpt.map(_.resolve("xyz").toAbsolutePath) shouldBe Option(
+        "target/data/workspaces/xyz".asPath.toAbsolutePath)
     }
   }
 }

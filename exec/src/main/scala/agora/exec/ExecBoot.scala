@@ -1,6 +1,6 @@
 package agora.exec
 
-import agora.api.exchange.Exchange
+import agora.api.exchange.{Exchange, ServerSideExchange}
 import agora.exec.events.{DeleteBefore, Housekeeping, StartedSystem}
 import agora.exec.rest.{ExecutionRoutes, ExecutionWorkflow, QueryRoutes, UploadRoutes}
 import agora.exec.workspace.{UpdatingWorkspaceClient, WorkspaceClient}
@@ -24,19 +24,15 @@ object ExecBoot {
     import conf._
 
     // either attach to or create a new exchange
+    /**
+      * Should we connect to another exchange or this one?
+      */
     val (exchange: Exchange, optionalExchangeRoutes: Option[Route]) = if (includeExchangeRoutes) {
 
-      /**
-        * Should we connect to another exchange or this one?
-        */
-      val localExchange = exchangeConfig.newExchange
-      val exchange: Exchange = if (exchangeConfig.location == location) {
-        localExchange
-      } else {
-        exchangeClient
-      }
-      val exRoutes: ExchangeRoutes = exchangeConfig.newExchangeRoutes(localExchange)
-      (exchange, Option(exRoutes.routes))
+      val localExchange: ServerSideExchange = exchangeConfig.newExchange
+      val er: ExchangeRoutes                = exchangeConfig.newExchangeRoutes(localExchange)
+
+      localExchange -> Option(er.routes)
     } else {
       (exchangeClient, None)
     }

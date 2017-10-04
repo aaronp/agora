@@ -40,7 +40,7 @@ abstract class BaseIntegrationTest
   }
 
   def startAll() = {
-    workerConfig = WorkerConfig(s"port=${workerPort}", s"exchange.port=${exchangePort}")
+    workerConfig = WorkerConfig(s"port=${workerPort}", s"exchange.port=${exchangePort}", "includeExchangeRoutes=false")
     exchangeService = exchangeConfig.start().futureValue
     exchangeClient = workerConfig.exchangeClient
     workerConfig.exchangeConfig.port shouldBe exchangeConfig.port

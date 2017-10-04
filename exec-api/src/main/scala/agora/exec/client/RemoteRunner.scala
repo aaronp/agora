@@ -25,9 +25,14 @@ class RemoteRunner(val exchange: Exchange, val defaultDetails: SubmissionDetails
     mat: Materializer)
     extends ProcessRunner
     with ExecConversionImplicits
-    with FailFastCirceSupport {
+    with FailFastCirceSupport
+    with AutoCloseable {
 
   import mat._
+
+  override def close() = {
+    execApiConfig.close()
+  }
 
   /**
     * with an implicit client config in scope, the [[agora.rest.RestConversionImplicits]]

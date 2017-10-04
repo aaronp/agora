@@ -40,8 +40,6 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
 
   override def withOverrides(overrides: Config): WorkerConfig = new WorkerConfig(overrides).withFallback(config)
 
-  def landingPage = "ui/test.html"
-
   def routes(exchangeRoutes: Option[Route]): Route = {
     def when(include: Boolean)(r: => Route): Stream[Route] = {
       if (include) Stream(r) else Stream.empty
@@ -49,31 +47,28 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
 
     val support = when(enableSupportRoutes)(SupportRoutes(config).routes)
 
-    val swaggerRoutes = if (includeSwaggerRoutes) {
+    val swaggerRoutes: List[Route] = if (includeSwaggerRoutes) {
       val svc = SwaggerDocRoutes(location.resolveLocalhost.asHostPort, swaggerApiClasses)
-      List(svc.routes ~ svc.site)
+      List(svc.routes, svc.site)
     } else {
       Nil
     }
 
-    val all = exchangeRoutes.toStream ++ support ++ swaggerRoutes
+    val all: Stream[Route] = exchangeRoutes.toStream ++ support ++ swaggerRoutes
+
     all.reduce(_ ~ _)
   }
 
   protected def swaggerApiClasses: Set[Class[_]] = {
-    Set[Class[_]](classOf[SupportRoutes], classOf[DynamicWorkerRoutes], classOf[ExchangeRoutes])
+    val baseSet = Set[Class[_]](classOf[SupportRoutes], classOf[DynamicWorkerRoutes])
+    if (includeExchangeRoutes) {
+      baseSet + classOf[ExchangeRoutes]
+    } else {
+      baseSet
+    }
   }
 
-  def includeExchangeRoutes = {
-    val onInConfig            = config.getBoolean("includeExchangeRoutes")
-    val exchangeConfigSetToUs = exchangeConfig.clientConfig.location == location
-    if (exchangeConfigSetToUs && !onInConfig) {
-      val msg = "Invalid configuration - 'includeExchangeRoutes' is not set, " +
-        "and the exchange client is set to the same location"
-      throw new IllegalStateException(msg)
-    }
-    onInConfig && exchangeConfigSetToUs
-  }
+  def includeExchangeRoutes = config.getBoolean("includeExchangeRoutes")
 
   /** @return exchange pointed at by this worker
     */

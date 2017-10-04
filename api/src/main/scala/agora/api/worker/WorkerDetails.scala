@@ -172,6 +172,15 @@ object WorkerDetails {
     */
   private case class DefaultDetails(runUser: String, location: HostLocation, name: String, id: String, path: String)
 
+  /**
+    * Creates WorkerDetails with the given supplied (typically required) information
+    * @param location the location where the work should be sent
+    * @param path the URI to which the REST requests should be sent
+    * @param name a descriptive name to use for potential job sumissions to match on
+    * @param id the subscription Id. If left empty, a unique subscription ID will be assigned by the exchange
+    * @param runUser the running user for this worker
+    * @return WorkerDetails containing the above info
+    */
   def apply(location: HostLocation,
             path: String = "handler",
             name: String = "worker",

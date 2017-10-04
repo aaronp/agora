@@ -1,15 +1,12 @@
 package agora.rest.test
 
-import java.io.Closeable
-
 import agora.api.exchange._
 import agora.api.worker.SubscriptionKey
 import agora.rest.client.RestClient
-import agora.rest.exchange.ExchangeConfig._
 import agora.rest.exchange.ExchangeServerConfig.RunningExchange
-import agora.rest.exchange.{ExchangeRestClient, ExchangeConfig, ExchangeServerConfig}
+import agora.rest.exchange.{ExchangeRestClient, ExchangeServerConfig}
+import agora.rest.worker.WorkerConfig
 import agora.rest.worker.WorkerConfig._
-import agora.rest.worker.{WorkerClient, WorkerConfig}
 import com.typesafe.scalalogging.StrictLogging
 
 case class ExchangeTestState(server: Option[RunningExchange] = None,

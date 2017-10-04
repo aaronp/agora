@@ -1,7 +1,6 @@
 package agora.rest
 
 import java.util.concurrent.atomic.AtomicInteger
-import javax.naming.ConfigurationException
 
 import agora.api.exchange.{SelectionMode, SubmissionDetails}
 import agora.api.json.JMatcher
@@ -15,7 +14,12 @@ import io.circe.{Decoder, Json}
 import scala.concurrent.duration._
 import scala.util.Properties
 
-class ClientConfig(config: Config) {
+class ClientConfig(config: Config) extends AutoCloseable {
+
+  override def toString = {
+    import agora.config.implicits._
+    config.summary().mkString(s"ClientConfig with:\n ${cachedClients}\n\n", "\n\n", "")
+  }
 
   import ClientConfig._
 
@@ -41,6 +45,18 @@ class ClientConfig(config: Config) {
     clientFor(location :: theRest.toList)
   }
 
+  /**
+    * Createa a client which will send requests to the given locations.
+    *
+    * If the iterable contains a single entry, then the RestClient will be a whatever the cached client
+    * returns for that location.
+    *
+    * If multiple locations are specified, then it will be a [[RoundRobinClient]] which sends requests in turn
+    * to each location.
+    *
+    * @param locations
+    * @return a [[RestClient]] for the given locations
+    */
   def clientFor(locations: Iterable[HostLocation]): RestClient = {
     if (locations.size == 1) {
       cachedClients(locations.head)
@@ -84,7 +100,8 @@ class ClientConfig(config: Config) {
         case "limiting" =>
           val nTimes = strategyConfig.getInt("nTimes")
           val within = strategyConfig.getDuration("within").toMillis.millis
-          RetryStrategy.tolerate(nTimes).failuresWithin(within)
+          val delay  = strategyConfig.getDuration("throttle-delay").toMillis.millis
+          RetryStrategy.tolerate(nTimes).failuresWithin(within).withDelay(delay)
         case "throttled" =>
           val delay = strategyConfig.getDuration("throttle-delay").toMillis.millis
           RetryStrategy.throttle(delay)
@@ -93,6 +110,9 @@ class ClientConfig(config: Config) {
     }
   }
 
+  override def close(): Unit = {
+    cachedClients.close()
+  }
 }
 
 object ClientConfig {

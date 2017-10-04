@@ -69,13 +69,23 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) with ExecA
 
   def defaultEnv: Map[String, String] = cachedDefaultEnv
 
-  private lazy val cachedDefaultEnv = execConfig.getConfig("runnerEnv").collectAsMap
+  private lazy val cachedDefaultEnv = {
+    val runnerEnvConf: Map[String, String] = execConfig.getConfig("runnerEnv").collectAsMap
 
-  override def landingPage = "ui/run.html"
+    val hostKeys: List[String] = execConfig.asList("runnerEnvFromHost")
 
-  lazy val uploads = PathConfig(execConfig.getConfig("uploads").ensuring(!_.isEmpty))
+    val fromHost: List[(String, String)] = hostKeys.flatMap { key =>
+      agora.config.propOrEnv(key).map { value =>
+        key -> value
+      }
+    }
+    runnerEnvConf ++ fromHost
+  }
 
-  def uploadsDir = uploads.pathOpt.getOrElse(sys.error("Invalid configuration - no uploads directory set"))
+  lazy val workspacesPathConfig: PathConfig = PathConfig(execConfig.getConfig("workspaces").ensuring(!_.isEmpty))
+
+  def uploadsDir =
+    workspacesPathConfig.pathOpt.getOrElse(sys.error("Invalid configuration - no uploads directory set"))
 
   def errorLimit = Option(execConfig.getInt("errorLimit")).filter(_ > 0)
 

@@ -69,15 +69,21 @@ object HostResolver {
   }
 
   def debug(socketAddress: InetSocketAddress) = {
-
     val address = socketAddress.getAddress
-    s"""
-       |          inet-hostname : ${address.getHostName}
+    val text    = s"""
        |        inet-hoststring : ${socketAddress.getHostString}
-       |inet-canonical-hostname : ${address.getCanonicalHostName}
-       |       inet-hostaddress : ${address.getHostAddress}
        |                   port : ${socketAddress.getPort}
     """.stripMargin
+    if (address == null) {
+      text
+    } else {
+      s"""
+         |          inet-hostname : ${address.getHostName}
+         |inet-canonical-hostname : ${address.getCanonicalHostName}
+         |       inet-hostaddress : ${address.getHostAddress}
+         |$text
+    """.stripMargin
+    }
   }
 
   def apply(configName: String, configLocation: HostLocation): HostResolver = {

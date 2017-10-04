@@ -13,13 +13,6 @@ class RichConfig(override val config: Config) extends RichConfigOps
 
 object RichConfig {
 
-  /**
-    * Exposes the entry point for using a RichConfig,
-    *
-    * mostly for converting user-args into a config
-    */
-  object implicits extends LowPriorityImplicits
-
   trait LowPriorityImplicits {
 
     implicit class RichString(val str: String) {

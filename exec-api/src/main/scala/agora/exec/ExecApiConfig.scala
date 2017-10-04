@@ -7,7 +7,7 @@ import com.typesafe.config.Config
 
 import scala.concurrent.duration._
 
-trait ExecApiConfig {
+trait ExecApiConfig extends AutoCloseable {
   def config: Config
 
   def defaultFrameLength = config.getInt("defaultFrameLength")

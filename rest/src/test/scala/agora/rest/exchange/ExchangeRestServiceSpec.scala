@@ -76,16 +76,10 @@ trait ExchangeRestServiceSpec { self: BaseIntegrationTest =>
       ourSubscription.requested shouldBe worker.service.defaultInitialRequest
 
       implicit val clientConf: ClientConfig = workerConfig.clientConfig
-//      implicit val sendStringsAndReturnJson = AsClient.instance[String, HttpResponse].flatMap { resp =>
-//        Unmarshal(resp).to[Json]
-//      }
-//      implicit val s = AsClient.instance[String, HttpResponse].returning[Json]
 
       val jsonResp = exchangeClient.enqueue[String, Json]("hello world!").futureValue
-      //      resp.onlyWorker.subscriptionKey shouldBe subscriptionKey
-      //      val Right(jsonResp) = resp.jsonResponse.futureValue
-      val found  = gotPath.getOption(jsonResp)
-      val actual = found.get
+      val found    = gotPath.getOption(jsonResp)
+      val actual   = found.get
       actual shouldBe "hello world!"
     }
   }

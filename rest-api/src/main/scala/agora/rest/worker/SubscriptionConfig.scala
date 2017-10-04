@@ -5,7 +5,7 @@ import agora.api.json.JMatcher
 import agora.api.worker.{HostLocation, WorkerDetails}
 import com.typesafe.config.{Config, ConfigRenderOptions}
 import io.circe
-import agora.config.RichConfig.implicits._
+import agora.config.implicits._
 import io.circe.Json
 
 import scala.util.Try
@@ -32,13 +32,30 @@ case class SubscriptionConfig(subscriptionConfig: Config) {
     case Right(s)  => s
   }
 
-  def workerDetails(location: HostLocation): WorkerDetails = {
-    val detailsConf     = subscriptionConfig.getConfig("details")
-    val name            = detailsConf.getString("name")
-    val id              = detailsConf.getString("id")
-    val path            = detailsConf.getString("path")
-    val runUser: String = detailsConf.getString("runUser")
-    WorkerDetails(location, path, name, id, runUser).append(asJson(detailsConf))
+  /**
+    * Creates the worker details using the 'resolvedHostPort' from the subscription info (if non-empty)
+    * otherwise the provided default location
+    * @param defaultLocation the location to use if the 'resolvedHostPort' is not set
+    * @return the WorkerDetails
+    */
+  def workerDetails(defaultLocation: HostLocation): WorkerDetails = {
+    val detailsConf = subscriptionConfig.getConfig("details")
+    val name        = detailsConf.getString("name")
+    val id          = detailsConf.getString("id")
+    val path        = detailsConf.getString("path")
+    val runUser     = detailsConf.getString("runUser")
+    val resolvedHostPort = if (detailsConf.hasPath("resolvedHostPort")) {
+      detailsConf.getString("resolvedHostPort")
+    } else {
+      ""
+    }
+
+    val resolvedLocation = resolvedHostPort match {
+      case HostLocation(loc) if loc.host.nonEmpty => loc
+      case _                                      => defaultLocation
+    }
+    WorkerDetails(resolvedLocation, path, name, id, runUser).append(
+      asJson(detailsConf.withoutPath("resolvedHostPort")))
   }
 
   def asMatcher(at: String): Either[circe.Error, JMatcher] = {

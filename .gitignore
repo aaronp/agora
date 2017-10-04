@@ -1,12 +1,7 @@
 target
 data
-package-lock.json
-my.upload
-uploads
 *.gz
 *.log
-node_modules
 .DS_Store
 .idea
 project/project/
-data
