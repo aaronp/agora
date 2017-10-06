@@ -1,6 +1,6 @@
 package agora.io
 
-import java.io.OutputStream
+import java.io.{OutputStream, OutputStreamWriter, PrintWriter}
 import java.nio.charset.{Charset, StandardCharsets}
 import java.nio.file._
 import java.nio.file.attribute.{BasicFileAttributes, FileAttribute, FileTime, PosixFilePermission}
@@ -114,6 +114,11 @@ trait LowPriorityIOImplicits {
     def find(p: Path => Boolean) = search(Int.MaxValue, false)(p)
 
     def outputStream(options: OpenOption*): OutputStream = Files.newOutputStream(path, options: _*)
+
+    def outputWriter(autoFlush: Boolean, options: OpenOption*) = {
+      val writer = new OutputStreamWriter(outputStream(options: _*))
+      new PrintWriter(writer, autoFlush)
+    }
 
     def inputStream(options: OpenOption*) = Files.newInputStream(path, options: _*)
 

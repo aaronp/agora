@@ -1,0 +1,5 @@
+Agora Eec API
+=======
+
+The API project contains the main data structures and traits for the project.
+

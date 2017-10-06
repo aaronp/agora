@@ -12,12 +12,6 @@ scalaVersion := "2.11.11"
 
 enablePlugins(GitVersioning)
 
-//enablePlugins(GhpagesPlugin)
-
-//enablePlugins(SiteScaladocPlugin)
-
-coverageMinimum := 50
-
 git.useGitDescribe := false
 
 git.gitTagToVersionNumber := { tag: String =>
@@ -31,7 +25,49 @@ git.gitTagToVersionNumber := { tag: String =>
 scalafmtOnCompile in ThisBuild := true
 scalafmtVersion in ThisBuild := "1.0.0"
 
-lazy val agora = (project in file(".")).enablePlugins(BuildInfoPlugin).aggregate(api, rest, restApi, exec, execApi, io, config, example)
+// Define a `Configuration` for each project, as per http://www.scala-sbt.org/sbt-site/api-documentation.html
+val Api = config("api")
+val Rest = config("rest")
+val RestApi = config("restApi")
+val Exec = config("exec")
+val ExecApi = config("execApi")
+val ExecTest = config("execTest")
+val IO = config("io")
+val Config = config("config")
+
+lazy val scaladocSiteProjects = List((api, Api), 
+  (rest, Rest),
+  (restApi, RestApi),
+  (exec, Exec), 
+  (execApi, ExecApi),
+  (execTest, ExecTest),
+  (io, IO), 
+  (configProject, Config))
+
+lazy val scaladocSiteSettings = scaladocSiteProjects.flatMap { case (project, conf) =>
+  SiteScaladocPlugin.scaladocSettings(
+    conf,
+    mappings in (Compile, packageDoc) in project,
+    s"api/${project.id}"
+  )
+}
+
+// val siteWithScaladocAlt = project.in(file("site/scaladoc-alternative"))
+//   .settings(scaladocSiteSettings)
+
+lazy val agora = (project in file(".")).
+  enablePlugins(BuildInfoPlugin).
+  enablePlugins(SiteScaladocPlugin).
+  enablePlugins(PamfletPlugin).
+  enablePlugins(ScalaUnidocPlugin).
+  aggregate(io, configProject, api, restApi, rest, execApi, exec, execTest).
+  settings(
+    sourceDirectory in Pamflet := sourceDirectory.value / "site",
+    siteSubdirName in ScalaUnidoc := "api-all/latest",
+    addMappingsToSiteDir(mappings in (ScalaUnidoc, packageDoc), siteSubdirName in ScalaUnidoc)
+    //,gitRemoteRepo := "git@github.com:aaronp/agora.git"
+  )
+  //settings(sourceDirectory in Pamflet := sourceDirectory.value / "site")
 
 lazy val settings = scalafmtSettings
 
@@ -71,7 +107,7 @@ def additionalScalcSettings = List(
   "-Ywarn-value-discard" // Warn when non-Unit expression results are unused.
 )
 
-val baseScalcSettings = List(
+val baseScalacSettings = List(
   "-deprecation", // Emit warning and location for usages of deprecated APIs.
   "-encoding",
   "utf-8", // Specify character encoding used by source files.
@@ -87,16 +123,7 @@ val baseScalcSettings = List(
   "-Xfuture" // Turn on future language features.
 )
 
-val scalacSettings = baseScalcSettings
-
-//site.settings ++ 
-// lazy val docSettings = ghpages.settings ++ Seq(
-//   autoAPIMappings := true,
-// //  unidocProjectFilter in (ScalaUnidoc, unidoc) := inProjects(core, akka),
-//   SiteKeys.siteSourceDirectory := file("site"),
-//   site.addMappingsToSiteDir(mappings in (packageDoc), "latest/api"),
-//   git.remoteRepo := s"git@github.com:$username/$repo.git"
-// )
+val scalacSettings = baseScalacSettings
 
 val commonSettings: Seq[Def.Setting[_]] = Seq(
   //version := parentProject.settings.ver.value,
@@ -107,27 +134,23 @@ val commonSettings: Seq[Def.Setting[_]] = Seq(
   buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
   buildInfoPackage := s"${repo}.build",
   assemblyMergeStrategy in assembly := {
-    case str if str.contains("JS_DEPENDENCIES")  => MergeStrategy.discard
-    case str if str.contains("logback.xml")      => MergeStrategy.discard
     case str if str.contains("application.conf") => MergeStrategy.discard
     case x =>
       val oldStrategy = (assemblyMergeStrategy in assembly).value
       oldStrategy(x)
   },
   // see http://www.scalatest.org/user_guide/using_scalatest_with_sbt
-  (testOptions in Test) += (Tests.Argument(TestFrameworks.ScalaTest, "-h", s"target/scalatest-reports-${name.value}", "-oN"))
+  (testOptions in Test) += (Tests.Argument(TestFrameworks.ScalaTest, "-h", s"target/scalatest-reports-${name.value}", "-oN")),
+  // put scaladocs under 'api/latest'
+  sourceDirectory in Pamflet := sourceDirectory.value / "site",
+  siteSubdirName in SiteScaladoc := "api/latest"
 )
 
 test in assembly := {}
 
-assemblyExcludedJars in assembly := {
-  val cp = (fullClasspath in assembly).value
-  cp filterNot { _.data.getName == "JS_DEPENDENCIES" }
-}
-
 publishMavenStyle := true
 
-lazy val config = project
+lazy val configProject = project
   .in(file("config"))
   .settings(name := s"${repo}-config")
   .settings(commonSettings: _*)
@@ -141,7 +164,7 @@ lazy val io = project
 
 lazy val api = project
   .in(file("api"))
-  .dependsOn(io % "compile->compile;test->test", config % "compile->compile;test->test")
+  .dependsOn(io % "compile->compile;test->test", configProject % "compile->compile;test->test")
   .settings(name := s"${repo}-api")
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.Api)
@@ -187,12 +210,12 @@ lazy val execApi = project
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.RestApi)
 
-assemblyMergeStrategy in assembly := {
-  case str if str.contains("JS_DEPENDENCIES") => MergeStrategy.discard
-  case x =>
-    val oldStrategy = (assemblyMergeStrategy in assembly).value
-    oldStrategy(x)
-}
+lazy val execTest = project
+  .settings(name := s"${repo}-exec-test")
+  .in(file("exec-test"))
+  .dependsOn(exec % "compile->compile;test->test")
+  .settings(commonSettings: _*)
+  .settings(libraryDependencies ++= Dependencies.RestApi)
 
 // see https://leonard.io/blog/2017/01/an-in-depth-guide-to-deploying-to-maven-central/
 pomIncludeRepository := (_ => false)

@@ -1,7 +1,7 @@
 
 enablePlugins(CucumberPlugin)
-
 enablePlugins(DockerPlugin)
+enablePlugins(DockerComposePlugin)
 
 name := "agora-exec"
 

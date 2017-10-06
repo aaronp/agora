@@ -18,17 +18,17 @@ import io.circe.generic.auto._
   * @param exchange
   * @param execApiConfig
   * @param defaultDetails
-  * @param mat
+  * @param materializer
   */
 class RemoteRunner(val exchange: Exchange, val defaultDetails: SubmissionDetails = SubmissionDetails())(
-    implicit execApiConfig: ExecApiConfig,
-    mat: Materializer)
+    implicit val execApiConfig: ExecApiConfig,
+    val materializer: Materializer)
     extends ProcessRunner
     with ExecConversionImplicits
     with FailFastCirceSupport
     with AutoCloseable {
 
-  import mat._
+  import materializer._
 
   override def close() = {
     execApiConfig.close()
