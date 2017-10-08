@@ -13,7 +13,6 @@ services:
       - INITIAL_REQUEST=1
       - GA_HOME=/ga-app
     volumes:
-      - data-volume:/shared/workspaces/one
       - ga-home:/ga-app
   worker2:
     image: "porpoiseltd/agora-exec"
@@ -31,13 +30,10 @@ services:
       - RESOLVED_HOST_PORT=localhost:8081
       - INITIAL_REQUEST=1
     volumes:
-      - data-volume:/shared/workspaces/two
       - ga-home:/ga-app
   ga:
     image: "porpoiseltd/ga"
     volumes:
-      - data-volume:/moreexamples
       - ga-home:/ga-app
 volumes:
-  data-volume:
   ga-home:
