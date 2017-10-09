@@ -45,7 +45,7 @@ class ClientConfigTest extends BaseSpec {
         awaitMatch : false
         matcher : ${json}
         selectionMode : {
-           max.parts : [ { "name" : "machine" }, { "name" : "cpus" } ]
+           max.parts : [ "machine", "cpus" ]
         }
         orElse : [
           {

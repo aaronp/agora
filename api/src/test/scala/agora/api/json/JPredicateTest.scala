@@ -148,4 +148,134 @@ class JPredicateTest extends BaseSpec {
         .matches(Map("list" -> Map("actuallyAnObj" -> 123)).asJson) shouldBe false
     }
   }
+
+  "JPredicate.decoder" should {
+    "unmarshal simple paths json" in {
+      val json =
+        json"""{
+              |  "exists" : {
+              |    "parts" : [ "command" ]
+              |  }
+              |}""" //.asJson
+      json.as[JPredicate].right.get shouldBe JPath("command").asMatcher
+    }
+    "unmarshal complex paths json" in {
+      val json =
+        json"""{
+              |  "exists" : {
+              |    "parts" : [ "list", 2, "next" ]
+              |  }
+              |}"""
+      json.as[JPredicate].right.get shouldBe JPath.forParts("list", "2", "next").asMatcher
+    }
+    "unmarshal paths with a filter" in {
+      val json =
+        json"""{
+              |  "exists" : {
+              |    "parts" : [
+              |      "rute",
+              |      {
+              |        "field" : "someField",
+              |        "predicate" : {
+              |          "eq" : 4
+              |        }
+              |      }
+              |    ]
+              |  }
+              |}"""
+      val expected = JPath(JPart("rute"), ("someField" === 4))
+      json.as[JPredicate].right.get shouldBe expected.asMatcher
+    }
+    "unmarshal paths with conjunctions" in {
+
+      val json =
+        json"""{
+              |  "or" : [
+              |    {
+              |      "and" : [
+              |        {
+              |          "exists" : {
+              |            "parts" : [
+              |              {
+              |                "field" : "array",
+              |                "predicate" : {
+              |                  "elements" : [
+              |                    9,
+              |                    8
+              |                  ]
+              |                }
+              |              }
+              |            ]
+              |          }
+              |        },
+              |        {
+              |          "exists" : {
+              |            "parts" : [
+              |              {
+              |                "field" : "foo",
+              |                "predicate" : {
+              |                  "gte" : 3
+              |                }
+              |              }
+              |            ]
+              |          }
+              |        }
+              |      ]
+              |    },
+              |    {
+              |      "exists" : {
+              |        "parts" : [
+              |          "x",
+              |          "y",
+              |          {
+              |            "field" : "values",
+              |            "predicate" : {
+              |              "regex" : "subtext"
+              |            }
+              |          }
+              |        ]
+              |      }
+              |    }
+              |  ]
+              |}"""
+
+      import agora.api.Implicits._
+
+      val expected: JPredicate =
+        ("array" includes (8, 9)).and("foo" gte 3).or(JPath("x", "y") :+ ("values" ~= ("subtext")))
+      json.as[JPredicate].right.get shouldBe expected
+    }
+  }
+
+  "JPredicate.or" should {
+
+    "be serializable to/from json" in {
+      val matcher: JPredicate = JPredicate.matchAll or JPredicate.matchAll
+
+      val json             = matcher.asJson
+      val Right(backAgain) = json.as[JPredicate]
+      matcher shouldBe backAgain
+    }
+  }
+  "JPredicate.and" should {
+    "be serializable to/from json" in {
+
+      val matcher1 = JPredicate(JPath(JPart("foo"), JPart("bar"), JPart(3), "value" === "3"))
+      val matcher2 = JPredicate(JPath("cpus" gt "2"))
+
+      val matcher: JPredicate = matcher1 and matcher2
+
+      val json             = matcher.asJson
+      val Right(backAgain) = json.as[JPredicate]
+      matcher shouldBe backAgain
+    }
+  }
+  "JPredicate.exists" should {
+    "be serializable to/from json" in {
+      val exists: JPredicate = JPredicate(JPath(JPart("foo"), JPart("bar"), JPart(3), "value" === "3"))
+      val json               = exists.asJson
+      val Right(backAgain)   = json.as[JPredicate]
+      exists shouldBe backAgain
+    }
+  }
 }

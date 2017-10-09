@@ -1,7 +1,7 @@
 package agora.rest.worker
 
 import agora.api.exchange.WorkSubscription
-import agora.api.json.JMatcher
+import agora.api.json.JPredicate
 import agora.api.worker.{HostLocation, WorkerDetails}
 import com.typesafe.config.{Config, ConfigRenderOptions}
 import io.circe
@@ -58,14 +58,14 @@ case class SubscriptionConfig(subscriptionConfig: Config) {
       asJson(detailsConf.withoutPath("resolvedHostPort")))
   }
 
-  def asMatcher(at: String): Either[circe.Error, JMatcher] = {
-    val fromConfig: Option[Either[circe.Error, JMatcher]] = Try(subscriptionConfig.getConfig(at)).toOption.map {
+  def asMatcher(at: String): Either[circe.Error, JPredicate] = {
+    val fromConfig: Option[Either[circe.Error, JPredicate]] = Try(subscriptionConfig.getConfig(at)).toOption.map {
       subConf =>
         val json = asJson(subConf)
-        json.as[JMatcher]
+        json.as[JPredicate]
     }
 
-    val fromString = asJson(subscriptionConfig).hcursor.downField(at).as[JMatcher]
+    val fromString = asJson(subscriptionConfig).hcursor.downField(at).as[JPredicate]
 
     fromConfig.getOrElse(fromString)
   }
@@ -73,8 +73,8 @@ case class SubscriptionConfig(subscriptionConfig: Config) {
   private def subscriptionEither(details: WorkerDetails, prefix: String = ""): Either[circe.Error, WorkSubscription] = {
 
     for {
-      jm <- asMatcher("jobMatcher").right
-      sm <- asMatcher("submissionMatcher").right
+      jm <- asMatcher("jobCriteria").right
+      sm <- asMatcher("submissionCriteria").right
     } yield {
       WorkSubscription.forDetails(details, jm, sm, subscriptionReferences)
     }

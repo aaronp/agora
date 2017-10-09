@@ -7,6 +7,22 @@ import scala.language.implicitConversions
 
 class JPathTest extends BaseSpec {
 
+  "JPath json" should {
+    "marshal complex paths and from json" in {
+      import agora.api.Implicits._
+      import io.circe.syntax._
+      import io.circe.parser._
+      import io.circe.generic.auto._
+
+      val path        = JPath.forParts("groot", "list") :+ 3
+      val complexPath = path :+ ("value".inArray) :+ ("someInt" gte 9)
+
+      val json = complexPath.asJson.spaces4
+
+      decode[JPath](json) shouldBe Right(complexPath)
+    }
+  }
+
   "JPath.appendTo" should {
     "append values to arrays" in {
 
@@ -176,7 +192,7 @@ class JPathTest extends BaseSpec {
       a.succeeded shouldBe false
       a.focus.toList should be(empty)
     }
-    "match values under an array" ignore {
+    "match values under an array" in {
       val json: Json =
         json"""{
               "list" : [

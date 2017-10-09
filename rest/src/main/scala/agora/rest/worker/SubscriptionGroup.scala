@@ -77,8 +77,8 @@ object SubscriptionGroup {
     *     path: "rest/worker/light1"
     *     name: "light work item"
     *   }
-    *   jobMatcher: "match-all"
-    *   submissionMatcher: "match-all"
+    *   jobCriteria: "match-all"
+    *   submissionCriteria: "match-all"
     *   subscriptionReferences : []
     * }
     * }}}

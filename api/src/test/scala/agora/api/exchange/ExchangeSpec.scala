@@ -2,7 +2,7 @@ package agora.api.exchange
 
 import agora.BaseSpec
 import agora.api.Implicits
-import agora.api.json.JMatcher
+import agora.api.json.JPredicate
 import agora.api.worker.{HostLocation, WorkerDetails, WorkerRedirectCoords}
 import io.circe.generic.auto._
 import org.scalatest.concurrent.Eventually
@@ -94,7 +94,7 @@ trait ExchangeSpec extends BaseSpec with Eventually with Implicits {
         .orElse("topic" === "tertiary")
         .withId("someJobId")
       val anotherJob =
-        "another job".asJob.matching(JMatcher.matchNone).withId("anotherId").withAwaitMatch(false)
+        "another job".asJob.matching(JPredicate.matchNone).withId("anotherId").withAwaitMatch(false)
 
       val primary =
         newSubscription("primary").append("topic", "primary").withSubscriptionKey("primary key")
@@ -225,7 +225,7 @@ trait ExchangeSpec extends BaseSpec with Eventually with Implicits {
           .id
         val jobPath = ("value" gt 7) and ("value" lt 17)
 
-        val sub = WorkSubscription(HostLocation.localhost(1234), jobMatcher = jobPath)
+        val sub = WorkSubscription(HostLocation.localhost(1234), jobCriteria = jobPath)
 
         val subscriptionId = ex.subscribe(sub).futureValue.id
         ex.take(subscriptionId, 1).futureValue shouldBe RequestWorkAck(subscriptionId, 0, 0)

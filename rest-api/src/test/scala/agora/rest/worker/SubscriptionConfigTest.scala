@@ -1,7 +1,7 @@
 package agora.rest.worker
 
 import agora.BaseSpec
-import agora.api.json.{JMatcher, JPath, MatchAll, MatchNone}
+import agora.api.json.{JPredicate, JPath, MatchAll, MatchNone}
 import agora.api.worker.HostLocation
 import com.typesafe.config.ConfigFactory
 
@@ -16,8 +16,8 @@ class SubscriptionConfigTest extends BaseSpec {
           |    name: carl
           |    id: ""
           |  }
-          |  jobMatcher: "match-all"
-          |  submissionMatcher: "match-none"
+          |  jobCriteria: "match-all"
+          |  submissionCriteria: "match-none"
           |  subscriptionReferences : [x]
           |""".stripMargin)
       val expectedLocation = HostLocation.localhost(123)
@@ -29,8 +29,8 @@ class SubscriptionConfigTest extends BaseSpec {
       details.subscriptionKey shouldBe None
 
       val subscription = conf.subscription(expectedLocation)
-      subscription.jobMatcher shouldBe MatchAll
-      subscription.submissionMatcher shouldBe MatchNone
+      subscription.jobCriteria shouldBe MatchAll
+      subscription.submissionCriteria shouldBe MatchNone
       subscription.subscriptionReferences should contain only ("x")
     }
   }
@@ -72,15 +72,7 @@ class SubscriptionConfigTest extends BaseSpec {
           |    {
           |      "exists" : {
           |        "parts" : [
-          |          {
-          |            "name" : "x"
-          |          },
-          |          {
-          |            "name" : "y"
-          |          },
-          |          {
-          |            "name" : "z"
-          |          }
+          |          "x", "y", "z"
           |        ]
           |      }
           |    }
@@ -89,7 +81,7 @@ class SubscriptionConfigTest extends BaseSpec {
 
       import agora.api.Implicits._
 
-      val expected: JMatcher = ("x" === "y").and("foo" gte 3).or(JPath("x", "y", "z"))
+      val expected: JPredicate = ("x" === "y").and("foo" gte 3).or(JPath("x", "y", "z"))
 
       val conf = parse(s"""complex: $criteria""")
       conf.asMatcher("complex") shouldBe Right(expected)

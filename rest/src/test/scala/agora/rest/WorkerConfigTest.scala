@@ -1,11 +1,10 @@
 package agora.api.io
 
-import com.typesafe.config.{Config, ConfigFactory}
-import agora.api.json.{JMatcher, MatchAnd, MatchOr}
-import agora.rest.worker.WorkerConfig
 import _root_.io.circe.optics.JsonPath
 import agora.BaseSpec
-import org.scalatest.{Matchers, WordSpec}
+import agora.api.json.{And, JPredicate, Or}
+import agora.rest.worker.WorkerConfig
+import com.typesafe.config.ConfigFactory
 
 class WorkerConfigTest extends BaseSpec {
   "WorkerConfig(args)" should {
@@ -23,8 +22,8 @@ class WorkerConfigTest extends BaseSpec {
   "WorkerConfig.subscription" should {
     "create a subscription from the default config" in {
       val default = WorkerConfig()
-      default.subscription.jobMatcher shouldBe JMatcher.matchAll
-      default.subscription.submissionMatcher shouldBe JMatcher.matchAll
+      default.subscription.jobCriteria shouldBe JPredicate.matchAll
+      default.subscription.submissionCriteria shouldBe JPredicate.matchAll
     }
     "use the given details" in {
 
@@ -41,17 +40,17 @@ class WorkerConfigTest extends BaseSpec {
     }
     "create a subscription from the config" in {
       val default = asConf("""subscription {
-          |  jobMatcher : {
+          |  jobCriteria : {
           |    and : [ "match-all", "match-none" ]
           |  }
-          |  submissionMatcher : {
+          |  submissionCriteria : {
           |    or : [ "match-none", "match-all" ]
           |  }
           |}""".stripMargin)
       val sub     = default.subscription
-      import JMatcher._
-      sub.jobMatcher shouldBe MatchAnd(List(matchAll, matchNone))
-      sub.submissionMatcher shouldBe MatchOr(List(matchNone, matchAll))
+      import JPredicate._
+      sub.jobCriteria shouldBe And(List(matchAll, matchNone))
+      sub.submissionCriteria shouldBe Or(List(matchNone, matchAll))
     }
   }
 

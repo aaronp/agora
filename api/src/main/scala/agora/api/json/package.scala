@@ -2,8 +2,18 @@ package agora.api
 
 import _root_.io.circe.Json.fromJsonObject
 import _root_.io.circe._
+import _root_.io.circe.Decoder.Result
 
 package object json {
+
+  implicit class RichDec[T](val result: Result[T]) extends AnyVal {
+    def orDecode[A <: T: Decoder](c: HCursor): Result[T] = {
+      val aDec: Decoder[A] = implicitly[Decoder[A]]
+      result.left.flatMap { _ =>
+        aDec.tryDecode(c)
+      }
+    }
+  }
 
   /**
     * merges the two json objects together, where array fields are concatenated

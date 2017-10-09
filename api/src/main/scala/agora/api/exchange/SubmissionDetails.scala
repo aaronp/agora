@@ -1,7 +1,7 @@
 package agora.api.exchange
 
 import agora.api.User
-import agora.api.json.{JMatcher, JsonAppendable}
+import agora.api.json.{JPredicate, JsonAppendable}
 import io.circe._
 import io.circe.optics.JsonPath
 
@@ -25,8 +25,8 @@ import scala.util.Properties
 case class SubmissionDetails(override val aboutMe: Json,
                              selection: SelectionMode,
                              awaitMatch: Boolean,
-                             workMatcher: JMatcher,
-                             orElse: List[JMatcher])
+                             workMatcher: JPredicate,
+                             orElse: List[JPredicate])
     extends JsonAppendable {
   def matchingPath(path: String): SubmissionDetails = {
     import agora.api.Implicits._
@@ -35,13 +35,13 @@ case class SubmissionDetails(override val aboutMe: Json,
 
   def withSelection(mode: SelectionMode) = copy(selection = mode)
 
-  def orElseMatch(other: JMatcher) = copy(orElse = orElse :+ other)
+  def orElseMatch(other: JPredicate) = copy(orElse = orElse :+ other)
 
-  def withMatcher(newMatcher: JMatcher) = copy(workMatcher = newMatcher)
+  def withMatcher(newMatcher: JPredicate) = copy(workMatcher = newMatcher)
 
-  def andMatching(andCriteria: JMatcher) = copy(workMatcher = workMatcher.and(andCriteria))
+  def andMatching(andCriteria: JPredicate) = copy(workMatcher = workMatcher.and(andCriteria))
 
-  def orMatching(orCriteria: JMatcher) = copy(workMatcher = workMatcher.or(orCriteria))
+  def orMatching(orCriteria: JPredicate) = copy(workMatcher = workMatcher.or(orCriteria))
 
   def submittedBy: User = SubmissionDetails.submissionUser.getOption(aboutMe).getOrElse {
     sys.error(s"Invalid json, 'submissionUser' not set in $aboutMe")
@@ -84,8 +84,8 @@ object SubmissionDetails {
   def apply(submissionUser: User = Properties.userName,
             matchMode: SelectionMode = SelectionOne,
             awaitMatch: Boolean = true,
-            workMatcher: JMatcher = JMatcher.matchAll,
-            orElse: List[JMatcher] = Nil) = {
+            workMatcher: JPredicate = JPredicate.matchAll,
+            orElse: List[JPredicate] = Nil) = {
     val json = Json.obj("submissionUser" -> Json.fromString(submissionUser))
     new SubmissionDetails(json, matchMode, awaitMatch, workMatcher, orElse)
   }

@@ -2,7 +2,7 @@ package agora.api.exchange
 
 import java.time.LocalDateTime
 
-import agora.api.json.{JMatcher, JPath, JsonDelta, MatchAll}
+import agora.api.json.{JPredicate, JPath, JsonDelta, MatchAll}
 import agora.api.worker.{HostLocation, SubscriptionKey, WorkerDetails, WorkerRedirectCoords}
 import agora.api.{JobId, MatchId}
 import io.circe.generic.auto._
@@ -24,9 +24,9 @@ sealed trait ClientResponse
   * @param submitJobMatcher                  the same as a subscription matcher would be, used to match submitted job requests
   * @param submitJobSubmissionDetailsMatcher also as per a subscription matcher, this time matching the submissionDetails
   */
-case class QueueState(workerSubscriptionMatcher: JMatcher = JMatcher.matchAll,
-                      submitJobMatcher: JMatcher = JMatcher.matchAll,
-                      submitJobSubmissionDetailsMatcher: JMatcher = JMatcher.matchAll)
+case class QueueState(workerSubscriptionMatcher: JPredicate = JPredicate.matchAll,
+                      submitJobMatcher: JPredicate = JPredicate.matchAll,
+                      submitJobSubmissionDetailsMatcher: JPredicate = JPredicate.matchAll)
     extends ClientRequest {
   def matchesSubscription(aboutMe: Json) = workerSubscriptionMatcher.matches(aboutMe)
 
@@ -102,7 +102,7 @@ case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends Cl
     * @tparam T
     * @return a new SubmitJob using the given details matcher
     */
-  def matching[T](matcher: T)(implicit ev: T => JMatcher): SubmitJob = {
+  def matching[T](matcher: T)(implicit ev: T => JPredicate): SubmitJob = {
     withDetails(submissionDetails.copy(workMatcher = ev(matcher)))
   }
 
@@ -134,7 +134,7 @@ case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends Cl
     * @param otherCriteria the json matching criteria
     * @return an updated SubmitJob with the given 'orElse' criteria specified
     */
-  def orElse(otherCriteria: JMatcher) = {
+  def orElse(otherCriteria: JPredicate) = {
     withDetails(submissionDetails.copy(orElse = submissionDetails.orElse :+ otherCriteria))
   }
 
@@ -230,7 +230,7 @@ sealed trait SubscriptionResponse
   * @param condition the condition to check on the current WorkDetails data before performing the update
   * @param delta     the changes to apply
   */
-case class UpdateSubscription(id: SubscriptionKey, condition: JMatcher = MatchAll, delta: JsonDelta = JsonDelta())
+case class UpdateSubscription(id: SubscriptionKey, condition: JPredicate = MatchAll, delta: JsonDelta = JsonDelta())
     extends SubscriptionRequest
 
 object UpdateSubscription {
@@ -255,13 +255,13 @@ object UpdateSubscription {
   * Once a WorkSubscription is sent
   *
   * @param details                represents a json blob of data which can be matched by [[SubmissionDetails]] match criteria to filter out workers
-  * @param jobMatcher             the criteria used to match submitted job data
-  * @param submissionMatcher      the criteria used to match submitted jobs' submission details
+  * @param jobCriteria             the criteria used to match submitted job data
+  * @param submissionCriteria      the criteria used to match submitted jobs' submission details
   * @param subscriptionReferences If non-empty, changes to the number of work items requested for this subscription will be performed on the referenced subscriptions
   */
 case class WorkSubscription(details: WorkerDetails,
-                            jobMatcher: JMatcher,
-                            submissionMatcher: JMatcher,
+                            jobCriteria: JPredicate,
+                            submissionCriteria: JPredicate,
                             subscriptionReferences: Set[SubscriptionKey])
     extends SubscriptionRequest {
   def matches(job: SubmitJob)(implicit m: JobPredicate): Boolean = m.matches(job, this)
@@ -272,12 +272,12 @@ case class WorkSubscription(details: WorkerDetails,
     * @param matcher the new work subscription matcher
     * @return a subscription with the matcher replaces
     */
-  def matchingJob[T](matcher: T)(implicit ev: T => JMatcher): WorkSubscription = {
-    copy(jobMatcher = ev(matcher))
+  def matchingJob[T](matcher: T)(implicit ev: T => JPredicate): WorkSubscription = {
+    copy(jobCriteria = ev(matcher))
   }
 
-  def matchingSubmission[T](matcher: T)(implicit ev: T => JMatcher): WorkSubscription = {
-    copy(submissionMatcher = ev(matcher))
+  def matchingSubmission[T](matcher: T)(implicit ev: T => JPredicate): WorkSubscription = {
+    copy(submissionCriteria = ev(matcher))
   }
 
   def withReferences(references: Set[SubscriptionKey]) = copy(subscriptionReferences = references)
@@ -323,17 +323,17 @@ object WorkSubscription {
     * @return a work subscription
     */
   def apply(location: HostLocation,
-            jobMatcher: JMatcher = JMatcher.matchAll,
-            submissionMatcher: JMatcher = JMatcher.matchAll,
+            jobCriteria: JPredicate = JPredicate.matchAll,
+            submissionCriteria: JPredicate = JPredicate.matchAll,
             subscriptionReferences: Set[SubscriptionKey] = Set.empty): WorkSubscription = {
-    forDetails(WorkerDetails(location), jobMatcher, submissionMatcher, subscriptionReferences)
+    forDetails(WorkerDetails(location), jobCriteria, submissionCriteria, subscriptionReferences)
   }
 
   def forDetails(details: WorkerDetails,
-                 jobMatcher: JMatcher = JMatcher.matchAll,
-                 submissionMatcher: JMatcher = JMatcher.matchAll,
+                 jobCriteria: JPredicate = JPredicate.matchAll,
+                 submissionCriteria: JPredicate = JPredicate.matchAll,
                  subscriptionReferences: Set[SubscriptionKey] = Set.empty): WorkSubscription = {
-    new WorkSubscription(details, jobMatcher, submissionMatcher, subscriptionReferences)
+    new WorkSubscription(details, jobCriteria, submissionCriteria, subscriptionReferences)
   }
 
   implicit val encoder = exportEncoder[WorkSubscription].instance

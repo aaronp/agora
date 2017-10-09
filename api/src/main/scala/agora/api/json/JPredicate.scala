@@ -3,7 +3,6 @@ package agora.api.json
 import java.time.LocalDateTime
 
 import agora.api.time.{DateTimeResolver, TimeCoords}
-import com.typesafe.config.{ConfigFactory, ConfigRenderOptions}
 import io.circe.Decoder.Result
 import io.circe.generic.auto._
 import io.circe.syntax._
@@ -43,6 +42,16 @@ sealed trait JPredicate { self =>
 
 object JPredicate {
 
+  def matchAll: JPredicate = MatchAll
+
+  def matchNone: JPredicate = MatchNone
+
+  def apply(jpath: JPath): JPredicate = ExistsMatcher(jpath)
+
+  implicit def filterAsMatcher(filter: JFilter): JPredicate = filter.asMatcher
+
+  implicit def pathAsMatcher(jpath: JPath): JPredicate = jpath.asMatcher
+
   object implicits extends LowPriorityPredicateImplicits
 
   trait LowPriorityPredicateImplicits {
@@ -53,7 +62,7 @@ object JPredicate {
 
     implicit def jsonInArray[T](value: T)(implicit ev: T => Json) = new {
 
-      /**@return a [[JPart]] which matches a value within an array
+      /** @return a [[JPart]] which matches a value within an array
         */
       def inArray: JArrayFind = Eq(ev(value)).inArray
     }
@@ -104,11 +113,22 @@ object JPredicate {
   }
 
   implicit object JPredicateFormat extends Encoder[JPredicate] with Decoder[JPredicate] {
+
+    private def asMatchAllOrNone(c: HCursor): Result[JPredicate] = c.as[String] match {
+      case Right("match-all")  => Right(MatchAll): Result[JPredicate]
+      case Right("match-none") => Right(MatchNone): Result[JPredicate]
+      case Right(other) =>
+        Left(DecodingFailure(s"Expected 'match-all' or 'match-none', but got '$other'", c.history)): Result[JPredicate]
+      case left: Result[_] => left.asInstanceOf[Result[JPredicate]]
+    }
+
     override def apply(c: HCursor): Result[JPredicate] = {
       import cats.syntax.either._
 
       // format: off
-      c.as[And].
+      c.as[ExistsMatcher].
+        orElse(asMatchAllOrNone(c)).
+        orElse(c.as[And]).
         orElse(c.as[Or]).
         orElse(c.as[Not]).
         orElse(c.as[Eq]).
@@ -124,12 +144,15 @@ object JPredicate {
     }
 
     override def apply(a: JPredicate): Json = a match {
-      case p: And       => p.asJson
-      case p: Or        => p.asJson
-      case p: Not       => p.asJson
-      case p: Eq        => p.asJson
-      case p: JRegex    => p.asJson
-      case p: JIncludes => p.asJson
+      case p: ExistsMatcher => p.asJson
+      case MatchAll         => MatchAll.json
+      case MatchNone        => MatchNone.json
+      case p: And           => p.asJson
+      case p: Or            => p.asJson
+      case p: Not           => p.asJson
+      case p: Eq            => p.asJson
+      case p: JRegex        => p.asJson
+      case p: JIncludes     => p.asJson
 
       case p: Gt  => p.asJson
       case p: Gte => p.asJson
@@ -141,6 +164,36 @@ object JPredicate {
     }
   }
 
+}
+
+object MatchAll extends JPredicate {
+  override def matches(json: Json): Boolean = true
+
+  override def json = Json.fromString("match-all")
+
+  override def and(other: JPredicate, theRest: JPredicate*): JPredicate = {
+    theRest match {
+      case Seq()        => other
+      case head +: tail => other.and(head, tail: _*)
+    }
+  }
+
+  override def or(other: JPredicate, theRest: JPredicate*): JPredicate = this
+}
+
+object MatchNone extends JPredicate {
+  override def matches(json: Json): Boolean = false
+
+  override def json = Json.fromString("match-none")
+
+  override def and(other: JPredicate, theRest: JPredicate*): JPredicate = this
+
+  override def or(other: JPredicate, theRest: JPredicate*): JPredicate = {
+    theRest match {
+      case Seq()        => other
+      case head +: tail => other.or(head, tail: _*)
+    }
+  }
 }
 
 case class Or(or: List[JPredicate]) extends JPredicate {
@@ -231,7 +284,6 @@ case class JIncludes(elements: Set[Json]) extends JPredicate {
   * e.g. specify "greater than or equal to" for each numeric type (BigDecimal and Long), but rather just use long and
   * then fall-back on big decimal if that's what we need.
   *
-  *
   * @param value
   * @param bdCompare
   * @param longCompare
@@ -291,4 +343,16 @@ case class Lt(lt: Json) extends ComparablePredicate(lt, _ < _, _ < _) {
 
 case class Lte(lte: Json) extends ComparablePredicate(lte, _ <= _, _ <= _) {
   override def json: Json = this.asJson
+}
+
+case class ExistsMatcher(exists: JPath) extends JPredicate {
+  override def matches(json: Json): Boolean = {
+    exists(json).isDefined
+  }
+
+  override def toString = s"Exists($exists)"
+
+  override def json = {
+    Json.obj("exists" -> exists.json)
+  }
 }

@@ -28,8 +28,8 @@ class WorkSubscriptionTest extends BaseSpec {
 
     val jobPath = (("value" gt 7) and ("value" lt 17)) or ("value" === 123)
     val sub = WorkSubscription(HostLocation.localhost(1234),
-                               jobMatcher = jobPath,
-                               submissionMatcher = ("topic" === "foo").asMatcher)
+                               jobCriteria = jobPath,
+                               submissionCriteria = ("topic" === "foo").asMatcher)
 
     "match jobs with work subscriptions" in {
       val details = SubmissionDetails().add("topic" -> "foo")

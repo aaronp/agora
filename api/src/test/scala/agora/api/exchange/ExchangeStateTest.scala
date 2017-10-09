@@ -3,7 +3,7 @@ package agora.api.exchange
 import agora.BaseSpec
 import agora.api.Implicits._
 import agora.api.exchange.instances.ExchangeState
-import agora.api.json.JMatcher
+import agora.api.json.JPredicate
 import agora.api.worker.{HostLocation, SubscriptionKey, WorkerDetails}
 
 import scala.util.Success
@@ -16,8 +16,8 @@ class ExchangeStateTest extends BaseSpec {
 
       val original =
         WorkSubscription.forDetails(WorkerDetails(HostLocation.localhost(1234)).append("someArray", List(1, 2)),
-                                    JMatcher.matchNone,
-                                    JMatcher.matchNone)
+                                    JPredicate.matchNone,
+                                    JPredicate.matchNone)
       val initialState =
         new ExchangeState(subscriptionsById = Map("a" -> (original, Requested(11)), "b" -> (original, Requested(12))))
 
@@ -33,8 +33,8 @@ class ExchangeStateTest extends BaseSpec {
       newState.subscriptionsById("b") shouldBe initialState.subscriptionsById("b")
       val (updated, FixedRequested(11)) = newState.subscriptionsById("a")
 
-      updated.jobMatcher shouldBe JMatcher.matchNone
-      updated.submissionMatcher shouldBe JMatcher.matchNone
+      updated.jobCriteria shouldBe JPredicate.matchNone
+      updated.submissionCriteria shouldBe JPredicate.matchNone
       newState.subscriptionsById.keySet shouldBe Set("a", "b")
       val updatedJson = updated.details.aboutMe
       val ints        = updatedJson.hcursor.downField("someArray").as[List[Int]].right.get

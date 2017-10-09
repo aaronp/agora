@@ -53,7 +53,7 @@ case class JPath(parts: List[JPart]) {
     */
   def removeFrom(json: Json): Option[Json] = select(parts, json.hcursor).delete.top
 
-  def asMatcher = JMatcher(this)
+  def asMatcher = JPredicate(this)
 }
 
 object JPath {

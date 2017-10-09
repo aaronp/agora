@@ -15,7 +15,7 @@ case class JsonDelta(remove: List[JPath] = Nil, append: Json = Json.Null) {
   /**
     * Apply this to the input json
     *
-    * @param original the imput json
+    * @param original the input json
     * @return a Some of the updated json, None if this had no effect
     */
   def update(original: Json) = {

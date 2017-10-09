@@ -5,7 +5,7 @@ import _root_.io.circe._
 import agora.api.`match`.MatchDetails
 import agora.api.exchange.dsl.JobSyntax
 import agora.api.exchange.instances.{ExchangeInstance, ExchangeState}
-import agora.api.json.{JMatcher, JPath, MatchAll}
+import agora.api.json.{JPredicate, JPath, MatchAll}
 import agora.api.worker.{SubscriptionKey, WorkerDetails, WorkerRedirectCoords}
 
 import scala.concurrent.{ExecutionContext, Future}

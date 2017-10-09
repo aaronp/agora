@@ -1,6 +1,6 @@
 package agora.api.exchange
 
-import agora.api.json.JMatcher
+import agora.api.json.JPredicate
 import com.typesafe.scalalogging.StrictLogging
 import io.circe.Json
 
@@ -23,9 +23,9 @@ object JobPredicate extends StrictLogging {
   object JsonJobPredicate extends JobPredicate with StrictLogging {
 
     override def matches(job: SubmitJob, subscription: WorkSubscription): Boolean = {
-      val offerMatcher: JMatcher      = job.submissionDetails.workMatcher
-      val submissionMatcher: JMatcher = subscription.submissionMatcher
-      val jobMatcher                  = subscription.jobMatcher
+      val offerMatcher: JPredicate       = job.submissionDetails.workMatcher
+      val submissionCriteria: JPredicate = subscription.submissionCriteria
+      val jobCriteria                    = subscription.jobCriteria
 
       logger.debug(s"""
            | == JOB MATCHES WORKER (${offerMatcher.matches(subscription.details.aboutMe)}) ==
@@ -33,13 +33,13 @@ object JobPredicate extends StrictLogging {
            | with
            | ${subscription.details.aboutMe.spaces4}
            |
-           | == SUBSCRIPTION MATCHES JOB (${jobMatcher.matches(job.job)}) ==
-           | $jobMatcher
+           | == SUBSCRIPTION MATCHES JOB (${jobCriteria.matches(job.job)}) ==
+           | $jobCriteria
            | with
            | ${job.job.spaces4}
            |
-           | == SUBSCRIPTION MATCHES JOB DETAILS (${submissionMatcher.matches(job.submissionDetails.aboutMe)}) ==
-           | $submissionMatcher
+           | == SUBSCRIPTION MATCHES JOB DETAILS (${submissionCriteria.matches(job.submissionDetails.aboutMe)}) ==
+           | $submissionCriteria
            | with
            | ${job.submissionDetails.aboutMe.spaces4}
            |
@@ -50,11 +50,11 @@ object JobPredicate extends StrictLogging {
       workSubscriptionMatchesJobDetails(subscription, job.submissionDetails)
     }
     def workSubscriptionMatchesJobDetails(subscription: WorkSubscription, submissionDetails: SubmissionDetails) = {
-      subscription.submissionMatcher.matches(submissionDetails.aboutMe)
+      subscription.submissionCriteria.matches(submissionDetails.aboutMe)
     }
 
     def workSubscriptionMatchesJob(subscription: WorkSubscription, job: Json) = {
-      subscription.jobMatcher.matches(job)
+      subscription.jobCriteria.matches(job)
     }
 
     def jobSubmissionDetailsMatchesWorkSubscription(submissionDetails: SubmissionDetails,

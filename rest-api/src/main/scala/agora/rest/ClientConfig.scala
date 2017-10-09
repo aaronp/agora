@@ -3,7 +3,7 @@ package agora.rest
 import java.util.concurrent.atomic.AtomicInteger
 
 import agora.api.exchange.{SelectionMode, SubmissionDetails}
-import agora.api.json.JMatcher
+import agora.api.json.JPredicate
 import agora.api.worker.HostLocation
 import agora.rest.client._
 import agora.rest.worker.SubscriptionConfig
@@ -152,7 +152,7 @@ object ClientConfig {
 
     val details    = asJson(config.getConfig("details"))
     val awaitMatch = config.getBoolean("awaitMatch")
-    val matcher    = as[JMatcher]("matcher")
+    val matcher    = as[JPredicate]("matcher")
     val mode       = as[SelectionMode]("selectionMode")
     val orElse = config.getConfigList("orElse").asScala.toList.map { c =>
       val json = try {
@@ -161,7 +161,7 @@ object ClientConfig {
         case _: ConfigException.WrongType =>
           Json.fromString(c.getString("match"))
       }
-      cast[JMatcher](json, "orElse")
+      cast[JPredicate](json, "orElse")
     }
     SubmissionDetails(Properties.userName, mode, awaitMatch, matcher, orElse).append(details)
   }
