@@ -1,25 +1,12 @@
-
-enablePlugins(CucumberPlugin)
-enablePlugins(DockerPlugin)
-enablePlugins(DockerComposePlugin)
-
 name := "agora-exec"
 
+enablePlugins(DockerPlugin)
+
 mainClass in(Compile, run) := Some("agora.exec.ExecMain")
-
-CucumberPlugin.glue := "classpath:agora.exec.test"
-
-CucumberPlugin.features := List("classpath:agora.exec.test",
-  "exec/src/test/resources/agora/exec/test")
-
-coverageMinimum := 80
-
-coverageFailOnMinimum := false
 
 (testOptions in Test) += (Tests.Argument(TestFrameworks.ScalaTest, "-h", "target/scalatest-reports"))
 
 test in(assembly) := {}
-
 
 imageNames in docker := Seq(
   ImageName(s"porpoiseltd/${name.value}:latest")
@@ -47,19 +34,19 @@ dockerfile in docker := {
   new Dockerfile {
     from("java")
     expose(7770)
-    run("mkdir", "-p", "/data")
-    run("mkdir", "-p", "/logs")
-    env("DATA_DIR", "/data/")
-    volume("/data")
-    volume("/config")
-    volume("/logs")
+    run("mkdir", "-p", "/app/data")
+    run("mkdir", "-p", "/app/logs")
+    env("DATA_DIR", "/app/data/")
+    volume("/app/data")
+    volume("/app/config")
+    volume("/app/logs")
     maintainer("Aaron Pritzlaff")
-    add(logbackFile, "/config/logback.xml")
-    add(artifact, "/app/agora-exec.jar")
-    add(entrypointPath, "/app/exec.sh")
-    run("chmod", "777", "/app/exec.sh")
+    add(logbackFile, "/app/config/logback.xml")
+    add(artifact, "/app/bin/agora-exec.jar")
+    add(entrypointPath, "/app/bin/exec.sh")
+    run("chmod", "777", "/app/bin/exec.sh")
     workDir("/app")
     //entryPoint("java", "-cp", "/config", "-jar", artifactTargetPath)
-    entryPoint("/app/exec.sh")
+    entryPoint("/app/bin/exec.sh")
   }
 }

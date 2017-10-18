@@ -5,8 +5,11 @@
             <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
+    <!--
+    Leaving this is for reference, but not adding it as a default logger as docker should take care of that
+      -->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>/logs/exec.log</file>
+        <file>/app/logs/exec.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
             <!-- daily rollover -->
             <fileNamePattern>/logs/exec.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
