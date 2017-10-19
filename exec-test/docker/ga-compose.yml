@@ -1,42 +1,44 @@
-version: '3.2'
+version: '3'
 # see https://www.digitalocean.com/community/tutorials/how-to-share-data-between-docker-containers
 # https://docs.docker.com/compose/reference/
 services:
   worker1:
     image: "porpoiseltd/agora-exec"
     # we can specify configuration on the entrypoint's command line
-    entrypoint: "/app/bin/exec.sh initialRequest=2 runnerEnvFromHost=GA_HOME"
+    entrypoint: "/app/exec.sh initialRequest=2 runnerEnvFromHost=GA_HOME"
     ports:
       - "80:7770"
     environment:
       - EXCHANGE_HOST=worker1
-      # the resolved host-port is very important... it's the hostname sent to requesting
-      # clients. If we want to make requests within the container, the hostname should be e.g. 'worker1'.
-      # If requests are made outside the container (e.g. localhost), then that's what should be registered
       - RESOLVED_HOST_PORT=localhost:80
       - INITIAL_REQUEST=1
-      - WORKSPACES_DIR=/workspaces
+      - GA_HOME=/ga-app
     volumes:
+      - data-volume:/shared/workspaces/one
       - ga-home:/ga-app
   worker2:
     image: "porpoiseltd/agora-exec"
     depends_on:
       - worker1
-    entrypoint: "/app/bin/exec.sh initialRequest=4 runnerEnvFromHost=GA_HOME"
+    entrypoint: "/app/exec.sh initialRequest=4 runnerEnvFromHost=GA_HOME"
     ports:
       - "8081:7770"
     environment:
-      # we are a client of the exchange, so we override that here
       - EXCHANGE_HOST=worker1
-      - WORKSPACES_DIR=/workspaces
+      - GA_HOME=/ga-app
+      - CLIENT_HOST=worker1
+      - WORKSPACES_DIR=/shared/workspaces
       - INCLUDE_EXCHANGE=false
       - RESOLVED_HOST_PORT=localhost:8081
       - INITIAL_REQUEST=1
     volumes:
+      - data-volume:/shared/workspaces/two
       - ga-home:/ga-app
   ga:
     image: "porpoiseltd/ga"
     volumes:
+      - data-volume:/moreexamples
       - ga-home:/ga-app
 volumes:
+  data-volume:
   ga-home:
