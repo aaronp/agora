@@ -289,13 +289,13 @@ class ExchangeStateTest extends BaseSpec {
     val neverMatchSubscription = newSubscription("i won't match any jobs")
 
     object MatchAll extends JobPredicate {
-      override def matches(offer: SubmitJob, work: WorkSubscription): Boolean = {
+      override def matches(offer: SubmitJob, work: WorkSubscription, requested: Int): Boolean = {
         offer != neverMatchJob && work != neverMatchSubscription
       }
     }
 
     implicit object TestMatcher extends JobPredicate {
-      override def matches(offer: SubmitJob, work: WorkSubscription): Boolean = {
+      override def matches(offer: SubmitJob, work: WorkSubscription, requested: Int): Boolean = {
         if (offer.eq(j1)) work.eq(s1)
         else if (offer.eq(j2)) work.eq(s2)
         else false

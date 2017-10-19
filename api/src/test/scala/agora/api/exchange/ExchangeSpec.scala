@@ -103,10 +103,10 @@ trait ExchangeSpec extends BaseSpec with Eventually with Implicits {
 
       // verify some preconditions
       withClue("precondition proof that the subscriptions match the jobs as expected") {
-        job.matches(primary) shouldBe true
-        job.matches(tertiary) shouldBe false
-        job.orElseSubmission.get.matches(tertiary) shouldBe false
-        job.orElseSubmission.get.orElseSubmission.get.matches(tertiary) shouldBe true
+        job.matches(primary, 1) shouldBe true
+        job.matches(tertiary, 1) shouldBe false
+        job.orElseSubmission.get.matches(tertiary, 1) shouldBe false
+        job.orElseSubmission.get.orElseSubmission.get.matches(tertiary, 1) shouldBe true
       }
 
       // create our exchange

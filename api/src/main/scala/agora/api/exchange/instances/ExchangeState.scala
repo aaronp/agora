@@ -17,7 +17,7 @@ import scala.util.{Failure, Success, Try}
 case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscription, Requested)] =
                            Map[SubscriptionKey, (WorkSubscription, Requested)](),
                          jobsById: Map[JobId, SubmitJob] = Map[JobId, SubmitJob]())
-    extends StrictLogging {
+    extends StrictLogging { self =>
 
   /** @param key the subscription key
     * @return the number of work items pending for the given subscription, or 0 if the subscription is unknown
@@ -125,13 +125,37 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
     }
   }
 
+  /**
+    * Our subscriptionsById map keeps a
+    *
+    * Map[SubscriptionKey, (WorkSubscription, Requested)]
+    *
+    * the 'Requsted' is a means to track how many work items a given subscription is requesting. It's not a simple
+    * Integer value, as we support the concept of subscription references (e.g. several subscriptions which can
+    * take from the same subscriptionId). This extractor serves as a means of resolving a 'Reequsted' to an
+    * integer value so that it can be used in a collect w/o having to re-resolve the 'Requested' to an integer
+    * multiple times for the same state.
+    */
+  private object ResolvedRequestedExtractor {
+    def unapply(subscriptionPair: (WorkSubscription, Requested)): Option[(WorkSubscription, Requested, Int)] = {
+      val (subscription, requested) = subscriptionPair
+      val remaining                 = requested.remaining(self)
+      if (remaining > 0) {
+        Some(subscription, requested, remaining)
+      } else {
+        None
+      }
+    }
+  }
+
   /** @param jobId the job id belonging to the job to match
     * @param job   the job to match
     * @return a collection of subscription keys, subscriptions and the remaining items which would match the given job
     */
   private def workCandidatesForJob(jobId: JobId, job: SubmitJob)(implicit matcher: JobPredicate): CandidateSelection = {
     subscriptionsById.collect {
-      case (id, (subscription, requested)) if requested.remaining(this) > 0 && job.matches(subscription) =>
+      case (id, ResolvedRequestedExtractor(subscription, requested, resolvedRequested))
+          if job.matches(subscription, resolvedRequested) =>
         val newState  = updatePending(id, -1)
         val remaining = newState.pending(id)
 

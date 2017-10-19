@@ -12,7 +12,14 @@ import io.circe.Json
   * to pair up jobs with work subscriptions
   */
 trait JobPredicate {
-  def matches(offer: SubmitJob, work: WorkSubscription): Boolean
+
+  /**
+    * @param offer the submitted job
+    * @param work the work subscription candidate
+    * @param requested the number of work items requested for the subscription.
+    * @return true if the job should match the subscription and (ideally) that the requested is greater than zero
+    */
+  def matches(offer: SubmitJob, work: WorkSubscription, requested: Int): Boolean
 }
 
 object JobPredicate extends StrictLogging {
@@ -22,13 +29,15 @@ object JobPredicate extends StrictLogging {
     */
   object JsonJobPredicate extends JobPredicate with StrictLogging {
 
-    override def matches(job: SubmitJob, subscription: WorkSubscription): Boolean = {
+    override def matches(job: SubmitJob, subscription: WorkSubscription, requested: Int): Boolean = {
       val offerMatcher: JPredicate       = job.submissionDetails.workMatcher
       val submissionCriteria: JPredicate = subscription.submissionCriteria
       val jobCriteria                    = subscription.jobCriteria
 
+      val subscriptionDetails = subscription.matchJson(requested)
+
       logger.debug(s"""
-           | == JOB MATCHES WORKER (${offerMatcher.matches(subscription.details.aboutMe)}) ==
+           | == JOB MATCHES WORKER (${offerMatcher.matches(subscriptionDetails)}) ==
            | $offerMatcher
            | with
            | ${subscription.details.aboutMe.spaces4}
@@ -45,7 +54,7 @@ object JobPredicate extends StrictLogging {
            |
          """.stripMargin)
 
-      jobSubmissionDetailsMatchesWorkSubscription(job.submissionDetails, subscription) &&
+      jobSubmissionDetailsMatchesWorkSubscription(job.submissionDetails, subscriptionDetails) &&
       workSubscriptionMatchesJob(subscription, job.job) &&
       workSubscriptionMatchesJobDetails(subscription, job.submissionDetails)
     }
@@ -57,9 +66,8 @@ object JobPredicate extends StrictLogging {
       subscription.jobCriteria.matches(job)
     }
 
-    def jobSubmissionDetailsMatchesWorkSubscription(submissionDetails: SubmissionDetails,
-                                                    subscription: WorkSubscription) = {
-      submissionDetails.workMatcher.matches(subscription.details.aboutMe)
+    def jobSubmissionDetailsMatchesWorkSubscription(submissionDetails: SubmissionDetails, subscriptionDetails: Json) = {
+      submissionDetails.workMatcher.matches(subscriptionDetails)
     }
 
   }

@@ -89,7 +89,8 @@ case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends Cl
     * @param matcher the logic which will compare the job w/ the subscription
     * @return true if this job can match the given subscription
     */
-  def matches(work: WorkSubscription)(implicit matcher: JobPredicate) = matcher.matches(this, work)
+  def matches(work: WorkSubscription, requested: Int)(implicit matcher: JobPredicate) =
+    matcher.matches(this, work, requested)
 
   /** @param mode the new [[SelectionMode]]
     * @return an updated job which uses the given selection mode
@@ -264,9 +265,13 @@ case class WorkSubscription(details: WorkerDetails,
                             submissionCriteria: JPredicate,
                             subscriptionReferences: Set[SubscriptionKey])
     extends SubscriptionRequest {
-  def matches(job: SubmitJob)(implicit m: JobPredicate): Boolean = m.matches(job, this)
+  def matches(job: SubmitJob, requested: Int)(implicit m: JobPredicate): Boolean = m.matches(job, this, requested)
 
   def key = details.subscriptionKey
+
+  def matchJson(requested: Int) = {
+    details.append("requested", requested).aboutMe
+  }
 
   /**
     * @param matcher the new work subscription matcher

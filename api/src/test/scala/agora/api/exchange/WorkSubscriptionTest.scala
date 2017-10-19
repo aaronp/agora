@@ -33,13 +33,14 @@ class WorkSubscriptionTest extends BaseSpec {
 
     "match jobs with work subscriptions" in {
       val details = SubmissionDetails().add("topic" -> "foo")
-      sub.matches(Map("value" -> 8).asJob(details)) shouldBe true
-      sub.matches(Map("value" -> 1).asJob(details)) shouldBe false
-      sub.matches(Map("value" -> 8).asJob) shouldBe false
-      sub.matches(Map("value" -> 8).asJob(SubmissionDetails().add("topic" -> "bar"))) shouldBe false
-      sub.matches(Map("value" -> 17).asJob(details)) shouldBe false
-      sub.matches(Map("value" -> 123).asJob(details)) shouldBe true
-      sub.matches(Map("value" -> 121).asJob(details)) shouldBe false
+      sub.matches(Map("value" -> 8).asJob(details), 1) shouldBe true
+      sub.matches(Map("value" -> 8).asJob(details), 0) shouldBe true
+      sub.matches(Map("value" -> 1).asJob(details), 1) shouldBe false
+      sub.matches(Map("value" -> 8).asJob, 1) shouldBe false
+      sub.matches(Map("value" -> 8).asJob(SubmissionDetails().add("topic" -> "bar")), 1) shouldBe false
+      sub.matches(Map("value" -> 17).asJob(details), 1) shouldBe false
+      sub.matches(Map("value" -> 123).asJob(details), 1) shouldBe true
+      sub.matches(Map("value" -> 121).asJob(details), 1) shouldBe false
     }
   }
 }

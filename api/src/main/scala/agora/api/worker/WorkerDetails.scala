@@ -154,16 +154,23 @@ object WorkerDetails {
   import io.circe.generic.auto._
   import io.circe.syntax._
 
-  val locationPath = root.location
-  val hostPath =
-    locationPath.host.string
-  val portPath = locationPath.port.int
-  val portStringPath =
-    locationPath.port.string
-  val pathPath    = root.path.string
-  val namePath    = root.name.string
-  val keyPath     = root.id.string
-  val runUserPath = root.runUser.string
+  val locationPath   = root.location
+  val hostPath       = locationPath.host.string
+  val portPath       = locationPath.port.int
+  val portStringPath = locationPath.port.string
+  val pathPath       = root.path.string
+  val namePath       = root.name.string
+  val keyPath        = root.id.string
+  val runUserPath    = root.runUser.string
+
+  implicit object Format extends Decoder[WorkerDetails] with Encoder[WorkerDetails] {
+    override def apply(c: HCursor): Result[WorkerDetails] = {
+      val detailsOpt = c.focus.map(WorkerDetails.apply)
+      detailsOpt.toRight(DecodingFailure("Couldn't decode json", c.history))
+    }
+
+    override def apply(a: WorkerDetails): Json = a.aboutMe
+  }
 
   /**
     * TODO - move the typesafe config as part of the jvn dependency so that we can pull the worker config

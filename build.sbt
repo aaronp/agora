@@ -190,12 +190,6 @@ lazy val restApi = project
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.RestApi)
 
-lazy val example = project
-  .in(file("rest-example"))
-  .settings(name := s"${repo}-rest-example")
-  .dependsOn(rest % "compile->compile;test->test")
-  .settings(commonSettings)
-
 lazy val exec = project
   .settings(name := s"${repo}-exec")
   .dependsOn(rest % "compile->compile;test->test", execApi % "test->test;compile->compile")
