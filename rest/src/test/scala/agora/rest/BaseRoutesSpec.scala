@@ -12,7 +12,7 @@ import scala.concurrent.Future
 
 abstract class BaseRoutesSpec extends BaseSpec with ScalatestRouteTest with FailFastCirceSupport {
 
-  private def testMaterializer = materializer
+  def testMaterializer = materializer
   case class DirectRestClient(r: Route) extends RestClient {
     override def send(request: HttpRequest): Future[HttpResponse] = runRoute(r, request)
     override implicit val materializer: Materializer              = testMaterializer

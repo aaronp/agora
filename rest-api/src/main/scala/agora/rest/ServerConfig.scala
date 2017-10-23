@@ -91,8 +91,6 @@ class ServerConfig(val config: Config) extends RichConfigOps with AutoCloseable 
     RunningService.start(this, routes, svc)
   }
 
-  override def toString = config.describe
-
   protected def newConfig(overrides: Map[String, String]) = {
     import scala.collection.JavaConverters._
     ConfigFactory.parseMap(overrides.asJava)
@@ -101,4 +99,6 @@ class ServerConfig(val config: Config) extends RichConfigOps with AutoCloseable 
   def withFallback(fallback: Config): ServerConfig = new ServerConfig(config.withFallback(fallback))
 
   def withOverrides(overrides: Config): ServerConfig = new ServerConfig(overrides).withFallback(config)
+
+  override def toString = config.describe
 }

@@ -22,7 +22,7 @@ object Dependencies {
 
   val akkaHttp = List("", "-core").map { suffix =>
     "com.typesafe.akka" %% s"akka-http$suffix" % "10.0.10"
-  } :+ akkaCirce :+ ("com.typesafe.akka" %% s"akka-http-testkit" % "10.0.10" % "test")
+  } :+ akkaCirce :+ ("com.typesafe.akka" %% "akka-http-testkit" % "10.0.10" % "test")
 
   val pprint     = "com.lihaoyi"                  %% "pprint"              % "0.5.2"
   val streamsTck = "org.reactivestreams"          % "reactive-streams-tck" % "1.0.0" % "test"
