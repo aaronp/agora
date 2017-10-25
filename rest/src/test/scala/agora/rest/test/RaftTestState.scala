@@ -56,9 +56,7 @@ case class SentResponse(sent: SentRequest, resp: RaftResponse) {
   }
 }
 
-case class RaftTestState(nodes: List[TestNodeLogic],
-                         transportById: Map[NodeId, BufferedTransport],
-                         clientResponses: List[UpdateResponse] = Nil)
+case class RaftTestState(nodes: List[TestNodeLogic], transportById: Map[NodeId, BufferedTransport], clientResponses: List[UpdateResponse] = Nil)
     extends Matchers
     with AppendedClues
     with ScalaFutures {
@@ -237,8 +235,7 @@ case class RaftTestState(nodes: List[TestNodeLogic],
     val server                    = serverForId(nodeId)
     val actual: RaftState[String] = server.logic.raftState
 
-    withClue(
-      s"\n===== EXPECTED ======\n\n${expected}\n\n===== ACTUAL ====\n${actual}\n\n=================\n${toString}\n\n") {
+    withClue(s"\n===== EXPECTED ======\n\n${expected}\n\n===== ACTUAL ====\n${actual}\n\n=================\n${toString}\n\n") {
       actual shouldBe expected
     }
   }

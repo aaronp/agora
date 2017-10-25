@@ -54,15 +54,13 @@ case class SubscriptionConfig(subscriptionConfig: Config) {
       case HostLocation(loc) if loc.host.nonEmpty => loc
       case _                                      => defaultLocation
     }
-    WorkerDetails(resolvedLocation, path, name, id, runUser).append(
-      asJson(detailsConf.withoutPath("resolvedHostPort")))
+    WorkerDetails(resolvedLocation, path, name, id, runUser).append(asJson(detailsConf.withoutPath("resolvedHostPort")))
   }
 
   def asMatcher(at: String): Either[circe.Error, JPredicate] = {
-    val fromConfig: Option[Either[circe.Error, JPredicate]] = Try(subscriptionConfig.getConfig(at)).toOption.map {
-      subConf =>
-        val json = asJson(subConf)
-        json.as[JPredicate]
+    val fromConfig: Option[Either[circe.Error, JPredicate]] = Try(subscriptionConfig.getConfig(at)).toOption.map { subConf =>
+      val json = asJson(subConf)
+      json.as[JPredicate]
     }
 
     val fromString = asJson(subscriptionConfig).hcursor.downField(at).as[JPredicate]

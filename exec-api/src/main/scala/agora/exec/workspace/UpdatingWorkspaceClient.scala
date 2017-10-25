@@ -23,8 +23,7 @@ import scala.concurrent.{ExecutionContext, Future}
   * @param underlying an underlying workspace client to actually do the work we're proxying
   * @param exchange   the exchange where the subscriptions should be updated
   */
-case class UpdatingWorkspaceClient(override val underlying: WorkspaceClient, exchange: Exchange)(
-    implicit ec: ExecutionContext)
+case class UpdatingWorkspaceClient(override val underlying: WorkspaceClient, exchange: Exchange)(implicit ec: ExecutionContext)
     extends WorkspaceClientDelegate {
 
   import UpdatingWorkspaceClient._
@@ -43,9 +42,7 @@ case class UpdatingWorkspaceClient(override val underlying: WorkspaceClient, exc
 
   def subscriptions = allSubscriptions
 
-  override def close(workspaceId: WorkspaceId,
-                     ifNotModifiedSince: Option[Timestamp],
-                     failPendingDependencies: Boolean) = {
+  override def close(workspaceId: WorkspaceId, ifNotModifiedSince: Option[Timestamp], failPendingDependencies: Boolean) = {
 
     super.close(workspaceId, ifNotModifiedSince, failPendingDependencies).fast.flatMap { ack =>
       val futures = subscriptions.map { uploadSubscription =>
@@ -89,9 +86,7 @@ object UpdatingWorkspaceClient {
   /**
     * removes the 'workspaces : [ ... , <workspaceId> ] ' from the subscription
     */
-  def removeWorkspaceFromSubscription(exchange: Exchange,
-                                      subscriptionKey: SubscriptionKey,
-                                      workspaceId: WorkspaceId): Future[UpdateSubscriptionAck] = {
+  def removeWorkspaceFromSubscription(exchange: Exchange, subscriptionKey: SubscriptionKey, workspaceId: WorkspaceId): Future[UpdateSubscriptionAck] = {
     val update = UpdateSubscription(subscriptionKey,
                                     condition = WorkspacesKey includes workspaceId,
                                     delta = JsonDelta.remove(JPath(WorkspacesKey) :+ workspaceId.inArray))

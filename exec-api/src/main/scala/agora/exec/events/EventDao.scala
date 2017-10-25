@@ -72,8 +72,7 @@ case class EventDao(rootDir: Path) extends SystemEventMonitor with AgoraJsonImpl
       * Utility for adding detail/filtering on the results
       * @return
       */
-    def prepareResponse[T: HasId](original: List[T], verbose: Boolean, filter: JobFilter)(
-        update: (T, Option[ReceivedJob]) => T): List[T] = {
+    def prepareResponse[T: HasId](original: List[T], verbose: Boolean, filter: JobFilter)(update: (T, Option[ReceivedJob]) => T): List[T] = {
       if (verbose || filter.nonEmpty) {
 
         if (filter.nonEmpty) {

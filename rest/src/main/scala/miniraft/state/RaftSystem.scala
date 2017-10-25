@@ -114,8 +114,7 @@ object RaftSystem extends StrictLogging {
     * @tparam T
     * @return the raft node for this system and a cluster protocol (the transport to use to access the rest of the cluster)
     */
-  def apply[T: Encoder: Decoder: ClassTag](config: RaftConfig)(
-      applyToStateMachine: LogEntry[T] => Unit): RaftSystem[T] = {
+  def apply[T: Encoder: Decoder: ClassTag](config: RaftConfig)(applyToStateMachine: LogEntry[T] => Unit): RaftSystem[T] = {
     apply[T](config, config.clusterNodes)(applyToStateMachine)
   }
 

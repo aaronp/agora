@@ -35,9 +35,7 @@ trait JobSyntax extends StrictLogging {
     * @tparam Out the result type of the [[AsClient]]
     * @return the result from the single asClient worker
     */
-  def enqueue[T, Out](request: T)(implicit submitable: Submitable[T],
-                                  asClient: AsClient[T, Out],
-                                  ec: ExecutionContext): Future[Out] = {
+  def enqueue[T, Out](request: T)(implicit submitable: Submitable[T], asClient: AsClient[T, Out], ec: ExecutionContext): Future[Out] = {
     val job: SubmitJob = submitable.asSubmitJob(request)
     enqueueSingleJob(request, job)
   }
@@ -57,8 +55,7 @@ trait JobSyntax extends StrictLogging {
   /**
     * Syntax for submitting a job which will either return the first completed or
     */
-  def enqueueSingleJob[T, Out](request: T, job: SubmitJob)(implicit asClient: AsClient[T, Out],
-                                                           ec: ExecutionContext): Future[Out] = {
+  def enqueueSingleJob[T, Out](request: T, job: SubmitJob)(implicit asClient: AsClient[T, Out], ec: ExecutionContext): Future[Out] = {
 
     val started                   = Platform.currentTime
     @volatile var firstResultTook = -1L
@@ -76,8 +73,7 @@ trait JobSyntax extends StrictLogging {
                 firstResultTook = took
                 logger.info(s"First result completed after ${took}ms for $request")
               } else {
-                logger.info(
-                  s"A result was already returned after ${firstResultTook} ms, ignoring this result after ${took}ms for $request")
+                logger.info(s"A result was already returned after ${firstResultTook} ms, ignoring this result after ${took}ms for $request")
               }
             }
           }
@@ -105,8 +101,7 @@ trait JobSyntax extends StrictLogging {
     * @tparam Out the response of the [[AsClient]] function used to send work to the worker (which may or may not have been the same request)
     * @return both the original work submission response and the response from the worker
     */
-  def enqueueAll[T, Out](
-      request: T)(implicit submitable: Submitable[T], asClient: AsClient[T, Out], ec: ExecutionContext) = {
+  def enqueueAll[T, Out](request: T)(implicit submitable: Submitable[T], asClient: AsClient[T, Out], ec: ExecutionContext) = {
     val job = Submitable.instance[T].asSubmitJob(request)
     enqueueJob(request, job)
   }
@@ -116,8 +111,7 @@ trait JobSyntax extends StrictLogging {
     *
     * @return an eventual collection of all the response futures
     */
-  def enqueueJob[T, Out](value: T, job: SubmitJob)(implicit asClient: AsClient[T, Out],
-                                                   ec: ExecutionContext): Future[List[Future[Out]]] = {
+  def enqueueJob[T, Out](value: T, job: SubmitJob)(implicit asClient: AsClient[T, Out], ec: ExecutionContext): Future[List[Future[Out]]] = {
     if (job.submissionDetails.awaitMatch) {
       val blockRespFuture: Future[BlockingSubmitJobResponse] = exchange.submit(job).mapTo[BlockingSubmitJobResponse]
       blockRespFuture.map { blockingResp =>
@@ -128,10 +122,9 @@ trait JobSyntax extends StrictLogging {
     }
   }
 
-  private def onSubmitResponse[T, Out](value: T, job: SubmitJob, resp: BlockingSubmitJobResponse)(
-      implicit
-      asClient: AsClient[T, Out],
-      ec: ExecutionContext): List[Future[Out]] = {
+  private def onSubmitResponse[T, Out](value: T, job: SubmitJob, resp: BlockingSubmitJobResponse)(implicit
+                                                                                                  asClient: AsClient[T, Out],
+                                                                                                  ec: ExecutionContext): List[Future[Out]] = {
     val pears: List[(WorkerRedirectCoords, WorkerDetails)] = resp.workerCoords.zip(resp.workers)
     pears.map {
       case (WorkerRedirectCoords(_, key, remaining), details) =>

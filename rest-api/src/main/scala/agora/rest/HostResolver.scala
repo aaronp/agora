@@ -39,9 +39,7 @@ object HostResolver {
     *
     * @return the resolve host name
     */
-  class DefaultResolver(val configValue: String, val configLocation: HostLocation)
-      extends HostResolver
-      with StrictLogging {
+  class DefaultResolver(val configValue: String, val configLocation: HostLocation) extends HostResolver with StrictLogging {
     override def resolveHostname(socketAddress: InetSocketAddress) = {
       lazy val address = socketAddress.getAddress
       val hostName = configValue match {
@@ -61,8 +59,7 @@ object HostResolver {
 
       val location = HostLocation(hostName, configLocation.port)
 
-      logger.debug(s"Given config '${configValue}' and conf location ${configLocation}, resolved\n${HostResolver.debug(
-        socketAddress)}\n to ${hostName}\n")
+      logger.debug(s"Given config '${configValue}' and conf location ${configLocation}, resolved\n${HostResolver.debug(socketAddress)}\n to ${hostName}\n")
 
       location
     }

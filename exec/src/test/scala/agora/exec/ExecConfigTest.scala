@@ -66,8 +66,7 @@ class ExecConfigTest extends BaseSpec {
 
       ec.uploadTimeout shouldBe 10.seconds
 
-      ec.workspacesPathConfig.pathOpt.map(_.resolve("xyz").toAbsolutePath) shouldBe Option(
-        "target/data/workspaces/xyz".asPath.toAbsolutePath)
+      ec.workspacesPathConfig.pathOpt.map(_.resolve("xyz").toAbsolutePath) shouldBe Option("target/data/workspaces/xyz".asPath.toAbsolutePath)
     }
   }
 }

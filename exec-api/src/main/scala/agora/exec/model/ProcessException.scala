@@ -6,8 +6,7 @@ import agora.api.`match`.MatchDetails
 
 import scala.util.Try
 
-case class ProcessException(error: ProcessError)
-    extends Exception(s"${error.process} failed with ${error.exitCode}: ${error.stdErr.mkString("\n")}") {
+case class ProcessException(error: ProcessError) extends Exception(s"${error.process} failed with ${error.exitCode}: ${error.stdErr.mkString("\n")}") {
   def json: Json = {
     import io.circe.generic.auto._
     import io.circe.syntax._

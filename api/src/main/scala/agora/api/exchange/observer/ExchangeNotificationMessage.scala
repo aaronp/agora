@@ -6,32 +6,21 @@ import agora.api.json.JsonDelta
 import agora.api.time.Timestamp
 import agora.api.worker.{CandidateSelection, SubscriptionKey}
 import io.circe.{Decoder, Encoder, Json}
+import io.circe.generic.auto._
+import io.circe.java8.time._
 
 sealed trait ExchangeNotificationMessage {
   def time: Timestamp
 }
 
-case class OnSubscriptionRequestCountChanged(override val time: Timestamp, id: SubscriptionKey, before: Int, after: Int)
-    extends ExchangeNotificationMessage
-
-case class OnSubscriptionUpdated(override val time: Timestamp, delta: JsonDelta, subscription: Candidate)
-    extends ExchangeNotificationMessage
-
-case class OnJobSubmitted(override val time: Timestamp, job: SubmitJob) extends ExchangeNotificationMessage
-
-case class OnSubscriptionCreated(override val time: Timestamp, subscription: Candidate)
-    extends ExchangeNotificationMessage
-
-case class OnJobCancelled(override val time: Timestamp, jobId: JobId) extends ExchangeNotificationMessage
-
-case class OnSubscriptionCancelled(override val time: Timestamp, subscriptionKey: SubscriptionKey)
-    extends ExchangeNotificationMessage
-
-case class OnMatch(override val time: Timestamp, jobId: JobId, job: SubmitJob, chosen: CandidateSelection)
-    extends ExchangeNotificationMessage
-
-case class OnStateOfTheWorld(override val time: Timestamp, queueState: QueueStateResponse)
-    extends ExchangeNotificationMessage
+case class OnSubscriptionRequestCountChanged(override val time: Timestamp, id: SubscriptionKey, before: Int, after: Int) extends ExchangeNotificationMessage
+case class OnSubscriptionUpdated(override val time: Timestamp, delta: JsonDelta, subscription: Candidate)                extends ExchangeNotificationMessage
+case class OnJobSubmitted(override val time: Timestamp, job: SubmitJob)                                                  extends ExchangeNotificationMessage
+case class OnSubscriptionCreated(override val time: Timestamp, subscription: Candidate)                                  extends ExchangeNotificationMessage
+case class OnJobCancelled(override val time: Timestamp, jobId: JobId)                                                    extends ExchangeNotificationMessage
+case class OnSubscriptionCancelled(override val time: Timestamp, subscriptionKey: SubscriptionKey)                       extends ExchangeNotificationMessage
+case class OnMatch(override val time: Timestamp, jobId: JobId, job: SubmitJob, chosen: CandidateSelection)               extends ExchangeNotificationMessage
+case class OnStateOfTheWorld(override val time: Timestamp, queueState: QueueStateResponse)                               extends ExchangeNotificationMessage
 
 object ExchangeNotificationMessage {
 

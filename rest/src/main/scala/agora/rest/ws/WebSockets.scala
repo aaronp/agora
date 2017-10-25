@@ -37,8 +37,7 @@ object WebSockets {
     }
   }
 
-  def unapply[T: Encoder: Decoder](req: HttpRequest,
-                                   subscriber: Subscriber[WebSocketEnvelope[T]]): Option[UpgradeToWebSocket] = {
+  def unapply[T: Encoder: Decoder](req: HttpRequest, subscriber: Subscriber[WebSocketEnvelope[T]]): Option[UpgradeToWebSocket] = {
     req.header[UpgradeToWebSocket].map { upgrade =>
       //Source.fromPublisher()
 

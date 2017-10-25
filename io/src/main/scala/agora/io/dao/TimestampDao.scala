@@ -55,8 +55,7 @@ object TimestampDao {
     * @tparam T
     * @return
     */
-  def apply[T](
-      dir: Path)(implicit saveValue: Persist[T], fromBytes: FromBytes[T], idFor: HasId[T]): FileTimestampDao[T] = {
+  def apply[T](dir: Path)(implicit saveValue: Persist[T], fromBytes: FromBytes[T], idFor: HasId[T]): FileTimestampDao[T] = {
     new FileTimestampDao(dir)
   }
 

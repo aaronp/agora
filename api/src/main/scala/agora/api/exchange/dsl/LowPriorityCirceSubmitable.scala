@@ -9,8 +9,7 @@ trait LowPriorityCirceSubmitable {
     override def asSubmitJob(request: SubmitJob) = request
   }
 
-  implicit def asSubmitable[T](implicit encoder: Encoder[T],
-                               details: SubmissionDetails = SubmissionDetails()): Submitable[T] = {
+  implicit def asSubmitable[T](implicit encoder: Encoder[T], details: SubmissionDetails = SubmissionDetails()): Submitable[T] = {
     new Submitable[T] {
       override def asSubmitJob(request: T) = {
         val asJson = implicitly[Encoder[T]]

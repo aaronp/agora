@@ -134,9 +134,7 @@ case class WorkContext[T: FromRequestUnmarshaller](exchange: Exchange,
     * @param contentType
     * @return
     */
-  def completeWithSource(dataSource: Source[ByteString, Any],
-                         contentType: ContentType = `application/octet-stream`,
-                         numberToRequest: Int = 1) = {
+  def completeWithSource(dataSource: Source[ByteString, Any], contentType: ContentType = `application/octet-stream`, numberToRequest: Int = 1) = {
     val entity = HttpEntity(contentType, dataSource)
     val resp   = Marshal(entity).toResponseFor(requestContext.request)
     completeWith(resp, numberToRequest)
@@ -229,13 +227,11 @@ ___  ___      _ _   _                  _    ___  ___     _   _               _
 
   /** @return a value 'A' for each multipart info/source pair to which this partial function applies
     */
-  def foreachMultipart[A](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), A])(
-      implicit ev: T =:= Multipart.FormData): Future[immutable.Seq[A]] = {
+  def foreachMultipart[A](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), A])(implicit ev: T =:= Multipart.FormData): Future[immutable.Seq[A]] = {
     mapMultipart(f)
   }
 
-  def mapMultipart[A](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), A])(
-      implicit ev: T =:= Multipart.FormData): Future[immutable.Seq[A]] = {
+  def mapMultipart[A](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), A])(implicit ev: T =:= Multipart.FormData): Future[immutable.Seq[A]] = {
     val fd: Multipart.FormData = request
     fd.mapMultipart(f)
   }
@@ -249,8 +245,7 @@ ___  ___      _ _   _                  _    ___  ___     _   _               _
     }
   }
 
-  def mapFirstMultipart[A](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), A])(
-      implicit ev: T =:= Multipart.FormData): Future[A] = {
+  def mapFirstMultipart[A](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), A])(implicit ev: T =:= Multipart.FormData): Future[A] = {
     val fd: Multipart.FormData = request
     fd.mapFirstMultipart(f)
   }

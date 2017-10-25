@@ -15,10 +15,7 @@ import scala.concurrent.Future
 
 @Api(value = "Query", produces = "application/json")
 @javax.ws.rs.Path("/")
-case class QueryRoutes(monitor: SystemEventMonitor)
-    extends RouteSubscriptionSupport
-    with AgoraJsonImplicits
-    with FailFastCirceSupport {
+case class QueryRoutes(monitor: SystemEventMonitor) extends RouteSubscriptionSupport with AgoraJsonImplicits with FailFastCirceSupport {
 
   def routes(includeSupportRoutes: Boolean): Route = {
     if (includeSupportRoutes) {
@@ -41,11 +38,7 @@ case class QueryRoutes(monitor: SystemEventMonitor)
                            value = "the inclusive from date",
                            required = true,
                            paramType = "query"),
-      new ApiImplicitParam(name = "to",
-                           value = "the inclusive to date",
-                           defaultValue = "now",
-                           required = false,
-                           paramType = "query"),
+      new ApiImplicitParam(name = "to", value = "the inclusive to date", defaultValue = "now", required = false, paramType = "query"),
       new ApiImplicitParam(name = "filter",
                            value = "when specified, only return results which contain the command text",
                            defaultValue = "",
@@ -54,9 +47,7 @@ case class QueryRoutes(monitor: SystemEventMonitor)
     ))
   @ApiResponses(
     Array(
-      new ApiResponse(code = 200,
-                      message = "jobs received within the time range, inclusive",
-                      response = classOf[ReceivedBetweenResponse])
+      new ApiResponse(code = 200, message = "jobs received within the time range, inclusive", response = classOf[ReceivedBetweenResponse])
     ))
   def queryReceived = {
     (get & path("rest" / "query" / "received")) {
@@ -78,11 +69,7 @@ case class QueryRoutes(monitor: SystemEventMonitor)
                            value = "the inclusive from date",
                            required = true,
                            paramType = "query"),
-      new ApiImplicitParam(name = "to",
-                           value = "the inclusive to date",
-                           defaultValue = "now",
-                           required = false,
-                           paramType = "query"),
+      new ApiImplicitParam(name = "to", value = "the inclusive to date", defaultValue = "now", required = false, paramType = "query"),
       new ApiImplicitParam(name = "verbose",
                            value = "whether to load the job details or only return IDs",
                            defaultValue = "false",
@@ -96,9 +83,7 @@ case class QueryRoutes(monitor: SystemEventMonitor)
     ))
   @ApiResponses(
     Array(
-      new ApiResponse(code = 200,
-                      message = "jobs started within the time range, inclusive",
-                      response = classOf[StartedBetweenResponse])
+      new ApiResponse(code = 200, message = "jobs started within the time range, inclusive", response = classOf[StartedBetweenResponse])
     ))
   def queryStarted = {
     (get & path("rest" / "query" / "started")) {
@@ -120,11 +105,7 @@ case class QueryRoutes(monitor: SystemEventMonitor)
                            value = "the inclusive from date",
                            required = true,
                            paramType = "query"),
-      new ApiImplicitParam(name = "to",
-                           value = "the inclusive to date",
-                           defaultValue = "now",
-                           required = false,
-                           paramType = "query"),
+      new ApiImplicitParam(name = "to", value = "the inclusive to date", defaultValue = "now", required = false, paramType = "query"),
       new ApiImplicitParam(name = "verbose",
                            value = "whether to load the job details or only return IDs",
                            defaultValue = "false",
@@ -138,9 +119,7 @@ case class QueryRoutes(monitor: SystemEventMonitor)
     ))
   @ApiResponses(
     Array(
-      new ApiResponse(code = 200,
-                      message = "jobs completed within the time range, inclusive",
-                      response = classOf[CompletedBetweenResponse])
+      new ApiResponse(code = 200, message = "jobs completed within the time range, inclusive", response = classOf[CompletedBetweenResponse])
     ))
   def queryCompleted = {
     (get & path("rest" / "query" / "completed")) {
@@ -153,9 +132,7 @@ case class QueryRoutes(monitor: SystemEventMonitor)
   }
 
   @javax.ws.rs.Path("/rest/query/running")
-  @ApiOperation(value = "Find jobs which have been started but haven't completed within a time range",
-                httpMethod = "GET",
-                produces = "application/json")
+  @ApiOperation(value = "Find jobs which have been started but haven't completed within a time range", httpMethod = "GET", produces = "application/json")
   @ApiImplicitParams(
     Array(
       new ApiImplicitParam(name = "from",
@@ -164,11 +141,7 @@ case class QueryRoutes(monitor: SystemEventMonitor)
                            value = "the inclusive from date",
                            required = true,
                            paramType = "query"),
-      new ApiImplicitParam(name = "to",
-                           value = "the inclusive to date",
-                           defaultValue = "now",
-                           required = false,
-                           paramType = "query"),
+      new ApiImplicitParam(name = "to", value = "the inclusive to date", defaultValue = "now", required = false, paramType = "query"),
       new ApiImplicitParam(name = "verbose",
                            value = "whether to load the job details or only return IDs",
                            defaultValue = "false",
@@ -182,9 +155,7 @@ case class QueryRoutes(monitor: SystemEventMonitor)
     ))
   @ApiResponses(
     Array(
-      new ApiResponse(code = 200,
-                      message = "jobs running within the time range, inclusive",
-                      response = classOf[NotFinishedBetweenResponse])
+      new ApiResponse(code = 200, message = "jobs running within the time range, inclusive", response = classOf[NotFinishedBetweenResponse])
     ))
   def queryRunning = {
     (get & path("rest" / "query" / "running")) {
@@ -198,8 +169,7 @@ case class QueryRoutes(monitor: SystemEventMonitor)
 
   @javax.ws.rs.Path("/rest/query/blocked")
   @ApiOperation(
-    value =
-      "Find jobs which have been received but have not been started within a time range, presumably due to awaiting a file dependency",
+    value = "Find jobs which have been received but have not been started within a time range, presumably due to awaiting a file dependency",
     httpMethod = "GET",
     produces = "application/json"
   )
@@ -211,11 +181,7 @@ case class QueryRoutes(monitor: SystemEventMonitor)
                            value = "the inclusive from date",
                            required = true,
                            paramType = "query"),
-      new ApiImplicitParam(name = "to",
-                           value = "the inclusive to date",
-                           defaultValue = "now",
-                           required = false,
-                           paramType = "query"),
+      new ApiImplicitParam(name = "to", value = "the inclusive to date", defaultValue = "now", required = false, paramType = "query"),
       new ApiImplicitParam(name = "filter",
                            value = "when specified, only return results which contain the command text",
                            defaultValue = "",
@@ -242,9 +208,7 @@ case class QueryRoutes(monitor: SystemEventMonitor)
   }
 
   @javax.ws.rs.Path("/rest/query/system")
-  @ApiOperation(value = "Query the system startup and configuration history",
-                httpMethod = "GET",
-                produces = "application/json")
+  @ApiOperation(value = "Query the system startup and configuration history", httpMethod = "GET", produces = "application/json")
   @ApiImplicitParams(
     Array(
       new ApiImplicitParam(name = "from",
@@ -253,11 +217,7 @@ case class QueryRoutes(monitor: SystemEventMonitor)
                            value = "the inclusive from date",
                            required = true,
                            paramType = "query"),
-      new ApiImplicitParam(name = "to",
-                           value = "the inclusive to date",
-                           defaultValue = "now",
-                           required = false,
-                           paramType = "query")
+      new ApiImplicitParam(name = "to", value = "the inclusive to date", defaultValue = "now", required = false, paramType = "query")
     ))
   @ApiResponses(
     Array(
@@ -294,9 +254,8 @@ case class QueryRoutes(monitor: SystemEventMonitor)
     (get & path("rest" / "query" / "first")) {
       parameter('event) { eventName =>
         complete {
-          val eventOpt = FindFirst.values.find(_.eventName.equalsIgnoreCase(eventName))
-          val event: FindFirst = eventOpt.getOrElse(
-            sys.error(s"Invalid event '$eventName'. Expected one of ${FindFirst.validValues.mkString("[", ",", "]")}"))
+          val eventOpt         = FindFirst.values.find(_.eventName.equalsIgnoreCase(eventName))
+          val event: FindFirst = eventOpt.getOrElse(sys.error(s"Invalid event '$eventName'. Expected one of ${FindFirst.validValues.mkString("[", ",", "]")}"))
           monitor.query(event)
         }
       }
@@ -322,8 +281,7 @@ case class QueryRoutes(monitor: SystemEventMonitor)
   }
 
   private def withRangeAndFilter[T: ToEntityMarshaller](
-      onRange: (Timestamp, Timestamp, Boolean, JobFilter) => Future[T])
-    : (String, Option[String], Option[String], Option[String]) => StandardRoute = {
+      onRange: (Timestamp, Timestamp, Boolean, JobFilter) => Future[T]): (String, Option[String], Option[String], Option[String]) => StandardRoute = {
     case (TimeCoords(getFrom), opt, verboseOpt, filterOpt) =>
       val verbose   = verboseOpt.exists(_.toLowerCase.trim == "true")
       val jobFilter = JobFilter(filterOpt.map(_.trim).getOrElse(""))

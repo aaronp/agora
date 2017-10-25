@@ -21,11 +21,7 @@ class UploadRoutesTest extends BaseRoutesSpec {
 
         val contentBytes = ByteString("hello world")
         val req = UploadClient
-          .asRequest("some workspace",
-                     "foo.bar",
-                     contentBytes.length,
-                     Source.single(contentBytes),
-                     `text/plain(UTF-8)`)
+          .asRequest("some workspace", "foo.bar", contentBytes.length, Source.single(contentBytes), `text/plain(UTF-8)`)
           .futureValue
 
         req ~> routesUnderTest ~> check {

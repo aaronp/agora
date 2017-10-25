@@ -73,9 +73,7 @@ object RestClient {
     implicit class RichHttpResponse(val resp: HttpResponse) extends AnyVal {
       def justThrow[T]: HandlerError => Future[T] = (e: HandlerError) => throw e._3
 
-      def as[T: Decoder: ClassTag](onErr: HandlerError => Future[_ <: T] = justThrow[T])(
-          implicit ec: ExecutionContext,
-          mat: Materializer): Future[_ <: T] = {
+      def as[T: Decoder: ClassTag](onErr: HandlerError => Future[_ <: T] = justThrow[T])(implicit ec: ExecutionContext, mat: Materializer): Future[_ <: T] = {
 
         def decode(jsonString: String) = {
           import io.circe.parser._
@@ -86,9 +84,7 @@ object RestClient {
               json.as[T] match {
                 case Left(extractErr) =>
                   val className = implicitly[ClassTag[T]].runtimeClass
-                  val exp = new Exception(
-                    s"Couldn't extract response (${resp.status}) $json as $className : $extractErr",
-                    extractErr)
+                  val exp       = new Exception(s"Couldn't extract response (${resp.status}) $json as $className : $extractErr", extractErr)
                   onErr((Option(jsonString), resp, exp))
                 case Right(tea) => Future.successful(tea)
               }

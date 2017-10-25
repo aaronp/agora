@@ -29,8 +29,7 @@ class ExchangeSteps extends ScalaDsl with EN with Matchers with TestData {
   }
   Given("""^worker (.*) is started with command line (.*)$""") { (name: String, commandLine: String) =>
     val config =
-      WorkerConfig(
-        "includeExchangeRoutes=false" +: s"subscription.details.name=$name" +: commandLine.split("\\s+", -1))
+      WorkerConfig("includeExchangeRoutes=false" +: s"subscription.details.name=$name" +: commandLine.split("\\s+", -1))
     state = state.startWorker(name, config)
   }
   Given("""^worker (.*) is started with config (.*)$""") { (name: String, configString: String) =>
@@ -41,28 +40,26 @@ class ExchangeSteps extends ScalaDsl with EN with Matchers with TestData {
     state = state.startWorker(name, config)
   }
 
-  When("""^worker (.*) asks for (\d+) work items using subscription (.*)$""") {
-    (name: String, items: Int, subscriptionKey: String) =>
-      state = state.take(name, subscriptionKey, items)
+  When("""^worker (.*) asks for (\d+) work items using subscription (.*)$""") { (name: String, items: Int, subscriptionKey: String) =>
+    state = state.take(name, subscriptionKey, items)
   }
   Then("""^the exchange should respond to (.*) with (\d+) previous items pending and (\d+) total items pending$""") {
     (subscriptionKey: String, expectedPreviousPending: Int, expectedTotal: Int) =>
       state = state.verifyTakeAck(subscriptionKey, expectedPreviousPending, expectedTotal)
   }
-  When("""^worker (.*) creates work subscription (.*) with$""") {
-    (name: String, subscriptionKey: String, subscriptionJson: String) =>
-      val worker = state.workersByName(name)
+  When("""^worker (.*) creates work subscription (.*) with$""") { (name: String, subscriptionKey: String, subscriptionJson: String) =>
+    val worker = state.workersByName(name)
 
-      val conf = WorkerConfig(s"subscription.details.id=$subscriptionKey")
-        .withOverrides(ConfigFactory.parseString(subscriptionJson))
-      conf.subscription.details.subscriptionKey shouldBe Option(subscriptionKey)
+    val conf = WorkerConfig(s"subscription.details.id=$subscriptionKey")
+      .withOverrides(ConfigFactory.parseString(subscriptionJson))
+    conf.subscription.details.subscriptionKey shouldBe Option(subscriptionKey)
 
-      worker.service.usingSubscription(_ => conf.subscription).withInitialRequest(0).addHandler[String] { ctxt =>
-        PendingLock.synchronized {
-          val newList: List[WorkContext[String]] = pendingRequestsForWorker.getOrElse(name, Nil)
-          pendingRequestsForWorker = pendingRequestsForWorker.updated(name, ctxt :: newList)
-        }
+    worker.service.usingSubscription(_ => conf.subscription).withInitialRequest(0).addHandler[String] { ctxt =>
+      PendingLock.synchronized {
+        val newList: List[WorkContext[String]] = pendingRequestsForWorker.getOrElse(name, Nil)
+        pendingRequestsForWorker = pendingRequestsForWorker.updated(name, ctxt :: newList)
       }
+    }
   }
 
   When("""^I submit a job$""") { (submitJson: String) =>

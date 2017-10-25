@@ -23,9 +23,8 @@ import scala.language.{implicitConversions, reflectiveCalls}
   *
   * @param client
   */
-case class ExecutionClient(override val client: RestClient,
-                           defaultFrameLength: Int,
-                           matchDetails: Option[MatchDetails] = None)(implicit uploadTimeout: FiniteDuration)
+case class ExecutionClient(override val client: RestClient, defaultFrameLength: Int, matchDetails: Option[MatchDetails] = None)(
+    implicit uploadTimeout: FiniteDuration)
     extends UploadClient
     with FailFastCirceSupport
     with AutoCloseable {

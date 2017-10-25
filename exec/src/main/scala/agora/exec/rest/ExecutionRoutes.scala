@@ -67,9 +67,7 @@ case class ExecutionRoutes(
   @ApiResponses(
     Array(
       new ApiResponse(code = 200, message = "the output of the command is returned w/ UTF-8 text encoding"),
-      new ApiResponse(code = 200,
-                      message = "The file output summary when output streaming is not requested",
-                      response = classOf[FileResult])
+      new ApiResponse(code = 200, message = "The file output summary when output streaming is not requested", response = classOf[FileResult])
     ))
   def executeRoute = {
     (post & path("rest" / "exec" / "run")) {
@@ -87,10 +85,7 @@ case class ExecutionRoutes(
   }
 
   @javax.ws.rs.Path("/rest/exec/cancel")
-  @ApiOperation(value = "Cancel a running job",
-                httpMethod = "DELETE",
-                produces = "text/plain; charset=UTF-8",
-                consumes = "application/json")
+  @ApiOperation(value = "Cancel a running job", httpMethod = "DELETE", produces = "text/plain; charset=UTF-8", consumes = "application/json")
   @ApiImplicitParams(
     Array(
       new ApiImplicitParam(name = "jobId", required = true, paramType = "query"),
@@ -98,8 +93,7 @@ case class ExecutionRoutes(
     ))
   @ApiResponses(
     Array(
-      new ApiResponse(code = 200,
-                      message = "a json boolean value indicating whether the cancel call cancelled the job"),
+      new ApiResponse(code = 200, message = "a json boolean value indicating whether the cancel call cancelled the job"),
       new ApiResponse(code = 404, message = "If the job was not known/found")
     ))
   def cancelRoute = {
@@ -109,8 +103,7 @@ case class ExecutionRoutes(
           val waitFor = waitForOpt match {
             case Some(TimeCoords.AsDuration(d)) => d
             case Some(other) =>
-              sys.error(
-                s"Invalid 'waitFor' value '${other}'. Please be sure to specify units (e.g. 100ms or 2 minutes)")
+              sys.error(s"Invalid 'waitFor' value '${other}'. Please be sure to specify units (e.g. 100ms or 2 minutes)")
             case None => 0.millis
           }
           extractExecutionContext { implicit ec =>
@@ -137,12 +130,10 @@ case class ExecutionRoutes(
       new ApiImplicitParam(name = "canCache", required = false, paramType = "query", defaultValue = "false"),
       new ApiImplicitParam(name = "useCache", required = false, paramType = "query", defaultValue = "true")
     ))
-  @ApiResponses(
-    Array(new ApiResponse(code = 200, message = "the output of the command is returned w/ UTF-8 text encoding")))
+  @ApiResponses(Array(new ApiResponse(code = 200, message = "the output of the command is returned w/ UTF-8 text encoding")))
   def executeRouteGet = {
     (get & path("rest" / "exec" / "run")) {
-      (parameter('command) & parameter('workspace.?) & parameter('writeTo.?) & parameter('env.?) & parameter(
-        'canCache.?) & parameter('useCache.?)) {
+      (parameter('command) & parameter('workspace.?) & parameter('writeTo.?) & parameter('env.?) & parameter('canCache.?) & parameter('useCache.?)) {
         case (commandString, workspaceOpt, writeToOpt, envOpt, canCacheOpt, useCacheOpt) =>
           extractRequestContext { ctxt =>
             import ctxt.executionContext
@@ -187,10 +178,7 @@ case class ExecutionRoutes(
 
 object ExecutionRoutes {
   def apply(execConfig: ExecConfig, exchange: Exchange = Exchange.instance()): ExecutionRoutes = {
-    val workflow = ExecutionWorkflow(execConfig.defaultEnv,
-                                     execConfig.workspaceClient,
-                                     execConfig.eventMonitor,
-                                     execConfig.enableCache)
+    val workflow = ExecutionWorkflow(execConfig.defaultEnv, execConfig.workspaceClient, execConfig.eventMonitor, execConfig.enableCache)
     new ExecutionRoutes(execConfig, exchange, workflow)
   }
 

@@ -22,11 +22,7 @@ import scala.util.Properties
   * @param workMatcher the json criteria used to match work subscriptions
   * @param orElse      should the 'workMatcher' not match _any_ current work subscriptions, the [[SubmitJob]] is resubmitted with the 'orElse' criteria
   */
-case class SubmissionDetails(override val aboutMe: Json,
-                             selection: SelectionMode,
-                             awaitMatch: Boolean,
-                             workMatcher: JPredicate,
-                             orElse: List[JPredicate])
+case class SubmissionDetails(override val aboutMe: Json, selection: SelectionMode, awaitMatch: Boolean, workMatcher: JPredicate, orElse: List[JPredicate])
     extends JsonAppendable {
   def matchingPath(path: String): SubmissionDetails = {
     import agora.api.Implicits._

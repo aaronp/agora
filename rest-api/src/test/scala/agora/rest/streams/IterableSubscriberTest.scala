@@ -7,7 +7,6 @@ import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import org.reactivestreams.Subscription
 
-import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.Future
 import scala.concurrent.duration._
 

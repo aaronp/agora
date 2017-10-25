@@ -38,8 +38,7 @@ case class ExchangeTestState(server: Option[RunningExchange] = None,
     exchangeClient match {
       case None =>
         val running = server.get
-        logger.info(
-          s"Connecting exchange client ${running.conf.clientConfig.location} to ${running.conf.location} (w/ local address ${running.localAddress})")
+        logger.info(s"Connecting exchange client ${running.conf.clientConfig.location} to ${running.conf.location} (w/ local address ${running.localAddress})")
         val rest: RestClient = running.conf.clientConfig.restClient
         val client           = ExchangeRestClient(rest)
         copy(exchangeClient = Option(client)).stateWithClient

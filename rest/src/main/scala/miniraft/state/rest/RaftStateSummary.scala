@@ -15,8 +15,7 @@ sealed trait NodeStateSummary {
 
 object NodeStateSummary {
 
-  def apply(node: RaftNodeLogic[_], cluster: ClusterProtocol)(
-      implicit ec: ExecutionContext): Future[NodeStateSummary] = {
+  def apply(node: RaftNodeLogic[_], cluster: ClusterProtocol)(implicit ec: ExecutionContext): Future[NodeStateSummary] = {
     val role: NodeRole = node.raftState.role
 
     val electTimerStateF     = cluster.electionTimer.status
@@ -80,18 +79,14 @@ object NodeStateSummary {
 
   type FollowerSummary = NodeSnapshot
 
-  case class LeaderSnapshot(override val summary: NodeSnapshot, clusterViewByNodeId: Map[NodeId, ClusterPeer])
-      extends NodeStateSummary {
+  case class LeaderSnapshot(override val summary: NodeSnapshot, clusterViewByNodeId: Map[NodeId, ClusterPeer]) extends NodeStateSummary {
     override def withState(updatedState: Map[String, String]): NodeStateSummary = {
       val newSummary = summary.copy(state = updatedState)
       copy(summary = newSummary)
     }
   }
 
-  case class CandidateSnapshot(override val summary: NodeSnapshot,
-                               votedFor: Set[NodeId],
-                               votedAgainst: Set[NodeId],
-                               expectedVotes: Int)
+  case class CandidateSnapshot(override val summary: NodeSnapshot, votedFor: Set[NodeId], votedAgainst: Set[NodeId], expectedVotes: Int)
       extends NodeStateSummary {
     override def withState(updatedState: Map[String, String]): NodeStateSummary = {
       val newSummary = summary.copy(state = updatedState)

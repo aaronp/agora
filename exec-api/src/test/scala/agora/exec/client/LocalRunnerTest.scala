@@ -7,15 +7,9 @@ import agora.rest.HasMaterializer
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.sys.process.ProcessLogger
 
-class LocalRunnerTest
-    extends BaseSpec
-    with ProcessRunnerTCK
-    with BeforeAndAfter
-    with BeforeAndAfterAll
-    with HasMaterializer {
+class LocalRunnerTest extends BaseSpec with ProcessRunnerTCK with BeforeAndAfter with BeforeAndAfterAll with HasMaterializer {
 
   "LocalRunner.run" should {
     "replace environment variables in the command argument" in {

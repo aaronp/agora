@@ -46,11 +46,7 @@ class CachedOutputTest extends BaseSpec with HasMaterializer {
 
         val cachedResponseOpt      = CachedOutput.cachedResponse(workingDir, HttpRequest(), inputProcess).map(_._2)
         val fileResult: FileResult = asFileResult(cachedResponseOpt)
-        fileResult shouldBe FileResult(123,
-                                       inputProcess.workspace,
-                                       inputProcess.output.stdOutFileName,
-                                       inputProcess.output.stdErrFileName,
-                                       None)
+        fileResult shouldBe FileResult(123, inputProcess.workspace, inputProcess.output.stdOutFileName, inputProcess.output.stdErrFileName, None)
       }
     }
     "return the stdout when the cached output files exist for streaming requests" in {

@@ -14,9 +14,7 @@ import scala.util.{Failure, Success, Try}
   *
   * At a minimum it adds loggers, and can add/remote process loggers, as well as be 'completed' by the process
   */
-class ProcessLoggers(val proc: RunProcess, override val matchDetails: Option[MatchDetails])
-    extends IterableLogger
-    with LazyLogging {
+class ProcessLoggers(val proc: RunProcess, override val matchDetails: Option[MatchDetails]) extends IterableLogger with LazyLogging {
 
   private def errorLimit = proc.output.streaming.flatMap(_.errorLimit)
 

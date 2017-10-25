@@ -18,12 +18,7 @@ import org.scalatest.concurrent.Eventually
 
 import scala.concurrent.Future
 
-class ExecutionWorkflowTest
-    extends BaseSpec
-    with FailFastCirceSupport
-    with HasMaterializer
-    with Eventually
-    with CommonRequestBuilding {
+class ExecutionWorkflowTest extends BaseSpec with FailFastCirceSupport with HasMaterializer with Eventually with CommonRequestBuilding {
 
   implicit def richPath(file: Path) = new {
     def trimmedText = file.text.lines.mkString("")

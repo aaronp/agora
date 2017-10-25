@@ -145,16 +145,14 @@ trait PersistentState[T] {
 
 object PersistentState {
 
-  def apply[T](workingDir: Path)(applyToStateMachine: LogEntry[T] => Unit)(
-      implicit asBytes: Formatter[T, Array[Byte]]): PersistentState[T] = {
+  def apply[T](workingDir: Path)(applyToStateMachine: LogEntry[T] => Unit)(implicit asBytes: Formatter[T, Array[Byte]]): PersistentState[T] = {
     val log = Log[T](workingDir.resolve("data").mkDir())(applyToStateMachine)
     apply(workingDir, log)
   }
 
   def apply[T](workingDir: Path, log: Log[T]) = new Dao[T](workingDir, log)
 
-  def apply[T](initialTerm: Term = Term(1), initialVote: Option[NodeId] = None)(
-      applyToStateMachine: LogEntry[T] => Unit) = {
+  def apply[T](initialTerm: Term = Term(1), initialVote: Option[NodeId] = None)(applyToStateMachine: LogEntry[T] => Unit) = {
     new NotReally[T](initialTerm, initialVote, applyToStateMachine)
   }
 
@@ -165,8 +163,7 @@ object PersistentState {
     * @param initialVote
     * @tparam T
     */
-  class NotReally[T](initialTerm: Term, initialVote: Option[NodeId], applyToStateMachine: LogEntry[T] => Unit)
-      extends PersistentState[T] {
+  class NotReally[T](initialTerm: Term, initialVote: Option[NodeId], applyToStateMachine: LogEntry[T] => Unit) extends PersistentState[T] {
     @volatile var vote: Option[NodeId] = initialVote
     @volatile var term: Term           = initialTerm
     private val inMemoryLog            = Log[T](applyToStateMachine)

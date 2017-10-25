@@ -9,14 +9,9 @@ import io.circe.generic.auto.{exportDecoder, exportEncoder}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-case class HealthDto(asOf: LocalDateTime,
-                     system: SystemDto,
-                     heapMemoryUsage: MemoryDto,
-                     nonHeapMemoryUsage: MemoryDto,
-                     objectPendingFinalizationCount: Int) {
+case class HealthDto(asOf: LocalDateTime, system: SystemDto, heapMemoryUsage: MemoryDto, nonHeapMemoryUsage: MemoryDto, objectPendingFinalizationCount: Int) {
 
-  def updateHealth(exchange: Exchange, key: SubscriptionKey)(
-      implicit ec: ExecutionContext): Future[UpdateSubscriptionAck] = {
+  def updateHealth(exchange: Exchange, key: SubscriptionKey)(implicit ec: ExecutionContext): Future[UpdateSubscriptionAck] = {
     HealthDto.updateHealth(exchange, key, this)
   }
 
@@ -43,8 +38,7 @@ object HealthDto extends io.circe.java8.time.TimeInstances {
     *
     * @return the update ack
     */
-  def updateHealth(exchange: Exchange, key: SubscriptionKey, health: HealthDto = HealthDto())(
-      implicit ec: ExecutionContext): Future[UpdateSubscriptionAck] = {
+  def updateHealth(exchange: Exchange, key: SubscriptionKey, health: HealthDto = HealthDto())(implicit ec: ExecutionContext): Future[UpdateSubscriptionAck] = {
     exchange.updateSubscriptionDetails(UpdateSubscription.append(key, "health", health))
   }
 }

@@ -2,11 +2,11 @@ name := "agora-exec"
 
 enablePlugins(DockerPlugin)
 
-mainClass in(Compile, run) := Some("agora.exec.ExecMain")
+mainClass in (Compile, run) := Some("agora.exec.ExecMain")
 
 (testOptions in Test) += (Tests.Argument(TestFrameworks.ScalaTest, "-h", "target/scalatest-reports"))
 
-test in(assembly) := {}
+test in (assembly) := {}
 
 imageNames in docker := Seq(
   ImageName(s"porpoiseltd/${name.value}:latest")
@@ -16,7 +16,7 @@ dockerfile in docker := {
   // The assembly task generates a fat JAR file
   val artifact: File = assembly.value
 
-  val resDir = (resourceDirectory in Compile).value
+  val resDir         = (resourceDirectory in Compile).value
   val entrypointPath = resDir.toPath.resolve("exec.sh").toFile
 
   // we call this 'docker-logback.xml' and then rename to 'logback.xml' in our

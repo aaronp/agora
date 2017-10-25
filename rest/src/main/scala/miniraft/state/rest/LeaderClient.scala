@@ -37,8 +37,7 @@ case class LeaderClient[T: Encoder: Decoder](client: RestClient, newClient: Uri 
 
           def headerKeys = resp.headers.map(_.name).toList.sorted.distinct.mkString(",")
 
-          val newLocation = newLocationOpt.getOrElse(
-            sys.error(s"Encountered a redirect response w/o a 'Location' header: ${headerKeys}"))
+          val newLocation     = newLocationOpt.getOrElse(sys.error(s"Encountered a redirect response w/o a 'Location' header: ${headerKeys}"))
           val redirectTo: Uri = Uri(newLocation)
           currentLeader = newClient(redirectTo)
           append(value)

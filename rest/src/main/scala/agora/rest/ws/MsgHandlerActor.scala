@@ -18,8 +18,7 @@ object MsgHandlerActor {
 /**
   * Actor-based logic for MessageConsumers
   */
-class MsgHandlerActor[T: Encoder: Decoder: ClassTag](listener: MessageConsumer[T])(implicit mat: Materializer)
-    extends BaseActor {
+class MsgHandlerActor[T: Encoder: Decoder: ClassTag](listener: MessageConsumer[T])(implicit mat: Materializer) extends BaseActor {
 
   import context.dispatcher
 

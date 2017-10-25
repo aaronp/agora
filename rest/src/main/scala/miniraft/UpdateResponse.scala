@@ -30,13 +30,11 @@ object UpdateResponse {
     Appendable(logIndex, nodes.map(_ -> Promise[AppendEntriesResponse]()).toMap)
   }
 
-  def apply(reply: Future[Boolean],
-            responses: Map[NodeId, Future[AppendEntriesResponse]] = Map.empty): UpdateResponse = {
+  def apply(reply: Future[Boolean], responses: Map[NodeId, Future[AppendEntriesResponse]] = Map.empty): UpdateResponse = {
     new Instance(responses, reply)
   }
 
-  class Instance(override val acks: Map[NodeId, Future[AppendEntriesResponse]], override val result: Future[Boolean])
-      extends UpdateResponse
+  class Instance(override val acks: Map[NodeId, Future[AppendEntriesResponse]], override val result: Future[Boolean]) extends UpdateResponse
 
   /**
     * Provides a means to keep track of all the 'append entries' responses received for a given end-user (client)
@@ -46,8 +44,7 @@ object UpdateResponse {
     * @param results  the received results
     * @param ec
     */
-  private[miniraft] case class Appendable(logIndex: LogIndex, results: Map[NodeId, Promise[AppendEntriesResponse]])(
-      implicit ec: ExecutionContext)
+  private[miniraft] case class Appendable(logIndex: LogIndex, results: Map[NodeId, Promise[AppendEntriesResponse]])(implicit ec: ExecutionContext)
       extends UpdateResponse
       with StrictLogging {
 
@@ -74,14 +71,12 @@ object UpdateResponse {
       // we can then just assume ours is ok
       if (resp.matchIndex == logIndex) {
         val completedOpt = results.get(from).map { promise =>
-          logger.info(
-            s"Completing append ack from $from w/ $resp, given promise.isCompleted=${promise.isCompleted}\n\t$toString\n")
+          logger.info(s"Completing append ack from $from w/ $resp, given promise.isCompleted=${promise.isCompleted}\n\t$toString\n")
           promise.trySuccess(resp)
         }
         completedOpt.getOrElse(false)
       } else {
-        logger.info(
-          s"Ignoring append entries ack from '$from' where their match index '${resp.matchIndex}' didn't match our log index '$logIndex'")
+        logger.info(s"Ignoring append entries ack from '$from' where their match index '${resp.matchIndex}' didn't match our log index '$logIndex'")
         false
       }
     }

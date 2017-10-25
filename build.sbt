@@ -1,16 +1,13 @@
 val repo = "agora"
-
-val username = "aaronp"
-
-crossScalaVersions := Seq("2.11.11", "2.12.03")
-
 name := repo
-
+val username    = "aaronp"
+val scalaTwelve = "2.12.4"
+crossScalaVersions := Seq("2.11.11", scalaTwelve)
 organization := s"com.github.${username}"
-
-scalaVersion := "2.11.11"
-
+scalaVersion := scalaTwelve
 enablePlugins(GitVersioning)
+autoAPIMappings := true
+exportJars := false
 
 git.useGitDescribe := false
 
@@ -20,54 +17,48 @@ git.gitTagToVersionNumber := { tag: String =>
   } else None
 }
 
-
 // see http://scalameta.org/scalafmt/
 scalafmtOnCompile in ThisBuild := true
 scalafmtVersion in ThisBuild := "1.0.0"
 
 // Define a `Configuration` for each project, as per http://www.scala-sbt.org/sbt-site/api-documentation.html
-val Api = config("api")
-val Rest = config("rest")
-val RestApi = config("restApi")
-val Exec = config("exec")
-val ExecApi = config("execApi")
+val Api      = config("api")
+val Rest     = config("rest")
+val RestApi  = config("restApi")
+val Exec     = config("exec")
+val ExecApi  = config("execApi")
 val ExecTest = config("execTest")
-val IO = config("io")
-val Config = config("config")
+val IO       = config("io")
+val Config   = config("config")
 
-lazy val scaladocSiteProjects = List((api, Api), 
-  (rest, Rest),
-  (restApi, RestApi),
-  (exec, Exec), 
-  (execApi, ExecApi),
-  (execTest, ExecTest),
-  (io, IO), 
-  (configProject, Config))
+lazy val scaladocSiteProjects =
+  List((api, Api), (rest, Rest), (restApi, RestApi), (exec, Exec), (execApi, ExecApi), (execTest, ExecTest), (io, IO), (configProject, Config))
 
-lazy val scaladocSiteSettings = scaladocSiteProjects.flatMap { case (project, conf) =>
-  SiteScaladocPlugin.scaladocSettings(
-    conf,
-    mappings in (Compile, packageDoc) in project,
-    s"api/${project.id}"
-  )
+lazy val scaladocSiteSettings = scaladocSiteProjects.flatMap {
+  case (project, conf) =>
+    SiteScaladocPlugin.scaladocSettings(
+      conf,
+      mappings in (Compile, packageDoc) in project,
+      s"api/${project.id}"
+    )
 }
 
 // val siteWithScaladocAlt = project.in(file("site/scaladoc-alternative"))
 //   .settings(scaladocSiteSettings)
 
-lazy val agora = (project in file(".")).
-  enablePlugins(BuildInfoPlugin).
-  enablePlugins(SiteScaladocPlugin).
-  enablePlugins(PamfletPlugin).
-  enablePlugins(ScalaUnidocPlugin).
-  aggregate(io, configProject, api, restApi, rest, execApi, exec, execTest).
-  settings(
+lazy val agora = (project in file("."))
+  .enablePlugins(BuildInfoPlugin)
+  .enablePlugins(SiteScaladocPlugin)
+  .enablePlugins(PamfletPlugin)
+  .enablePlugins(ScalaUnidocPlugin)
+  .aggregate(io, configProject, api, restApi, rest, execApi, exec, execTest)
+  .settings(
     sourceDirectory in Pamflet := sourceDirectory.value / "site",
     siteSubdirName in ScalaUnidoc := "api-all/latest",
     addMappingsToSiteDir(mappings in (ScalaUnidoc, packageDoc), siteSubdirName in ScalaUnidoc)
     //,gitRemoteRepo := "git@github.com:aaronp/agora.git"
   )
-  //settings(sourceDirectory in Pamflet := sourceDirectory.value / "site")
+//settings(sourceDirectory in Pamflet := sourceDirectory.value / "site")
 
 lazy val settings = scalafmtSettings
 
@@ -117,7 +108,7 @@ val baseScalacSettings = List(
   "-language:implicitConversions", // Allow definition of implicit functions called views
   "-unchecked",
   "-language:reflectiveCalls", // Allow reflective calls
-  "-language:higherKinds", // Allow higher-kinded types
+  "-language:higherKinds",         // Allow higher-kinded types
   "-language:implicitConversions", // Allow definition of implicit functions called views
   //"-Xlog-implicits",
   "-Xfuture" // Turn on future language features.
@@ -128,7 +119,10 @@ val scalacSettings = baseScalacSettings
 val commonSettings: Seq[Def.Setting[_]] = Seq(
   //version := parentProject.settings.ver.value,
   organization := s"com.github.${username}",
-  scalaVersion := "2.11.11",
+  scalaVersion := scalaTwelve,
+  autoAPIMappings := true,
+  exportJars := false,
+  crossScalaVersions := Seq("2.11.11", scalaTwelve),
   javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-XX:MaxMetaspaceSize=1g"),
   scalacOptions ++= scalacSettings,
   buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),

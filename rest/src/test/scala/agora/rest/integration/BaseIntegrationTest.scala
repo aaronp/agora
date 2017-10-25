@@ -11,11 +11,7 @@ import com.typesafe.config.ConfigFactory
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import org.scalatest.BeforeAndAfterEach
 
-abstract class BaseIntegrationTest
-    extends BaseSpec
-    with FailFastCirceSupport
-    with BeforeAndAfterEach
-    with HasMaterializer {
+abstract class BaseIntegrationTest extends BaseSpec with FailFastCirceSupport with BeforeAndAfterEach with HasMaterializer {
 
   import BaseIntegrationTest._
 

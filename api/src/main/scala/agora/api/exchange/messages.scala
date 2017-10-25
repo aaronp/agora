@@ -231,15 +231,14 @@ sealed trait SubscriptionResponse
   * @param condition the condition to check on the current WorkDetails data before performing the update
   * @param delta     the changes to apply
   */
-case class UpdateSubscription(id: SubscriptionKey, condition: JPredicate = MatchAll, delta: JsonDelta = JsonDelta())
-    extends SubscriptionRequest
+case class UpdateSubscription(id: SubscriptionKey, condition: JPredicate = MatchAll, delta: JsonDelta = JsonDelta()) extends SubscriptionRequest
 
 object UpdateSubscription {
   def remove(id: SubscriptionKey, path: JPath, theRest: JPath*) = {
     UpdateSubscription(id, delta = JsonDelta(remove = path :: theRest.toList))
   }
 
-  def append(id: SubscriptionKey, json: Json) =
+  def append(id: SubscriptionKey, json: Json): UpdateSubscription =
     UpdateSubscription(id, delta = JsonDelta(append = json))
 
   def append[T: Encoder](id: SubscriptionKey, name: String, value: T): UpdateSubscription = {
@@ -260,10 +259,7 @@ object UpdateSubscription {
   * @param submissionCriteria      the criteria used to match submitted jobs' submission details
   * @param subscriptionReferences If non-empty, changes to the number of work items requested for this subscription will be performed on the referenced subscriptions
   */
-case class WorkSubscription(details: WorkerDetails,
-                            jobCriteria: JPredicate,
-                            submissionCriteria: JPredicate,
-                            subscriptionReferences: Set[SubscriptionKey])
+case class WorkSubscription(details: WorkerDetails, jobCriteria: JPredicate, submissionCriteria: JPredicate, subscriptionReferences: Set[SubscriptionKey])
     extends SubscriptionRequest {
   def matches(job: SubmitJob, requested: Int)(implicit m: JobPredicate): Boolean = m.matches(job, this, requested)
 
@@ -347,10 +343,7 @@ object WorkSubscription {
 
 case class WorkSubscriptionAck(id: SubscriptionKey) extends SubscriptionResponse
 
-case class UpdateSubscriptionAck(id: SubscriptionKey,
-                                 oldDetails: Option[WorkerDetails],
-                                 newDetails: Option[WorkerDetails])
-    extends SubscriptionResponse
+case class UpdateSubscriptionAck(id: SubscriptionKey, oldDetails: Option[WorkerDetails], newDetails: Option[WorkerDetails]) extends SubscriptionResponse
 
 object WorkSubscriptionAck {
   implicit val encoder = exportEncoder[WorkSubscriptionAck].instance
@@ -369,8 +362,7 @@ object RequestWork {
   implicit val decoder = exportDecoder[RequestWork].instance
 }
 
-case class RequestWorkAck(id: SubscriptionKey, previousItemsPending: Int, totalItemsPending: Int)
-    extends SubscriptionResponse {
+case class RequestWorkAck(id: SubscriptionKey, previousItemsPending: Int, totalItemsPending: Int) extends SubscriptionResponse {
   private[exchange] def withNewTotal(remaining: Int) = copy(totalItemsPending = remaining)
 
   /** @return true if a subscription previously had 0 pending subscriptions

@@ -1,8 +1,6 @@
 package miniraft.state
 
-class ElectionCounter(val clusterSize: Int,
-                      initialFor: Set[NodeId] = Set.empty,
-                      initialAgainst: Set[NodeId] = Set.empty) {
+class ElectionCounter(val clusterSize: Int, initialFor: Set[NodeId] = Set.empty, initialAgainst: Set[NodeId] = Set.empty) {
 
   override def toString =
     s"${votesFor.mkString("for: [", ",", "]")}, ${votesAgainst.mkString("against:[", ",", "]")} of $clusterSize"
@@ -26,8 +24,7 @@ class ElectionCounter(val clusterSize: Int,
   def receivedVotesFrom = votesFor ++ votesAgainst
 
   def leaderRole(forNode: NodeId, nextIndex: Int): Leader = {
-    require(isMajority(votesFor.size, clusterSize),
-            s"Asked to make a leader role on a cluster of size ?$clusterSize w/ $votesFor")
+    require(isMajority(votesFor.size, clusterSize), s"Asked to make a leader role on a cluster of size ?$clusterSize w/ $votesFor")
     val view = receivedVotesFrom.withFilter(_ != forNode).map(_ -> ClusterPeer.empty(nextIndex)).toMap
     Leader(view)
   }

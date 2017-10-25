@@ -11,8 +11,7 @@ import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 
 object IterableSubscriber {
-  def iterate(dataBytes: Source[ByteString, Any], maximumFrameLength: Int, allowTruncation: Boolean = true)(
-      implicit mat: Materializer): Iterator[String] = {
+  def iterate(dataBytes: Source[ByteString, Any], maximumFrameLength: Int, allowTruncation: Boolean = true)(implicit mat: Materializer): Iterator[String] = {
 
     val linesFlow = Framing.delimiter(ByteString("\n"), maximumFrameLength, allowTruncation = allowTruncation)
     val text      = dataBytes.via(linesFlow.map(_.utf8String))
@@ -26,8 +25,7 @@ object IterableSubscriber {
   }
 }
 
-class IterableSubscriber[T](val initialRequestToTake: Int = 10)(implicit pollTimeout: FiniteDuration = 10.seconds)
-    extends Subscriber[T] {
+class IterableSubscriber[T](val initialRequestToTake: Int = 10)(implicit pollTimeout: FiniteDuration = 10.seconds) extends Subscriber[T] {
   require(initialRequestToTake >= 0)
 
   private[this] sealed trait Next

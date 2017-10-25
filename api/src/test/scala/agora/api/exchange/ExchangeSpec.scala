@@ -1,6 +1,6 @@
 package agora.api.exchange
 
-import agora.BaseSpec
+import agora.{BaseIOSpec, BaseSpec}
 import agora.api.Implicits
 import agora.api.json.JPredicate
 import agora.api.worker.{HostLocation, WorkerDetails, WorkerRedirectCoords}
@@ -13,7 +13,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.{postfixOps, reflectiveCalls}
 
-trait ExchangeSpec extends BaseSpec with Eventually with Implicits {
+trait ExchangeSpec extends BaseIOSpec with Eventually with Implicits {
 
   implicit def executionContext: ExecutionContext = ExecutionContext.Implicits.global
 
@@ -160,9 +160,7 @@ trait ExchangeSpec extends BaseSpec with Eventually with Implicits {
 
       // we should've matched tertiary
       if (supportsObserverNotifications) {
-        notifications should contain only (MatchNotification("someJobId",
-                                                             job,
-                                                             List(Candidate(tertiary.key.get, tertiary, 2))))
+        notifications should contain only (MatchNotification("someJobId", job, List(Candidate(tertiary.key.get, tertiary, 2))))
       }
     }
   }
@@ -179,9 +177,7 @@ trait ExchangeSpec extends BaseSpec with Eventually with Implicits {
       subscriptions should contain only (subscription.id)
 
       // call the method under test
-      ex.cancelSubscriptions(subscription.id, "unknown").futureValue.canceledSubscriptions shouldBe Map(
-        subscription.id -> true,
-        "unknown"       -> false)
+      ex.cancelSubscriptions(subscription.id, "unknown").futureValue.canceledSubscriptions shouldBe Map(subscription.id -> true, "unknown" -> false)
 
       // check out queue
       val afterCancel = ex.queueState().futureValue.subscriptions

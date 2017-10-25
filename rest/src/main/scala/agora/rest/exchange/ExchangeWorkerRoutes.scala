@@ -37,9 +37,7 @@ trait ExchangeWorkerRoutes extends FailFastCirceSupport { self: ExchangeRoutes =
     ))
   @ApiResponses(
     Array(
-      new ApiResponse(code = 200,
-                      message = "the subscription's before and after details",
-                      response = classOf[UpdateSubscriptionAck])
+      new ApiResponse(code = 200, message = "the subscription's before and after details", response = classOf[UpdateSubscriptionAck])
     ))
   def updateSubscription = post {
     (path("update")) {
@@ -63,11 +61,7 @@ trait ExchangeWorkerRoutes extends FailFastCirceSupport { self: ExchangeRoutes =
   @ApiOperation(value = "Subscribe for work", notes = "", httpMethod = "PUT")
   @ApiImplicitParams(
     Array(
-      new ApiImplicitParam(name = "body",
-                           value = "the subscription to create",
-                           required = true,
-                           dataTypeClass = classOf[WorkSubscription],
-                           paramType = "body")
+      new ApiImplicitParam(name = "body", value = "the subscription to create", required = true, dataTypeClass = classOf[WorkSubscription], paramType = "body")
     ))
   @ApiResponses(
     Array(

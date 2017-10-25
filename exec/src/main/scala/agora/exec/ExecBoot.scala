@@ -45,9 +45,7 @@ object ExecBoot {
 /**
   * Provides functions for setting up the exec service functions
   */
-case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes: Option[Route])
-    extends FailFastCirceSupport
-    with StrictLogging {
+case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes: Option[Route]) extends FailFastCirceSupport with StrictLogging {
 
   lazy val housekeeping = Housekeeping.every(conf.housekeeping.checkEvery)(conf.serverImplicits.system)
 

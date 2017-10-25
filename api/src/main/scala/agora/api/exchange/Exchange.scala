@@ -5,7 +5,8 @@ import _root_.io.circe._
 import agora.api.`match`.MatchDetails
 import agora.api.exchange.dsl.JobSyntax
 import agora.api.exchange.instances.{ExchangeInstance, ExchangeState}
-import agora.api.json.{JPredicate, JPath, MatchAll}
+import agora.api.exchange.observer.{ExchangeObserver, ExchangeObserverDelegate}
+import agora.api.json.{JPath, JPredicate, MatchAll}
 import agora.api.worker.{SubscriptionKey, WorkerDetails, WorkerRedirectCoords}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -87,8 +88,7 @@ trait Exchange extends JobSyntax {
     * @param ec the execution context
     * @return a tuple of the subscribe ack and request ack
     */
-  def subscribe(request: WorkSubscription, initialRequest: Int)(
-      implicit ec: ExecutionContext): Future[(WorkSubscriptionAck, RequestWorkAck)] = {
+  def subscribe(request: WorkSubscription, initialRequest: Int)(implicit ec: ExecutionContext): Future[(WorkSubscriptionAck, RequestWorkAck)] = {
     subscribe(request).flatMap { ack =>
       take(ack.id, initialRequest).map { takeAck =>
         ack -> takeAck
@@ -158,9 +158,12 @@ object Exchange {
     * @return a new Exchange instance
     */
   def apply(onMatch: OnMatch)(implicit matcher: JobPredicate) =
-    new ExchangeInstance(new ExchangeState(), onMatch)
+    new ExchangeInstance(new ExchangeState(), ExchangeObserver(onMatch))
 
-  def instance(): Exchange = apply(MatchObserver())(JobPredicate())
+  def apply(observer: ExchangeObserver)(implicit matcher: JobPredicate = JobPredicate()) =
+    new ExchangeInstance(new ExchangeState(), observer)
+
+  def instance(): Exchange = apply(ExchangeObserverDelegate())(JobPredicate())
 
   type OnMatch = MatchNotification => Unit
 

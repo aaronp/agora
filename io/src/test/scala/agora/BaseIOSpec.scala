@@ -18,12 +18,7 @@ import scala.util.Properties
   *
   * See http://www.scalatest.org/user_guide/defining_base_classes
   */
-abstract class BaseIOSpec
-    extends WordSpec
-    with Matchers
-    with ScalaFutures
-    with LowPriorityIOImplicits
-    with BeforeAndAfterAll {
+abstract class BaseIOSpec extends WordSpec with Matchers with ScalaFutures with LowPriorityIOImplicits with BeforeAndAfterAll {
 
   /**
     * All the timeouts!

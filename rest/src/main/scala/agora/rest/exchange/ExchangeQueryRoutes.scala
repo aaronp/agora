@@ -44,11 +44,7 @@ trait ExchangeQueryRoutes extends FailFastCirceSupport {
   )
   @ApiImplicitParams(
     Array(
-      new ApiImplicitParam(name = "body",
-                           value = "a queue filter",
-                           required = true,
-                           dataTypeClass = classOf[QueueState],
-                           paramType = "body")
+      new ApiImplicitParam(name = "body", value = "a queue filter", required = true, dataTypeClass = classOf[QueueState], paramType = "body")
     ))
   @ApiResponses(
     Array(

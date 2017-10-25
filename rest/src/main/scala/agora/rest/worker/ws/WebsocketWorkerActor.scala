@@ -31,10 +31,7 @@ import scala.util.{Failure, Success}
   * Client to DynamicWorker: Ha ha sucker! Thanks ... and here's the result of the job you asked me to do
   *
   */
-class WebsocketWorkerActor(workerRoutes: DynamicWorkerRoutes)
-    extends Actor
-    with FailFastCirceSupport
-    with StrictLogging {
+class WebsocketWorkerActor(workerRoutes: DynamicWorkerRoutes) extends Actor with FailFastCirceSupport with StrictLogging {
 
   import WebsocketWorkerActor._
   implicit def executionContext = context.dispatcher

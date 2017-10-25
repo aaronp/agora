@@ -7,9 +7,7 @@ package agora.exec.workspace
   * @param missing
   * @param getMessage
   */
-class WorkspaceDependencyTimeoutException(dependencies: UploadDependencies,
-                                          missing: Set[String],
-                                          override val getMessage: String)
+class WorkspaceDependencyTimeoutException(dependencies: UploadDependencies, missing: Set[String], override val getMessage: String)
     extends Exception(getMessage) {
   override def toString = getMessage
 }

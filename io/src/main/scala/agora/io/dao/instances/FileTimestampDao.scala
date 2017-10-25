@@ -25,8 +25,7 @@ import scala.util.Try
   * @param idFor     the ability to name the T values w/ an ID (as multiple Ts can exist for the same instant)
   * @tparam T the value to save/retrieve
   */
-case class FileTimestampDao[T](rootDir: Path)(implicit saveValue: Persist[T], fromBytes: FromBytes[T], idFor: HasId[T])
-    extends TimestampDao[T] {
+case class FileTimestampDao[T](rootDir: Path)(implicit saveValue: Persist[T], fromBytes: FromBytes[T], idFor: HasId[T]) extends TimestampDao[T] {
   def removeBefore(timestamp: Timestamp) = {
     dateDirs.flatMap(_.removeEntriesBefore(timestamp))
   }

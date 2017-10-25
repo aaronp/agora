@@ -49,11 +49,7 @@ case class ReceivedBetweenResponse(received: List[ReceivedJob])
 /**
   * Jobs which had fulfilled all their dependencies and thus were started within the time range
   */
-case class StartedBetween(from: Timestamp,
-                          to: Timestamp,
-                          verbose: Boolean = false,
-                          filter: JobFilter = JobFilter.empty)
-    extends EventQuery {
+case class StartedBetween(from: Timestamp, to: Timestamp, verbose: Boolean = false, filter: JobFilter = JobFilter.empty) extends EventQuery {
   override type Response = StartedBetweenResponse
 }
 
@@ -62,11 +58,7 @@ case class StartedBetweenResponse(started: List[StartedJob])
 /**
   * Completed jobs within the time range
   */
-case class CompletedBetween(from: Timestamp,
-                            to: Timestamp,
-                            verbose: Boolean = false,
-                            filter: JobFilter = JobFilter.empty)
-    extends EventQuery {
+case class CompletedBetween(from: Timestamp, to: Timestamp, verbose: Boolean = false, filter: JobFilter = JobFilter.empty) extends EventQuery {
   override type Response = CompletedBetweenResponse
 }
 
@@ -79,19 +71,12 @@ case class FindJob(id: JobId) extends EventQuery {
   override type Response = FindJobResponse
 }
 
-case class FindJobResponse(job: Option[ReceivedJob],
-                           started: Option[StartedJob],
-                           completed: Option[CompletedJob],
-                           tookInMillis: Option[Long])
+case class FindJobResponse(job: Option[ReceivedJob], started: Option[StartedJob], completed: Option[CompletedJob], tookInMillis: Option[Long])
 
 /**
   * Jobs which are were started but not completed within the time range
   */
-case class NotFinishedBetween(from: Timestamp,
-                              to: Timestamp,
-                              verbose: Boolean = false,
-                              filter: JobFilter = JobFilter.empty)
-    extends EventQuery {
+case class NotFinishedBetween(from: Timestamp, to: Timestamp, verbose: Boolean = false, filter: JobFilter = JobFilter.empty) extends EventQuery {
   override type Response = NotFinishedBetweenResponse
 }
 

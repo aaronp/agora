@@ -103,8 +103,7 @@ object MatchObserver {
     }
   }
 
-  class PartialHandler(mo: MatchObserver, pf: PartialFunction[MatchNotification, Unit], removeAfterInvocation: Boolean)
-      extends BaseHandler {
+  class PartialHandler(mo: MatchObserver, pf: PartialFunction[MatchNotification, Unit], removeAfterInvocation: Boolean) extends BaseHandler {
     override def apply(jobMatch: MatchNotification): Unit = {
       if (pf.isDefinedAt(jobMatch)) {
         pf(jobMatch)

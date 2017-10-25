@@ -105,9 +105,7 @@ object Log {
 
   }
 
-  class FileBasedLog[Command](dir: Path,
-                              asBytes: Formatter[Command, Array[Byte]],
-                              applyToStateMachine: LogEntry[Command] => Unit)
+  class FileBasedLog[Command](dir: Path, asBytes: Formatter[Command, Array[Byte]], applyToStateMachine: LogEntry[Command] => Unit)
       extends Log[Command]
       with StrictLogging {
     // both servers as a file containing the most recent committed index, a well as a marker

@@ -10,14 +10,12 @@ import scala.concurrent.Future
 object MultipartFormImplicits {
 
   implicit class RichFormData(val formData: Multipart.FormData) extends AnyVal {
-    def mapMultipart[T](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), T])(
-        implicit mat: Materializer): Future[List[T]] = {
+    def mapMultipart[T](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), T])(implicit mat: Materializer): Future[List[T]] = {
       import mat._
       withMultipart(f).runWith(Sink.seq).map(_.flatten.toList)
     }
 
-    def mapFirstMultipart[T](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), T])(
-        implicit mat: Materializer): Future[T] = {
+    def mapFirstMultipart[T](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), T])(implicit mat: Materializer): Future[T] = {
       import mat._
       withMultipart(f)
         .collect {
@@ -29,8 +27,7 @@ object MultipartFormImplicits {
         }
     }
 
-    def withMultipart[T](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), T])(
-        implicit mat: Materializer): Source[Option[T], Any] = {
+    def withMultipart[T](f: PartialFunction[(MultipartInfo, Source[ByteString, Any]), T])(implicit mat: Materializer): Source[Option[T], Any] = {
       formData.parts.map { part =>
         val info = MultipartInfo(part.name, part.filename, part.entity.contentType)
         val src  = part.entity.dataBytes

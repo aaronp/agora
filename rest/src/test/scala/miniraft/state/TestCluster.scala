@@ -16,9 +16,7 @@ object TestCluster {
   implicit val system = ActorSystem("test-cluster")
   implicit val ec     = system.dispatcher
 
-  case class TestClusterNode[T](logic: RaftNodeLogic[T],
-                                asyncNode: async.RaftNodeActorClient[T],
-                                protocol: BufferedTransport) {
+  case class TestClusterNode[T](logic: RaftNodeLogic[T], asyncNode: async.RaftNodeActorClient[T], protocol: BufferedTransport) {
 
     def append(value: T)(implicit ec: ExecutionContext): UpdateResponse = {
       val res: UpdateResponse.Appendable = logic.onClientRequestToAdd(value, protocol)
@@ -53,8 +51,7 @@ object TestCluster {
     }
   }
 
-  def instance[T: ClassTag](ids: Set[NodeId])(newPersistentState: NodeId => PersistentState[T])(
-      implicit fmt: Formatter[T, Array[Byte]]) = {
+  def instance[T: ClassTag](ids: Set[NodeId])(newPersistentState: NodeId => PersistentState[T])(implicit fmt: Formatter[T, Array[Byte]]) = {
 
     val nodesAndProtocols = ids.map { (id: String) =>
       val logic = RaftNodeLogic[T](id, newPersistentState(id))

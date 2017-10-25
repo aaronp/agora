@@ -3,12 +3,13 @@ package miniraft.state
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicInteger
 
+import agora.io.implicits._
 import com.typesafe.scalalogging.StrictLogging
 import io.circe.{Decoder, Encoder}
 import miniraft._
 
-import agora.io.implicits._
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success}
 
 /**
   * Represents a view of the cluster to a RaftNode.
@@ -56,10 +57,7 @@ object ClusterProtocol {
     override def toString = s"Delegate to: $cluster"
   }
 
-  class LoggingProtocol[T: Encoder: Decoder](p: ClusterProtocol,
-                                             saveUnder: Path,
-                                             counter: AtomicInteger,
-                                             numberOfMessageToKeep: Int)
+  class LoggingProtocol[T: Encoder: Decoder](p: ClusterProtocol, saveUnder: Path, counter: AtomicInteger, numberOfMessageToKeep: Int)
       extends DelegateProtocol(p) {
 
     import io.circe.generic.auto._
@@ -103,7 +101,8 @@ object ClusterProtocol {
     implicit protected def executionContext: ExecutionContext
 
     private[this] var endpointById: Map[NodeId, _ <: RaftEndpoint[T]] = initialNodes
-    protected def otherNodes: Map[NodeId, RaftEndpoint[T]]            = clusterNodesById - ourNodeId
+
+    protected def otherNodes: Map[NodeId, RaftEndpoint[T]] = clusterNodesById - ourNodeId
 
     /** Required by subclasses to provide a means to do something w/ a reply
       *
@@ -117,15 +116,18 @@ object ClusterProtocol {
     def setEndpoints(newMap: Map[NodeId, _ <: RaftEndpoint[T]]) = {
       endpointById = newMap
     }
+
     def update(key: NodeId, endpoint: RaftEndpoint[T]) = {
       endpointById = endpointById.updated(key, endpoint)
       endpointById
     }
+
     def removeEndpoint(id: NodeId): Boolean = {
       val removed = endpointById.contains(id)
       endpointById = endpointById - id
       removed
     }
+
     def clusterNodesById = endpointById
 
     override def tell(id: NodeId, raftRequest: RaftRequest): Unit = {
@@ -134,8 +136,9 @@ object ClusterProtocol {
           logger.error(s"Attempt to send to unknown node $id")
         case Some(endpoint) =>
           val future: Future[RaftResponse] = endpoint.onRequest(raftRequest)
-          future.onSuccess {
-            case response =>
+          future.onComplete {
+            case Failure(_) =>
+            case Success(response) =>
               onResponse(id, endpoint, raftRequest, response)
           }
       }

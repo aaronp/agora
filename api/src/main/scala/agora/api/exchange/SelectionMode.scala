@@ -44,8 +44,7 @@ abstract class SelectionMode(override val toString: String) {
   * will just return the first to finish
   */
 case class SelectionFirst() extends SelectionMode("select-first") {
-  override def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(
-      implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
+  override def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
     values
   }
 }
@@ -54,8 +53,7 @@ case class SelectionFirst() extends SelectionMode("select-first") {
   * just chooses one of the eligible workers
   */
 case object SelectionOne extends SelectionMode("select-one") {
-  override def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(
-      implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
+  override def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
     values.take(1)
   }
   override val selectsMultiple: Boolean = false
@@ -63,8 +61,7 @@ case object SelectionOne extends SelectionMode("select-one") {
 
 // sends the work to all eligible workers
 case object SelectionAll extends SelectionMode("select-all") {
-  override def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(
-      implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
+  override def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
     values
   }
 }
@@ -77,8 +74,7 @@ case class SelectN(n: Int) extends SelectionMode(s"select-$n") {
 
   override def selectsMultiple: Boolean = n > 1
 
-  override def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(
-      implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
+  override def select[Coll <: SeqLike[Candidate, Coll]](values: Coll)(implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
 
     values.take(n)
   }
@@ -123,8 +119,7 @@ trait SelectComparable extends SelectionMode {
 
   override val selectsMultiple: Boolean = false
 
-  override def select[Coll <: SeqLike[Candidate, Coll]](collection: Coll)(
-      implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
+  override def select[Coll <: SeqLike[Candidate, Coll]](collection: Coll)(implicit bf: CanBuildFrom[Coll, Candidate, Coll]): Coll = {
 
     val values: TraversableOnce[(Candidate, JsonNumber)] = withNumericValues(collection)
 

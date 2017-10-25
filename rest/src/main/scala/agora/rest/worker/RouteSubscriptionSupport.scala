@@ -86,9 +86,7 @@ trait RouteSubscriptionSupport extends LazyLogging {
     }
   }
 
-  def takeNext(matchDetails: MatchDetails,
-               exchange: Exchange,
-               action: TakeAction = ReplaceOne): Future[RequestWorkAck] = {
+  def takeNext(matchDetails: MatchDetails, exchange: Exchange, action: TakeAction = ReplaceOne): Future[RequestWorkAck] = {
     try {
       val nrToTake = action match {
         case ReplaceOne => 1

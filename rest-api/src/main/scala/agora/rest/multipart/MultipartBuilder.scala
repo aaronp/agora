@@ -27,10 +27,7 @@ class MultipartBuilder(defaultSourceContentType: ContentType) {
 
   def parts: List[FormData.BodyPart] = partsList
 
-  def fromPath(file: Path,
-               chunkSize: Int = -1,
-               contentType: ContentType = defaultSourceContentType,
-               fileName: String = null): MultipartBuilder = {
+  def fromPath(file: Path, chunkSize: Int = -1, contentType: ContentType = defaultSourceContentType, fileName: String = null): MultipartBuilder = {
     val entity  = HttpEntity.fromPath(contentType, file, chunkSize)
     val fileKey = Option(fileName).orElse(Option(file.getFileName.toString))
     add(fileKey.get, entity, fileKey)

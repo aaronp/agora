@@ -29,10 +29,7 @@ class WorkspaceActorTest extends BaseSpec with HasMaterializer {
         WorkspaceActor.closeWorkspace(dir, None, failPendingDependencies = false, List(awaitUploads(dir.fileName))) shouldBe false
         dir.nestedFiles().toList should contain only (testFile)
 
-        WorkspaceActor.closeWorkspace(dir,
-                                      Option(before.plusSeconds(2)),
-                                      failPendingDependencies = true,
-                                      List(awaitUploads(dir.fileName))) shouldBe true
+        WorkspaceActor.closeWorkspace(dir, Option(before.plusSeconds(2)), failPendingDependencies = true, List(awaitUploads(dir.fileName))) shouldBe true
         dir.nestedFiles().toList shouldBe empty
       }
     }
@@ -47,10 +44,7 @@ class WorkspaceActorTest extends BaseSpec with HasMaterializer {
         val dependencyFuture = dependency.workDirResult.future
 
         // now close it
-        WorkspaceActor.closeWorkspace(dir,
-                                      Option(before.plusSeconds(2)),
-                                      failPendingDependencies = true,
-                                      List(dependency)) shouldBe true
+        WorkspaceActor.closeWorkspace(dir, Option(before.plusSeconds(2)), failPendingDependencies = true, List(dependency)) shouldBe true
         dir.nestedFiles().toList shouldBe empty
 
         // this future should fail, as we closed the workspace

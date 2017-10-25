@@ -43,12 +43,7 @@ case class RequestVoteResponse(term: Term, granted: Boolean) extends RaftRespons
   * @param entry        the entry to append ... which are only non-empty if a previous AppendEntries request came back successfully
   * @tparam T
   */
-case class AppendEntries[T](term: Term,
-                            leaderId: NodeId,
-                            commitIndex: LogIndex,
-                            prevLogIndex: LogIndex,
-                            prevLogTerm: Term,
-                            entry: Option[T])
+case class AppendEntries[T](term: Term, leaderId: NodeId, commitIndex: LogIndex, prevLogIndex: LogIndex, prevLogTerm: Term, entry: Option[T])
     extends RaftRequest {
   require(leaderId.nonEmpty)
   def isHeartbeat = entry.isEmpty

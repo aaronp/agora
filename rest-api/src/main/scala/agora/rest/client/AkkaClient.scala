@@ -19,9 +19,7 @@ import scala.util.{Failure, Success}
   * @param system
   * @param materializer
   */
-class AkkaClient(val location: HostLocation, system: ActorSystem, override implicit val materializer: Materializer)
-    extends RestClient
-    with StrictLogging {
+class AkkaClient(val location: HostLocation, system: ActorSystem, override implicit val materializer: Materializer) extends RestClient with StrictLogging {
 
   private val hostPort = location.asURL
 

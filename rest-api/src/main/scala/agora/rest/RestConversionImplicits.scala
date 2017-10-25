@@ -126,8 +126,7 @@ object RestConversionImplicits {
       }
     }
 
-    def iterate(maximumFrameLength: Int = 1000, allowTruncation: Boolean = true)(
-        implicit mat: Materializer): AsClient[A, Iterator[String]] = {
+    def iterate(maximumFrameLength: Int = 1000, allowTruncation: Boolean = true)(implicit mat: Materializer): AsClient[A, Iterator[String]] = {
       import mat.executionContext
       asClient.map { resp =>
         IterableSubscriber.iterate(resp.entity.dataBytes, maximumFrameLength, allowTruncation)

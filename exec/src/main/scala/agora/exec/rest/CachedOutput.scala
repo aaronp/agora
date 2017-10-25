@@ -74,11 +74,8 @@ object CachedOutput extends FailFastCirceSupport with AutoDerivation {
     }
   }
 
-  private def asCachedStreamingResponse(
-      cache: CacheEntry,
-      streamingSettings: StreamingSettings,
-      cachedExitCode: Int,
-      httpRequest: HttpRequest)(implicit ec: ExecutionContext): Option[Future[HttpResponse]] = {
+  private def asCachedStreamingResponse(cache: CacheEntry, streamingSettings: StreamingSettings, cachedExitCode: Int, httpRequest: HttpRequest)(
+      implicit ec: ExecutionContext): Option[Future[HttpResponse]] = {
     val successResult = streamingSettings.successExitCodes.contains(cachedExitCode)
 
     val matchDetails = MatchDetailsExtractor.unapply(httpRequest)
@@ -155,8 +152,7 @@ object CachedOutput extends FailFastCirceSupport with AutoDerivation {
       out.isDefined || err.isDefined
     }
 
-    private[rest] def asFileResultResponse(cachedExitCode: Int, httpRequest: HttpRequest)(
-        implicit ec: ExecutionContext): Future[HttpResponse] = {
+    private[rest] def asFileResultResponse(cachedExitCode: Int, httpRequest: HttpRequest)(implicit ec: ExecutionContext): Future[HttpResponse] = {
 
       def asFileName(storedUnder: String) = {
         Option(cacheDir.resolve(storedUnder).text).filterNot(_.isEmpty)
@@ -234,8 +230,7 @@ object CachedOutput extends FailFastCirceSupport with AutoDerivation {
       FileIO.fromPath(path)
     }
 
-    def stdErrBytesOpt(streamingSettings: StreamingSettings,
-                       matchDetails: Option[MatchDetails]): Option[Source[ByteString, NotUsed]] =
+    def stdErrBytesOpt(streamingSettings: StreamingSettings, matchDetails: Option[MatchDetails]): Option[Source[ByteString, NotUsed]] =
       for {
         exitCode <- cachedExitCode
         errFile  <- stdErrFile

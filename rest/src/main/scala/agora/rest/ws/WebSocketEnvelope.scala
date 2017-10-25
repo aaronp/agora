@@ -25,9 +25,7 @@ object WebSocketEnvelope {
 
   /** @return A WebSocketEnvelope for the given value
     */
-  def apply[T: Encoder](value: T,
-                        remaining: RemainingMessageHint = RemainingMessageHint.single,
-                        msgID: MsgId = nextMsgId()): WebSocketEnvelope[T] = {
+  def apply[T: Encoder](value: T, remaining: RemainingMessageHint = RemainingMessageHint.single, msgID: MsgId = nextMsgId()): WebSocketEnvelope[T] = {
     new WebSocketEnvelope(msgID, value, remaining)
   }
 
@@ -47,9 +45,7 @@ object WebSocketEnvelope {
 
   implicit def wsEnvEncoder[T: Encoder: Decoder]: Encoder[WebSocketEnvelope[T]] = {
     Encoder.instance[WebSocketEnvelope[T]] { envelope =>
-      Json.obj("msgId"     -> envelope.msgId.asJson,
-               "value"     -> envelope.value.asJson,
-               "remaining" -> envelope.remaining.asJson)
+      Json.obj("msgId" -> envelope.msgId.asJson, "value" -> envelope.value.asJson, "remaining" -> envelope.remaining.asJson)
     }
   }
 //  def unapply[T: Encoder: Decoder](json: String): Option[(MsgId, T, RemainingMessageHint)] = {

@@ -1,8 +1,7 @@
 package agora.api.exchange.instances
 
-import agora.api.exchange.Exchange.OnMatch
 import agora.api.exchange._
-import com.typesafe.scalalogging.StrictLogging
+import agora.api.exchange.observer.{ExchangeObserver, OnMatch}
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -10,11 +9,10 @@ import scala.util.Try
 /**
   * A default, ephemeral, non-thread-safe implementation of an exchange
   *
-  * @param onMatch
+  * @param observer
   * @param matcher
   */
-class ExchangeInstance(initialState: ExchangeState, onMatch: OnMatch)(implicit matcher: JobPredicate)
-    extends Exchange {
+class ExchangeInstance(initialState: ExchangeState, observer: ExchangeObserver)(implicit matcher: JobPredicate) extends Exchange {
 
   private var state = initialState
 
@@ -25,15 +23,16 @@ class ExchangeInstance(initialState: ExchangeState, onMatch: OnMatch)(implicit m
   }
 
   override def subscribe(inputSubscription: WorkSubscription) = {
-    val (ack, newState) = state.subscribe(inputSubscription)
+    val (ack, newState) = state.subscribe(inputSubscription, observer)
+
     state = newState
     Future.successful(ack)
   }
 
-  override def updateSubscriptionDetails(update: UpdateSubscription) = {
+  override def updateSubscriptionDetails(update: UpdateSubscription): Future[UpdateSubscriptionAck] = {
     val ack: UpdateSubscriptionAck = state.subscriptionsById.get(update.id) match {
       case Some(old) =>
-        state.updateSubscription(update) match {
+        state.updateSubscription(update, observer) match {
 
           // the update condition matched, and the state has been updated
           case Some(newState) =>
@@ -65,8 +64,7 @@ class ExchangeInstance(initialState: ExchangeState, onMatch: OnMatch)(implicit m
             case (ack, chosen) => ack.withNewTotal(chosen.remaining)
           }
         } else {
-          logger.debug(
-            s"Not triggering match for subscription work item change of ${request.itemsRequested} on [${request.id}]")
+          logger.debug(s"Not triggering match for subscription work item change of ${request.itemsRequested} on [${request.id}]")
           state = newState
           ack
         }
@@ -93,11 +91,9 @@ class ExchangeInstance(initialState: ExchangeState, onMatch: OnMatch)(implicit m
     *                    triggered this match check
     * @return the match notifications
     */
-  private def checkMatchesAndUpdateState(
-      newState: ExchangeState,
-      filterState: ExchangeState => Option[ExchangeState]): List[MatchNotification] = {
+  private def checkMatchesAndUpdateState(newState: ExchangeState, filterState: ExchangeState => Option[ExchangeState]): List[OnMatch] = {
     // checks for matches on the filtered state, returning the notifications from said matches
-    val notifications: List[MatchNotification] =
+    val notifications: List[OnMatch] =
       ExchangeInstance.checkForMatches(newState, filterState)
 
     // send out our notifications for matches and update the internal state
@@ -107,11 +103,11 @@ class ExchangeInstance(initialState: ExchangeState, onMatch: OnMatch)(implicit m
     notifications
   }
 
-  private def publish(notifications: List[MatchNotification]) = {
+  private def publish(notifications: List[OnMatch]) = {
     notifications.foreach {
-      case notification @ MatchNotification(id, job, chosen) =>
-        logger.debug(s"Triggering match $id between $job and $chosen")
-        onMatch(notification)
+      case notification =>
+        logger.debug(s"Triggering match $notification")
+        observer.onMatch(notification)
     }
     notifications
   }
@@ -134,20 +130,18 @@ object ExchangeInstance {
   /**
     * Checks the jobs against the work subscriptions for matches using
     */
-  private def checkForMatches(state: ExchangeState, filterState: ExchangeState => Option[ExchangeState])(
-      implicit matcher: JobPredicate): List[MatchNotification] = {
+  private def checkForMatches(state: ExchangeState, filterState: ExchangeState => Option[ExchangeState])(implicit matcher: JobPredicate): List[OnMatch] = {
     val notifications = checkForMatchesRecursive(state, filterState)
 
-    // as the notifications may be on updated SubmitJobs (e.g. the 'orElse' cases of jobs), we should reinstate the
-    // original jobs
-    notifications.map {
-      case MatchNotification(jobId, _, selection) =>
-        MatchNotification(jobId, state.jobsById(jobId), selection)
+    // as the notifications may be on updated SubmitJobs (e.g. the 'orElse' cases of jobs), we need to reinstate the
+    // original jobs, not the 'orElse' SubmitJob produced by 'orElseSubmission'
+    notifications.map { onMatch =>
+      onMatch.copy(job = state.jobsById(onMatch.jobId))
     }
   }
 
   private def checkForMatchesRecursive(state: ExchangeState, filterState: ExchangeState => Option[ExchangeState])(
-      implicit matcher: JobPredicate): List[MatchNotification] = {
+      implicit matcher: JobPredicate): List[OnMatch] = {
     filterState(state) match {
       case Some(filtered) =>
         val (notifications, newState) = filtered.matches

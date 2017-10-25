@@ -288,9 +288,7 @@ case class JIncludes(elements: Set[Json]) extends JPredicate {
   * @param bdCompare
   * @param longCompare
   */
-sealed abstract class ComparablePredicate(value: Json,
-                                          bdCompare: (BigDecimal, BigDecimal) => Boolean,
-                                          longCompare: (Long, Long) => Boolean)
+sealed abstract class ComparablePredicate(value: Json, bdCompare: (BigDecimal, BigDecimal) => Boolean, longCompare: (Long, Long) => Boolean)
     extends JPredicate {
   //  TODO - we could compare the (private) Json instance types instead of using this 'toString' hack
   val requiresDec        = value.asNumber.map(_.toString).exists(_.contains("."))

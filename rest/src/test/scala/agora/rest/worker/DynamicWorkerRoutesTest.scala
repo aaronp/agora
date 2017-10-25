@@ -183,9 +183,7 @@ class DynamicWorkerRoutesTest extends BaseRoutesSpec with Eventually {
         "It was the best of times\nIt was the worst of times\nAs I write this, Trump just fired James Comey\n"
       val upload = {
         Multipart.FormData(
-          Multipart.FormData.BodyPart.Strict("csv",
-                                             HttpEntity(ContentTypes.`text/plain(UTF-8)`, expectedContent),
-                                             Map("filename" -> "some.file")))
+          Multipart.FormData.BodyPart.Strict("csv", HttpEntity(ContentTypes.`text/plain(UTF-8)`, expectedContent), Map("filename" -> "some.file")))
       }
 
       val httpRequest = WorkerClient.multipartRequest("uploadTest", matchDetails, upload)
@@ -298,10 +296,6 @@ object DynamicWorkerRoutesTest {
 
   case class SomeData(foo: String, bar: Int)
 
-  val matchDetails = MatchDetails(nextMatchId(),
-                                  nextSubscriptionKey(),
-                                  nextJobId(),
-                                  3,
-                                  LocalDateTime.ofEpochSecond(1234567, 0, ZoneOffset.UTC))
+  val matchDetails = MatchDetails(nextMatchId(), nextSubscriptionKey(), nextJobId(), 3, LocalDateTime.ofEpochSecond(1234567, 0, ZoneOffset.UTC))
 
 }

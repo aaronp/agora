@@ -6,9 +6,7 @@ enablePlugins(DockerPlugin, DockerComposePlugin, CucumberPlugin)
 
 CucumberPlugin.glue := "classpath:agora.exec.test"
 
-CucumberPlugin.features := List("classpath:agora.exec.test",
-  "exec-test/src/test/resources/agora/exec/test")
-
+CucumberPlugin.features := List("classpath:agora.exec.test", "exec-test/src/test/resources/agora/exec/test")
 
 imageNames in docker := Seq(
   ImageName(s"porpoiseltd/${name.value}:latest")
@@ -18,7 +16,7 @@ dockerfile in docker := {
   // The assembly task generates a fat JAR file
   val artifact: File = assembly.value
 
-  val resDir = (resourceDirectory in Compile).value
+  val resDir         = (resourceDirectory in Compile).value
   val entrypointPath = resDir.toPath.resolve("exec.sh").toFile
 
   // we call this 'docker-logback.xml' and then rename to 'logback.xml' in our

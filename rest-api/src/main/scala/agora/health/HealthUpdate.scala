@@ -73,8 +73,7 @@ object HealthUpdate extends StrictLogging {
     * @param sys
     * @return
     */
-  def schedule(exchange: Exchange, keys: Set[SubscriptionKey], frequency: FiniteDuration)(
-      implicit sys: ActorSystem): Cancellable = {
+  def schedule(exchange: Exchange, keys: Set[SubscriptionKey], frequency: FiniteDuration)(implicit sys: ActorSystem): Cancellable = {
     val actor = sys.actorOf(props(exchange, keys), "updateActor")
     import sys.dispatcher
     sys.scheduler.schedule(frequency, frequency, actor, UpdateMsg)

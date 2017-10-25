@@ -23,10 +23,7 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
     "execute requests on different servers" in {
       withDir { dir =>
         val anotherConf: ExecConfig =
-          ExecConfig("port=8888",
-                     s"uploads.dir=${dir.toAbsolutePath.toString}",
-                     "initialRequest=1",
-                     "includeExchangeRoutes=false")
+          ExecConfig("port=8888", s"uploads.dir=${dir.toAbsolutePath.toString}", "initialRequest=1", "includeExchangeRoutes=false")
         anotherConf.initialRequest shouldBe 1
         val anotherServerConnectedToServer1Exchange = {
           anotherConf.start().futureValue

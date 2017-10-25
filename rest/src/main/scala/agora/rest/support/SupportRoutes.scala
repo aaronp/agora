@@ -61,12 +61,7 @@ case class SupportRoutes(config: Config) {
                            value = "the logger name (or package)",
                            required = true,
                            paramType = "query"),
-      new ApiImplicitParam(name = "level",
-                           example = "info",
-                           defaultValue = "",
-                           value = "the new name log level to set",
-                           required = true,
-                           paramType = "query")
+      new ApiImplicitParam(name = "level", example = "info", defaultValue = "", value = "the new name log level to set", required = true, paramType = "query")
     ))
   @ApiResponses(
     Array(

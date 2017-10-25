@@ -83,8 +83,7 @@ object ProcessRunner {
     * @param exchange the worker client used to send requests
     * @return a runner which executes stuff remotely
     */
-  def apply(exchange: Exchange, defaultDetails: SubmissionDetails, execApiConfig: ExecApiConfig)(
-      implicit mat: Materializer) = {
+  def apply(exchange: Exchange, defaultDetails: SubmissionDetails, execApiConfig: ExecApiConfig)(implicit mat: Materializer) = {
     new RemoteRunner(exchange, defaultDetails)(execApiConfig, mat)
   }
 

@@ -58,8 +58,7 @@ object MessageProducer {
     }
   }
 
-  def apply[T: Encoder: Decoder: ClassTag](listener: MessageConsumer[T])(implicit system: ActorSystem,
-                                                                         mat: Materializer): MessageProducer[T] = {
+  def apply[T: Encoder: Decoder: ClassTag](listener: MessageConsumer[T])(implicit system: ActorSystem, mat: Materializer): MessageProducer[T] = {
     apply(MsgHandlerActor.props(listener))
   }
 

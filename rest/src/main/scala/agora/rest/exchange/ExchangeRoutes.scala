@@ -73,8 +73,7 @@ case class ExchangeRoutes(exchange: ServerSideExchange)
   /**
     * subscription routes called from workers requesting work
     */
-  protected def jsonRouteFor[T, B](name: String)(
-      handle: T => Future[_ >: B])(implicit um: FromRequestUnmarshaller[T], dec: Decoder[T], enc: Encoder[B]) = {
+  protected def jsonRouteFor[T, B](name: String)(handle: T => Future[_ >: B])(implicit um: FromRequestUnmarshaller[T], dec: Decoder[T], enc: Encoder[B]) = {
     (path(name) & pathEnd) {
       extractMaterializer { implicit mat =>
         import mat.executionContext

@@ -20,11 +20,7 @@ import scala.concurrent.Future
   *
   * @param rest
   */
-class ExchangeRestClient(val rest: RestClient)
-    extends Exchange
-    with FailFastCirceSupport
-    with AutoCloseable
-    with StrictLogging {
+class ExchangeRestClient(val rest: RestClient) extends Exchange with FailFastCirceSupport with AutoCloseable with StrictLogging {
 
   override def toString = s"ExchangeRestClient($rest)"
 
@@ -52,9 +48,7 @@ class ExchangeRestClient(val rest: RestClient)
       case client: RetryClient =>
         handlerErr: HandlerError =>
           val (bodyOpt, resp, err) = handlerErr
-          logger.error(
-            s"$client retrying after getting response w/ '${resp.status}' $err ($bodyOpt). Checking the queue...",
-            err)
+          logger.error(s"$client retrying after getting response w/ '${resp.status}' $err ($bodyOpt). Checking the queue...", err)
           client.reset(Option(err))
           queueState().flatMap { state =>
             logger.error(state.description, err)

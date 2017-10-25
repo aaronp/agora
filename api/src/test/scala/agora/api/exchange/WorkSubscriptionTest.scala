@@ -27,9 +27,7 @@ class WorkSubscriptionTest extends BaseSpec {
     import agora.api.Implicits._
 
     val jobPath = (("value" gt 7) and ("value" lt 17)) or ("value" === 123)
-    val sub = WorkSubscription(HostLocation.localhost(1234),
-                               jobCriteria = jobPath,
-                               submissionCriteria = ("topic" === "foo").asMatcher)
+    val sub     = WorkSubscription(HostLocation.localhost(1234), jobCriteria = jobPath, submissionCriteria = ("topic" === "foo").asMatcher)
 
     "match jobs with work subscriptions" in {
       val details = SubmissionDetails().add("topic" -> "foo")
