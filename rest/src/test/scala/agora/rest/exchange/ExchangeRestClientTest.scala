@@ -1,6 +1,7 @@
 package agora.rest.exchange
 
-import agora.api.exchange.{Exchange, ExchangeSpec, MatchObserver}
+import agora.api.exchange.observer.ExchangeObserver
+import agora.api.exchange.{Exchange, ExchangeSpec}
 import agora.rest.exchange.ExchangeServerConfig.RunningExchange
 import org.scalatest.BeforeAndAfter
 import org.scalatest.time.{Millis, Seconds, Span}
@@ -31,7 +32,7 @@ class ExchangeRestClientTest extends ExchangeSpec with BeforeAndAfter {
     }
   }
 
-  override def newExchange(observer: MatchObserver): Exchange = {
+  override def newExchange(observer: ExchangeObserver): Exchange = {
     client = config.client
     client
   }

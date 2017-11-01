@@ -43,12 +43,14 @@ package agora.exec.model
   *                                    isn't, then a unique output file name is chosen.
   * @param stdErrFileName              an option filename to save the output file to. If 'canCache' is set and the 'stdErrFileName'
   *                                    isn't, then a unique output file name is chosen.
+  * @param logOutput                   if set, the value will be interepretted as a log level (e.g. trace, debug, info, etc)
   * @param canCache                    toggle ability to cache as detailed above
   * @param useCachedValueWhenAvailable use the cached value when available
   */
 case class OutputSettings(streaming: Option[StreamingSettings] = Option(StreamingSettings()),
                           stdOutFileName: Option[String] = None,
                           stdErrFileName: Option[String] = None,
+                          logOutput: Option[String] = None,
                           canCache: Boolean = false,
                           useCachedValueWhenAvailable: Boolean = true) {
   def withSettings(settings: StreamingSettings): OutputSettings = copy(streaming = Option(settings))

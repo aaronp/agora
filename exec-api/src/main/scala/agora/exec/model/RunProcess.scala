@@ -80,6 +80,9 @@ case class RunProcess(command: List[String],
 
   def withOutput(newOutput: OutputSettings): RunProcess = copy(output = newOutput)
 
+  def withOutputLogging(outputLogging: Option[String]): RunProcess = withOutput(output.copy(logOutput = outputLogging))
+  def withOutputLogging(outputLogging: String): RunProcess         = withOutputLogging(Option(outputLogging))
+
   def withCaching(cache: Boolean): RunProcess = withOutput(output.copy(canCache = cache))
 
   def useCachedValueWhenAvailable(cache: Boolean): RunProcess = {

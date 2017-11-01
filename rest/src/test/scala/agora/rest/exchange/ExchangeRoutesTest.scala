@@ -2,6 +2,7 @@ package agora.rest.exchange
 
 import akka.http.scaladsl.server.Route
 import agora.api.Implicits._
+import agora.api.exchange.observer.{ExchangeObserver, ExchangeObserverDelegate}
 import agora.api.nextJobId
 import agora.api.exchange.{QueueStateResponse, UpdateSubscriptionAck, _}
 import agora.api.worker.{HostLocation, SubscriptionKey, WorkerDetails}
@@ -22,18 +23,18 @@ import scala.language.reflectiveCalls
   */
 class ExchangeRoutesTest extends BaseRoutesSpec {
 
-  def routes(obs: MatchObserver = MatchObserver()): Route = {
+  def routes(obs: ExchangeObserverDelegate = ExchangeObserverDelegate()): Route = {
     exchangeRoutes(obs).routes
   }
 
-  def exchangeRoutes(obs: MatchObserver) = {
+  def exchangeRoutes(obs: ExchangeObserverDelegate) = {
     val exchange = Exchange(obs)
     ExchangeRoutes(new ServerSideExchange(exchange, obs))
   }
 
   "PUT /rest/exchange/submit" should {
     "submit jobs" in {
-      val obs = MatchObserver()
+      val obs = ExchangeObserver()
       ExchangeHttp(123.asJob.withAwaitMatch(false)) ~> routes(obs) ~> check {
         val resp = responseAs[SubmitJobResponse]
         resp.id should not be (null)
@@ -42,7 +43,7 @@ class ExchangeRoutesTest extends BaseRoutesSpec {
   }
   "POST /rest/exchange/update/<id>" should {
     "return an empty ack of the subscription does not exist" in {
-      val obs            = MatchObserver()
+      val obs            = ExchangeObserver()
       val routeUnderTest = exchangeRoutes(obs)
       val original = WorkSubscription
         .localhost(1234)
@@ -75,7 +76,7 @@ class ExchangeRoutesTest extends BaseRoutesSpec {
       verifyUpdatedJson(subscription.details.aboutMe)
     }
     "update subscriptions" in {
-      val obs = MatchObserver()
+      val obs = ExchangeObserver()
       ExchangeHttp(123.asJob.withAwaitMatch(false)) ~> routes(obs) ~> check {
         val resp = responseAs[SubmitJobResponse]
         resp.id should not be (null)
@@ -93,7 +94,7 @@ class ExchangeRoutesTest extends BaseRoutesSpec {
   "POST /rest/exchange/take" should {
     "take work for a subscription" in {
 
-      val obs = MatchObserver()
+      val obs = ExchangeObserver()
 
       val route = exchangeRoutes(obs)
 
@@ -102,7 +103,7 @@ class ExchangeRoutesTest extends BaseRoutesSpec {
       val job        = 123.asJob(SubmissionDetails(awaitMatch = true)).withId(nextJobId())
       val expectedId = job.jobId.get
 
-      val matchFuture: Future[BlockingSubmitJobResponse] = obs.onJob(job)
+      val matchFuture: Future[BlockingSubmitJobResponse] = obs.awaitJob(job)
 
       // subscribe to work
       val ws = WorkSubscription(HostLocation.localhost(1234))

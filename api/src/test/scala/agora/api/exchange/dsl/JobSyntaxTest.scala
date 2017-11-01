@@ -3,9 +3,10 @@ package agora.api.exchange.dsl
 import agora.BaseSpec
 import agora.api.exchange._
 import org.scalatest.concurrent.Eventually
-
 import agora.api.Implicits._
+import agora.api.exchange.observer.OnMatch
 import io.circe.generic.auto._
+
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
 
@@ -17,9 +18,9 @@ class JobSyntaxTest extends BaseSpec with Eventually {
     "return the first result to complete when SelectFirst selection mode is specified" in {
       val exchange = ServerSideExchange()
 
-      var matches = List[MatchNotification]()
+      var matches = List[OnMatch]()
       exchange.observer.alwaysWhen {
-        case mtch => matches = mtch :: matches
+        case mtch: OnMatch => matches = mtch :: matches
       }
 
       def createWorker(port: Int) = {

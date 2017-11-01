@@ -11,7 +11,7 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
-class ExchangeObserverDelegate(initialObservers: List[ExchangeObserver]) extends ExchangeObserver with StrictLogging {
+class ExchangeObserverDelegate(initialObservers: List[ExchangeObserver] = Nil) extends ExchangeObserver with StrictLogging {
 
   import ExchangeObserverDelegate._
 
@@ -44,7 +44,7 @@ class ExchangeObserverDelegate(initialObservers: List[ExchangeObserver]) extends
     *
     * @return a future match
     */
-  def onJob(job: SubmitJob)(implicit ec: ExecutionContext): Future[BlockingSubmitJobResponse] = {
+  def awaitJob(job: SubmitJob)(implicit ec: ExecutionContext): Future[BlockingSubmitJobResponse] = {
     val promise = Promise[BlockingSubmitJobResponse]()
 
     onceWhen {

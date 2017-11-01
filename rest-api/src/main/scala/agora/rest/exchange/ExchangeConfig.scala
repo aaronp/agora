@@ -1,6 +1,7 @@
 package agora.rest.exchange
 
-import agora.api.exchange.{Exchange, JobPredicate, MatchObserver, ServerSideExchange}
+import agora.api.exchange.observer.{ExchangeObserver, ExchangeObserverDelegate}
+import agora.api.exchange.{Exchange, JobPredicate, ServerSideExchange}
 import agora.config._
 import agora.rest._
 import com.typesafe.config.{Config, ConfigFactory}
@@ -28,7 +29,7 @@ class ExchangeConfig(c: Config) extends ServerConfig(c) {
 
   def client: ExchangeRestClient = ExchangeRestClient(clientConfig.restClient)
 
-  def newExchange(implicit obs: MatchObserver = MatchObserver(), matcher: JobPredicate = JobPredicate()): ServerSideExchange = {
+  def newExchange(implicit obs: ExchangeObserverDelegate = ExchangeObserverDelegate(), matcher: JobPredicate = JobPredicate()): ServerSideExchange = {
     val underlying: Exchange   = Exchange(obs)(matcher)
     val safeExchange: Exchange = ActorExchange(underlying, serverImplicits.system)
     new ServerSideExchange(safeExchange, obs)(serverImplicits.executionContext)

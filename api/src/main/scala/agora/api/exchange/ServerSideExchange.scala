@@ -1,6 +1,8 @@
 package agora.api.exchange
 
+import agora.api.exchange.observer.{ExchangeObserver, ExchangeObserverDelegate}
 import agora.api.nextJobId
+import agora.api.Implicits._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -15,7 +17,8 @@ import scala.concurrent.{ExecutionContext, Future}
   * @param underlying
   * @param observer
   */
-case class ServerSideExchange(underlying: Exchange, val observer: MatchObserver = MatchObserver())(implicit ec: ExecutionContext) extends Exchange {
+case class ServerSideExchange(underlying: Exchange, val observer: ExchangeObserverDelegate = ExchangeObserverDelegate())(implicit ec: ExecutionContext)
+    extends Exchange {
 
   override def onClientRequest(request: ClientRequest) = underlying.onClientRequest(request)
 
@@ -38,7 +41,7 @@ case class ServerSideExchange(underlying: Exchange, val observer: MatchObserver 
     */
   def submitJobAndAwaitMatch(submitJob: SubmitJob)(implicit submitCtxt: ExecutionContext): Future[BlockingSubmitJobResponse] = {
     val jobWithId                                      = submitJob.jobId.fold(submitJob.withId(nextJobId()))(_ => submitJob)
-    val matchFuture: Future[BlockingSubmitJobResponse] = observer.onJob(jobWithId)(submitCtxt)
+    val matchFuture: Future[BlockingSubmitJobResponse] = observer.awaitJob(jobWithId)(submitCtxt)
     underlying.submit(jobWithId)
     matchFuture
   }
@@ -48,7 +51,7 @@ object ServerSideExchange {
   def apply(): ServerSideExchange = {
     import ExecutionContext.Implicits._
     implicit val matcher: JobPredicate = JobPredicate()
-    val obs                            = MatchObserver()
+    val obs                            = ExchangeObserverDelegate()
     val exchange                       = Exchange(obs)
     new ServerSideExchange(exchange, obs)
   }

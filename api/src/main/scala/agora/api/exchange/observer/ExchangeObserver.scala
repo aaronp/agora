@@ -19,6 +19,7 @@ trait ExchangeObserver {
   }
 
   def onJobSubmitted(msg: OnJobSubmitted): Unit = onEvent(msg)
+  def onJobSubmitted(job: SubmitJob): Unit      = onJobSubmitted(OnJobSubmitted(now(), job))
 
   def onSubscriptionCreated(msg: OnSubscriptionCreated): Unit = onEvent(msg)
   def onSubscriptionCreated(id: SubscriptionKey, subscription: WorkSubscription, remaining: Int): Unit = {
@@ -50,6 +51,8 @@ trait ExchangeObserver {
 }
 
 object ExchangeObserver {
+
+  def apply() = ExchangeObserverDelegate()
 
   @deprecated("dont", "use")
   def apply(f: Exchange.OnMatch): ExchangeObserver = {

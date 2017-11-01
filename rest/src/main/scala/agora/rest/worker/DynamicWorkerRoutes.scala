@@ -3,6 +3,7 @@ package agora.rest.worker
 import javax.ws.rs.Path
 
 import agora.api.exchange._
+import agora.api.exchange.observer.ExchangeObserverDelegate
 import agora.api.health.HealthDto
 import agora.api.worker.SubscriptionKey
 import akka.http.scaladsl.model.ContentTypes.`application/json`
@@ -21,7 +22,7 @@ import scala.language.reflectiveCalls
 object DynamicWorkerRoutes {
   def apply(subscription: WorkSubscription)(implicit mat: Materializer): DynamicWorkerRoutes = {
     implicit val predicate = JobPredicate()
-    val exchange           = Exchange(MatchObserver())
+    val exchange           = Exchange(ExchangeObserverDelegate())
     DynamicWorkerRoutes(exchange, subscription, 1)
   }
 }

@@ -1,7 +1,11 @@
 package agora.api.exchange.observer
 
 import agora.BaseSpec
-import agora.api.exchange.{Candidate, Exchange, UpdateSubscription, WorkSubscription}
+import agora.api.exchange._
+
+import agora.api.Implicits._
+
+import scala.language.reflectiveCalls
 
 class ExchangeObserverTest extends BaseSpec {
   "ExchangeObserver.onSubscriptionUpdated" should {

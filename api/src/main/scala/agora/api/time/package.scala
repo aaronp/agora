@@ -23,5 +23,9 @@ package object time {
 
   /** @return the current time in UTC
     */
-  def now(zone: ZoneId = ZoneOffset.UTC): Timestamp = TimestampDao.now(zone)
+  def now(zone: ZoneOffset = ZoneOffset.UTC): Timestamp = TimestampDao.now(zone)
+
+  def fromEpochNanos(epochNanos: Long, zone: ZoneOffset = ZoneOffset.UTC): Timestamp = {
+    TimestampDao.fromEpochNanos(epochNanos, zone)
+  }
 }

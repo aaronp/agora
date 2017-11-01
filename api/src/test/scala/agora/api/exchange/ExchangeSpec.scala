@@ -1,7 +1,8 @@
 package agora.api.exchange
 
-import agora.{BaseIOSpec, BaseSpec}
+import agora.BaseIOSpec
 import agora.api.Implicits
+import agora.api.exchange.observer.{ExchangeObserver, ExchangeObserverDelegate, OnMatch}
 import agora.api.json.JPredicate
 import agora.api.worker.{HostLocation, WorkerDetails, WorkerRedirectCoords}
 import io.circe.generic.auto._
@@ -10,11 +11,11 @@ import org.scalatest.time.{Millis, Seconds, Span}
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
 import scala.language.{postfixOps, reflectiveCalls}
 
 trait ExchangeSpec extends BaseIOSpec with Eventually with Implicits {
 
+  val someTime                                    = agora.api.time.fromEpochNanos(0)
   implicit def executionContext: ExecutionContext = ExecutionContext.Implicits.global
 
   import ExchangeSpec._
@@ -24,7 +25,7 @@ trait ExchangeSpec extends BaseIOSpec with Eventually with Implicits {
     */
   def supportsObserverNotifications = true
 
-  def newExchange(observer: MatchObserver): Exchange
+  def newExchange(observer: ExchangeObserver): Exchange
 
   def exchangeName = getClass.getSimpleName.filter(_.isLetter).replaceAllLiterally("Test", "")
 
@@ -110,14 +111,14 @@ trait ExchangeSpec extends BaseIOSpec with Eventually with Implicits {
       }
 
       // create our exchange
-      val obs                = MatchObserver()
+      val obs                = ExchangeObserverDelegate()
       val exchange: Exchange = newExchange(obs)
 
       // and set some
-      var notifications = ListBuffer[MatchNotification]()
+      var notifications = ListBuffer[OnMatch]()
       obs.alwaysWhen {
-        case notification =>
-          notifications += notification
+        case notification: OnMatch =>
+          notifications += notification.copy(time = someTime)
       }
 
       // set up our subscriptions
@@ -135,7 +136,7 @@ trait ExchangeSpec extends BaseIOSpec with Eventually with Implicits {
       val BlockingSubmitJobResponse(_, _, _, workerCoords, workerDetails) =
         if (supportsObserverNotifications) {
           // await our match...
-          val matchFuture = obs.onJob(job)
+          val matchFuture = obs.awaitJob(job)
 
           // submit the job
           val submitResponse = exchange.submit(job).futureValue
@@ -160,13 +161,13 @@ trait ExchangeSpec extends BaseIOSpec with Eventually with Implicits {
 
       // we should've matched tertiary
       if (supportsObserverNotifications) {
-        notifications should contain only (MatchNotification("someJobId", job, List(Candidate(tertiary.key.get, tertiary, 2))))
+        notifications should contain only (OnMatch(someTime, "someJobId", job, List(Candidate(tertiary.key.get, tertiary, 2))))
       }
     }
   }
   exchangeName should {
     "be able to cancel subscriptions" in {
-      val obs          = MatchObserver()
+      val obs          = ExchangeObserverDelegate()
       val ex: Exchange = newExchange(obs)
 
       val subscription: WorkSubscriptionAck =
@@ -184,7 +185,7 @@ trait ExchangeSpec extends BaseIOSpec with Eventually with Implicits {
       afterCancel should be(empty)
     }
     "be able to cancel jobs" in {
-      val obs          = MatchObserver()
+      val obs          = ExchangeObserverDelegate()
       val ex: Exchange = newExchange(obs)
 
       val input = DoubleMe(11).asJob.withAwaitMatch(false)
@@ -207,10 +208,10 @@ trait ExchangeSpec extends BaseIOSpec with Eventually with Implicits {
     if (supportsObserverNotifications) {
       "match jobs with work subscriptions" in {
 
-        object obs extends MatchObserver
-        var matches = List[MatchNotification]()
+        object obs extends ExchangeObserverDelegate
+        var matches = List[OnMatch]()
         obs.alwaysWhen {
-          case jobMatch => matches = jobMatch :: matches
+          case jobMatch: OnMatch => matches = jobMatch :: matches
         }
         val ex: Exchange = newExchange(obs)
 
