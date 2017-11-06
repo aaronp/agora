@@ -26,7 +26,7 @@ import io.circe.generic.auto._
 
 import scala.compat.Platform
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.sys.process.{Process, ProcessLogger}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
@@ -273,10 +273,24 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
       /** 4) obtain a workspace in which to run the job
         * this may eventually time-out based on the workspaces configuration
         */
-      workspaces.await(runProcess.dependencies).flatMap { (workingDir: Path) =>
+      import akka.http.scaladsl.util.FastFuture._
+      val future: Future[HttpResponse] = workspaces.await(runProcess.dependencies).fast.flatMap { (workingDir: Path) =>
         eventMonitor.accept(StartedJob(jobId))
-        onJob(httpRequest, workingDir, jobId, detailsOpt, runProcess)
+        val httpFuture: Future[HttpResponse] = onJob(httpRequest, workingDir, jobId, detailsOpt, runProcess)
+
+        /**
+          * TODO - work out what the chuff is going on. We seem to need this workspace thread to block until the HttpResponse
+          * is **prepared** ... not completed, but at least created.
+          *
+          * Taking this blocking await out here will fail the ExecutionWorkflowTest
+          */
+        logger.trace(s"Waiting for ${runProcess.httpResponsePreparedTimeout} for job '${jobId}'s http response to be prepared")
+        val prepareResponse: HttpResponse = Await.result(httpFuture, runProcess.httpResponsePreparedTimeout)
+        logger.trace(s"Job '${jobId}'s http response ready w/ ${prepareResponse.status}")
+
+        httpFuture
       }
+      future
     }
 
     /**
@@ -289,7 +303,7 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
 
     protected def onJob(httpRequest: HttpRequest, workingDir: Path, jobId: JobId, detailsOpt: Option[MatchDetails], runProcess: RunProcess)(
         implicit ec: ExecutionContext): Future[HttpResponse] = {
-      val processLogger: ProcessLoggers = loggerForJob(runProcess, detailsOpt, workingDir)
+      val processLogger: ProcessLoggers = loggerForJob(jobId: JobId, runProcess, detailsOpt, workingDir)
 
       /** actually execute the [[RunProcess]] and return the Future[Int] of the exit code */
       val exitCodeFuture: Future[Int] = invokeJob(jobId, workingDir, runProcess, processLogger)
@@ -368,7 +382,7 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
       * @param runProcess     the job unmarshalled from the http request
       * @param processLogger  the loggers used in the running job
       * @param exitCodeFuture the future of the exit code
-      * @return an HttpResposne
+      * @return an HttpResponse
       */
     protected def prepareHttpResponse(jobId: JobId,
                                       workingDir: Path,
@@ -380,8 +394,26 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
       formatHttpResponse(httpRequest, runProcess, processLogger)
     }
 
-    protected def loggerForJob(runProcess: RunProcess, detailsOpt: Option[MatchDetails], workingDir: Path): ProcessLoggers = {
+    protected def loggerForJob(jobId: JobId, runProcess: RunProcess, detailsOpt: Option[MatchDetails], workingDir: Path): ProcessLoggers = {
       val iterableLogger = IterableLogger(runProcess, detailsOpt)
+
+      def addLogger(onLine: String => Unit) = {
+        val prefix = jobId.size match {
+          case n if n > 15 => jobId.take(10) + "... :"
+          case _           => jobId + " :"
+        }
+        iterableLogger.add(ProcessLogger { out =>
+          onLine(prefix + out)
+        })
+      }
+
+      runProcess.output.logOutput.map(_.toLowerCase.trim).foreach {
+        case "trace"            => addLogger(logger.trace(_: String))
+        case "debug"            => addLogger(logger.debug(_: String))
+        case "info"             => addLogger(logger.info(_: String))
+        case "warn" | "warning" => addLogger(logger.warn(_: String))
+        case "error"            => addLogger(logger.error(_: String))
+      }
 
       runProcess.output.stdOutFileName.foreach { stdOutFileName =>
         val stdOutLogger = ProcessLogger(workingDir.resolve(stdOutFileName).toFile)

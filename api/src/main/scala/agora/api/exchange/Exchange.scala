@@ -153,18 +153,13 @@ object Exchange {
   /**
     * Creates a new, in-memory exchange with the given job/worker match notifier
     *
-    * @param onMatch the observer notified when a job is paired with a worker subscription
+    * @param observer the observer notified when a job is paired with a worker subscription
     * @param matcher the match logic used to pair work with subscriptions
     * @return a new Exchange instance
     */
-  def apply(onMatch: OnMatch)(implicit matcher: JobPredicate) =
-    new ExchangeInstance(new ExchangeState(), ExchangeObserver(onMatch))
-
   def apply(observer: ExchangeObserver)(implicit matcher: JobPredicate = JobPredicate()) =
     new ExchangeInstance(new ExchangeState(), observer)
 
   def instance(): Exchange = apply(ExchangeObserverDelegate())(JobPredicate())
-
-  type OnMatch = MatchNotification => Unit
 
 }

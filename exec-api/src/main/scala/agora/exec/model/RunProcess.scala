@@ -19,6 +19,8 @@ case class RunProcess(command: List[String],
                       dependencies: UploadDependencies = UploadDependencies(newWorkspace(), Set.empty, 0),
                       output: OutputSettings = OutputSettings()) {
 
+  def httpResponsePreparedTimeout = output.httpResponsePreparedTimeout
+
   /**
     * If [[OutputSettings.canCache]] is set, then we ensure that stdout and stderr are set to unique values if left unset
     *

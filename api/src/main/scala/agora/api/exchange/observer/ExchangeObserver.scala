@@ -54,19 +54,6 @@ object ExchangeObserver {
 
   def apply() = ExchangeObserverDelegate()
 
-  @deprecated("dont", "use")
-  def apply(f: Exchange.OnMatch): ExchangeObserver = {
-    new ExchangeObserver {
-      override def onEvent(event: ExchangeNotificationMessage) = {
-        event match {
-          case msg: OnMatch =>
-            f(MatchNotification(msg.jobId, msg.job, msg.chosen))
-          case _ =>
-        }
-      }
-    }
-  }
-
   object NoOp extends ExchangeObserver {
     override def onEvent(event: ExchangeNotificationMessage): Unit = {}
   }

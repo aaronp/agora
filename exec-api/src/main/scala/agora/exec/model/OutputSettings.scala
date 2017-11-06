@@ -1,5 +1,7 @@
 package agora.exec.model
 
+import concurrent.duration._
+
 /**
   * Represents a configuration for what to do w/ a process output
   *
@@ -52,7 +54,9 @@ case class OutputSettings(streaming: Option[StreamingSettings] = Option(Streamin
                           stdErrFileName: Option[String] = None,
                           logOutput: Option[String] = None,
                           canCache: Boolean = false,
-                          useCachedValueWhenAvailable: Boolean = true) {
+                          useCachedValueWhenAvailable: Boolean = true,
+                          httpResponsePreparedTimeoutInMillis: Long = 5000) {
   def withSettings(settings: StreamingSettings): OutputSettings = copy(streaming = Option(settings))
 
+  def httpResponsePreparedTimeout: FiniteDuration = httpResponsePreparedTimeoutInMillis.millis
 }

@@ -1,7 +1,7 @@
 package agora.api.exchange.observer
 
 import agora.BaseSpec
-import agora.api.exchange.{MatchNotification, SubmitJob}
+import agora.api.exchange.SubmitJob
 import agora.api.Implicits._
 
 class ExchangeObserverDelegateTest extends BaseSpec {

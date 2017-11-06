@@ -180,9 +180,13 @@ class ExecutionWorkflowTest extends BaseSpec with FailFastCirceSupport with HasM
         val workflow = ExecutionWorkflow(Map.empty, client, SystemEventMonitor.DevNull)
 
         val runProcess: RunProcess = {
+
+          import agora.rest.test.TestUtils._
+
           RunProcess("yes")
             .withCaching(false)
             .useCachedValueWhenAvailable(false)
+            .withOutputLogging("info")
             .withStreamingSettings(StreamingSettings())
         }
 
@@ -192,19 +196,24 @@ class ExecutionWorkflowTest extends BaseSpec with FailFastCirceSupport with HasM
         // start the job ...
         val jobFuture: Future[HttpResponse] = workflow.onExecutionRequest(requestWithJobId, runProcess)
 
+        @volatile var outputIterator: Iterator[String] = Iterator.empty
         withClue("We have to start streaming the job output to ensure we don't have a start/cancel race condition") {
           // ... and ensure it's running as to start streaming the results..
-          val gotOutputFuture: Future[Boolean] = jobFuture.map { resp =>
-            val iter = IterableSubscriber.iterate(resp.entity.dataBytes, 1000)
-            iter.hasNext
+          val gotOutputFuture: Future[String] = jobFuture.map { resp =>
+            val iter: Iterator[String] = IterableSubscriber.iterate(resp.entity.dataBytes, 1000)
+            outputIterator = iter
+            iter.next
           }
 
-          gotOutputFuture.futureValue shouldBe true
+          gotOutputFuture.futureValue shouldBe "y"
         }
 
         // the job is now running, so we call the method under test
         val cancelFuture = workflow.onCancelJob("foo")
-        val cancelled    = ExecutionClient.parseCancelResponse(cancelFuture.futureValue).futureValue
+        val cancelled = {
+          val cancelResp: HttpResponse = cancelFuture.futureValue
+          ExecutionClient.parseCancelResponse(cancelResp).futureValue
+        }
         cancelled shouldBe Option(true)
 
         val cancelled2 = ExecutionClient.parseCancelResponse(workflow.onCancelJob("foo").futureValue).futureValue
