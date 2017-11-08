@@ -34,13 +34,13 @@ abstract class BaseIOSpec extends WordSpec with Matchers with ScalaFutures with 
     def block = Await.result(fut, testTimeout)
   }
 
-  def srcDir: Path = BaseSpec.srcDir
+  def srcDir: Path = BaseIOSpec.srcDir
 
-  def withDir[T](f: Path => T): T = BaseSpec.withDir(getClass.getSimpleName)(f)
+  def withDir[T](f: Path => T): T = BaseIOSpec.withDir(getClass.getSimpleName)(f)
 
 }
 
-object BaseSpec extends LowPriorityIOImplicits {
+object BaseIOSpec extends LowPriorityIOImplicits {
 
   private val dirCounter = new AtomicLong(System.currentTimeMillis())
 

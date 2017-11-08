@@ -1,7 +1,7 @@
 package agora.io.dao
 
 import agora.io.dao.instances.FileTagDao
-import agora.{BaseIOSpec, BaseSpec}
+import agora.BaseIOSpec
 
 import scala.util.Try
 
@@ -12,7 +12,7 @@ object TagDaoTest {
   }
 
   def withDao[T](f: TagDao[String] => T) = {
-    BaseSpec.withDir("TagDaoTest") { dir =>
+    BaseIOSpec.withDir("TagDaoTest") { dir =>
       implicit val persist = Persist.writer[String]
       implicit val reader = FromBytes.lift { bytes =>
         val tri = Try(new String(bytes))

@@ -77,8 +77,8 @@ class ExchangeRestClient(val rest: RestClient) extends Exchange with FailFastCir
     }
   }
 
-  override def take(request: RequestWork): Future[RequestWorkAck] = {
-    rest.send(ExchangeHttp(request)).flatMap(_.as[RequestWorkAck](retryOnError(take(request))))
+  override def request(requestWork: RequestWork): Future[RequestWorkAck] = {
+    rest.send(ExchangeHttp(requestWork)).flatMap(_.as[RequestWorkAck](retryOnError(request(requestWork))))
   }
 
   override def submit(job: SubmitJob): Future[ClientResponse] = {

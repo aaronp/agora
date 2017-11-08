@@ -67,7 +67,7 @@ class RouteSubscriptionSupportTest extends BaseRoutesSpec {
 
       // we should start out w/ pulling a request
 
-      exchange.take(Scenario.key, 1).futureValue
+      exchange.request(Scenario.key, 1).futureValue
       currentSubscription.requested shouldBe 1
 
       val routesUnderTest = routes(Scenario.SetPendingTarget(5))

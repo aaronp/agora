@@ -2,9 +2,16 @@ package agora.rest.exchange
 
 import agora.api.exchange.observer.{ExchangeObserver, ExchangeObserverDelegate}
 import agora.api.exchange.{Exchange, JobPredicate, ServerSideExchange}
+import agora.api.worker.HostLocation
 import agora.config._
 import agora.rest._
+import akka.http.scaladsl.HttpExt
+import akka.stream.Materializer
 import com.typesafe.config.{Config, ConfigFactory}
+import org.reactivestreams.Subscription
+
+import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.duration._
 
 object ExchangeConfig {
 
@@ -29,9 +36,18 @@ class ExchangeConfig(c: Config) extends ServerConfig(c) {
 
   def client: ExchangeRestClient = ExchangeRestClient(clientConfig.restClient)
 
+  def connectObserver(obs: ExchangeObserver, location: HostLocation = clientConfig.location)(
+      implicit http: HttpExt = serverImplicits.http,
+      execContext: ExecutionContext = serverImplicits.executionContext,
+      mat: Materializer = serverImplicits.materializer): Future[Subscription] = {
+    ExchangeClientObserver.connectClient(location, obs, http)
+  }
+
+  def withQueueStateBufferTimeout = c.getDuration("withQueueStateBufferTimeout").toMillis.millis
+
   def newExchange(implicit obs: ExchangeObserverDelegate = ExchangeObserverDelegate(), matcher: JobPredicate = JobPredicate()): ServerSideExchange = {
-    val underlying: Exchange   = Exchange(obs)(matcher)
-    val safeExchange: Exchange = ActorExchange(underlying, serverImplicits.system)
+    val underlying: Exchange                            = Exchange(obs)(matcher)
+    val safeExchange: ActorExchange.ActorExchangeClient = ActorExchange(underlying, withQueueStateBufferTimeout, serverImplicits.system)
     new ServerSideExchange(safeExchange, obs)(serverImplicits.executionContext)
   }
 

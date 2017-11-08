@@ -201,7 +201,7 @@ case class DynamicWorkerRoutes(exchange: Exchange, defaultSubscription: WorkSubs
 
       // ask for some initial work
       if (initialRequest > 0) {
-        exchange.take(ack.id, initialRequest)
+        exchange.request(ack.id, initialRequest)
       } else {
         Future.successful(RequestWorkAck(ack.id, initialRequest))
       }

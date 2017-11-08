@@ -37,15 +37,15 @@ trait Exchange extends JobSyntax {
   /**
     * A convenience method where subscription requests can be sent through this single function which
     * delegates to the appropriate method. The 'convenience' in this sense is in terms of
-    * pluggability into message handling systems such as actor systems, REST endpoints, etc.
+    * plugability into message handling systems such as actor systems, REST endpoints, etc.
     *
-    * @param request
+    * @param subscriptionRequest the subscription request
     * @return the SubscriptionResponse
     */
-  def onSubscriptionRequest(request: SubscriptionRequest): Future[SubscriptionResponse] = {
-    request match {
+  def onSubscriptionRequest(subscriptionRequest: SubscriptionRequest): Future[SubscriptionResponse] = {
+    subscriptionRequest match {
       case msg: WorkSubscription   => subscribe(msg)
-      case msg: RequestWork        => take(msg)
+      case msg: RequestWork        => request(msg)
       case msg: UpdateSubscription => updateSubscriptionDetails(msg)
     }
   }
@@ -83,14 +83,14 @@ trait Exchange extends JobSyntax {
 
   /**
     * Convenience method to subscribe and immediately request work items
-    * @param request the work subscription
+    * @param workSubscription the work subscription
     * @param initialRequest the number of work items to request
     * @param ec the execution context
     * @return a tuple of the subscribe ack and request ack
     */
-  def subscribe(request: WorkSubscription, initialRequest: Int)(implicit ec: ExecutionContext): Future[(WorkSubscriptionAck, RequestWorkAck)] = {
-    subscribe(request).flatMap { ack =>
-      take(ack.id, initialRequest).map { takeAck =>
+  def subscribe(workSubscription: WorkSubscription, initialRequest: Int)(implicit ec: ExecutionContext): Future[(WorkSubscriptionAck, RequestWorkAck)] = {
+    subscribe(workSubscription).flatMap { ack =>
+      request(ack.id, initialRequest).map { takeAck =>
         ack -> takeAck
       }
     }
@@ -105,24 +105,36 @@ trait Exchange extends JobSyntax {
     onSubscriptionRequest(update).mapTo[UpdateSubscriptionAck]
   }
 
-  /** @param request the number of work items to request
+  /** @param requestWork the number of work items to request
     * @return an ack which contains the current known total items requested
     */
-  def take(request: RequestWork) = onSubscriptionRequest(request).mapTo[RequestWorkAck]
+  @deprecated("use 'request'", "0.34")
+  def take(requestWork: RequestWork) = request(requestWork)
+
+  /** @param requestWork the number of work items to request
+    * @return an ack which contains the current known total items requested
+    */
+  def request(requestWork: RequestWork) = onSubscriptionRequest(requestWork).mapTo[RequestWorkAck]
 
   /** convenience method for pulling work items
     */
+  final def request(id: SubscriptionKey, itemsRequested: Int): Future[RequestWorkAck] =
+    request(RequestWork(id, itemsRequested))
+
+  /** convenience method for pulling work items
+    */
+  @deprecated("use 'request'", "0.34")
   final def take(id: SubscriptionKey, itemsRequested: Int): Future[RequestWorkAck] =
     take(RequestWork(id, itemsRequested))
 
   /**
     * Queue the state of the exchange
     *
-    * @param request
+    * @param query the queue criteria
     * @return the current queue state
     */
-  def queueState(request: QueueState = QueueState()): Future[QueueStateResponse] = {
-    onClientRequest(request).mapTo[QueueStateResponse]
+  def queueState(query: QueueState = QueueState()): Future[QueueStateResponse] = {
+    onClientRequest(query).mapTo[QueueStateResponse]
   }
 
   /**
@@ -158,7 +170,7 @@ object Exchange {
     * @return a new Exchange instance
     */
   def apply(observer: ExchangeObserver)(implicit matcher: JobPredicate = JobPredicate()) =
-    new ExchangeInstance(new ExchangeState(), observer)
+    new ExchangeInstance(new ExchangeState(observer))
 
   def instance(): Exchange = apply(ExchangeObserverDelegate())(JobPredicate())
 

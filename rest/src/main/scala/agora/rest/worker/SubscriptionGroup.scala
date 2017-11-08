@@ -37,7 +37,7 @@ case class SubscriptionGroup(subscriptions: List[WorkSubscription], initialExecu
             ackListFuture.flatMap { (acks: List[WorkSubscriptionAck]) =>
               val ids: List[SubscriptionKey] = firstSubscription :: acks.map(_.id)
 
-              exchange.take(firstSubscription, initialExecutionSubscription).map { _ =>
+              exchange.request(firstSubscription, initialExecutionSubscription).map { _ =>
                 ids
               }
             }
@@ -83,7 +83,7 @@ object SubscriptionGroup {
     * }
     * }}}
     *
-    * The intention is for each group to share a subscription reference, so 'lightWorkItem1' and 'lightWorkItem2' will [[agora.api.exchange.Exchange.take]]
+    * The intention is for each group to share a subscription reference, so 'lightWorkItem1' and 'lightWorkItem2' will [[agora.api.exchange.Exchange.request]]
     * from the same subscription ID.
     *
     * 'singleHeavyItem' sits on its own, and so doesn't use a subscription reference unless it has declared one itself

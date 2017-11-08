@@ -209,11 +209,11 @@ object CancelJobs {
   implicit val decoder = exportDecoder[CancelJobs].instance
 }
 
-case class CancelJobsResponse(canceledJobs: Map[JobId, Boolean]) extends ClientResponse
+case class CancelJobsResponse(cancelledJobs: Map[JobId, Boolean]) extends ClientResponse
 
 case class CancelSubscriptions(ids: Set[SubscriptionKey]) extends ClientRequest
 
-case class CancelSubscriptionsResponse(canceledSubscriptions: Map[SubscriptionKey, Boolean]) extends ClientResponse
+case class CancelSubscriptionsResponse(cancelledSubscriptions: Map[SubscriptionKey, Boolean]) extends ClientResponse
 
 sealed trait SubscriptionRequest
 

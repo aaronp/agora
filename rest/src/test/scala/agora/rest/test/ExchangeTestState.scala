@@ -23,7 +23,7 @@ case class ExchangeTestState(server: Option[RunningExchange] = None,
 
   def take(workerName: String, subscriptionKey: SubscriptionKey, items: Int) = {
     val worker: RunningWorker = workersByName(workerName)
-    val ack: RequestWorkAck   = worker.service.exchange.take(subscriptionKey, items).futureValue
+    val ack: RequestWorkAck   = worker.service.exchange.request(subscriptionKey, items).futureValue
     copy(lastTakeAck = Option(ack))
   }
 

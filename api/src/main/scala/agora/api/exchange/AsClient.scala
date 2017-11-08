@@ -1,5 +1,6 @@
 package agora.api.exchange
 
+import scala.annotation.implicitNotFound
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
@@ -7,6 +8,8 @@ import scala.concurrent.{ExecutionContext, Future}
   * the intent)
   *
   */
+@implicitNotFound(
+  "An AsClient[${In}, ${Out}] is a means to convert a Dispatch (match between a job and some workers) to a Future of the result. An implicit instance is needed to tell it what to do with your jobs of type '${In}' to get results of type '${Out}'")
 trait AsClient[-In, +Out] {
 
   /**

@@ -2,9 +2,9 @@ package miniraft.state
 
 import agora.BaseSpec
 import agora.rest.HasMaterializer
-import org.scalatest.concurrent.{Eventually, ScalaFutures}
+import org.scalatest.concurrent.Eventually
 
-import scala.util.Try
+import scala.util.{Failure, Success}
 
 class RaftTimerTest extends BaseSpec with HasMaterializer with Eventually {
 
@@ -33,9 +33,10 @@ class RaftTimerTest extends BaseSpec with HasMaterializer with Eventually {
       timer.initialise { x =>
         require(cancelOnTimeout.isEmpty)
         callbackInvoked = true
-        x.cancel().onSuccess {
-          case cancelled =>
+        x.cancel().onComplete {
+          case Success(cancelled) =>
             cancelOnTimeout = Option(cancelled)
+          case Failure(err) => fail(err)
         }
       }.futureValue shouldBe true
 

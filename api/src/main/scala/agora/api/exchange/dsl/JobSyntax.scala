@@ -5,6 +5,7 @@ import agora.api.exchange._
 import agora.api.worker.{WorkerDetails, WorkerRedirectCoords}
 import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
 
+import scala.annotation.implicitNotFound
 import scala.compat.Platform
 import scala.concurrent.{ExecutionContext, Future, Promise}
 

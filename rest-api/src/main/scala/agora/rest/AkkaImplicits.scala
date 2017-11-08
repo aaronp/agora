@@ -1,7 +1,7 @@
 package agora.rest
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
+import akka.http.scaladsl.{Http, HttpExt}
 import akka.stream.ActorMaterializer
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
@@ -22,7 +22,7 @@ class AkkaImplicits(val actorSystemName: String, actorConfig: Config) extends Au
   }
   implicit val materializer                       = ActorMaterializer()
   implicit val executionContext: ExecutionContext = system.dispatcher
-  val http                                        = Http()
+  val http: HttpExt                               = Http()
 
   override def close(): Unit = {
     materializer.shutdown()

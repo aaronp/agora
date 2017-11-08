@@ -4,8 +4,9 @@ package worker
 import java.util.concurrent.TimeUnit
 
 import agora.api.exchange.Exchange
+import agora.api.exchange.observer.ExchangeObserver
 import agora.config._
-import agora.rest.exchange.{ExchangeRestClient, ExchangeRoutes, ExchangeServerConfig}
+import agora.rest.exchange.{ExchangeClientObserver, ExchangeRestClient, ExchangeRoutes, ExchangeServerConfig}
 import agora.rest.support.SupportRoutes
 import agora.rest.swagger.SwaggerDocRoutes
 import akka.http.scaladsl.server.Directives._

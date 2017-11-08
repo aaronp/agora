@@ -1,6 +1,7 @@
 package agora.exec.events
 
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 
 import agora.api.JobId
 import agora.api.`match`.MatchDetails
@@ -53,11 +54,16 @@ object CompletedJob {
 
 }
 
-case class StartedSystem(config: Json, jvmId: String = StartedSystem.jvmId, startTime: Timestamp = now()) extends RecordedEvent {
-  def id = s"${jvmId}_${startTime}"
+case class StartedSystem(config: Json, jvmId: String = StartedSystem.jvmId, instanceId: Int = StartedSystem.nextInstance(), startTime: Timestamp = now())
+    extends RecordedEvent {
+  def id = s"${jvmId}_${instanceId}_${startTime}"
 }
 
 object StartedSystem {
+
+  private val instanceId          = new AtomicInteger(0)
+  private def nextInstance(): Int = instanceId.incrementAndGet()
+
   private val jvmId = UUID.randomUUID().toString
 
   implicit object StartedSystemId extends HasId[StartedSystem] {

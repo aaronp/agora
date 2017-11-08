@@ -1,6 +1,8 @@
 package agora.api.worker
 
 import agora.BaseSpec
+import agora.api.json.JsonDelta
+import io.circe.Json
 import io.circe.optics.JsonPath
 
 class WorkerDetailsTest extends BaseSpec {
@@ -56,7 +58,8 @@ class WorkerDetailsTest extends BaseSpec {
               |  "runUser" : "Eleanor",
               |  "location" : {
               |    "host" : "nearby",
-              |    "port" : 5
+              |    "port" : 5,
+              |    "secure" : false
               |  },
               |  "someData" : {
               |    "intField" : 123,

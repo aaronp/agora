@@ -45,8 +45,8 @@ class SubmitableTest extends BaseSpec {
 
       val sub1 = exchange.subscribe(subscription1).futureValue
       val sub2 = exchange.subscribe(subscription2).futureValue
-      exchange.take(sub1.id, 1)
-      exchange.take(sub2.id, 1)
+      exchange.request(sub1.id, 1)
+      exchange.request(sub2.id, 1)
 
       // enqueues the add request. The asClient is picked up from the Add's companion object
       val three: Int = exchange.enqueue(Add(1, 2)).futureValue

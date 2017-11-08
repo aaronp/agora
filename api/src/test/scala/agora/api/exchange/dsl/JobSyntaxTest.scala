@@ -66,7 +66,7 @@ class JobSyntaxTest extends BaseSpec with Eventually {
 
       matches.size shouldBe 1
       withClue("there should have been 3 candidates") {
-        matches.head.chosen.size shouldBe 3
+        matches.head.selection.size shouldBe 3
       }
       dispatchCalls.foreach { call =>
         call.matchDetails.remainingItems shouldBe 2

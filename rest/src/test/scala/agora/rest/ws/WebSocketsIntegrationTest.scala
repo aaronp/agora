@@ -1,26 +1,13 @@
 package agora.rest.ws
 
-import agora.rest.BaseRoutesSpec
-import agora.rest.worker.WorkerConfig
-import akka.http.scaladsl.model.ws.{BinaryMessage, Message, TextMessage}
-import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.{Directives, Route}
-import akka.stream.scaladsl.{Flow, Sink, Source}
-import akka.util.ByteString
-
-import scala.concurrent.duration._
-import akka.http.scaladsl.server.Route
-import agora.api.Implicits._
-import agora.api.nextJobId
-import agora.api.exchange.{QueueStateResponse, UpdateSubscriptionAck, _}
-import agora.api.worker.{HostLocation, SubscriptionKey, WorkerDetails}
-import agora.rest.BaseRoutesSpec
 import akka.NotUsed
+import akka.http.scaladsl.model.HttpMethods.POST
+import akka.http.scaladsl.model.ws.{BinaryMessage, Message, TextMessage}
+import akka.http.scaladsl.server.{Directives, Route}
 import akka.http.scaladsl.testkit.{ScalatestRouteTest, WSProbe}
+import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.stream.{Graph, SourceShape}
-import io.circe.Json
-import io.circe.generic.auto._
-import io.circe.optics.JsonPath
+import akka.util.ByteString
 import org.scalatest.{Matchers, WordSpec}
 
 import scala.concurrent.Future
@@ -52,6 +39,7 @@ class WebSocketsIntegrationTest extends WordSpec with Matchers with Directives w
       def onSubscription(msg: Message): Source[Message, NotUsed] = {
         ???
       }
+
       val dave: Message => Graph[SourceShape[Message], NotUsed] = onSubscription _
       val bar                                                   = Flow[Message].flatMapMerge[Message, NotUsed](concurrency, dave)
 
@@ -76,23 +64,20 @@ class WebSocketsIntegrationTest extends WordSpec with Matchers with Directives w
       }
 
     val wsRoute: Route = {
-      path("testing") {
-
-        extractRequest { req =>
-          val s = req.method.value
-          println(s)
-
-//          r.discardEntityBytes() // important to drain incoming HTTP Entity stream
-//          HttpResponse(404, entity = "Unknown resource!")
-
-          handleWebSocketMessages(greeter)
+      post {
+        path("testing") {
+          extractRequest { req =>
+            //          r.discardEntityBytes() // important to drain incoming HTTP Entity stream
+            //          HttpResponse(404, entity = "Unknown resource!")
+            handleWebSocketMessages(greeter)
+          }
         }
       }
     }
 
     val wsClient = WSProbe()
 
-    WS("/testing", wsClient.flow) ~> wsRoute ~> check {
+    WS("/testing", wsClient.flow).withMethod(POST) ~> wsRoute ~> check {
       // check response for WS Upgrade headers
       isWebSocketUpgrade shouldEqual true
 

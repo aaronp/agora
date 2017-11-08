@@ -3,7 +3,7 @@ package agora.api.exchange
 import agora.BaseSpec
 import agora.api.Implicits._
 import agora.api.exchange.instances.ExchangeState
-import agora.api.exchange.observer.{OnMatch, TestObserver}
+import agora.api.exchange.observer.{ExchangeObserver, OnMatch, TestObserver}
 import agora.api.json.JPredicate
 import agora.api.worker.{HostLocation, SubscriptionKey, WorkerDetails}
 
@@ -15,15 +15,16 @@ class ExchangeStateTest extends BaseSpec {
     "append additional subscription details" in {
       implicit def intAsRequested(n: Int): Requested = Requested(n)
 
+      val observer = new TestObserver
       val original =
         WorkSubscription.forDetails(WorkerDetails(HostLocation.localhost(1234)).append("someArray", List(1, 2)), JPredicate.matchNone, JPredicate.matchNone)
       val initialState =
-        new ExchangeState(subscriptionsById = Map("a" -> (original, Requested(11)), "b" -> (original, Requested(12))))
+        new ExchangeState(observer = observer, subscriptionsById = Map("a" -> (original, Requested(11)), "b" -> (original, Requested(12))))
 
       // call the method under test
-      val json     = mkDetails().append("someArray", List(3, 4)).append("appended", true).aboutMe
-      val observer = new TestObserver
-      val newState = initialState.updateSubscription(UpdateSubscription.append("a", json), observer).get
+      val json = mkDetails().append("someArray", List(3, 4)).append("appended", true).aboutMe
+
+      val newState = initialState.updateSubscription(UpdateSubscription.append("a", json)).get
 
       observer.lastUpdatedSubscription.map(_.subscriptionKey) shouldBe Some("a")
 
@@ -44,9 +45,9 @@ class ExchangeStateTest extends BaseSpec {
     }
 
     "return None if the subscription doesn't exist" in {
-      val initialState = new ExchangeState()
       val observer     = new TestObserver
-      initialState.updateSubscription(UpdateSubscription.append("doesn't exist", "foo", "bar"), observer) shouldBe None
+      val initialState = new ExchangeState(observer = observer)
+      initialState.updateSubscription(UpdateSubscription.append("doesn't exist", "foo", "bar")) shouldBe None
       observer.events shouldBe Nil
     }
   }
@@ -58,14 +59,13 @@ class ExchangeStateTest extends BaseSpec {
         .append("name", "first")
         .append("removed", false)
         .withSubscriptionKey("static key")
+      val observer = new TestObserver
       val initialState =
-        new ExchangeState(subscriptionsById = Map("static key" -> (original, Requested(1))))
+        new ExchangeState(observer = observer, subscriptionsById = Map("static key" -> (original, Requested(1))))
       val newSubscription: WorkSubscription = mkSubscription().append("name", "updated name").withSubscriptionKey("static key")
 
-      val observer = new TestObserver
-
       // call the method under test
-      val (ack, newState) = initialState.subscribe(newSubscription, observer)
+      val (ack, newState) = initialState.subscribe(newSubscription)
 
       observer.lastUpdated.isDefined shouldBe true
       observer.lastUpdatedSubscription().flatMap(_.subscription.details.name) shouldBe Some("updated name")
@@ -91,7 +91,11 @@ class ExchangeStateTest extends BaseSpec {
         .orElse("c" === "d")
         .ensuring(_.submissionDetails.orElse.size == 2)
       val basicJob = "basicJob".asJob
+
+      val testObserver = ExchangeObserver()
+
       val initialState = new ExchangeState(
+        observer = testObserver,
         subscriptionsById = Map("one left" -> (mkSubscription(), Requested(1)), "empty" -> (mkSubscription(), Requested(0))),
         jobsById = Map(
           "orElseJob1" -> orElseJob1,
@@ -101,6 +105,7 @@ class ExchangeStateTest extends BaseSpec {
       )
 
       val expected = new ExchangeState(
+        observer = testObserver,
         subscriptionsById = Map("one left" -> (mkSubscription(), Requested(1))),
         jobsById = Map(
           "orElseJob1" -> "orElseJob1".asJob.matching("foo" gte "bar"),
@@ -111,10 +116,13 @@ class ExchangeStateTest extends BaseSpec {
       // call the method under test
       initialState.orElseState shouldBe Some(expected)
 
-      val expected2 = new ExchangeState(subscriptionsById = Map("one left" -> (mkSubscription(), Requested(1))),
-                                        jobsById = Map(
-                                          "orElseJob2" -> "orElseJob2".asJob.matching("c" === "d")
-                                        ))
+      val expected2 = new ExchangeState(
+        observer = testObserver,
+        subscriptionsById = Map("one left" -> (mkSubscription(), Requested(1))),
+        jobsById = Map(
+          "orElseJob2" -> "orElseJob2".asJob.matching("c" === "d")
+        )
+      )
       // call the method under test with the 'orElse' subscription
       initialState.orElseState.get.orElseState shouldBe Some(expected2)
 
@@ -136,7 +144,7 @@ class ExchangeStateTest extends BaseSpec {
       val (ack, newState) = state.cancelSubscriptions(Set("b", "c"))
       state.subscriptionsById.keySet shouldBe Set("a", "b")
       newState.subscriptionsById.keySet shouldBe Set("a")
-      ack.canceledSubscriptions shouldBe Map("b" -> true, "c" -> false)
+      ack.cancelledSubscriptions shouldBe Map("b" -> true, "c" -> false)
     }
   }
 
@@ -316,8 +324,8 @@ class ExchangeStateTest extends BaseSpec {
     val vanillaExec = WorkSubscription
       .forDetails(mkDetails().withPath("/execute").withSubscriptionKey("vanilla"))
       .matchingSubmission(("topic" === "exec").asMatcher)
-
-    val initialState = new ExchangeState(subscriptionsById = Map("vanilla" -> (vanillaExec, Requested(2))))
+    val observer     = new TestObserver
+    val initialState = new ExchangeState(observer = observer, subscriptionsById = Map("vanilla" -> (vanillaExec, Requested(2))))
 
     // now we make available some data to a workspace, but w/ the same endpoint.
     // We reference the 'vanilla' subscription though, so matches will decrement 'vanilla', and 'take' requests will
@@ -326,8 +334,8 @@ class ExchangeStateTest extends BaseSpec {
       .withSubscriptionKey("workspace")
       .append("files", List("foo.txt", "bar.txt"))
       .referencing("vanilla")
-    val observer                                     = new TestObserver
-    val (WorkSubscriptionAck("workspace"), newState) = initialState.subscribe(workspace, observer)
+
+    val (WorkSubscriptionAck("workspace"), newState) = initialState.subscribe(workspace)
 
   }
 

@@ -1,9 +1,9 @@
 language: scala
 scala:
    - 2.12.4
+   - 2.11.8
 script:
-  - sbt ++2.11 -jvm-opts travis/jvmopts test cucumber
-  - sbt ++2.12 -jvm-opts travis/jvmopts clean test
+  - sbt ++$TRAVIS_SCALA_VERSION -jvm-opts travis/jvmopts clean test
 jdk:
     - oraclejdk8
 cache:

@@ -12,10 +12,9 @@ import scala.util.{Failure, Success, Try}
 /**
   * An immutable view of the exchange state
   *
-  * @param subscriptionsById
-  * @param jobsById
   */
-case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscription, Requested)] = Map[SubscriptionKey, (WorkSubscription, Requested)](),
+case class ExchangeState(observer: ExchangeObserver = ExchangeObserver(),
+                         subscriptionsById: Map[SubscriptionKey, (WorkSubscription, Requested)] = Map[SubscriptionKey, (WorkSubscription, Requested)](),
                          jobsById: Map[JobId, SubmitJob] = Map[JobId, SubmitJob]())
     extends StrictLogging { self =>
 
@@ -83,6 +82,7 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
     val newStateOpt = subscriptionsById.get(key).map {
       case (sub, FixedRequested(n)) =>
         val newRequested = FixedRequested((n + delta).max(0))
+        observer.onSubscriptionRequestCountChanged(key, n, newRequested.n)
         copy(subscriptionsById = subscriptionsById.updated(key, (sub, newRequested)))
       case (_, LinkedRequested(ids)) =>
         val seen = seenCheck + key
@@ -102,8 +102,6 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
     * Composite matches are always considered first, as by definition if an entire composite match
     * matches then all of its constituent parts would as well.
     *
-    * @param matcher
-    * @return
     */
   def matches(implicit matcher: JobPredicate): (List[OnMatch], ExchangeState) = {
 
@@ -165,23 +163,38 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
 
   private def createMatch(jobId: JobId, job: SubmitJob, chosen: CandidateSelection): (OnMatch, ExchangeState) = {
     val notification = OnMatch(agora.api.time.now(), jobId, job, chosen)
+
     notification -> updateStateFromMatch(notification)
   }
 
   /** @return a new state w/ the match removed */
   def updateStateFromMatch(notification: OnMatch): ExchangeState = {
-    val newJobsById = jobsById - notification.jobId
-    notification.chosen.foldLeft(copy(jobsById = newJobsById)) {
+    val newJobsById = jobsById - notification.matchedJobId
+
+    notification.selection.foldLeft(copy(jobsById = newJobsById)) {
       case (state, Candidate(key, _, _)) => state.updatePending(key, -1)
     }
   }
 
   def cancelJobs(request: CancelJobs): (CancelJobsResponse, ExchangeState) = {
     val cancelled = request.ids.map { id =>
-      id -> jobsById.contains(id)
+      val ok = jobsById.contains(id)
+      id -> ok
     }
     val newJobsById = jobsById -- request.ids
-    CancelJobsResponse(cancelled.toMap) -> copy(jobsById = newJobsById)
+    val resp        = CancelJobsResponse(cancelled.toMap)
+
+    val cancelledIds = {
+      val all = resp.cancelledJobs.collect {
+        case (id, true) => id
+      }
+      all.toSet
+    }
+    if (cancelledIds.nonEmpty) {
+      observer.onJobsCancelled(cancelledIds)
+    }
+
+    resp -> copy(jobsById = newJobsById)
   }
 
   private def containsSubscription(id: SubscriptionKey) = subscriptionsById.contains(id)
@@ -195,14 +208,27 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
     val newSubscriptionsById = subscriptionsById -- ids
     val newState             = copy(subscriptionsById = newSubscriptionsById)
 
-    val cancelled = ids.map { id =>
+    val cancelledMap = ids.map { id =>
       val usedToContain = containsSubscription(id)
       if (usedToContain) {
         require(!newState.containsSubscription(id), s"$id wasn't actually cancelled")
       }
       id -> usedToContain
     }
-    CancelSubscriptionsResponse(cancelled.toMap) -> newState
+
+    val resp = CancelSubscriptionsResponse(cancelledMap.toMap)
+
+    val cancelled = {
+      val all = resp.cancelledSubscriptions.collect {
+        case (id, true) => id
+      }
+      all.toSet
+    }
+    if (cancelled.nonEmpty) {
+      observer.onSubscriptionsCancelled(cancelled)
+    }
+
+    resp -> newState
   }
 
   def queueState(request: QueueState): QueueStateResponse = {
@@ -217,7 +243,7 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
     QueueStateResponse(foundJobs.toList, foundWorkers.toList)
   }
 
-  def subscribe(inputSubscription: WorkSubscription, observer: ExchangeObserver): (WorkSubscriptionAck, ExchangeState) = {
+  def subscribe(inputSubscription: WorkSubscription): (WorkSubscriptionAck, ExchangeState) = {
 
     /**
       * Either generate a subscription id or use the one already provided on the WorkSubscription
@@ -236,7 +262,7 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
     val newState: ExchangeState = subscriptionsById.get(id).map(_._2) match {
       case Some(_) =>
         val update                            = UpdateSubscription(id, delta = JsonDelta(append = subscription.details.aboutMe))
-        val updatedOpt: Option[ExchangeState] = updateSubscription(update, observer)
+        val updatedOpt: Option[ExchangeState] = updateSubscription(update)
         updatedOpt.getOrElse(this)
       case None =>
         val requested            = Requested(subscription.subscriptionReferences)
@@ -263,6 +289,10 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
         id -> inputJob.withId(id)
     }
     logger.debug(s"submitting job [$id] $job")
+
+    // let people know we've got a job ... we may subsequently let people know it's matched summat too
+    observer.onJobSubmitted(job)
+
     val newJobsById = jobsById.updated(id, job)
 
     SubmitJobResponse(id) -> copy(jobsById = newJobsById)
@@ -275,6 +305,7 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
           .mkString(",")}"))
       case Some((_, before)) =>
         val newState = updatePending(id, n)
+
         Success(RequestWorkAck(id, before.remaining(this), newState.pending(id)) -> newState)
     }
   }
@@ -285,7 +316,7 @@ case class ExchangeState(subscriptionsById: Map[SubscriptionKey, (WorkSubscripti
     * @param msg the update to perform
     * @return an option of an updated state, should the subscription exist, update condition return true, and delta have effect
     */
-  def updateSubscription(msg: UpdateSubscription, observer: ExchangeObserver): Option[ExchangeState] = {
+  def updateSubscription(msg: UpdateSubscription): Option[ExchangeState] = {
     subscriptionsById.get(msg.id).flatMap {
       case (subscription, n) =>
         if (msg.condition.matches(subscription.details.aboutMe)) {

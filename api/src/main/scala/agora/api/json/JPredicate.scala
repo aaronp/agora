@@ -166,7 +166,7 @@ object JPredicate {
 
 }
 
-object MatchAll extends JPredicate {
+case object MatchAll extends JPredicate {
   override def matches(json: Json): Boolean = true
 
   override def json = Json.fromString("match-all")
@@ -181,7 +181,7 @@ object MatchAll extends JPredicate {
   override def or(other: JPredicate, theRest: JPredicate*): JPredicate = this
 }
 
-object MatchNone extends JPredicate {
+case object MatchNone extends JPredicate {
   override def matches(json: Json): Boolean = false
 
   override def json = Json.fromString("match-none")

@@ -204,7 +204,7 @@ case class WorkContext[T: FromRequestUnmarshaller](exchange: Exchange,
     * @return the Ack (if we indeed had a subscription key)
     */
   def request(n: Int): Option[Future[RequestWorkAck]] =
-    subscriptionKey.map(s => exchange.take(s, n))
+    subscriptionKey.map(s => exchange.request(s, n))
 
   /** @return the subscription details
     */

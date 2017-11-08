@@ -7,7 +7,6 @@ import agora.rest.HasMaterializer
 import agora.rest.exchange.{ExchangeRestClient, ExchangeServerConfig}
 import agora.rest.worker.WorkerConfig
 import agora.rest.worker.WorkerConfig.RunningWorker
-import com.typesafe.config.ConfigFactory
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import org.scalatest.BeforeAndAfterEach
 
@@ -15,12 +14,10 @@ abstract class BaseIntegrationTest extends BaseSpec with FailFastCirceSupport wi
 
   import BaseIntegrationTest._
 
-  private def actorConf = ConfigFactory.load("test-system").ensuring(_.getBoolean("akka.daemonic"))
-
   private val exchangePort                                  = portCounter.incrementAndGet()
   private val workerPort                                    = portCounter.incrementAndGet()
   var workerConfig: WorkerConfig                            = null
-  lazy val exchangeConfig                                   = ExchangeServerConfig(s"port=${exchangePort}")
+  lazy val exchangeConfig                                   = ExchangeServerConfig("host=localhost", s"port=${exchangePort}")
   var exchangeService: ExchangeServerConfig.RunningExchange = null
   var exchangeClient: ExchangeRestClient                    = null
   var worker: RunningWorker                                 = null
@@ -36,7 +33,8 @@ abstract class BaseIntegrationTest extends BaseSpec with FailFastCirceSupport wi
   }
 
   def startAll() = {
-    workerConfig = WorkerConfig(s"port=${workerPort}", s"exchange.port=${exchangePort}", "includeExchangeRoutes=false")
+    workerConfig =
+      WorkerConfig("host=localhost", "exchange.host=localhost", s"port=${workerPort}", s"exchange.port=${exchangePort}", "includeExchangeRoutes=false")
     exchangeService = exchangeConfig.start().futureValue
     exchangeClient = workerConfig.exchangeClient
     workerConfig.exchangeConfig.port shouldBe exchangeConfig.port

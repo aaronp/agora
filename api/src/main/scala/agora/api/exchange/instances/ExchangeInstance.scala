@@ -1,7 +1,7 @@
 package agora.api.exchange.instances
 
 import agora.api.exchange._
-import agora.api.exchange.observer.{ExchangeObserver, OnMatch}
+import agora.api.exchange.observer.{ExchangeObserver, OnJobSubmitted, OnMatch}
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -9,10 +9,8 @@ import scala.util.Try
 /**
   * A default, ephemeral, non-thread-safe implementation of an exchange
   *
-  * @param observer
-  * @param matcher
   */
-class ExchangeInstance(initialState: ExchangeState, observer: ExchangeObserver)(implicit matcher: JobPredicate) extends Exchange {
+class ExchangeInstance(initialState: ExchangeState)(implicit matcher: JobPredicate) extends Exchange {
 
   private var state = initialState
 
@@ -23,7 +21,7 @@ class ExchangeInstance(initialState: ExchangeState, observer: ExchangeObserver)(
   }
 
   override def subscribe(inputSubscription: WorkSubscription) = {
-    val (ack, newState) = state.subscribe(inputSubscription, observer)
+    val (ack, newState) = state.subscribe(inputSubscription)
 
     state = newState
     Future.successful(ack)
@@ -32,7 +30,7 @@ class ExchangeInstance(initialState: ExchangeState, observer: ExchangeObserver)(
   override def updateSubscriptionDetails(update: UpdateSubscription): Future[UpdateSubscriptionAck] = {
     val ack: UpdateSubscriptionAck = state.subscriptionsById.get(update.id) match {
       case Some(old) =>
-        state.updateSubscription(update, observer) match {
+        state.updateSubscription(update) match {
 
           // the update condition matched, and the state has been updated
           case Some(newState) =>
@@ -51,20 +49,20 @@ class ExchangeInstance(initialState: ExchangeState, observer: ExchangeObserver)(
     Future.successful(ack)
   }
 
-  override def take(request: RequestWork) = {
-    val tri = state.request(request.id, request.itemsRequested)
+  override def request(requestWork: RequestWork) = {
+    val tri = state.request(requestWork.id, requestWork.itemsRequested)
     val ackTry: Try[RequestWorkAck] = tri.map {
       case (ack, newState) =>
         // if there weren't any jobs previously, then we may be able to take some work
         if (ack.isUpdatedFromEmpty) {
 
-          val matches = checkMatchesAndUpdateState(newState, _.withSubscription(request.id))
+          val matches = checkMatchesAndUpdateState(newState, _.withSubscription(requestWork.id))
 
-          matches.flatMap(_.chosen).foldLeft(ack) {
+          matches.flatMap(_.selection).foldLeft(ack) {
             case (ack, chosen) => ack.withNewTotal(chosen.remaining)
           }
         } else {
-          logger.debug(s"Not triggering match for subscription work item change of ${request.itemsRequested} on [${request.id}]")
+          logger.debug(s"Not triggering match for subscription work item change of ${requestWork.itemsRequested} on [${requestWork.id}]")
           state = newState
           ack
         }
@@ -74,6 +72,7 @@ class ExchangeInstance(initialState: ExchangeState, observer: ExchangeObserver)(
 
   override def submit(inputJob: SubmitJob) = {
     val (ack, newState) = state.submit(inputJob)
+
     checkMatchesAndUpdateState(newState, _.withJob(ack.id))
     Future.successful(ack)
   }
@@ -96,19 +95,13 @@ class ExchangeInstance(initialState: ExchangeState, observer: ExchangeObserver)(
     val notifications: List[OnMatch] =
       ExchangeInstance.checkForMatches(newState, filterState)
 
+    notifications.foreach { onMatch =>
+      newState.observer.onMatch(onMatch)
+    }
+
     // send out our notifications for matches and update the internal state
-    publish(notifications)
     state = notifications.foldLeft(newState)(_ updateStateFromMatch _)
 
-    notifications
-  }
-
-  private def publish(notifications: List[OnMatch]) = {
-    notifications.foreach {
-      case notification =>
-        logger.debug(s"Triggering match $notification")
-        observer.onMatch(notification)
-    }
     notifications
   }
 
@@ -135,8 +128,9 @@ object ExchangeInstance {
 
     // as the notifications may be on updated SubmitJobs (e.g. the 'orElse' cases of jobs), we need to reinstate the
     // original jobs, not the 'orElse' SubmitJob produced by 'orElseSubmission'
-    notifications.map { onMatch =>
-      onMatch.copy(job = state.jobsById(onMatch.jobId))
+    notifications.map { onMatch: OnMatch =>
+      val newNotification = onMatch.copy(matchedJob = state.jobsById(onMatch.matchedJobId))
+      newNotification
     }
   }
 

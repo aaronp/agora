@@ -1,6 +1,6 @@
 package agora.api.worker
 
-case class HostLocation(host: String, port: Int) {
+case class HostLocation(host: String, port: Int, secure: Boolean = false) {
   def asHostPort = s"$host:$port"
 
   /**

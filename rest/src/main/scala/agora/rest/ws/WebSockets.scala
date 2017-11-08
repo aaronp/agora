@@ -1,17 +1,13 @@
 package agora.rest.ws
 
-import agora.io.{BaseActor, Sources}
 import akka.NotUsed
-import akka.actor.PoisonPill
 import akka.http.scaladsl.model.HttpRequest
-import akka.http.scaladsl.model.ws.{BinaryMessage, Message, TextMessage, UpgradeToWebSocket}
-import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.http.scaladsl.model.ws.{TextMessage, UpgradeToWebSocket}
+import akka.stream.scaladsl.Sink
 import io.circe.generic.auto._
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder}
 import org.reactivestreams.{Subscriber, Subscription}
-
-import scala.concurrent.Future
 
 object WebSockets {
 

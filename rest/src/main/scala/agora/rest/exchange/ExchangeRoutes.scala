@@ -11,7 +11,6 @@ import akka.http.scaladsl.server.Directives.{entity, pathPrefix, _}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.unmarshalling.FromRequestUnmarshaller
 import io.circe.syntax._
-import io.circe.generic.auto._
 import io.circe.{Decoder, Encoder}
 import io.swagger.annotations._
 
@@ -34,18 +33,17 @@ import scala.language.reflectiveCalls
   */
 @Api(value = "Exchange", consumes = "application/json", produces = "application/json")
 @Path("/")
-case class ExchangeRoutes(exchange: ServerSideExchange)
+case class ExchangeRoutes(exchange: ServerSideExchange, override val maxCapacity: Int = Int.MaxValue)
     extends ExchangeSubmissionRoutes
     with ExchangeWorkerRoutes
     with ExchangeQueryRoutes
+    with ExchangeObserverWebsocketRoutes
     with RouteLoggingSupport {
-
-  import ExchangeRoutes._
 
   def routes: Route = {
     //encodeResponse
     val all = pathPrefix("rest" / "exchange") {
-      workerRoutes ~ submissionRoutes ~ queryRoutes ~ health
+      workerRoutes ~ submissionRoutes ~ queryRoutes ~ observe ~ health
     }
     //logRoute()
     all
@@ -54,7 +52,6 @@ case class ExchangeRoutes(exchange: ServerSideExchange)
   /**
     * Support routes to query the state of the exchange (queues)
     */
-
   @Path("/rest/exchange/health")
   @ApiOperation(
     value = "A health check endpoint, 'cause you can never have too many of them",

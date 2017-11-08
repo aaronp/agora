@@ -15,7 +15,8 @@ import scala.language.{postfixOps, reflectiveCalls}
 
 trait ExchangeSpec extends BaseIOSpec with Eventually with Implicits {
 
-  val someTime                                    = agora.api.time.fromEpochNanos(0)
+  val someTime = agora.api.time.fromEpochNanos(0)
+
   implicit def executionContext: ExecutionContext = ExecutionContext.Implicits.global
 
   import ExchangeSpec._
@@ -29,7 +30,7 @@ trait ExchangeSpec extends BaseIOSpec with Eventually with Implicits {
 
   def exchangeName = getClass.getSimpleName.filter(_.isLetter).replaceAllLiterally("Test", "")
 
-  s"${exchangeName}.take" should {
+  s"${exchangeName}.request" should {
     "reduce the requested items when given a negative number" in {
       val exchange                                      = ServerSideExchange()
       val (ack, _)                                      = exchange.subscribe(WorkSubscription.localhost(1), 3).futureValue
@@ -37,7 +38,7 @@ trait ExchangeSpec extends BaseIOSpec with Eventually with Implicits {
       initialPending.requested shouldBe 3
 
       // call the method under test
-      exchange.take(ack.id, -1).futureValue shouldBe RequestWorkAck(ack.id, 3, 2)
+      exchange.request(ack.id, -1).futureValue shouldBe RequestWorkAck(ack.id, 3, 2)
       val QueueStateResponse(Nil, List(reducedPending)) = exchange.queueState().futureValue
       reducedPending.requested shouldBe 2
     }
@@ -48,7 +49,7 @@ trait ExchangeSpec extends BaseIOSpec with Eventually with Implicits {
       initialPending.requested shouldBe 3
 
       // call the method under test
-      exchange.take(ack.id, -101).futureValue shouldBe RequestWorkAck(ack.id, 3, 0)
+      exchange.request(ack.id, -101).futureValue shouldBe RequestWorkAck(ack.id, 3, 0)
       val QueueStateResponse(Nil, List(reducedPending)) = exchange.queueState().futureValue
       reducedPending.requested shouldBe 0
     }
@@ -71,7 +72,7 @@ trait ExchangeSpec extends BaseIOSpec with Eventually with Implicits {
       subscriptionIds.foldLeft(9) {
         case (expectedRemaining, id) =>
           // call the method under test
-          exchange.take(id, -1).futureValue shouldBe RequestWorkAck(id, expectedRemaining + 1, expectedRemaining)
+          exchange.request(id, -1).futureValue shouldBe RequestWorkAck(id, expectedRemaining + 1, expectedRemaining)
           val QueueStateResponse(Nil, pendingSubscriptions) = exchange.queueState().futureValue
           pendingSubscriptions.foreach { reducedPending =>
             reducedPending.requested shouldBe expectedRemaining
@@ -94,6 +95,7 @@ trait ExchangeSpec extends BaseIOSpec with Eventually with Implicits {
         .orElse("topic" === "secondary")
         .orElse("topic" === "tertiary")
         .withId("someJobId")
+        .withAwaitMatch(false)
       val anotherJob =
         "another job".asJob.matching(JPredicate.matchNone).withId("anotherId").withAwaitMatch(false)
 
@@ -125,7 +127,7 @@ trait ExchangeSpec extends BaseIOSpec with Eventually with Implicits {
       exchange.subscribe(primary).futureValue shouldBe WorkSubscriptionAck("primary key")
       // don't actually request any work items
       exchange.subscribe(tertiary).futureValue shouldBe WorkSubscriptionAck("tertiary key")
-      exchange.take(tertiary.key.get, 3).futureValue shouldBe RequestWorkAck("tertiary key", 0, 3)
+      exchange.request(tertiary.key.get, 3).futureValue shouldBe RequestWorkAck("tertiary key", 0, 3)
 
       // submit the job which won't match anything
       exchange.submit(anotherJob).futureValue shouldBe SubmitJobResponse(anotherJob.jobId.get)
@@ -133,20 +135,16 @@ trait ExchangeSpec extends BaseIOSpec with Eventually with Implicits {
       // submit our 'fallback' job. For tests w/ local exchanges (e.g. ones where 'supportsObserverNotifications' is
       // true), The 'awaitMatch' has no effect, and we use the observerr directly. For remote cases (where
       // 'supportsObserverNotifications' is false), we can block and case the response future as a BlockingSubmitJobResponse
-      val BlockingSubmitJobResponse(_, _, _, workerCoords, workerDetails) =
-        if (supportsObserverNotifications) {
-          // await our match...
-          val matchFuture = obs.awaitJob(job)
+      val BlockingSubmitJobResponse(_, _, _, workerCoords, workerDetails) = {
+        // await our match...
+        val matchFuture = obs.awaitJob(job)
 
-          // submit the job
-          val submitResponse = exchange.submit(job).futureValue
-          submitResponse shouldBe SubmitJobResponse(job.jobId.get)
+        // submit the job .. it should match the 'tertiary' orElse clause, but use the original job in the match notification
+        val submitResponse = exchange.submit(job).futureValue
+        submitResponse shouldBe SubmitJobResponse(job.jobId.get)
 
-          matchFuture.futureValue
-        } else {
-          val submitResponse = exchange.submit(job.withAwaitMatch(true)).futureValue
-          submitResponse.asInstanceOf[BlockingSubmitJobResponse]
-        }
+        matchFuture.futureValue
+      }
 
       workerCoords should contain only (WorkerRedirectCoords(HostLocation("localhost", 1234), "tertiary key", 2))
       workerDetails should contain only (tertiary.details)
@@ -165,6 +163,7 @@ trait ExchangeSpec extends BaseIOSpec with Eventually with Implicits {
       }
     }
   }
+
   exchangeName should {
     "be able to cancel subscriptions" in {
       val obs          = ExchangeObserverDelegate()
@@ -178,7 +177,7 @@ trait ExchangeSpec extends BaseIOSpec with Eventually with Implicits {
       subscriptions should contain only (subscription.id)
 
       // call the method under test
-      ex.cancelSubscriptions(subscription.id, "unknown").futureValue.canceledSubscriptions shouldBe Map(subscription.id -> true, "unknown" -> false)
+      ex.cancelSubscriptions(subscription.id, "unknown").futureValue.cancelledSubscriptions shouldBe Map(subscription.id -> true, "unknown" -> false)
 
       // check out queue
       val afterCancel = ex.queueState().futureValue.subscriptions
@@ -198,7 +197,7 @@ trait ExchangeSpec extends BaseIOSpec with Eventually with Implicits {
       queuedJobs should contain only (jobId)
 
       // call the method under test
-      ex.cancelJobs(jobId, "unknownJob").futureValue.canceledJobs shouldBe Map(jobId -> true, "unknownJob" -> false)
+      ex.cancelJobs(jobId, "unknownJob").futureValue.cancelledJobs shouldBe Map(jobId -> true, "unknownJob" -> false)
 
       // check out queue
       val afterCancel = ex.queueState().futureValue.jobs

@@ -15,8 +15,6 @@ class ExchangeRestClientTest extends ExchangeSpec with BeforeAndAfter {
 
   var config = ExchangeServerConfig()
 
-  override val supportsObserverNotifications = false
-
   var client: ExchangeRestClient = null
 
   before {
@@ -34,6 +32,7 @@ class ExchangeRestClientTest extends ExchangeSpec with BeforeAndAfter {
 
   override def newExchange(observer: ExchangeObserver): Exchange = {
     client = config.client
+    config.connectObserver(observer)
     client
   }
 

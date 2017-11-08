@@ -97,7 +97,7 @@ trait RouteSubscriptionSupport extends LazyLogging {
       }
       logger.debug(s"$action has instructed to take $nrToTake for $matchDetails")
       if (nrToTake > 0) {
-        exchange.take(matchDetails.subscriptionKey, nrToTake)
+        exchange.request(matchDetails.subscriptionKey, nrToTake)
       } else {
         Future.successful(RequestWorkAck(matchDetails.subscriptionKey, nrToTake))
       }

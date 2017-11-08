@@ -163,7 +163,7 @@ case class EventDao(rootDir: Path) extends SystemEventMonitor with AgoraJsonImpl
     */
   private[events] class Instance[T: ToBytes: FromBytes: HasId](val name: String) {
     def deleteBefore(timestamp: Timestamp): Int = {
-      val countOpt = timestampReader.first.filterNot(_.isBefore(timestamp)).map { firstTime =>
+      val countOpt = timestampReader.first.filterNot(_.isAfter(timestamp)).map { firstTime =>
         val values: Iterator[T] = timestampReader.find(firstTime, timestamp)
         timestampReader.removeBefore(timestamp)
         values.foldLeft(0) {
