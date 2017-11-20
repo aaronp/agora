@@ -82,7 +82,9 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) with ExecA
     runnerEnvConf ++ fromHost
   }
 
-  lazy val workspacesPathConfig: PathConfig = PathConfig(execConfig.getConfig("workspaces").ensuring(!_.isEmpty))
+  def workspacesConfig = execConfig.getConfig("workspaces")
+
+  lazy val workspacesPathConfig: PathConfig = PathConfig(workspacesConfig.ensuring(!_.isEmpty))
 
   def uploadsDir =
     workspacesPathConfig.pathOpt.getOrElse(sys.error("Invalid configuration - no uploads directory set"))
@@ -107,7 +109,7 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) with ExecA
   def workspaceClient: WorkspaceClient = defaultWorkspaceClient
 
   private lazy val defaultWorkspaceClient: WorkspaceClient = {
-    WorkspaceClient(uploadsDir, serverImplicits.system)
+    WorkspaceClient(uploadsDir, serverImplicits.system, workspacesConfig.getDuration("bytesReadyPollFrequency").toMillis.millis)
   }
 
   def eventMonitorConfig: EventMonitorConfig = defaultEventMonitor

@@ -47,7 +47,7 @@ case class RunProcess(command: List[String],
     */
   def commandHash: String = MD5(commandString)
 
-  def fileOutputs = output.stdOutFileName.toList ::: output.stdErrFileName.toList
+  def fileOutputs: List[String] = output.stdOutFileName.toList ::: output.stdErrFileName.toList
 
   def hasFileOutputs: Boolean = fileOutputs.nonEmpty
 
@@ -93,12 +93,12 @@ case class RunProcess(command: List[String],
 
   def withDependencies(dep: UploadDependencies) = copy(dependencies = dep)
 
-  def withDependencies(dependsOnFiles: Set[String], timeout: FiniteDuration = dependencies.timeout): RunProcess = {
-    withDependencies(UploadDependencies(workspace, dependsOnFiles, timeout.toMillis))
+  def withDependencies(dependsOnFiles: Set[String], timeout: FiniteDuration = dependencies.timeout, awaitFlushedOutput: Boolean = true): RunProcess = {
+    withDependencies(UploadDependencies(workspace, dependsOnFiles, timeout.toMillis, awaitFlushedOutput))
   }
 
-  def withDependencies(newWorkspace: WorkspaceId, dependsOnFiles: Set[String], timeout: FiniteDuration): RunProcess = {
-    withDependencies(UploadDependencies(newWorkspace, dependsOnFiles, timeout.toMillis))
+  def withDependencies(newWorkspace: WorkspaceId, dependsOnFiles: Set[String], timeout: FiniteDuration, awaitFlushedOutput: Boolean): RunProcess = {
+    withDependencies(UploadDependencies(newWorkspace, dependsOnFiles, timeout.toMillis, awaitFlushedOutput))
   }
 
   def withWorkspace(newWorkspace: WorkspaceId): RunProcess = {

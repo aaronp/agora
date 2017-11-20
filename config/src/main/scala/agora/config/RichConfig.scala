@@ -2,7 +2,7 @@ package agora.config
 
 import java.nio.file.{Files, Paths}
 
-import com.typesafe.config.{Config, ConfigFactory, ConfigUtil}
+import com.typesafe.config.{Config, ConfigFactory, ConfigParseOptions, ConfigUtil}
 
 /**
   * Adds some scala utility around a typesafe config
@@ -46,18 +46,19 @@ object RichConfig {
     val AsBooleanFlag = (a: String) => asConfig(ConfigUtil.quoteString(a), true.toString)
   }
 
-  def asConfig(key: String, value: Any): Config = {
+  def asConfig(key: String, value: Any, originDesc: String = "command-line"): Config = {
     import scala.collection.JavaConverters._
-    ConfigFactory.parseMap(Map(key -> value).asJava)
+    ConfigFactory.parseMap(Map(key -> value).asJava, originDesc)
   }
 
   private[config] object FilePathConfig {
-    def unapply(path: String): Option[Config] = {
+    def unapply(path: String): Option[Config] =
       Option(Paths.get(path))
         .filter(p => Files.exists(p))
         .map(_.toFile)
-        .map(ConfigFactory.parseFileAnySyntax)
-    }
+        .map { file =>
+          ConfigFactory.parseFileAnySyntax(file)
+        }
   }
 
   private[config] object UrlPathConfig {

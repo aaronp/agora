@@ -11,7 +11,6 @@ class TestObserver extends ExchangeObserver {
   def eventsInTheOrderTheyWereReceived = events.reverse
 
   override def onEvent(event: ExchangeNotificationMessage): Unit = {
-    println("on Event " + event)
     events = event :: events
   }
 

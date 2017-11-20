@@ -27,7 +27,7 @@ class RetryClient(mkClient: () => RestClient, onError: RetryStrategy) extends Re
   /**
     * Resets the client. This may be invoked externally in case of e.g. server 503 errors et al
     */
-  def reset(err: Option[Throwable]) = {
+  def reset(err: Option[Throwable]): RetryClient = {
     err.foreach { e =>
       crashHistory = onError(crashHistory.add(Crashes.Crash(e)))
     }
@@ -63,15 +63,19 @@ class RetryClient(mkClient: () => RestClient, onError: RetryStrategy) extends Re
     }
   }
 
-  override def close(): Unit = {
-    Lock.synchronized {
-      logger.debug(s"Closing $clientOpt")
-      Try(clientOpt.foreach(_.close))
-      clientOpt = None
-    }
-  }
-
   override implicit def materializer: Materializer = client.materializer
+
+  override def stop(): Future[Any] = {
+    val tryFuture = Lock.synchronized {
+      logger.debug(s"Closing $clientOpt")
+      val res = Try(clientOpt.map(_.stop).getOrElse(Future.successful(Unit)))
+      clientOpt = None
+      res
+    }
+    import akka.http.scaladsl.util.FastFuture._
+    val ff = Future.fromTry(tryFuture).fast
+    ff.flatMap(identity)
+  }
 }
 
 object RetryClient {

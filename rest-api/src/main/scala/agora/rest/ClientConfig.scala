@@ -110,9 +110,9 @@ class ClientConfig(config: Config) extends AutoCloseable {
     }
   }
 
-  override def close(): Unit = {
-    cachedClients.close()
-  }
+  override def close(): Unit = stop()
+
+  def stop() = cachedClients.stop()
 }
 
 object ClientConfig {

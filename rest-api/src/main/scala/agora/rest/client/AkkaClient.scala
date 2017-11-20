@@ -1,7 +1,7 @@
 package agora.rest.client
 
 import agora.api.worker.HostLocation
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, Terminated}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.stream.Materializer
@@ -26,7 +26,7 @@ class AkkaClient(val location: HostLocation, system: ActorSystem, override impli
   override def toString = s"AkkaClient($hostPort)"
 
   private def onError(err: Throwable): Throwable = {
-    logger.error(s"connecting to $hostPort threw $err")
+    logger.error(s"Connecting to $hostPort threw $err")
     err
   }
 
@@ -64,7 +64,9 @@ class AkkaClient(val location: HostLocation, system: ActorSystem, override impli
 
   private val http = Http()(system)
 
-  override def close(): Unit = {
+  override def close(): Unit = stop()
+
+  override def stop(): Future[Terminated] = {
     logger.info(s"Closing client to http://${location.host}:${location.port}")
     system.terminate()
   }

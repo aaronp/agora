@@ -2,7 +2,7 @@ package agora.exec.client
 
 import java.util.UUID
 
-import agora.BaseSpec
+import agora.{BaseIOSpec, BaseSpec}
 import agora.api.exchange.{AsClient, JobPredicate, SubmissionDetails, WorkSubscription}
 import agora.exec.ExecConfig
 import agora.exec.model.{RunProcess, RunProcessResult}
@@ -41,7 +41,7 @@ class RemoteRunnerTest extends BaseSpec with ProcessRunnerTCK {
     conf.uploadsDir.delete()
   }
 
-  val conf = ExecConfig("port=6666", "exchange.port=6666", "workspaces.dir=target/test/RemoteRunnerTest")
+  val conf = ExecConfig("port=6666", "exchange.port=6666", s"workspaces.dir=${BaseIOSpec.nextTestDir("RemoteRunnerTest")}")
 
   def startAll = {
     runningWorker = conf.start().futureValue
@@ -49,8 +49,8 @@ class RemoteRunnerTest extends BaseSpec with ProcessRunnerTCK {
   }
 
   def stopAll = {
-    runningWorker.close()
-    conf.clientConfig.cachedClients.close()
+    runningWorker.stop().futureValue
+    conf.stop().futureValue
   }
 
 }

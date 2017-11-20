@@ -56,19 +56,18 @@ case class UpdatingWorkspaceClient(override val underlying: WorkspaceClient, exc
     }
   }
 
-  override def upload(workspaceId: WorkspaceId, fileName: String, src: Source[ByteString, Any]): Future[Path] = {
-    val uploadFuture: Future[Path] = super.upload(workspaceId, fileName, src)
-    uploadFuture.fast.flatMap { ack =>
+  override def upload(workspaceId: WorkspaceId, fileName: String, src: Source[ByteString, Any]) = {
+    val uploadFuture: Future[(Long, Path)] = super.upload(workspaceId, fileName, src)
+    uploadFuture.fast.flatMap { ack: (Long, Path) =>
       val futures = subscriptions.map { uploadSubscription =>
         appendWorkspaceToSubscription(exchange, uploadSubscription, workspaceId)
       }
-      val acks = Future.sequence(futures)
+      val acks: Future[Set[UpdateSubscriptionAck]] = Future.sequence(futures)
       acks.fast.map {
         case _ => ack
       }
     }
   }
-
 }
 
 object UpdatingWorkspaceClient {
@@ -87,9 +86,10 @@ object UpdatingWorkspaceClient {
     * removes the 'workspaces : [ ... , <workspaceId> ] ' from the subscription
     */
   def removeWorkspaceFromSubscription(exchange: Exchange, subscriptionKey: SubscriptionKey, workspaceId: WorkspaceId): Future[UpdateSubscriptionAck] = {
-    val update = UpdateSubscription(subscriptionKey,
-                                    condition = WorkspacesKey includes workspaceId,
-                                    delta = JsonDelta.remove(JPath(WorkspacesKey) :+ workspaceId.inArray))
+    val update =
+      UpdateSubscription(subscriptionKey,
+                         condition = WorkspacesKey includes workspaceId,
+                         delta = JsonDelta.remove(JPath(WorkspacesKey) :+ workspaceId.inArray))
     exchange.updateSubscriptionDetails(update)
   }
 }

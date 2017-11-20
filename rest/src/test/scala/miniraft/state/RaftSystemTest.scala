@@ -3,12 +3,10 @@ package miniraft.state
 import agora.BaseSpec
 import agora.api.worker.HostLocation
 import agora.rest.RunningService
-import miniraft.LeaderApi
 import miniraft.state.rest.{LeaderClient, NodeStateSummary}
 import org.scalatest.concurrent.Eventually
 
-import scala.collection.immutable
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{Await, Future}
 
 object RaftSystemTest {
 
@@ -17,14 +15,17 @@ object RaftSystemTest {
     val support                      = service.conf.supportClient[String]
 
     service.onShutdown {
-      service.conf.clientConfig.cachedClients.close()
-      service.conf.serverImplicits.close()
+      import concurrent.duration._
+      val fut1 = service.conf.clientConfig.cachedClients.stop()
+      val fut2 = service.conf.serverImplicits.stop()
+      Await.result(fut1, 4.seconds)
+      Await.result(fut2, 4.seconds)
     }
 
     def about: Future[String] = {
 
-      import support.client.executionContext
       import io.circe.syntax._
+      import support.client.executionContext
 
       for {
         summary <- support.state()
@@ -90,8 +91,6 @@ class RaftSystemTest extends BaseSpec with Eventually {
       val rs = RaftSystem[String](config) { entry =>
         // println(s"$location adding $entry")
       }
-
-      import config.serverImplicits.executionContext
       val server: RunningService[RaftConfig, RaftSystem[String]] = rs.start().futureValue
       RunningNode(server)
     }

@@ -3,6 +3,7 @@ package agora.rest.support
 import javax.ws.rs.Path
 
 import agora.config.implicits._
+import agora.rest.logging.LoggingOps
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route

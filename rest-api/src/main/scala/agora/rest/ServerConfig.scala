@@ -60,15 +60,35 @@ class ServerConfig(val config: Config) extends RichConfigOps with AutoCloseable 
     val sanitized = clientConf.withUserArgs(fixedHost ++ fixedPort)
     new ClientConfig(sanitized)
   }
-  @volatile private[this] var clientConfigCreated = false
 
-  override def close() = {
-    if (serverImplicitsCreated) {
-      serverImplicits.close()
-    }
+  // keep track of our singletons, and only shutdown once...
+  @volatile private[this] var clientConfigCreated = false
+  private[this] lazy val clientStopFuture         = clientConfig.stop()
+  private[this] lazy val serverStopFuture         = serverImplicits.stop()
+
+  override def close() = stop()
+
+  def stopClients(): Future[Any] = {
     if (clientConfigCreated) {
-      clientConfig.close()
+      clientStopFuture
+    } else {
+      Future.successful(Unit)
     }
+  }
+
+  def stopServer() = {
+    if (serverImplicitsCreated) {
+      serverStopFuture
+    } else {
+      Future.successful(Unit)
+    }
+  }
+
+  def stop(): Future[Unit] = {
+    val stopFut1 = stopClients()
+    val stopFut2 = stopServer()
+    import scala.concurrent.ExecutionContext.Implicits._
+    Future.sequence(List(stopFut1, stopFut2)).map(_ => Unit)
   }
 
   private[this] val uniqueActorNameCounter = new AtomicInteger(0)

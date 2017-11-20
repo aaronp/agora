@@ -19,6 +19,7 @@ class ExchangeClientObserverTest extends BaseSpec with HasMaterializer with Even
       clientFlow.clientControlMessageSource.runForeach {
         case TextMessage.Strict(json) =>
           msgList = msgList :+ decode[ClientSubscriptionMessage](json).right.get
+        case other => sys.error(s"Got $other")
       }
 
       // messages pushed from the client publisher should appear in the 'clientControlMessageSource'

@@ -4,7 +4,7 @@ import java.nio.file.Path
 
 import agora.api.`match`.MatchDetails
 import agora.exec.model.{FileResult, ProcessException, RunProcess, StreamingSettings}
-import agora.exec.workspace.WorkspaceId
+import agora.exec.workspace.MetadataFile
 import agora.io.implicits._
 import agora.rest.MatchDetailsExtractor
 import akka.NotUsed
@@ -154,10 +154,6 @@ object CachedOutput extends FailFastCirceSupport with AutoDerivation {
 
     private[rest] def asFileResultResponse(cachedExitCode: Int, httpRequest: HttpRequest)(implicit ec: ExecutionContext): Future[HttpResponse] = {
 
-      def asFileName(storedUnder: String) = {
-        Option(cacheDir.resolve(storedUnder).text).filterNot(_.isEmpty)
-      }
-
       val matchDetailsOpt = MatchDetailsExtractor.unapply(httpRequest)
 
       val result = FileResult(
@@ -204,7 +200,19 @@ object CachedOutput extends FailFastCirceSupport with AutoDerivation {
           * I believe we want to use hard links, as the stdout results returned from cached jobs should
           * remain even after the original may be deleted
           */
-        cachedOutput.createHardLinkFrom(newPath)
+        val hardLink = cachedOutput.createHardLinkFrom(newPath)
+
+        /**
+          * We also want to link the '.<filename>.metadata' file
+          */
+        for {
+          existingMdFile  <- MetadataFile.metadataFileForUpload(cachedOutput)
+          newMetadataFile <- MetadataFile.metadataFileForUpload(newPath)
+        } {
+          existingMdFile.createHardLinkFrom(newMetadataFile)
+        }
+
+        hardLink
       }
     }
 

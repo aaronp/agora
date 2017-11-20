@@ -21,6 +21,6 @@ case class RoundRobinClient(pool: Iterable[RestClient], retryStrategy: RetryStra
   }
 
   override implicit def materializer: Materializer = underlying.materializer
-}
 
-object RoundRobinClient {}
+  override def stop() = underlying.stop()
+}

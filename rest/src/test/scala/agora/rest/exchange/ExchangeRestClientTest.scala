@@ -23,10 +23,10 @@ class ExchangeRestClientTest extends ExchangeSpec with BeforeAndAfter {
   }
 
   after {
-    runningServer.stop()
+    runningServer.stop().futureValue
 
     if (client != null) {
-      client.close()
+      client.stop().futureValue
     }
   }
 

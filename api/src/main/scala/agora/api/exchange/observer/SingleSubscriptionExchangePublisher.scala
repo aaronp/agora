@@ -5,8 +5,8 @@ import java.util.{Queue => jQueue}
 import agora.api.exchange.QueueStateResponse
 import com.typesafe.scalalogging.StrictLogging
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
-
 import scala.util.control.NonFatal
+import scala.language.existentials
 
 /**
   * An [[ExchangeObserver]] which publishes events to other subscriptions.

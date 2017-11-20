@@ -1,6 +1,7 @@
 package agora
 
 import java.nio.file.Path
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
 
 import agora.io.LowPriorityIOImplicits
@@ -23,7 +24,12 @@ abstract class BaseIOSpec extends WordSpec with Matchers with ScalaFutures with 
   /**
     * All the timeouts!
     */
-  implicit def testTimeout: FiniteDuration = 12.seconds
+  implicit def testTimeout: FiniteDuration = 8.seconds
+
+  /**
+    * @return the timeout for something NOT to happen
+    */
+  def testNegativeTimeout: FiniteDuration = 300.millis
 
   def testClassName = getClass.getSimpleName.filter(_.isLetterOrDigit)
 
@@ -44,8 +50,13 @@ object BaseIOSpec extends LowPriorityIOImplicits {
 
   private val dirCounter = new AtomicLong(System.currentTimeMillis())
 
+  def nextTestDir(name: String) = {
+//    s"target/test/${name}-${dirCounter.incrementAndGet()}".asPath
+    s"target/test/${name}-${UUID.randomUUID()}".asPath
+  }
+
   def withDir[T](name: String)(f: Path => T): T = {
-    val dir: Path = s"target/test/${name}-${dirCounter.incrementAndGet()}".asPath
+    val dir: Path = nextTestDir(name)
     if (dir.exists()) {
       dir.delete()
     }

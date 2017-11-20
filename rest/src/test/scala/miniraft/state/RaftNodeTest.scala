@@ -2,13 +2,14 @@ package miniraft.state
 
 import agora.BaseSpec
 import agora.rest.HasMaterializer
+import com.typesafe.scalalogging.StrictLogging
 import miniraft.state.RaftNode.async
 import miniraft.state.rest.NodeStateSummary.LeaderSnapshot
 import org.scalatest.concurrent.Eventually
 
 import scala.concurrent.Future
 
-class RaftNodeTest extends BaseSpec with Eventually with HasMaterializer {
+class RaftNodeTest extends BaseSpec with Eventually with HasMaterializer with StrictLogging {
 
   "RaftNode election timeout" should {
 
@@ -67,7 +68,7 @@ class RaftNodeTest extends BaseSpec with Eventually with HasMaterializer {
 
       withDir { dir =>
         val clusterById = TestCluster.under(dir).of[String]("A", "B", "C") {
-          case (node, entry) => println(s"\t\t>>>> $node applying $entry <<<<")
+          case (node, entry) => logger.debug(s"\t\t>>>> $node applying $entry <<<<")
         }
         val a = clusterById("A")
 

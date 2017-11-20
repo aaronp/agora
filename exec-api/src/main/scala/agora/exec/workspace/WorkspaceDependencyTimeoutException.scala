@@ -1,27 +1,20 @@
 package agora.exec.workspace
 
+import agora.exec.workspace.DependencyCheck.DependencyState
+
 /**
-  * TODO - catch/propogate this in the execution routes
-  *
-  * @param dependencies
-  * @param missing
-  * @param getMessage
+  * TODO - catch/propagate this in the execution routes
   */
-class WorkspaceDependencyTimeoutException(dependencies: UploadDependencies, missing: Set[String], override val getMessage: String)
+class WorkspaceDependencyTimeoutException(dependencies: UploadDependencies, dependencyStates: Map[String, DependencyState], override val getMessage: String)
     extends Exception(getMessage) {
   override def toString = getMessage
 }
 
 object WorkspaceDependencyTimeoutException {
-  def apply(dependencies: UploadDependencies) = {
-    val errMsg = s"No files have been uploaded to ${dependencies.workspace} after ${dependencies.timeout}"
-    new WorkspaceDependencyTimeoutException(dependencies, dependencies.dependsOnFiles, errMsg)
-  }
-
-  def apply(dependencies: UploadDependencies, missing: Set[String]) = {
+  def apply(dependencies: UploadDependencies, dependencyStates: Map[String, DependencyState]) = {
     val errMsg =
-      s"Still waiting for ${missing.size} files [${missing.mkString(",")}] in workspace '${dependencies.workspace}' after ${dependencies.timeout}"
-
-    new WorkspaceDependencyTimeoutException(dependencies, missing, errMsg)
+      s"Workspace '${dependencies.workspace}' timed out after ${dependencies.timeout} with dependency states: ${dependencyStates.toList.sortBy(_._1).mkString(",")}"
+    new WorkspaceDependencyTimeoutException(dependencies, dependencyStates, errMsg)
   }
+
 }

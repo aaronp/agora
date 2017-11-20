@@ -106,7 +106,9 @@ class ExchangeRestClient(val rest: RestClient) extends Exchange with FailFastCir
     rest.send(ExchangeHttp(request)).flatMap(_.as[QueueStateResponse](retryOnError(queueState(request))))
   }
 
-  override def close(): Unit = rest.close()
+  override def close(): Unit = stop()
+
+  def stop() = rest.stop()
 
   override def cancelJobs(request: CancelJobs): Future[CancelJobsResponse] = {
     rest.send(ExchangeHttp(request)).flatMap(_.as[CancelJobsResponse](retryOnError(cancelJobs(request))))

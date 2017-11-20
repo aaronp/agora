@@ -1,7 +1,7 @@
 package agora.rest.exchange
 
 import agora.api.Implicits._
-import agora.api.exchange.observer.{OnJobSubmitted, TestObserver}
+import agora.api.exchange.observer.{OnJobSubmitted, OnStateOfTheWorld, TestObserver}
 import agora.api.exchange.{SubmitJob, SubmitJobResponse}
 import agora.rest.integration.BaseIntegrationTest
 import org.scalatest.concurrent.Eventually
@@ -73,8 +73,9 @@ trait ExchangeWebsocketSpec extends Eventually { self: BaseIntegrationTest =>
         submitted should contain theSameElementsInOrderAs (expected)
       }
 
-      val all = obs.events
-      all.foreach(println)
+      val all = obs.eventsInTheOrderTheyWereReceived
+
+      all.map(_.getClass) should contain theSameElementsAs (classOf[OnStateOfTheWorld] +: expected.map(_ => classOf[OnJobSubmitted]))
     }
     "not observe events after the subscription is cancelled" in {
       val obs          = new TestObserver

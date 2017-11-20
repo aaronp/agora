@@ -224,7 +224,7 @@ trait ExchangeSpec extends BaseIOSpec with Eventually with Implicits {
         val sub = WorkSubscription(HostLocation.localhost(1234), jobCriteria = jobPath)
 
         val subscriptionId = ex.subscribe(sub).futureValue.id
-        ex.take(subscriptionId, 1).futureValue shouldBe RequestWorkAck(subscriptionId, 0, 0)
+        ex.request(subscriptionId, 1).futureValue shouldBe RequestWorkAck(subscriptionId, 0, 0)
 
         matches.size shouldBe 1
       }

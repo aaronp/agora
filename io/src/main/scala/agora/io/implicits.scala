@@ -1,6 +1,6 @@
 package agora.io
 
-import java.io.{OutputStream, OutputStreamWriter, PrintWriter}
+import java.io._
 import java.nio.charset.{Charset, StandardCharsets}
 import java.nio.file._
 import java.nio.file.attribute.{BasicFileAttributes, FileAttribute, FileTime, PosixFilePermission}
@@ -8,6 +8,8 @@ import java.time.{LocalDateTime, ZoneId}
 import java.time.format.DateTimeFormatter
 import java.util.function.BiPredicate
 import java.util.stream
+
+import scala.compat.Platform
 
 object implicits extends LowPriorityIOImplicits
 
@@ -22,11 +24,20 @@ trait LowPriorityIOImplicits {
 
   implicit class RichPath(val path: Path) {
 
+    /** @return the path rendered as a tree
+      */
+    def renderTree(): String                        = PathTreeNode(path, None).asTree().mkString(Platform.EOL)
+    def renderTree(filter: Path => Boolean): String = PathTreeNode(path, Option(filter)).asTree().mkString(Platform.EOL)
+
     import scala.collection.JavaConverters._
 
     def defaultWriteOpts: Set[OpenOption] = {
       Set(StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)
     }
+
+    /** @return how many parents this path has
+      */
+    def depth: Int = parent.fold(1)(_.depth + 1)
 
     def setText(str: String, charset: Charset = StandardCharsets.UTF_8, options: Set[OpenOption] = defaultWriteOpts) = {
       setBytes(str.getBytes(charset), options)
@@ -204,6 +215,14 @@ trait LowPriorityIOImplicits {
     }
 
     def children: Array[Path] = if (isDir) path.toFile.listFiles().map(_.toPath) else Array.empty
+
+    def childrenMatchingName(filenameFilter: String => Boolean): Array[Path] = {
+      if (isDir) {
+        val pred     = FileNamePredicate(filenameFilter)
+        val filtered = path.toFile.listFiles(pred).map(_.toPath)
+        filtered
+      } else Array.empty
+    }
 
     def childrenIter = if (isDir) Files.list(path).iterator().asScala else Iterator.empty
 

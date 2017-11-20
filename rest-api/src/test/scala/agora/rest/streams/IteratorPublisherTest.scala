@@ -1,5 +1,7 @@
 package agora.rest.streams
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import agora.BaseSpec
 import agora.io.{IterableSubscriber, IteratorPublisher}
 
@@ -11,10 +13,10 @@ class IteratorPublisherTest extends BaseSpec {
 
   "IteratorPublisher" should {
     "publish the elements in an iterator" in {
-      var tookCounter = 0
+      val tookCounter = new AtomicInteger(0)
 
       def newIter = Iterator.from(1).take(100).map { x =>
-        tookCounter = tookCounter + 1
+        tookCounter.incrementAndGet()
         x
       }
 
@@ -35,7 +37,7 @@ class IteratorPublisherTest extends BaseSpec {
       subscriber.iterator.next shouldBe 4
 
       //... and on and on...
-      tookCounter < 10 shouldBe true
+      tookCounter.get < 10 shouldBe true
     }
   }
 

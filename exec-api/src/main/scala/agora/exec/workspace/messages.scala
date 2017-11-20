@@ -21,10 +21,15 @@ private[workspace] final case class ListWorkspaces(createdAfter: Option[Timestam
                                                    createdBefore: Option[Timestamp] = None,
                                                    result: Promise[List[String]])
 
-private[workspace] final case class UploadFile(override val workspaceId: WorkspaceId, name: String, src: Source[ByteString, Any], result: Promise[Path])
+private[workspace] final case class UploadFile(override val workspaceId: WorkspaceId,
+                                               name: String,
+                                               src: Source[ByteString, Any],
+                                               result: Promise[(Long, Path)])
     extends WorkspaceMsg
 
 private[workspace] final case class TriggerUploadCheck(override val workspaceId: WorkspaceId) extends WorkspaceMsg
+
+private[workspace] final case class MarkAsComplete(override val workspaceId: WorkspaceId, fileSizeByFileName: Map[String, Long]) extends WorkspaceMsg
 
 private[workspace] final case class Close(override val workspaceId: WorkspaceId,
                                           ifNotModifiedSince: Option[Timestamp],

@@ -1,6 +1,6 @@
 package agora.io.dao
 
-import java.time.LocalDate
+import java.time.{Duration, LocalDate, LocalDateTime}
 
 /**
   * A time range, inclusive
@@ -8,6 +8,11 @@ import java.time.LocalDate
   * @param to
   */
 case class TimeRange(from: Timestamp, to: Timestamp) {
+
+  def asDuration: Duration = java.time.Duration.between(from, to)
+
+  def diffInNanos        = asDuration.toNanos
+  def diffInMillis: Long = diffInNanos / 1000000
 
   require(!to.isBefore(from), s"Invalid range $from - $to")
 

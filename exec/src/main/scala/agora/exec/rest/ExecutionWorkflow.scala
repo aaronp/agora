@@ -1,6 +1,5 @@
 package agora.exec.rest
 
-import java.lang.{Process => JProcess}
 import java.nio.file.Path
 import java.util.concurrent.TimeUnit
 
@@ -41,7 +40,7 @@ trait ExecutionWorkflow {
     * Cancel the job identified by the job ID
     *
     * @param jobId   the job to cancel
-    * @param waitFor if non-zero, then we will await for the given duration for the job to exit before returning
+    * @param waitFor if non-zero, then we will awaitWorkspace for the given duration for the job to exit before returning
     * @return an HttpResponse to the cance request
     */
   def onCancelJob(jobId: JobId, waitFor: FiniteDuration = 0.millis)(implicit ec: ExecutionContext): Future[HttpResponse]
@@ -91,9 +90,9 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
       underlying.onExecutionRequest(httpRequest, inputProcess)
     }
 
-    // 'await' a no-op dependency to get the working directory
+    // 'awaitWorkspace' a no-op dependency to get the working directory
     private def workDirFuture(inputProcess: RunProcess): Future[Path] = {
-      workspaces.await(inputProcess.dependencies.copy(dependsOnFiles = Set.empty, timeoutInMillis = 0))
+      workspaces.awaitWorkspace(inputProcess.dependencies.copy(dependsOnFiles = Set.empty, timeoutInMillis = 0))
     }
 
     override def resolveUserRequest(inputProcess: RunProcess) = {
@@ -152,7 +151,7 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
     *
     * The workflow is:
     *
-    * 1) await any dependencies declared on the [[RunProcess]] using the [[WorkspaceClient]]
+    * 1) awaitWorkspace any dependencies declared on the [[RunProcess]] using the [[WorkspaceClient]]
     * 2) upon success of #1, a [[ProcessLoggers]] is created for the job in the working directory
     * using the [[MatchDetails]] extracted from the [[HttpRequest]] headers (if any). Any std out
     * or std err files from the [[RunProcess]] are appended to the [[ProcessLoggers]] used to run the job.
@@ -230,6 +229,9 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
       val future  = handleExecutionRequest(httpRequest, inputProcess)
       future.onComplete {
         case tri =>
+          // we may have produced some side-effecting output, so we should trigger a check
+          workspaces.triggerUploadCheck(inputProcess.workspace)
+
           val res = tri match {
             case Success(resp) => s"with ${resp.status}"
             case Failure(_)    => "in error"
@@ -274,15 +276,16 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
         * this may eventually time-out based on the workspaces configuration
         */
       import akka.http.scaladsl.util.FastFuture._
-      val future: Future[HttpResponse] = workspaces.await(runProcess.dependencies).fast.flatMap { (workingDir: Path) =>
+      val future: Future[HttpResponse] = workspaces.awaitWorkspace(runProcess.dependencies).fast.flatMap { workingDir: Path =>
         eventMonitor.accept(StartedJob(jobId))
         val httpFuture: Future[HttpResponse] = onJob(httpRequest, workingDir, jobId, detailsOpt, runProcess)
 
-        /**
+        /** See https://github.com/aaronp/agora/issues/2
+          *
           * TODO - work out what the chuff is going on. We seem to need this workspace thread to block until the HttpResponse
           * is **prepared** ... not completed, but at least created.
           *
-          * Taking this blocking await out here will fail the ExecutionWorkflowTest
+          * Taking this blocking awaitWorkspace out here will fail the ExecutionWorkflowTest
           */
         logger.trace(s"Waiting for ${runProcess.httpResponsePreparedTimeout} for job '${jobId}'s http response to be prepared")
         val prepareResponse: HttpResponse = Await.result(httpFuture, runProcess.httpResponsePreparedTimeout)
@@ -311,7 +314,13 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
       /** If our job writes to a file, we should trigger a workspace check when that job exits */
       if (runProcess.hasFileOutputs) {
         exitCodeFuture.onComplete {
-          case _ => workspaces.triggerUploadCheck(runProcess.workspace)
+          case _ =>
+            runProcess.output.stdOutFileName match {
+              case Some(stdOutFile) =>
+                val written = processLogger.stdOutBytesWritten
+                workspaces.markComplete(runProcess.workspace, Map(stdOutFile -> written))
+              case None => workspaces.triggerUploadCheck(runProcess.workspace)
+            }
         }
       }
 

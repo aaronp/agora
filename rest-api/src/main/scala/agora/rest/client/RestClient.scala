@@ -8,6 +8,7 @@ import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.stream.{ActorMaterializer, Materializer}
 import io.circe.Decoder
 import agora.api.worker.HostLocation
+import akka.actor.Terminated
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.ClassTag
@@ -45,7 +46,9 @@ trait RestClient extends Closeable {
     */
   implicit def executionContext: ExecutionContext = materializer.executionContext
 
-  override def close = {}
+  override def close = stop()
+
+  def stop(): Future[Any]
 }
 
 object RestClient {
@@ -55,15 +58,6 @@ object RestClient {
     // shut it down
     val am = mkSystem()
     new AkkaClient(location, am.system, am)
-  }
-
-  def decodeResponse(resp: HttpResponse) = {
-    val decoder = resp.encoding match {
-      case HttpEncodings.gzip     => Gzip
-      case HttpEncodings.deflate  => Deflate
-      case HttpEncodings.identity => NoCoding
-    }
-    decoder.decodeMessage(resp)
   }
 
   object implicits {

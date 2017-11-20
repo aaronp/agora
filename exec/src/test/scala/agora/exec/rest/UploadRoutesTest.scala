@@ -7,12 +7,13 @@ import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.server.Route
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
+import concurrent.duration._
 
 class UploadRoutesTest extends BaseRoutesSpec {
   "UploadRoutes" should {
     "accept uploads from the upload client" in {
       withDir { dir =>
-        val workspaceClient = WorkspaceClient(dir, system)
+        val workspaceClient = WorkspaceClient(dir, system, 100.millis)
 
         // we're really testing the route and the client to the route in tandem
         val routesUnderTest: Route = UploadRoutes(workspaceClient).uploadRoute
@@ -29,10 +30,10 @@ class UploadRoutesTest extends BaseRoutesSpec {
         }
 
         dir.children.toList.map(_.fileName) should contain only ("some workspace")
-        dir.children.head.children.toList.map(_.fileName) should contain only ("foo.bar")
-        dir.children.head.children.head.text shouldBe "hello world"
+        dir.children.head.children.toList.map(_.fileName) should contain only ("foo.bar", ".foo.bar.metadata")
+        dir.children.head.resolve("foo.bar").text shouldBe "hello world"
 
-        val workspaceDir = workspaceClient.await("some workspace", Set("foo.bar"), testTimeout.toMillis).futureValue
+        val workspaceDir = workspaceClient.awaitWorkspace("some workspace", Set("foo.bar"), testTimeout.toMillis).futureValue
         workspaceDir shouldBe dir.children.head
       }
     }

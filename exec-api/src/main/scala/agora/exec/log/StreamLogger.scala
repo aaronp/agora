@@ -1,10 +1,12 @@
 package agora.exec.log
 
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.atomic.AtomicLong
 
 import com.typesafe.scalalogging.StrictLogging
 
 import scala.collection.immutable.Stream
+import scala.compat.Platform
 import scala.concurrent.{Future, Promise}
 import scala.sys.process.ProcessLogger
 import scala.util.{Failure, Try}
@@ -40,6 +42,8 @@ case class StreamLogger(exitCodeHandler: Try[Int] => Stream[String]) extends Pro
 
   private val q = new LinkedBlockingQueue[Either[Try[Int], String]]
 
+  private val bytesWrittenCounter = new AtomicLong()
+
   private val exitCodePromise = Promise[Int]()
 
   // we append an empty one with 'next' so the call to 'iterator' doesn't block,
@@ -72,8 +76,19 @@ case class StreamLogger(exitCodeHandler: Try[Int] => Stream[String]) extends Pro
 
   def exitCode: Future[Int] = exitCodePromise.future
 
+  def bytesWritten() = bytesWrittenCounter.get()
+
+  /**
+    * The file appender calls 'println' for all inputs, so we need to append a newline for each line that
+    * passes through
+    */
+  private val NewLineLength = Platform.EOL.getBytes("UTF-8").size
+
   private def append(s: => String) = {
-    q.put(Right(s))
+    val str   = s
+    val bytes = str.getBytes("UTF-8").size + NewLineLength
+    bytesWrittenCounter.addAndGet(bytes)
+    q.put(Right(str))
   }
 
   override def out(s: => String): Unit = append(s)

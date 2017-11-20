@@ -74,7 +74,9 @@ case class ExecutionClient(override val client: RestClient, defaultFrameLength: 
 
   final def run(cmd: String, theRest: String*): Future[RunProcessResult] = run(RunProcess(cmd :: theRest.toList))
 
-  override def close(): Unit = client.close()
+  override def close(): Unit = stop()
+
+  def stop() = client.stop()
 }
 
 object ExecutionClient extends CommonRequestBuilding with FailFastCirceSupport {

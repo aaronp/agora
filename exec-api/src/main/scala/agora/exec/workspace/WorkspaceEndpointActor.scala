@@ -7,6 +7,7 @@ import akka.actor.{ActorRef, Props}
 import agora.io.implicits._
 import agora.io.BaseActor
 
+import scala.concurrent.duration.FiniteDuration
 import scala.util.{Success, Try}
 
 /**
@@ -14,7 +15,7 @@ import scala.util.{Success, Try}
   *
   * @param uploadDir
   */
-private[workspace] class WorkspaceEndpointActor(uploadDir: Path) extends BaseActor {
+private[workspace] class WorkspaceEndpointActor(uploadDir: Path, bytesReadyPollFrequency: FiniteDuration) extends BaseActor {
 
   override def receive: Receive = handle(Map.empty)
 
@@ -27,7 +28,7 @@ private[workspace] class WorkspaceEndpointActor(uploadDir: Path) extends BaseAct
         case None =>
           val workspaceDir = uploadDir.resolve(id)
           logger.debug(s"Creating new workspace '$id' under '$workspaceDir'")
-          val newHandler = context.actorOf(Props(new WorkspaceActor(id, workspaceDir)))
+          val newHandler = context.actorOf(Props(new WorkspaceActor(id, workspaceDir, bytesReadyPollFrequency)))
           context.become(handle(workspaceById.updated(id, newHandler)))
           newHandler
       }

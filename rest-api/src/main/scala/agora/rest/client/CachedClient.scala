@@ -2,6 +2,8 @@ package agora.rest.client
 
 import agora.api.worker.HostLocation
 
+import scala.concurrent.{ExecutionContext, Future}
+
 /**
   * Keeps track of [[RestClient]]s by their [[HostLocation]], which are created by the provided 'create' factory method
   * @param create
@@ -30,8 +32,12 @@ case class CachedClient(create: HostLocation => RestClient) extends AutoCloseabl
     s"CachedClients: ${byLocation.keySet.map(_.asURL).toList.sorted.mkString("]", ",", "]")}"
   }
 
-  override def close(): Unit = Lock.synchronized {
-    byLocation.values.foreach(_.close)
+  override def close(): Unit = stop()
+
+  def stop(): Future[Unit] = Lock.synchronized {
+    val futures = byLocation.values.map(_.stop)
     byLocation = Map.empty
+    import ExecutionContext.Implicits.global
+    Future.sequence(futures).map(_ => Unit)
   }
 }

@@ -1,12 +1,12 @@
 package agora.rest
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, Terminated}
 import akka.http.scaladsl.{Http, HttpExt}
 import akka.stream.ActorMaterializer
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 
-import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
 import scala.util.{Failure, Success}
 
 class AkkaImplicits(val actorSystemName: String, actorConfig: Config) extends AutoCloseable with StrictLogging {
@@ -24,8 +24,11 @@ class AkkaImplicits(val actorSystemName: String, actorConfig: Config) extends Au
   implicit val executionContext: ExecutionContext = system.dispatcher
   val http: HttpExt                               = Http()
 
-  override def close(): Unit = {
+  override def close(): Unit = stop()
+
+  def stop(): Future[Terminated] = {
     materializer.shutdown()
     system.terminate()
   }
+
 }

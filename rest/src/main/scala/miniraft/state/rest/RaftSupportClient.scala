@@ -8,7 +8,7 @@ import scala.concurrent.Future
 
 /** REST client to the support routes
   */
-class RaftSupportClient[T: Encoder: Decoder](c: RestClient) extends RaftClient(c) {
+class RaftSupportClient[T: Encoder: Decoder](c: RestClient) extends RaftClient[T](c) {
 
   import RestClient.implicits._
   import client.executionContext

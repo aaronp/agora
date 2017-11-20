@@ -17,7 +17,7 @@ abstract class BaseIntegrationTest extends BaseSpec with FailFastCirceSupport wi
   private val exchangePort                                  = portCounter.incrementAndGet()
   private val workerPort                                    = portCounter.incrementAndGet()
   var workerConfig: WorkerConfig                            = null
-  lazy val exchangeConfig                                   = ExchangeServerConfig("host=localhost", s"port=${exchangePort}")
+  var exchangeConfig: ExchangeServerConfig                  = null
   var exchangeService: ExchangeServerConfig.RunningExchange = null
   var exchangeClient: ExchangeRestClient                    = null
   var worker: RunningWorker                                 = null
@@ -33,6 +33,7 @@ abstract class BaseIntegrationTest extends BaseSpec with FailFastCirceSupport wi
   }
 
   def startAll() = {
+    exchangeConfig = ExchangeServerConfig("host=localhost", s"port=${exchangePort}")
     workerConfig =
       WorkerConfig("host=localhost", "exchange.host=localhost", s"port=${workerPort}", s"exchange.port=${exchangePort}", "includeExchangeRoutes=false")
     exchangeService = exchangeConfig.start().futureValue
@@ -42,9 +43,11 @@ abstract class BaseIntegrationTest extends BaseSpec with FailFastCirceSupport wi
   }
 
   def stopAll() = {
-    exchangeService.close()
-    exchangeClient.close()
-    worker.close()
+    val exchangeStop = exchangeService.stop()
+    val clientStop   = exchangeClient.stop()
+    worker.stop().futureValue
+    exchangeStop.futureValue
+    clientStop.futureValue
   }
 }
 

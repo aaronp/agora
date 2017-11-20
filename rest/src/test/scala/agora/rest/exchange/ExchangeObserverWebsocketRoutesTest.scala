@@ -30,7 +30,9 @@ class ExchangeObserverWebsocketRoutesTest extends BaseRoutesSpec {
           case TextMessage.Strict(jsonString) =>
             decode[ExchangeNotificationMessage](jsonString) match {
               case Right(sow: OnStateOfTheWorld) => sow.stateOfTheWorld
+              case other                         => fail(s"didn't decode ExchangeNotificationMessage: $other")
             }
+          case other => fail(s"didn't get a strict msg: $other")
         }
         sowEvent.jobs shouldBe (empty)
         sowEvent.subscriptions shouldBe (empty)

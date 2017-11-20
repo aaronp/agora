@@ -10,6 +10,7 @@ import agora.exec.workspace.WorkspaceClient
 import agora.io.Sources
 import agora.rest.{BaseRoutesSpec, CommonRequestBuilding}
 import io.circe.generic.auto._
+import concurrent.duration._
 
 class ExecutionRoutesTest extends BaseRoutesSpec with CommonRequestBuilding {
   "DELETE /rest/exec/cancel" should {
@@ -39,7 +40,7 @@ class ExecutionRoutesTest extends BaseRoutesSpec with CommonRequestBuilding {
     }
     "execute non-streaming commands" in {
       withDir { dir =>
-        val workspaces = WorkspaceClient(dir, system)
+        val workspaces = WorkspaceClient(dir, system, 100.millis)
 
         val execConfig = ExecConfig()
         val workflow   = ExecutionWorkflow(execConfig.defaultEnv, workspaces, execConfig.eventMonitor)
@@ -47,7 +48,7 @@ class ExecutionRoutesTest extends BaseRoutesSpec with CommonRequestBuilding {
 
         val request = ExecutionClient.asRequest(RunProcess("cp", "x", "y").withoutStreaming().withWorkspace("ws"))
         // upload file 'x'
-        workspaces.upload("ws", Upload.forText("x", "text")).futureValue.exists() shouldBe true
+        workspaces.upload("ws", Upload.forText("x", "text")).futureValue._2.exists() shouldBe true
 
         request ~> er.executeRoute ~> check {
           val resp = responseAs[FileResult]

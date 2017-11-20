@@ -20,14 +20,24 @@ case class RunningService[C <: ServerConfig, Service](conf: C, service: Service,
   private val shutdownPromise = Promise[Unit]()
   private lazy val shutdown = {
     logger.info(s"Unbinding RunningService '${conf.actorSystemName}-server' on ${conf.location} (running on ${localAddress})")
-    val future: Future[Unit] = binding.unbind()
+    import ExecutionContext.Implicits.global
+
+    // start shutting down local clients first so they don't keep trying to reconnect.
+    // this is really just for a single-host test environment and doesn't really matter in production
+
+    val future: Future[Unit] = conf.stopClients().flatMap { _ =>
+      binding.unbind()
+    }
+
     shutdownPromise.tryCompleteWith(future)
-    future
+    future.flatMap { _ =>
+      conf.stop()
+    }
   }
 
   def stop(): Future[Unit] = shutdown
 
-  def onShutdown(thunk: => Unit)(implicit ec: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global) = {
+  def onShutdown(thunk: => Unit)(implicit ec: ExecutionContext = ExecutionContext.Implicits.global) = {
 
     shutdownPromise.future.onComplete {
       case _ => thunk

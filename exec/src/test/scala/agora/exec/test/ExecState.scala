@@ -42,7 +42,7 @@ case class ExecState(serviceByName: Map[String, ExecState.Service] = Map.empty,
         c.close()
       case _ =>
     }
-    conf.clientConfig.restClient.close
+    conf.clientConfig.restClient.stop().futureValue
 
     this
   }

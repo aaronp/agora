@@ -16,7 +16,6 @@ case class WebsocketWorkerRoutes() extends FailFastCirceSupport {
     path("rest" / "websocket" / "create") {
       extractMaterializer { implicit mat =>
         entity(as[WorkSubscription]) { newSubscription =>
-          println(newSubscription)
           handleWebSocketMessages(greeter)
         }
       }

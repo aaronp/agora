@@ -2,20 +2,22 @@ package agora.exec.test
 
 import java.util.UUID
 
-import agora.BaseSpec
+import agora.{BaseIOSpec, BaseSpec}
 import agora.api.exchange.PendingSubscription
 import agora.exec.ExecConfig
 import agora.exec.client.RemoteRunner
 import agora.exec.model.{RunProcess, StreamingResult, Upload}
 import agora.exec.rest.ExecutionRoutes
 import agora.rest.client.{AkkaClient, RestClient, RetryClient}
+import agora.rest.logging.LoggingOps
 import agora.rest.{HasMaterializer, RunningService}
+import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 
-class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventually {
+class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventually with BeforeAndAfterEach {
 
   // just request 1 work item at a time in order to support the 'different servers' test
-  val conf                                                = ExecConfig("initialRequest=1")
+  var conf: ExecConfig                                    = null
   var server: RunningService[ExecConfig, ExecutionRoutes] = null
   var client: RemoteRunner                                = null
 
@@ -25,20 +27,22 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
         val anotherConf: ExecConfig =
           ExecConfig("port=8888", s"uploads.dir=${dir.toAbsolutePath.toString}", "initialRequest=1", "includeExchangeRoutes=false")
         anotherConf.initialRequest shouldBe 1
-        val anotherServerConnectedToServer1Exchange = {
-          anotherConf.start().futureValue
-        }
+
+        val anotherServerConnectedToServer1Exchange = anotherConf.start().futureValue
+
         try {
-          verifyConcurrentServices(anotherConf)
+          verifyConcurrentServices(anotherConf, "RemoteRunner" + UUID.randomUUID())
         } finally {
           anotherServerConnectedToServer1Exchange.stop().futureValue
+          anotherConf.stop().futureValue
         }
       }
     }
-    "be able to execute simple commands against a running server" in {
-      val result = client.stream("echo", "this", "is", "a", "test").futureValue.output
-      result.mkString("") shouldBe "this is a test"
-    }
+//
+//    "be able to execute simple commands against a running server" in {
+//      val result = client.stream("echo", "this", "is", "a", "test").futureValue.output
+//      result.mkString("") shouldBe "this is a test"
+//    }
   }
 
   /**
@@ -56,7 +60,23 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
     * We know job #1 can't complete as it's awaiting its upload file dependency on the server. This way
     * when job 2 is submitted it will get directed to the 2nd worker
     */
-  def verifyConcurrentServices(anotherConf: ExecConfig) = {
+  def verifyConcurrentServices(anotherConf: ExecConfig, suffix: String) = {
+    LoggingOps.withLogs("agora.exec.workspace.WorkspaceActor", "info") {
+      case Some(appender) =>
+        try {
+          doVerifyConcurrentServices(anotherConf, suffix)
+        } catch {
+          case exp: Throwable =>
+            val msg = appender.logs.mkString(s"#### Failed w/ ${exp.getMessage} ####\n", "\n", "\n")
+            withClue(msg) {
+              throw exp
+            }
+
+        }
+    }
+  }
+
+  def doVerifyConcurrentServices(anotherConf: ExecConfig, suffix: String) = {
 
     // verify we have 2 subscriptions
     def subscriptionsByServerPort() = {
@@ -70,10 +90,13 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
     subscriptionsByServerPort() shouldBe Map(7770 -> 1, 8888 -> 1)
 
     // 1) execute req 1
-    val workspace1 = UUID.randomUUID().toString
-    val workspace2 = UUID.randomUUID().toString
+    val workspace1 = "workspaceOne" + suffix
+    val workspace2 = "workspaceTwo" + suffix
     val selectionFuture1 =
-      client.run(RunProcess("cat", "file1.txt").withDependencies(workspace1, Set("file1.txt"), testTimeout))
+      client.run(
+        RunProcess("cat", "file1.txt")
+          .withWorkspace(workspace1)
+          .withDependencies(Set("file1.txt"), testTimeout))
 
     // figure out who got job #1
     val portWhichFirstJobTakenByService: Int = eventually {
@@ -91,9 +114,13 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
     // 2) execute req 2. Note we use the same exchange client for both requests ... one will be routed to our first
     // worker, the second request to the other (anotherServer...)
     val selectionFuture2 =
-      client.run(RunProcess("cat", "file2.txt").withDependencies(workspace2, Set("file2.txt"), testTimeout))
+      client.run(
+        RunProcess("cat", "file2.txt")
+          .withWorkspace(workspace2)
+          .withDependencies(Set("file2.txt"), testTimeout))
 
     selectionFuture1.isCompleted shouldBe false
+
     selectionFuture2.isCompleted shouldBe false
 
     withClue("At this point both jobs should've been picked up and the subscriptions drained") {
@@ -137,13 +164,18 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
 
   override def beforeAll(): Unit = {
     super.beforeAll()
+    val dirName = BaseIOSpec.nextTestDir("ExecutionIntegrationTest")
+    conf = ExecConfig("initialRequest=1", s"workspaces.dir=$dirName")
+
     server = conf.start().futureValue
     client = conf.remoteRunner()
   }
 
   override def afterAll(): Unit = {
     super.afterAll()
-    server.stop()
+    conf.stop().futureValue
+    client.close()
+    server.stop().futureValue
     server = null
     client = null
   }

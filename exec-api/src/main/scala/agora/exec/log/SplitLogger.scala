@@ -20,8 +20,6 @@ object SplitLogger {
 case class SplitLogger(loggerList: List[ProcessLogger]) extends ProcessLogger with LazyLogging with AutoCloseable with Flushable {
   def add(pl: ProcessLogger) = copy(loggerList = pl :: loggerList)
 
-//  private lazy val loggers = loggerList.par
-
   override def out(s: => String): Unit = {
     lazy val string = s
     withLogger(_.out(string))

@@ -38,6 +38,8 @@ class ProcessLoggers(val proc: RunProcess, override val matchDetails: Option[Mat
 
   override def exitCodeFuture: Future[Int] = stdOutLog.exitCode
 
+  def stdOutBytesWritten() = stdOutLog.bytesWritten()
+
   def fileResultFuture(implicit executionContext: ExecutionContext) = exitCodeFuture.map { exitCode =>
     FileResult(exitCode, proc.workspace, proc.output.stdOutFileName, proc.output.stdErrFileName, matchDetails)
   }

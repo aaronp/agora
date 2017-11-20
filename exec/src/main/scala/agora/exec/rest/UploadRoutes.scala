@@ -90,10 +90,10 @@ class UploadRoutes(initialWorkspaces: WorkspaceClient) extends FailFastCirceSupp
 
         logger.info(s"Uploading ${workspace}/${fileName}")
 
-        val future: Future[Path] = workspaces.upload(workspace, fileName, src)
+        val future = workspaces.upload(workspace, fileName, src)
 
         import agora.io.implicits._
-        future.map(_.exists())
+        future.map(_._2.exists())
     }
 
     val futureOptFuture: Future[Option[Future[Boolean]]] = uploadSource.runWith(Sink.head)

@@ -16,6 +16,8 @@ abstract class BaseRoutesSpec extends BaseSpec with ScalatestRouteTest with Fail
   case class DirectRestClient(r: Route) extends RestClient {
     override def send(request: HttpRequest): Future[HttpResponse] = runRoute(r, request)
     override implicit val materializer: Materializer              = testMaterializer
+
+    override def stop(): Future[Any] = Future.successful("meh")
   }
 
   private def runRoute(r: Route, request: HttpRequest): Future[HttpResponse] = {

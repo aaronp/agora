@@ -16,6 +16,7 @@ case class ExchangeSubscriber(initialSubscription: Int)(handler: ExchangeNotific
 
   override def onError(t: Throwable) = {
     logger.error(s"onError($t)", t)
+    cancel()
   }
 
   def cancel() = subscriptionOpt.fold(false) { s =>

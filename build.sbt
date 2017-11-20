@@ -1,10 +1,12 @@
 val repo = "agora"
 name := repo
-val username    = "aaronp"
-val scalaTwelve = "2.12.4"
-crossScalaVersions := Seq("2.11.11", scalaTwelve)
+val username            = "aaronp"
+val scalaEleven         = "2.11.8"
+val scalaTwelve         = "2.12.4"
+val defaultScalaVersion = scalaTwelve
+crossScalaVersions := Seq(scalaEleven, scalaTwelve)
 organization := s"com.github.${username}"
-scalaVersion := scalaTwelve
+scalaVersion := defaultScalaVersion
 enablePlugins(GitVersioning)
 autoAPIMappings := true
 exportJars := false
@@ -119,10 +121,10 @@ val scalacSettings = baseScalacSettings
 val commonSettings: Seq[Def.Setting[_]] = Seq(
   //version := parentProject.settings.ver.value,
   organization := s"com.github.${username}",
-  scalaVersion := scalaTwelve,
+  scalaVersion := defaultScalaVersion,
   autoAPIMappings := true,
   exportJars := false,
-  crossScalaVersions := Seq("2.11.11", scalaTwelve),
+  crossScalaVersions := Seq(scalaEleven, scalaTwelve),
   javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-XX:MaxMetaspaceSize=1g"),
   scalacOptions ++= scalacSettings,
   buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
