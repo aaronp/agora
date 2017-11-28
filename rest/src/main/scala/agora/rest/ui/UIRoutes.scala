@@ -12,40 +12,35 @@ import akka.http.scaladsl.server.Directives.{
   redirect,
   _
 }
+import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
 import io.circe.generic.auto._
 
 import scala.language.reflectiveCalls
 
-case class UIRoutes(docRoot: String = ".", defaultPath: String = "index.html") {
+case class UIRoutes(docRoot: String = ".", defaultPath: String = "index.html") extends StrictLogging {
 
   import UIRoutes._
 
   def routes = jsRoute ~ uiRoute ~ rootRoute
+
+  logger.debug(s"Serving UI routes under $docRoot")
 
   // ui/target/scala-2.11/classes
   private def resolveJsPath(uri: Uri.Path): Uri.Path = {
     uri.toString match {
       case Unslash(JavaScript(js)) =>
         val newPath: Uri.Path = Uri.Path("ui/target/scala-2.12/" + js)
-//        val resolved          = docRoot ++ newPath
-//        println(s"$uri => $newPath => $resolved")
+        logger.debug(s"modified $uri to $newPath")
         newPath
       case _ => uri
     }
   }
 
   val uiRoute = (get & pathPrefix("ui")) {
-    extractUnmatchedPath { (unmatchedPath: Uri.Path) =>
-      {
-        val Unslash(r) = unmatchedPath.toString
-        val resolved   = docRoot + r
-        println(s"Loading $r => $resolved")
-
-        getFromResource(resolved.toString())
-      }
-    }
+    getFromBrowseableDirectory(docRoot)
   }
+
   val jsRoute = (get & pathPrefix("ui")) {
     mapUnmatchedPath(resolveJsPath) {
       encodeResponse {
@@ -59,20 +54,8 @@ case class UIRoutes(docRoot: String = ".", defaultPath: String = "index.html") {
     * will redirect to the UI welcome page
     */
   val rootRoute = (get & pathEndOrSingleSlash) {
-    println(s"Redirecting to $defaultPath  ")
+    logger.debug(s"Redirecting to $defaultPath")
     redirect(Uri(defaultPath), StatusCodes.TemporaryRedirect)
-  }
-
-  object debug {
-
-    def routes = browseRoute
-
-    val browseRoute = (get & pathPrefix("browse")) {
-      encodeResponse {
-        println(s"Browsing to $defaultPath  ")
-        getFromBrowseableDirectory(docRoot)
-      }
-    }
   }
 
 }

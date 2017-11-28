@@ -3,6 +3,7 @@ package agora.rest.exchange
 import agora.api.exchange.ServerSideExchange
 import agora.config._
 import agora.rest.RunningService
+import agora.rest.ui.UIRoutes
 import akka.http.scaladsl.server.Route
 import com.typesafe.config.{Config, ConfigFactory}
 
@@ -16,10 +17,22 @@ class ExchangeServerConfig(c: Config) extends ExchangeConfig(c) {
     RunningService.start(this, routes(er), er)
   }
 
+  def uiRoutes: Option[UIRoutes] =
+    if (includeUIRoutes) {
+      Option(UIRoutes(staticPath, defaultUIPath))
+    } else {
+      None
+    }
+
   def newExchangeRoutes(exchange: ServerSideExchange): ExchangeRoutes = ExchangeRoutes(exchange)
 
   def routes(exchangeRoutes: ExchangeRoutes): Route = {
-    exchangeRoutes.routes
+    val base = exchangeRoutes.routes
+    uiRoutes.fold(base) { r =>
+      import akka.http.scaladsl.server.Directives._
+
+      base ~ r.routes
+    }
   }
 
   override def withFallback(fallback: ExchangeConfig) = new ExchangeServerConfig(config.withFallback(fallback.config))

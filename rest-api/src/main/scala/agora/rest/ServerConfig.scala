@@ -4,7 +4,6 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import agora.api.worker.HostLocation
 import agora.config.RichConfigOps
-import akka.http.scaladsl.server.Route
 import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.concurrent.Future
@@ -26,9 +25,19 @@ class ServerConfig(val config: Config) extends RichConfigOps with AutoCloseable 
 
   def launchBrowser = config.getBoolean("launchBrowser")
 
+  /**
+    * Used by [[RunningService.start]]
+    * @return true if we should accept user input from std-in to stop the service
+    */
   def waitOnUserInput = config.getBoolean("waitOnUserInput")
 
   def includeSwaggerRoutes = config.getBoolean("includeSwaggerRoutes")
+
+  def includeUIRoutes = config.getBoolean("includeUIRoutes")
+
+  def staticPath = config.getString("staticPath")
+
+  def defaultUIPath = config.getString("defaultUIPath")
 
   def enableSupportRoutes = config.getBoolean("enableSupportRoutes")
 
@@ -106,10 +115,6 @@ class ServerConfig(val config: Config) extends RichConfigOps with AutoCloseable 
   }
 
   def newSystem(name: String = nextActorSystemName): AkkaImplicits = new AkkaImplicits(name, config)
-
-  def runWithRoutes[T](routes: Route, svc: T): Future[RunningService[ServerConfig, T]] = {
-    RunningService.start(this, routes, svc)
-  }
 
   protected def newConfig(overrides: Map[String, String]) = {
     import scala.collection.JavaConverters._

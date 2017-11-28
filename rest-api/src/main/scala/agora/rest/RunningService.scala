@@ -51,13 +51,13 @@ object RunningService extends LazyLogging {
 
   def start[C <: ServerConfig, T](serverConfig: C, inputRoutes: Route, svc: T): Future[RunningService[C, T]] = {
     import serverConfig.serverImplicits._
-    import serverConfig.{host, launchBrowser, port, waitOnUserInput}
+    import serverConfig.{host, launchBrowser, port, waitOnUserInput, location}
 
-    logger.debug(s"Starting ${actorSystemName} at http://${host}:${port}")
+    logger.debug(s"Starting ${actorSystemName} at ${location.asHostPort}")
 
     val routes = Route.seal(inputRoutes)
     val future: Future[RunningService[C, T]] = http.bindAndHandle(routes, host, port).map { b =>
-      logger.info(s"Started ${serverConfig.actorSystemName} at http://${host}:${port}")
+      logger.info(s"Started ${serverConfig.actorSystemName} at ${serverConfig.location.asHostPort}")
       RunningService[C, T](serverConfig, svc, b)
     }
 
