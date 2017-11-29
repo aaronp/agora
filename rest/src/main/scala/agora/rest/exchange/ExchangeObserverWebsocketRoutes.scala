@@ -41,9 +41,15 @@ trait ExchangeObserverWebsocketRoutes extends StrictLogging {
         extractExecutionContext { implicit ec =>
           logger.debug("Adding a websocket observer")
           val publisherFuture: Future[SingleSubscriptionExchangePublisher] = {
+
+            /** We try and do a pessimistic lock here on the Exchange
+              */
             exchange.underlying match {
               case threadSafeExchange: ActorExchangeClient =>
                 threadSafeExchange.withQueueState() { queueState =>
+                  /** This executes Within the exchange lock, so we can capture the state-of-the-world
+                    * while we add our observer
+                    */
                   val publisher = SingleSubscriptionExchangePublisher(maxCapacity, queueState)
                   exchange.observer += publisher
                   publisher
