@@ -83,7 +83,10 @@ object BasePublisher extends StrictLogging {
     }
   }
 
-  private[streams] class BasePublisherSubscription[T](val id: Int, val publisher: BasePublisher[T], val subscriber: Subscriber[_ >: T], queue: ConsumerQueue[T])
+  private[streams] class BasePublisherSubscription[T](val id: Int,
+                                                      val publisher: BasePublisher[T],
+                                                      val subscriber: Subscriber[_ >: T],
+                                                      queue: ConsumerQueue[T])
       extends Subscription {
 
     override def cancel(): Unit = publisher.remove(id)
