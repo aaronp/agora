@@ -11,6 +11,11 @@ class PublisherOps[T](val publisher: Publisher[T]) extends AnyVal {
 
   import PublisherOps._
 
+  def filter(subscriber: Subscriber[T], initialRequest: Long)(predicate: T => Boolean) = {
+    val keySubscriber = new FilterSubscriber[T](predicate, subscriber, initialRequest)
+    publisher.subscribe(keySubscriber)
+  }
+
   def subscribeByKey[K](subscriber: Subscriber[(K, T)], initialRequest: Long)(implicit
                                                                               selector: FieldSelector[T, K]) = {
     val keySubscriber = new KeySubscriber[T, K](selector, subscriber, initialRequest)
@@ -30,6 +35,25 @@ class PublisherOps[T](val publisher: Publisher[T]) extends AnyVal {
 
 object PublisherOps {
   implicit def asOps[T](publisher: Publisher[T]) = new PublisherOps[T](publisher)
+
+  private class FilterSubscriber[T](predicate: T => Boolean, subscriber: Subscriber[T], initialRequest: Long) extends BaseSubscriber[T](initialRequest) {
+
+    override def onError(t: Throwable) = {
+      subscriber.onError(t)
+    }
+
+    override def onComplete() = subscriber.onComplete()
+
+    override def onSubscribe(s: Subscription) = subscriber.onSubscribe(s)
+
+    override def onNext(t: T): Unit = {
+      if (predicate(t)) {
+        subscriber.onNext(t)
+      } else {
+        request(1)
+      }
+    }
+  }
 
   private class KeySubscriber[T, K](selector: FieldSelector[T, K], subscriber: Subscriber[(K, T)], initialRequest: Long)
       extends BaseSubscriber[T](initialRequest) {

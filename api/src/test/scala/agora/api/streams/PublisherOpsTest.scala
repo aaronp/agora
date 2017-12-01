@@ -9,12 +9,26 @@ import io.circe.syntax._
 class PublisherOpsTest extends BaseSpec {
 
   import PublisherOpsTest._
+  import PublisherOps._
 
+  "PublisherOps.subscribeByKey" should {
+    "publish json updates with their key field" in {
+      val publisher = BasePublisher[Json](10)
+
+      val deltaSubscriber = new ListSubscriber[Json]
+      publisher.subscribeToUpdates(deltaSubscriber, 0)
+
+      val first = Data(1, "first", Data(2, "child", Data(string = "grandchild").some).some)
+
+      publisher.publish(first.asJson)
+      deltaSubscriber.received() shouldBe empty
+
+    }
+  }
   "PublisherOps.subscribeToUpdates" should {
     "publish json updates" in {
       val publisher = BasePublisher[Json](10)
 
-      import PublisherOps._
       val deltaSubscriber = new ListSubscriber[Json]
       publisher.subscribeToUpdates(deltaSubscriber, 0)
 
