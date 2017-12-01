@@ -3,16 +3,16 @@ package agora.api.json
 import agora.BaseSpec
 import io.circe.Json
 
-class JPathsTest extends BaseSpec {
+class TypeNodeTest extends BaseSpec {
   "JPaths.apply" should {
     "return empty paths for null or scalars" in {
-      JPaths(Json.Null) shouldBe JPaths.Empty
-      JPaths(Json.fromBoolean(true)) shouldBe JPaths.Empty
-      JPaths(Json.fromInt(3)) shouldBe JPaths.Empty
-      JPaths(Json.fromString("hi")) shouldBe JPaths.Empty
+      TypeNode(Json.Null) shouldBe TypeNode(NullType)
+      TypeNode(Json.fromBoolean(true)) shouldBe TypeNode(BooleanType)
+      TypeNode(Json.fromInt(3)) shouldBe TypeNode(NumericType)
+      TypeNode(Json.fromString("hi")) shouldBe TypeNode(TextType)
     }
     "return all the json paths for a given json object" in {
-      val paths = JPaths(json"""{
+      val paths = TypeNode(json"""{
               "base" : {
                 "nestedBoolean" : true,
                 "nestedArray" : [1,2,3],
@@ -21,11 +21,21 @@ class JPathsTest extends BaseSpec {
                     "foo" : "bar",
                      "deepNestedArray" : [
                         {
-                          "fizz" : "buzz",
+                          "mysterious" : "buzz",
                           "buzz" : 12
                         },
                         {
+                          "mysterious" : true,
                           "meh" : 1
+                        },
+                        {
+                          "mysterious" : [1,2,3]
+                        },
+                        {
+                          "mysterious" : [{ "nowItsAnObj" : true }]
+                        },
+                        {
+                          "mysterious" : 19
                         },
                         3,
                         true
@@ -40,7 +50,11 @@ class JPathsTest extends BaseSpec {
               "dbl" : 12.34
               }""")
 
-      paths.flatten.sorted should contain inOrderOnly (
+//      println(paths)
+      paths.flatten.sorted.foreach(println)
+
+      val actual: Vector[String] = paths.flatten.sorted
+      actual should contain inOrderOnly (
         "ary.*",
         "base.nestedArray.*",
         "base.nestedBoolean",

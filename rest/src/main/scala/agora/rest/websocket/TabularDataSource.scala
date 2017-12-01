@@ -40,16 +40,6 @@ object MarketFeed {
   val marketView = new BaseSubscriber[PriceUpdate](10) {
     private var valuesByRic = Map[String, Map[String, Any]]()
 
-    private object DeltaPublisher extends BasePublisher[Deltas] {
-      override def newQueue() = ConsumerQueue(10)
-      override protected def newSubscription(subscriber: Subscriber[_ >: Deltas]) = {
-        val s = super.newSubscription(subscriber)
-        val sow =
-          s.onElement(sow)
-        s
-      }
-    }
-
     override def onNext(update: PriceUpdate) = {
 
       val oldValues = valuesByRic.getOrElse(update.ric, Map.empty)
@@ -95,40 +85,40 @@ object InfiniteInts {
 
     def computeDeltas(criteriaBefore: Option[ViewPortCriteria[IntCriteria]], criteriaAfter: Option[ViewPortCriteria[IntCriteria]], tick: Long) = {}
 
-    def flow(implicit mat: Materializer): Flow[Message, Message, NotUsed] = {
-      // global publisher for all ints/ticks. This will just publish on demand for
-      // each subscriber
-      val publisher = BasePublisher[ClientResponseMessage](100)
-
-      val subscriber = new BaseSubscriber[ClientMessage](1) {
-        var lastCriteriaSent: Option[ViewPortCriteria[IntCriteria]] = None
-
-        var currentCriteria: Option[ViewPortCriteria[IntCriteria]] = None
-
-        override def onNext(t: ClientMessage) = {
-
-          t match {
-            case ViewportUpdate(newCriteria) =>
-              currentCriteria = Option(newCriteria)
-            case TakeNext(n, tick) =>
-              val result = computeDeltas(lastCriteriaSent, currentCriteria, tick)
-              lastCriteriaSent = currentCriteria
-
-              request(n)
-          }
-        }
-      }
-      MessageFlow(publisher, subscriber)
-    }
+//    def flow(implicit mat: Materializer): Flow[Message, Message, NotUsed] = {
+//      // global publisher for all ints/ticks. This will just publish on demand for
+//      // each subscriber
+//      val publisher = BasePublisher[ClientResponseMessage](100)
+//
+//      val subscriber = new BaseSubscriber[ClientMessage](1) {
+//        var lastCriteriaSent: Option[ViewPortCriteria[IntCriteria]] = None
+//
+//        var currentCriteria: Option[ViewPortCriteria[IntCriteria]] = None
+//
+//        override def onNext(t: ClientMessage) = {
+//
+//          t match {
+//            case ViewportUpdate(newCriteria) =>
+//              currentCriteria = Option(newCriteria)
+//            case TakeNext(n, tick) =>
+//              val result = computeDeltas(lastCriteriaSent, currentCriteria, tick)
+//              lastCriteriaSent = currentCriteria
+//
+//              request(n)
+//          }
+//        }
+//      }
+//      MessageFlow(publisher, subscriber)
+//    }
   }
 
-  object Source extends TabularDataSource[IntCriteria, IntDelta] {
-    override def deltas(query: ViewPortCriteria[IntCriteria]): Future[List[IntDelta]] = {
-
-      val xValues = query.firstRowIndex.to(query.firstRowIndex + query.numberOfRows)
-
-      Future.successful(List())
-    }
-  }
+//  object Source extends TabularDataSource[IntCriteria, IntDelta] {
+//    override def deltas(query: ViewPortCriteria[IntCriteria]): Future[List[IntDelta]] = {
+//
+//      val xValues = query.firstRowIndex.to(query.firstRowIndex + query.numberOfRows)
+//
+//      Future.successful(List())
+//    }
+//  }
 
 }
