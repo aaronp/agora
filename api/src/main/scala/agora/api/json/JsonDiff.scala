@@ -8,16 +8,16 @@ object DiffEntry {
   def apply(lhs: Json, rhs: Json): DiffEntry = new DiffEntry(Nil, lhs, rhs)
 }
 
-case class JsonDiff(diffs: List[DiffEntry]) {
-  def size = diffs.size
+case class JsonDiff(deltas: List[DiffEntry]) {
+  def size = deltas.size
 
-  def isEmpty = diffs.isEmpty
+  def isEmpty = deltas.isEmpty
 
   def asDelta: JsonDelta = {
-    val removeAllOldValues = diffs.map {
+    val removeAllOldValues = deltas.map {
       case DiffEntry(path, _, _) => JPath.forParts(path)
     }
-    val entriesToAdd: List[Json] = diffs.collect {
+    val entriesToAdd: List[Json] = deltas.collect {
       case DiffEntry(path, _, rhs) if !rhs.isNull =>
         path.foldRight(rhs) {
           case (p, json) => Json.obj(p -> json)

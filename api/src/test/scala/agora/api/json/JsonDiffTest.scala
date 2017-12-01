@@ -148,14 +148,11 @@ class JsonDiffTest extends BaseSpec {
             "new" : "hi"
        }"""
 
-      val diff  = JsonDiff(lhs, rhs)
-      val delta = diff.asDelta
-
-      println(delta)
-
-      val same = delta.update(lhs)
-      same shouldBe Option(rhs)
+      val diff = JsonDiff(lhs, rhs)
       diff.size shouldBe 4
+
+      val delta = diff.asDelta
+      delta.update(lhs) shouldBe rhs
     }
   }
   "JsonDiff.asJson" should {
@@ -170,7 +167,7 @@ class JsonDiffTest extends BaseSpec {
 
       diff.asJson shouldBe
         json"""{
-            "diffs" : [
+            "deltas" : [
                 {
                     "path" : [ "a", "b" ],
                     "lhs" : 1,

@@ -14,13 +14,20 @@ abstract class BaseSubscriber[T](initialRequest: Long) extends Subscriber[T] {
 
   def subscriptionOption: Option[Subscription] = _subscriptionOption
 
+  def contraMap[A](f: A => T): Subscriber[A] = {
+    val self = this
+    new DelegateSubscriber[A](self) {
+      override def onNext(t: A) = self.onNext(f(t))
+    }
+  }
+
   def subscription() = subscriptionOption.getOrElse(sys.error("Subscription not set"))
 
-  override def onError(t: Throwable) = {
+  override def onError(t: Throwable): Unit = {
     throw t
   }
 
-  override def onComplete() = {}
+  override def onComplete(): Unit = {}
 
   def request(n: Long = 1) = subscriptionOption match {
     case None    => initiallyRequested = initiallyRequested + n

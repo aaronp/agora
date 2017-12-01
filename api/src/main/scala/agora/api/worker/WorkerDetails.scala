@@ -68,7 +68,7 @@ case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
     * @return either an updated WorkerDetails or None if the delta had no effect
     */
   def update(delta: JsonDelta) =
-    delta.update(aboutMe).map { updated =>
+    delta.optionallyUpdate(aboutMe).map { updated =>
       copy(updated)
     }
 
