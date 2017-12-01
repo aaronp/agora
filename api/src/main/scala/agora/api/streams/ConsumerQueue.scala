@@ -8,7 +8,7 @@ import com.typesafe.scalalogging.StrictLogging
 import scala.collection.mutable.ListBuffer
 
 /**
-  * An abstraction for holding the published values before they are pulled from consumers.
+  * An abstraction for holding the published values in an internal subscription before they are pulled from consumers.
   *
   * If we have a Semigroup for T, we might choose to conflate the values.
   *
@@ -18,8 +18,18 @@ import scala.collection.mutable.ListBuffer
   */
 trait ConsumerQueue[T] {
 
+  /**
+    * request more -- this will trigger a check and return the 'more'
+    * @param n the additional n to request
+    * @return the maximum ready elements to
+    */
   def request(n: Long): List[T]
 
+  /**
+    * push a value on to the queue
+    * @param value
+    * @return the values now ready to publish to the subscription
+    */
   def offer(value: T): List[T]
 }
 

@@ -66,42 +66,4 @@ package object json {
     }
   }
 
-  /**
-    * Removes common values from 'that' f
-    *
-    * @param from
-    * @param that
-    * @return
-    */
-  def deepRemove(from: Json, that: Json): Json = {
-    (from.asObject, that.asObject) match {
-      case (Some(lhs), Some(rhs)) =>
-        fromJsonObject(
-          lhs.toList.foldLeft(rhs) {
-            case (acc, (key, value)) =>
-              val removedArraysOpt: Option[JsonObject] = for {
-                leftArray  <- value.asArray
-                rightArray <- rhs(key).flatMap(_.asArray)
-              } yield {
-                // subtract arrays
-                val newArray: Vector[Json] = leftArray.filterNot(rightArray.contains)
-                val arr                    = Json.fromValues(newArray)
-                acc.add(key, arr)
-              }
-
-              // they're not arrays - remove the
-              def fallback: JsonObject = {
-                if (rhs(key).isDefined) {
-                  acc
-                } else {
-                  acc.add(key, value)
-                }
-              }
-
-              removedArraysOpt.getOrElse(fallback)
-          }
-        )
-      case _ => from
-    }
-  }
 }

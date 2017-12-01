@@ -1,6 +1,7 @@
 package agora.api.json
 
-import io.circe.{Encoder, Json}
+import io.circe.Json.fromJsonObject
+import io.circe.{Encoder, Json, JsonObject}
 
 /**
   * Represents changes to some json
@@ -18,7 +19,7 @@ case class JsonDelta(remove: List[JPath] = Nil, append: Json = Json.Null) {
     * @param original the input json
     * @return a Some of the updated json, None if this had no effect
     */
-  def update(original: Json) = {
+  def update(original: Json): Option[Json] = {
     if (isEmpty) {
       None
     } else doUpdate(original)
@@ -31,7 +32,7 @@ case class JsonDelta(remove: List[JPath] = Nil, append: Json = Json.Null) {
 
     val updated = append match {
       case Json.Null => deletes
-      case data      => agora.api.json.deepMergeWithArrayConcat(deletes, data)
+      case data      => deepMergeWithArrayConcat(deletes, data)
     }
     if (updated == original) {
       None
@@ -44,4 +45,6 @@ case class JsonDelta(remove: List[JPath] = Nil, append: Json = Json.Null) {
 object JsonDelta {
   def remove(jpath: JPath, theRest: JPath*): JsonDelta = JsonDelta(remove = jpath :: theRest.toList)
   def append[T: Encoder](data: T): JsonDelta           = JsonDelta(append = implicitly[Encoder[T]].apply(data))
+
+  def diff(lhs: Json, rhs: Json) = JsonDiff(lhs, rhs).asDelta
 }
