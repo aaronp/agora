@@ -3,7 +3,7 @@ package agora.rest
 import java.util.concurrent.atomic.AtomicInteger
 
 import agora.api.worker.HostLocation
-import agora.config.RichConfigOps
+import agora.config.{RichConfigOps, configForArgs}
 import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.concurrent.Future
@@ -126,4 +126,17 @@ class ServerConfig(val config: Config) extends RichConfigOps with AutoCloseable 
   def withOverrides(overrides: Config): ServerConfig = new ServerConfig(overrides).withFallback(config)
 
   override def toString = config.describe
+}
+
+object ServerConfig {
+  def apply(firstArg: String, theRest: String*): ServerConfig = apply(firstArg +: theRest.toArray)
+
+  def apply(args: Array[String] = Array.empty, fallbackConfig: Config = ConfigFactory.load("agora-defaults.conf")): ServerConfig = {
+    val wc = apply(configForArgs(args, fallbackConfig))
+    wc.withFallback(load().config)
+  }
+
+  def load() = apply(ConfigFactory.load())
+
+  def apply(config: Config): ServerConfig = new ServerConfig(config)
 }

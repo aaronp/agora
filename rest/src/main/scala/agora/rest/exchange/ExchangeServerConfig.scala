@@ -17,12 +17,7 @@ class ExchangeServerConfig(c: Config) extends ExchangeConfig(c) {
     RunningService.start(this, routes(er), er)
   }
 
-  def uiRoutes: Option[UIRoutes] =
-    if (includeUIRoutes) {
-      Option(UIRoutes(staticPath, defaultUIPath))
-    } else {
-      None
-    }
+  def uiRoutes: Option[UIRoutes] = UIRoutes.unapply(this)
 
   def newExchangeRoutes(exchange: ServerSideExchange): ExchangeRoutes = ExchangeRoutes(exchange)
 

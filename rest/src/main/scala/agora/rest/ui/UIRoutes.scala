@@ -1,5 +1,6 @@
 package agora.rest.ui
 
+import agora.rest.ServerConfig
 import akka.http.scaladsl.model.{StatusCodes, Uri}
 import akka.http.scaladsl.server.Directives.{
   encodeResponse,
@@ -64,6 +65,14 @@ object UIRoutes {
 
   private val SlashPrefixR = "/(.*)".r
   private val JsR          = "js/(.*)".r
+
+  def unapply(serverConfig: ServerConfig) = {
+    if (serverConfig.includeUIRoutes) {
+      Option(UIRoutes(serverConfig.staticPath, serverConfig.defaultUIPath))
+    } else {
+      None
+    }
+  }
 
   private object Unslash {
     def unapply(input: String): Option[String] = input match {

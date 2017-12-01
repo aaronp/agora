@@ -7,10 +7,10 @@ import org.reactivestreams.{Subscriber, Subscription}
   *
   * @tparam T
   */
-class BaseSubscriber[T] extends Subscriber[T] {
+abstract class BaseSubscriber[T](initialRequest: Long) extends Subscriber[T] {
 
   private var _subscriptionOption: Option[Subscription] = None
-  private var initiallyRequested                        = 0L
+  private var initiallyRequested                        = initialRequest
 
   def subscriptionOption: Option[Subscription] = _subscriptionOption
 
@@ -21,8 +21,6 @@ class BaseSubscriber[T] extends Subscriber[T] {
   }
 
   override def onComplete() = {}
-
-  override def onNext(t: T) = {}
 
   def request(n: Long = 1) = subscriptionOption match {
     case None    => initiallyRequested = initiallyRequested + n

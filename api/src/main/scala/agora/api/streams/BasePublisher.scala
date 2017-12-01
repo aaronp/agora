@@ -12,14 +12,17 @@ import scala.util.control.NonFatal
 
 /**
   * A publishing skeleton which exposes a 'publish' to push elements to subscribers
-  *
-  * @param newQueue ability to create a new queue for a subsription
   * @tparam T
   */
-class BasePublisher[T](newQueue: () => ConsumerQueue[T]) extends Publisher[T] with StrictLogging {
+trait BasePublisher[T] extends Publisher[T] with StrictLogging {
 
   private val ids               = new AtomicInteger(0)
   private val subscriptionsById = new ConcurrentHashMap[Int, BasePublisherSubscription[T]]()
+
+  /** create a new queue for a subscription
+    * @return a new consumer queue
+    */
+  def newQueue(): ConsumerQueue[T]
 
   def remove(id: Int): Unit = {
     subscriptionsById.remove(id)
@@ -53,10 +56,16 @@ class BasePublisher[T](newQueue: () => ConsumerQueue[T]) extends Publisher[T] wi
 
 object BasePublisher extends StrictLogging {
 
-  def apply[T](newQueue: () => ConsumerQueue[T]) = new BasePublisher[T](newQueue)
+  def apply[T](mkQueue: () => ConsumerQueue[T]) = {
+    new BasePublisher[T] {
+      override def newQueue() = mkQueue()
+    }
+  }
 
   def apply[T](maxCapacity: Int) = {
-    new BasePublisher[T](() => ConsumerQueue(maxCapacity))
+    new BasePublisher[T] {
+      override def newQueue() = ConsumerQueue(maxCapacity)
+    }
   }
 
   /**
@@ -69,7 +78,9 @@ object BasePublisher extends StrictLogging {
     * @return
     */
   def apply[T: Semigroup](initialValue: Option[T] = None) = {
-    new BasePublisher[T](() => ConsumerQueue(initialValue))
+    new BasePublisher[T] {
+      override def newQueue() = ConsumerQueue(initialValue)
+    }
   }
 
   private[streams] class BasePublisherSubscription[T](val id: Int, val publisher: BasePublisher[T], val subscriber: Subscriber[_ >: T], queue: ConsumerQueue[T])
