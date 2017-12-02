@@ -80,7 +80,7 @@ case class TypeNodeObject(children: Map[String, TypeNode]) extends TypeNode {
     children.toVector.flatMap {
       case (key, array: TypeNodeArray) =>
         array.flattenPaths.map {
-          case (path, t) => (key :: path) -> t
+          case (path, t) => (s"$key[]" :: path) -> t
         }
       case (key, values) =>
         values.flattenPaths.map {
@@ -94,11 +94,15 @@ case class TypeNodeArray(children: Vector[TypeNode]) extends TypeNode {
   override val `type`: JType = ArrayType
 
   override def flattenPaths: Vector[(List[String], JType)] = {
-    children.flatMap { value =>
-      value.flattenPaths.map {
-        case (Nil, t) => ("[]" :: Nil) -> t
-        case (head :: tail, t) =>
-          (s"$head[]" :: tail) -> t
+    if (children.isEmpty) {
+      Vector(Nil -> NullType)
+    } else {
+      children.flatMap { value =>
+        value.flattenPaths.map {
+//        case (head :: tail, t) =>
+//          (s"$head[]" :: tail) -> t
+          case entry => entry
+        }
       }
     }
   }

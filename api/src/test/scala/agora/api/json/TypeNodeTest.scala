@@ -50,20 +50,23 @@ class TypeNodeTest extends BaseSpec {
               "dbl" : 12.34
               }""")
 
-//      println(paths)
-      paths.flatten.sorted.foreach(println)
-
       val actual: Vector[String] = paths.flatten.sorted
       actual should contain inOrderOnly (
-        "ary.*",
-        "base.nestedArray.*",
-        "base.nestedBoolean",
-        "base.objArray.*.deepNestedArray.*.buzz",
-        "base.objArray.*.deepNestedArray.*.fizz",
-        "base.objArray.*.deepNestedArray.*.meh",
-        "base.objArray.*.foo",
-        "base.objArray.*.second",
-        "dbl"
+        "ary[]:NullType",
+        "base.nestedArray[]:NumericType",
+        "base.nestedBoolean:BooleanType",
+        "base.objArray[].deepNestedArray[].buzz:NumericType",
+        "base.objArray[].deepNestedArray[].meh:NumericType",
+        "base.objArray[].deepNestedArray[].mysterious:BooleanType",
+        "base.objArray[].deepNestedArray[].mysterious:NumericType",
+        "base.objArray[].deepNestedArray[].mysterious:TextType",
+        "base.objArray[].deepNestedArray[].mysterious[].nowItsAnObj:BooleanType",
+        "base.objArray[].deepNestedArray[].mysterious[]:NumericType",
+        "base.objArray[].deepNestedArray[]:BooleanType",
+        "base.objArray[].deepNestedArray[]:NumericType",
+        "base.objArray[].foo:TextType",
+        "base.objArray[].second:TextType",
+        "dbl:NumericType"
       )
     }
   }
