@@ -30,7 +30,7 @@ trait WorkerIntegrationSpec extends FailFastCirceSupport { self: BaseIntegration
       }
 
       // have the client send a multipart request of bytes
-      val job: SubmitJob = "some small job".asJob.matching("path".equalTo("basic").asMatcher)
+      val job: SubmitJob = "some small job".asJob.matching("path".equalTo("basic").asMatcher())
 
       val dispatchInts: AsClient[SubmitJob, HttpResponse] = AsClient.lift[SubmitJob, HttpResponse] { dispatch =>
         val src = Source.fromIterator { () =>
@@ -62,7 +62,7 @@ trait WorkerIntegrationSpec extends FailFastCirceSupport { self: BaseIntegration
 
       // add a handler which just echos the input multipart byte stream
       worker.service
-        .usingSubscription(_.withPath("largeuploads").matchingSubmission("topic".equalTo("biguns").asMatcher))
+        .usingSubscription(_.withPath("largeuploads").matchingSubmission("topic".equalTo("biguns").asMatcher()))
         .addHandler[Multipart.FormData] { ctxt =>
           ctxt.mapMultipart {
             case (MultipartInfo(key, _, _), sourceFromRequest) =>
@@ -89,7 +89,7 @@ trait WorkerIntegrationSpec extends FailFastCirceSupport { self: BaseIntegration
       }
 
       // have the client send a multipart request of bytes
-      val job = "doesn't matter".asJob.add("topic" -> "biguns").matching("path".equalTo("largeuploads").asMatcher)
+      val job = "doesn't matter".asJob.add("topic" -> "biguns").matching("path".equalTo("largeuploads").asMatcher())
 
       implicit val replyWithStrings: AsClient[SubmitJob, String] =
         asRichAsClientHttpResponse(DispatchBiguns).iterate().map(_.mkString("", "\n", "\n"))

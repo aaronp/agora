@@ -7,6 +7,100 @@ import scala.language.implicitConversions
 
 class JPathTest extends BaseSpec {
 
+  "json.selectJson" should {
+    "filter out just the json for the provided paths" in {
+
+      val json =
+        json"""{
+              "root" : {
+                 "array" : [
+                 {
+                   "nested" : [[
+                     {
+                       "obj" : 41
+                     },
+                     {
+                       "obj" : 42
+                     }
+                   ]]
+                 },
+                 {
+                   "x" : { "y" :  2}
+                 },
+                 true
+                 ],
+                 "valueOne" : 8
+              }
+            }"""
+
+      import agora.api.Implicits._
+
+      val path   = JPath("root", "array") :+ 0 :+ "nested".asJField :+ 0 :+ 1
+      val unique = path.selectJson(json)
+
+      unique.get shouldBe json"""{
+                                  "root" : {
+                                    "array" : [
+                                      {
+                                        "nested" : [
+                                          [
+                                            {
+                                              "obj" : 42
+                                            }
+                                          ]
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                }"""
+    }
+  }
+  "json.onlyWith(...)" should {
+    "filter out json with just the provided paths" in {
+
+      val json =
+        json"""{
+              "root" : {
+                 "array" : [
+                 {
+                   "x" : { "y" :  1}
+                 },
+                 {
+                   "x" : { "y" :  2}
+                 },
+                 true
+                 ],
+                 "valueOne" : 8,
+                 "valueTwo" : 9,
+                 "valueThree" : "some text",
+                 "valueFour" : "more text"
+              }
+            }"""
+
+      import agora.api.Implicits._
+
+      val whyIsGreaterThanOne = JPredicate("x".asJPath, ("y" gt 1)).inArray
+      val path                = JPath("root", "array") :+ whyIsGreaterThanOne
+      val path2               = JPath("root", "valueTwo")
+
+      val selected = json.onlyWith(path, path2)
+
+      selected shouldBe json"""{
+                                  "root" : {
+                                    "array" : [
+                                      {
+                                        "x" : {
+                                          "y" : 2
+                                        }
+                                      }
+                                    ],
+                                    "valueTwo" : 9
+                                  }
+                                }
+                               """
+
+    }
+  }
   "JPath json" should {
     "marshal complex paths and from json" in {
       import agora.api.Implicits._
@@ -192,33 +286,6 @@ class JPathTest extends BaseSpec {
       a.succeeded shouldBe false
       a.focus.toList should be(empty)
     }
-    "match values under an array" in {
-      val json: Json =
-        json"""{
-              "list" : [
-              1,
-              {
-               "obj" : {
-                 "nested" : [1]
-               }
-              },
-              {
-               "obj" : {
-                 "nested" : [1,2,3]
-               }
-              },
-              true
-              ]
-              } """
-
-      val nested = (JPath("obj", "nested") :+ 1).asMatcher
-      //      JPath.select(JField("list") :: nested, json.hcursor) match {
-      //        case h: HCursor => h.value.asNumber.flatMap(_.toInt) .get shouldBe 1
-      //      }
-      //      val a = JPath.select(JField("bar") :: Nil, json.hcursor)
-      //      a.succeeded shouldBe false
-      //      a.focus.toList should be(empty)
-    }
     "match JPos" in {
       val json: Json = json"""[1,2,3]"""
 
@@ -245,4 +312,34 @@ class JPathTest extends BaseSpec {
     }
   }
 
+  "JPath.apply" should {
+
+    val json =
+      json"""{
+              "root" : {
+                 "array" : [
+                 {
+                   "x" : { "y" :  1}
+                 },
+                 {
+                   "x" : { "y" :  2},
+                   "value" : 42
+                 },
+                 true
+                 ],
+                 "valueOne" : 8,
+                 "valueTwo" : 9,
+                 "valueThree" : "some text",
+                 "valueFour" : "more text"
+              }
+            }"""
+
+    "select values nested in arrays" in {
+      import agora.api.Implicits._
+      val whyIsGreaterThanOne = JPredicate("x".asJPath, ("y" gt 1)).inArray
+      val path                = JPath("root", "array") :+ whyIsGreaterThanOne
+      val actual              = path(json)
+      actual shouldBe Some(json"""{ "x" : { "y" : 2 }, "value" : 42 }""")
+    }
+  }
 }

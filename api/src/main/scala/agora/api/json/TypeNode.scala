@@ -4,6 +4,9 @@ import io.circe.{Json, JsonObject}
 
 import scala.compat.Platform
 
+/**
+  * Represents a json type
+  */
 sealed trait JType
 
 object JType {
@@ -32,19 +35,43 @@ case object ArrayType extends JType
 case object ObjType extends JType
 
 /**
-  * Flattens a json object into a tree structure of types/keys:
+  * Flattens a json object into a tree structure of paths and the types, e.g.:
+  * {{{
+  *   "ary[]:NullType",
+      "base.nestedArray[]:NumericType",
+      "base.nestedBoolean:BooleanType",
+      "base.objArray[].deepNestedArray[].buzz:NumericType",
+      "base.objArray[].deepNestedArray[].meh:NumericType",
+      "base.objArray[].deepNestedArray[].mysterious:BooleanType",
+      "base.objArray[].deepNestedArray[].mysterious:NumericType",
+      "base.objArray[].deepNestedArray[].mysterious:TextType",
+      "base.objArray[].deepNestedArray[].mysterious[].nowItsAnObj:BooleanType",
+      "base.objArray[].deepNestedArray[].mysterious[]:NumericType",
+      "base.objArray[].deepNestedArray[]:BooleanType",
+      "base.objArray[].deepNestedArray[]:NumericType",
+      "base.objArray[].foo:TextType",
+      "base.objArray[].second:TextType",
+      "dbl:NumericType",
+  * }}}
+  *
+  * note that the same path can be seen w/ different value types (e.g. {x : 1} and then {x : true})
   */
 sealed trait TypeNode {
-  def `type`: JType
 
   override def toString = flatten.sorted.mkString(Platform.EOL)
 
+  /** Convenience method for turning the 'flattenPaths' into string descriptions
+    * @return
+    */
   final def flatten: Vector[String] = {
     flattenPaths.map {
       case (path, t) => path.mkString("", ".", s":$t")
     }
   }
 
+  /**
+    * @return all the paths (List[String] and the type for that path)
+    */
   def flattenPaths: Vector[(List[String], JType)]
 }
 
@@ -74,7 +101,7 @@ object TypeNode {
 }
 
 case class TypeNodeObject(children: Map[String, TypeNode]) extends TypeNode {
-  override val `type`: JType = ObjType
+  val `type`: JType = ObjType
 
   override def flattenPaths: Vector[(List[String], JType)] = {
     children.toVector.flatMap {
@@ -91,95 +118,17 @@ case class TypeNodeObject(children: Map[String, TypeNode]) extends TypeNode {
 }
 
 case class TypeNodeArray(children: Vector[TypeNode]) extends TypeNode {
-  override val `type`: JType = ArrayType
+  val `type`: JType = ArrayType
 
   override def flattenPaths: Vector[(List[String], JType)] = {
     if (children.isEmpty) {
       Vector(Nil -> NullType)
     } else {
-      children.flatMap { value =>
-        value.flattenPaths.map {
-//        case (head :: tail, t) =>
-//          (s"$head[]" :: tail) -> t
-          case entry => entry
-        }
-      }
+      children.flatMap(_.flattenPaths)
     }
   }
 }
 
-case class TypeNodeValue(override val `type`: JType) extends TypeNode {
+case class TypeNodeValue(val `type`: JType) extends TypeNode {
   override def flattenPaths: Vector[(List[String], JType)] = Vector(Nil -> `type`)
 }
-
-/**
-  * Represents all the json paths in some json.
-  *
-  * Arrays are denoted as the wildcard "*" string.
-  */
-//case class JPaths(paths: Map[String, JPaths]) {
-//
-//  def isEmpty = paths.isEmpty
-//
-//  override def toString = flatten.sorted.mkString(Platform.EOL)
-//
-//  def flatten: List[String] = {
-//
-//    flattenPaths.map(_.mkString("."))
-//  }
-//
-//  def flattenPaths: List[List[String]] = {
-//    val iter = paths.flatMap {
-//      case (key, values) if values.isEmpty => List(key :: Nil)
-//      case (key, values)                   => values.flattenPaths.map(key :: _)
-//    }
-//    iter.toList
-//  }
-//
-//  def add(other: JPaths): JPaths = {
-//    val missing = other.paths.filterKeys(k => !paths.contains(k))
-//
-//    val merged: Map[String, JPaths] = paths.map {
-//      case entry @ (key, old) =>
-//        other.paths.get(key) match {
-//          case Some(otherValue) => (key, old.add(otherValue))
-//          case None             => entry
-//        }
-//    }
-//    JPaths(merged ++ missing)
-//  }
-//}
-//
-//object JPaths {
-//  val Empty = new JPaths(Map.empty)
-//
-//  /**
-//    * Determine the JPaths for the given json. Simple values will not contain any paths
-//    * @param json the json to check
-//    * @return the JPaths for the given values
-//    */
-//  def apply(json: Json): JPaths = forJson(json)
-//
-//  private def forObject(json: JsonObject): JPaths = {
-//    val map = json.toMap.map {
-//      case (key, value) => String(key, JType(value)) -> forJson(value)
-//    }
-//    JPaths(map)
-//  }
-//
-//  private def forArray(json: Vector[Json]): JPaths = {
-//    val arrayvalue = if (json.isEmpty) {
-//      new JPaths(Map.empty)
-//    } else {
-//      json.map(forJson).reduce(_ add _)
-//    }
-//
-//    JPaths(Map(String("*", ArrayType) -> arrayvalue))
-//  }
-//
-//  private def forJson(json: Json): JPaths = {
-//    //json.arrayOrObject(Empty, forArray, forObject)
-//    json.arrayOrObject(new JPaths(Map(String("", JType(json)) -> Empty)), forArray, forObject)
-//
-//  }
-//}

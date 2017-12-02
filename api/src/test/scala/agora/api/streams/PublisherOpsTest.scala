@@ -8,8 +8,8 @@ import io.circe.syntax._
 
 class PublisherOpsTest extends BaseSpec {
 
-  import PublisherOpsTest._
   import PublisherOps._
+  import PublisherOpsTest._
 
   "PublisherOps.subscribeByKey" should {
     "publish json updates with their key field" in {
@@ -47,7 +47,8 @@ class PublisherOpsTest extends BaseSpec {
       val List(delta, sameAgain) = deltaSubscriber.received()
 
       sameAgain shouldBe first.asJson
-      delta shouldBe json"""{
+      delta shouldBe
+        json"""{
         "deltas" : [
           {
             "path" : ["child","child","string"],
@@ -57,6 +58,14 @@ class PublisherOpsTest extends BaseSpec {
         ]
       }"""
 
+      // publish a message w/ no changes -- we should NOT get a delta message
+      publisher.publish(second.asJson)
+      deltaSubscriber.request(1)
+
+      val noUpdate = deltaSubscriber.received()
+      withClue(s"A published message w/ no changes should not notify a subscriber: $noUpdate") {
+        noUpdate.size shouldBe 2
+      }
     }
   }
 }

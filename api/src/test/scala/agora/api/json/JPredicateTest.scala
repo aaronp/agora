@@ -32,43 +32,43 @@ class JPredicateTest extends BaseSpec {
   "Before" should {
     "evaluate 'health.asOf' before '1 day ago' " in {
       val before = JPath("health") :+ ("asOf" before "1 day ago")
-      before.asMatcher.matches(hocon""" health.asOf : "yesterday" """) shouldBe false
-      before.asMatcher.matches(hocon""" health.asOf : "1 day ago" """) shouldBe false
-      before.asMatcher.matches(hocon""" health.asOf : "2 days ago" """) shouldBe true
-      before.asMatcher.matches(hocon""" health.asOf : "1 hour ago" """) shouldBe false
-      before.asMatcher.matches(hocon""" health.asOf : "23 hours ago" """) shouldBe false
-      before.asMatcher.matches(hocon""" health.asOf : "25 hours ago" """) shouldBe true
-      before.asMatcher.matches(hocon""" health.asOf : "2017-07-03T10:15:30" """) shouldBe true
-      before.asMatcher.matches(hocon""" health.asOf : "meh" """) shouldBe false
+      before.asMatcher().matches(hocon""" health.asOf : "yesterday" """) shouldBe false
+      before.asMatcher().matches(hocon""" health.asOf : "1 day ago" """) shouldBe false
+      before.asMatcher().matches(hocon""" health.asOf : "2 days ago" """) shouldBe true
+      before.asMatcher().matches(hocon""" health.asOf : "1 hour ago" """) shouldBe false
+      before.asMatcher().matches(hocon""" health.asOf : "23 hours ago" """) shouldBe false
+      before.asMatcher().matches(hocon""" health.asOf : "25 hours ago" """) shouldBe true
+      before.asMatcher().matches(hocon""" health.asOf : "2017-07-03T10:15:30" """) shouldBe true
+      before.asMatcher().matches(hocon""" health.asOf : "meh" """) shouldBe false
     }
   }
   "After" should {
     "evaluate 'health.asOf' after '1 day ago' " in {
       val before = JPath("health") :+ ("asOf" after "1 day ago")
-      before.asMatcher.matches(hocon""" health.asOf : "2 days ago" """) shouldBe false
-      before.asMatcher.matches(hocon""" health.asOf : "1 hour ago" """) shouldBe true
-      before.asMatcher.matches(hocon""" health.asOf : "23 hours ago" """) shouldBe true
-      before.asMatcher.matches(hocon""" health.asOf : "25 hours ago" """) shouldBe false
-      before.asMatcher.matches(hocon""" health.asOf : "2017-07-03T10:15:30" """) shouldBe false
-      before.asMatcher.matches(hocon""" health.asOf : "meh" """) shouldBe false
+      before.asMatcher().matches(hocon""" health.asOf : "2 days ago" """) shouldBe false
+      before.asMatcher().matches(hocon""" health.asOf : "1 hour ago" """) shouldBe true
+      before.asMatcher().matches(hocon""" health.asOf : "23 hours ago" """) shouldBe true
+      before.asMatcher().matches(hocon""" health.asOf : "25 hours ago" """) shouldBe false
+      before.asMatcher().matches(hocon""" health.asOf : "2017-07-03T10:15:30" """) shouldBe false
+      before.asMatcher().matches(hocon""" health.asOf : "meh" """) shouldBe false
     }
   }
 
   "Eq" should {
     "evaluate 'a.b.c' eq 12" in {
       val eq = JPath("a", "b") :+ ("c" === 12)
-      eq.asMatcher.matches(hocon"a.b.c : 12") shouldBe true
-      eq.asMatcher.matches(hocon"a.b.c : 13") shouldBe false
+      eq.asMatcher().matches(hocon"a.b.c : 12") shouldBe true
+      eq.asMatcher().matches(hocon"a.b.c : 13") shouldBe false
     }
     "not match different types (e.g. 12 integer vs 12 as a string)" in {
       val eq = JPath("a", "b") :+ ("c" === 12)
-      eq.asMatcher.matches(hocon""" a.b.c : 12 """) shouldBe true
-      eq.asMatcher.matches(hocon""" a.b.c : "12" """) shouldBe false
+      eq.asMatcher().matches(hocon""" a.b.c : 12 """) shouldBe true
+      eq.asMatcher().matches(hocon""" a.b.c : "12" """) shouldBe false
     }
   }
   "Lte" should {
     "evaluate 'value' lte 12.34" in {
-      val predicate = ("value" lte Json.fromBigDecimal(BigDecimal("12.34"))).asMatcher
+      val predicate = ("value" lte Json.fromBigDecimal(BigDecimal("12.34"))).asMatcher()
       predicate.matches(hocon"value : 12.35") shouldBe false
       predicate.matches(hocon"value : 12.34") shouldBe true
       predicate.matches(hocon"value : 12") shouldBe true
@@ -76,7 +76,7 @@ class JPredicateTest extends BaseSpec {
   }
   "Lt" should {
     "evaluate 'value' lt 12.34" in {
-      val predicate = ("value" lt Json.fromBigDecimal(BigDecimal("12.34"))).asMatcher
+      val predicate = ("value" lt Json.fromBigDecimal(BigDecimal("12.34"))).asMatcher()
       predicate.matches(hocon"value : 12.35") shouldBe false
       predicate.matches(hocon"value : 12.34") shouldBe false
       predicate.matches(hocon"value : 12") shouldBe true
@@ -84,7 +84,7 @@ class JPredicateTest extends BaseSpec {
   }
   "Gte" should {
     "evaluate 'value' gte 12.34" in {
-      val predicate = ("value" gte Json.fromBigDecimal(BigDecimal("12.34"))).asMatcher
+      val predicate = ("value" gte Json.fromBigDecimal(BigDecimal("12.34"))).asMatcher()
       predicate.matches(hocon"value : 12.35") shouldBe true
       predicate.matches(hocon"value : 12.34") shouldBe true
       predicate.matches(hocon"value : 12.33") shouldBe false
@@ -93,13 +93,13 @@ class JPredicateTest extends BaseSpec {
   }
   "Gt" should {
     "evaluate 'value' gt 12.34" in {
-      val predicate = ("value" gt Json.fromBigDecimal(BigDecimal("12.34"))).asMatcher
+      val predicate = ("value" gt Json.fromBigDecimal(BigDecimal("12.34"))).asMatcher()
       predicate.matches(hocon"value : 12.35") shouldBe true
       predicate.matches(hocon"value : 12.34") shouldBe false
       predicate.matches(hocon"value : 12") shouldBe false
     }
     "evaluate 'value' gt 12" in {
-      val predicate = ("value" gt 12).asMatcher
+      val predicate = ("value" gt 12).asMatcher()
       predicate.matches(hocon"value : 11") shouldBe false
       predicate.matches(hocon"value : 12") shouldBe false
       predicate.matches(hocon"value : 13") shouldBe true
@@ -115,13 +115,13 @@ class JPredicateTest extends BaseSpec {
     "match nested lists" in {
 
       val path = "nested".asJPath :+ "array".includes(Set("first", "last"))
-      path.asMatcher.matches(Map("nested"        -> Map("array" -> List("first", "middle", "last"))).asJson) shouldBe true
-      path.asMatcher.matches(Map("nested"        -> Map("array" -> List("middle", "last"))).asJson) shouldBe false
-      path.asMatcher.matches(Map("differentRoot" -> Map("array" -> List("first", "middle", "last"))).asJson) shouldBe false
+      path.asMatcher().matches(Map("nested"        -> Map("array" -> List("first", "middle", "last"))).asJson) shouldBe true
+      path.asMatcher().matches(Map("nested"        -> Map("array" -> List("middle", "last"))).asJson) shouldBe false
+      path.asMatcher().matches(Map("differentRoot" -> Map("array" -> List("first", "middle", "last"))).asJson) shouldBe false
     }
 
     "match json which includes the given elements" in {
-      val matcher = "list".includes(Set("first", "last")).asMatcher
+      val matcher = "list".includes(Set("first", "last")).asMatcher()
       matcher.matches(jsonList("first", "middle", "last")) shouldBe true
       matcher.matches(jsonList("", "last", "first", "middle")) shouldBe true
       matcher.matches(jsonList()) shouldBe false
@@ -130,21 +130,21 @@ class JPredicateTest extends BaseSpec {
     "match numeric elements" in {
       "list"
         .includes(Set(4, 5, 6))
-        .asMatcher
+        .asMatcher()
         .matches(Map("list" -> List(3, 4, 5, 6, 7)).asJson) shouldBe true
     }
     "return false when the element doesn't exist" in {
-      "list".includes(Set(1)).asMatcher.matches(Map("different" -> List(1)).asJson) shouldBe false
+      "list".includes(Set(1)).asMatcher().matches(Map("different" -> List(1)).asJson) shouldBe false
     }
     "return true for any list when given an empty list" in {
       "list"
         .includes(Set.empty)
-        .asMatcher
+        .asMatcher()
         .matches(jsonList("first", "middle", "last")) shouldBe true
-      "list".includes(Set.empty).asMatcher.matches(jsonList()) shouldBe true
+      "list".includes(Set.empty).asMatcher().matches(jsonList()) shouldBe true
       "list"
         .includes(Set.empty)
-        .asMatcher
+        .asMatcher()
         .matches(Map("list" -> Map("actuallyAnObj" -> 123)).asJson) shouldBe false
     }
   }
@@ -153,25 +153,29 @@ class JPredicateTest extends BaseSpec {
     "unmarshal simple paths json" in {
       val json =
         json"""{
-              |  "exists" : {
+              |  "select" : {
               |    "parts" : [ "command" ]
-              |  }
-              |}""" //.asJson
-      json.as[JPredicate].right.get shouldBe JPath("command").asMatcher
+              |  },
+              |  "test" : "match-all"
+              |}"""
+
+      println(JPath("command").asMatcher().json.spaces4)
+      json.as[JPredicate].right.get shouldBe JPath("command").asMatcher()
     }
     "unmarshal complex paths json" in {
       val json =
         json"""{
-              |  "exists" : {
+              |  "select" : {
               |    "parts" : [ "list", 2, "next" ]
-              |  }
+              |  },
+              |  "test" : "match-all"
               |}"""
-      json.as[JPredicate].right.get shouldBe JPath.forParts("list", "2", "next").asMatcher
+      json.as[JPredicate].right.get shouldBe JPath.forParts("list", "2", "next").asMatcher()
     }
     "unmarshal paths with a filter" in {
       val json =
         json"""{
-              |  "exists" : {
+              |  "select" : {
               |    "parts" : [
               |      "rute",
               |      {
@@ -181,10 +185,11 @@ class JPredicateTest extends BaseSpec {
               |        }
               |      }
               |    ]
-              |  }
+              |  },
+              |  "test" : "match-all"
               |}"""
       val expected = JPath(JPart("rute"), ("someField" === 4))
-      json.as[JPredicate].right.get shouldBe expected.asMatcher
+      json.as[JPredicate].right.get shouldBe expected.asMatcher()
     }
     "unmarshal paths with conjunctions" in {
 
@@ -194,7 +199,7 @@ class JPredicateTest extends BaseSpec {
               |    {
               |      "and" : [
               |        {
-              |          "exists" : {
+              |          "select" : {
               |            "parts" : [
               |              {
               |                "field" : "array",
@@ -206,10 +211,11 @@ class JPredicateTest extends BaseSpec {
               |                }
               |              }
               |            ]
-              |          }
+              |          },
+              |          "test" : "match-all"
               |        },
               |        {
-              |          "exists" : {
+              |          "select" : {
               |            "parts" : [
               |              {
               |                "field" : "foo",
@@ -218,12 +224,13 @@ class JPredicateTest extends BaseSpec {
               |                }
               |              }
               |            ]
-              |          }
+              |          },
+              |          "test" : "match-all"
               |        }
               |      ]
               |    },
               |    {
-              |      "exists" : {
+              |      "select" : {
               |        "parts" : [
               |          "x",
               |          "y",
@@ -234,7 +241,8 @@ class JPredicateTest extends BaseSpec {
               |            }
               |          }
               |        ]
-              |      }
+              |      },
+              |      "test" : "match-all"
               |    }
               |  ]
               |}"""

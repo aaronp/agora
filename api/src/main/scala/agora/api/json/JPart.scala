@@ -24,15 +24,15 @@ sealed trait JPart {
 
   /** @return this part as a complete matcher
     */
-  final def asMatcher: JPredicate = asPath.asMatcher
+  final def asMatcher(filter: JPredicate = JPredicate.matchAll): JPredicate = asPath.asMatcher(filter)
 
-  final def and(other: JPredicate): JPredicate = asMatcher.and(other)
+  final def and(other: JPredicate): JPredicate = asMatcher().and(other)
 
-  final def and(other: JPart): JPredicate = and(other.asMatcher)
+  final def and(other: JPart): JPredicate = and(other.asMatcher())
 
-  final def or(other: JPredicate): JPredicate = asMatcher.or(other)
+  final def or(other: JPredicate): JPredicate = asMatcher().or(other)
 
-  final def or(other: JPart): JPredicate = or(other.asMatcher)
+  final def or(other: JPart): JPredicate = or(other.asMatcher())
 }
 
 object JPart {

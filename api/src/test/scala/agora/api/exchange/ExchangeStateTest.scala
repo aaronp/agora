@@ -323,7 +323,7 @@ class ExchangeStateTest extends BaseSpec {
     // start out just being able to execute stuff
     val vanillaExec = WorkSubscription
       .forDetails(mkDetails().withPath("/execute").withSubscriptionKey("vanilla"))
-      .matchingSubmission(("topic" === "exec").asMatcher)
+      .matchingSubmission(("topic" === "exec").asMatcher())
     val observer     = new TestObserver
     val initialState = new ExchangeState(observer = observer, subscriptionsById = Map("vanilla" -> (vanillaExec, Requested(2))))
 

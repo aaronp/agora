@@ -1,13 +1,12 @@
 package agora.api.json
 
 import agora.io.dao.{FromBytes, ToBytes}
-import io.circe.Encoder
+import io.circe.{Decoder, Encoder, Json}
 import java.nio.charset.Charset
 
 import scala.io.Source
 import cats.syntax.either._
 import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions}
-import io.circe.Decoder
 import io.circe.java8.time.TimeInstances
 import io.circe.parser._
 
@@ -34,6 +33,8 @@ trait AgoraJsonImplicits extends TimeInstances {
       decode[T](jsonString).toTry
     }
   }
+
+  implicit def asRichJsonOps(json: Json) = RichJsonOps(json)
 
   implicit val ThrowableEncoder: Encoder[Throwable] = {
     Encoder.encodeString.contramap((e: Throwable) => e.getMessage)

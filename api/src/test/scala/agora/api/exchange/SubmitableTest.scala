@@ -23,7 +23,7 @@ class SubmitableTest extends BaseSpec {
       foo
         .asSubmitJob(Add(1, 2))
         .submissionDetails
-        .workMatcher shouldBe ("path" === "foo").asMatcher
+        .workMatcher shouldBe ("path" === "foo").asMatcher()
     }
   }
   "Submitable" should {

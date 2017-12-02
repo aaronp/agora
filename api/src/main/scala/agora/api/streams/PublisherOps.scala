@@ -22,12 +22,29 @@ class PublisherOps[T](val publisher: Publisher[T]) extends AnyVal {
     publisher.subscribe(keySubscriber)
   }
 
-  def subscribeToUpdates(subscriber: Subscriber[T], initialRequest: Long)(implicit diff: DataDiff[T, T]) = {
+  /**
+    * When the delta is the same as the source type (e.g. json messages, json deltas) we have the same type
+    * T which we can subscribe to and thus use T for the 'state of the world' AND the delta message
+    *
+    * When that's not the case, we need [[subscribeToDeltas]]
+    *
+    * @param subscriber
+    * @param initialRequest
+    * @param diff
+    */
+  def subscribeToUpdates(subscriber: Subscriber[T], initialRequest: Long)(implicit diff: DataDiff[T, T], isEmpty: IsEmpty[T]) = {
     val keySubscriber = new UpdateSubscriber[T](diff, subscriber, initialRequest)
     publisher.subscribe(keySubscriber)
   }
 
-  def subscribeToDeltas[D](subscriber: Subscriber[Either[T, D]], initialRequest: Long)(implicit diff: DataDiff[T, D]) = {
+  /** Get notified of either a state-of-the-world Left value of T or a delta value D
+    *
+    * @param subscriber
+    * @param initialRequest
+    * @param diff
+    * @tparam D
+    */
+  def subscribeToDeltas[D: IsEmpty](subscriber: Subscriber[Either[T, D]], initialRequest: Long)(implicit diff: DataDiff[T, D]) = {
     val keySubscriber = new DeltaSubscriber[T, D](diff, subscriber, initialRequest)
     publisher.subscribe(keySubscriber)
   }
@@ -72,7 +89,7 @@ object PublisherOps {
     }
   }
 
-  private class DeltaSubscriber[T, D](diff: DataDiff[T, D], subscriber: Subscriber[Either[T, D]], initialRequest: Long)
+  private class DeltaSubscriber[T, D: IsEmpty](diff: DataDiff[T, D], subscriber: Subscriber[Either[T, D]], initialRequest: Long)
       extends BaseSubscriber[T](initialRequest) {
 
     private var previous: Option[T] = None
@@ -88,13 +105,18 @@ object PublisherOps {
         case None => subscriber.onNext(Left(value))
         case Some(last) =>
           val delta = diff.diff(last, value)
-          subscriber.onNext(Right(delta))
+          import IsEmpty._
+          if (delta.isEmpty) {
+            request(1)
+          } else {
+            subscriber.onNext(Right(delta))
+          }
       }
       previous = Option(value)
     }
   }
 
-  private class UpdateSubscriber[T](diff: DataDiff[T, T], subscriber: Subscriber[T], initialRequest: Long) extends BaseSubscriber[T](initialRequest) {
+  private class UpdateSubscriber[T: IsEmpty](diff: DataDiff[T, T], subscriber: Subscriber[T], initialRequest: Long) extends BaseSubscriber[T](initialRequest) {
 
     private var previous: Option[T] = None
 
@@ -108,8 +130,14 @@ object PublisherOps {
       previous match {
         case None => subscriber.onNext(value)
         case Some(last) =>
-          val delta = diff.diff(last, value)
-          subscriber.onNext(delta)
+          val delta: T = diff.diff(last, value)
+
+          import IsEmpty._
+          if (delta.isEmpty) {
+            request(1)
+          } else {
+            subscriber.onNext(delta)
+          }
       }
       previous = Option(value)
     }

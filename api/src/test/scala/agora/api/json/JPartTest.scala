@@ -24,53 +24,55 @@ class JPartTest extends WordSpec with Matchers {
   }
   "JFilter.gt" should {
     "value gt 7 should match { value : 8 }" in {
-      ("value" gt 7).asMatcher.matches(Map("value" -> 8).asJson) shouldBe (true)
+      ("value" gt 7).asMatcher().matches(Map("value" -> 8).asJson) shouldBe (true)
     }
     "value gt 7 should not match { value : 7 }" in {
-      ("value" gt 7).asMatcher.matches(Map("value" -> 7).asJson) shouldBe (false)
+      ("value" gt 7).asMatcher().matches(Map("value" -> 7).asJson) shouldBe (false)
     }
     "value gt 0 should match { value : \"7\" }" in {
-      ("value" gt 0).asMatcher.matches(Map("value" -> "7").asJson) shouldBe (true)
+      ("value" gt 0).asMatcher().matches(Map("value" -> "7").asJson) shouldBe (true)
     }
     "value gt 0 should not match { value : \"foo\" }" in {
-      ("value" gt 0).asMatcher.matches(Map("value" -> "foo").asJson) shouldBe (false)
+      ("value" gt 0).asMatcher().matches(Map("value" -> "foo").asJson) shouldBe (false)
     }
   }
   "JFilter.lt" should {
     "value lt 7 should match { value : 6 }" in {
-      ("value" lt 7).asMatcher.matches(Map("value" -> 6).asJson) shouldBe (true)
+      ("value" lt 7).asMatcher().matches(Map("value" -> 6).asJson) shouldBe (true)
     }
     "value lt 7 should not match { value : 7 }" in {
-      ("value" lt 7).asMatcher.matches(Map("value" -> 7).asJson) shouldBe (false)
+      ("value" lt 7).asMatcher().matches(Map("value" -> 7).asJson) shouldBe (false)
     }
   }
 
   "JFilter.lte" should {
     "value lte 7 should match { value : 6 }" in {
-      ("value" lte 7).asMatcher.matches(Map("value" -> 6).asJson) shouldBe (true)
+      ("value" lte 7).asMatcher().matches(Map("value" -> 6).asJson) shouldBe (true)
     }
     "value lte 7 should match { value : 7 }" in {
-      ("value" lte 7).asMatcher.matches(Map("value" -> 7).asJson) shouldBe (true)
+      ("value" lte 7).asMatcher().matches(Map("value" -> 7).asJson) shouldBe (true)
     }
   }
   "JFilter.gte" should {
     "value gte 7 should not match { value : 6 }" in {
-      ("value" gte 7).asMatcher.matches(Map("value" -> 6).asJson) shouldBe (false)
+      ("value" gte 7).asMatcher().matches(Map("value" -> 6).asJson) shouldBe (false)
     }
     "value gte 7 should match { value : 7 }" in {
-      ("value" gte 7).asMatcher.matches(Map("value" -> 7).asJson) shouldBe (true)
+      ("value" gte 7).asMatcher().matches(Map("value" -> 7).asJson) shouldBe (true)
     }
   }
   "JFilter.~=" should {
     Seq("start and finish", "startfinish").foreach { expected =>
       s"""value ~= ^start.*finish$$ should match $expected""" in {
-        ("value" ~= "^start.*finish$").asMatcher
+        ("value" ~= "^start.*finish$")
+          .asMatcher()
           .matches(Map("value" -> expected).asJson) shouldBe (true)
       }
     }
     Seq("Startfinish", "will start then finish", "start finish soup").foreach { expected =>
       s"""value ~= ^start.*finish$$ should not match $expected""" in {
-        ("value" ~= "^start.*finish$").asMatcher
+        ("value" ~= "^start.*finish$")
+          .asMatcher()
           .matches(Map("value" -> expected).asJson) shouldBe (false)
       }
     }

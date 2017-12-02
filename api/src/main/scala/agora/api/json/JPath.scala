@@ -20,12 +20,48 @@ case class JPath(parts: List[JPart]) {
 
   def :+[T](other: T)(implicit ev: T => JPart) = copy(parts = parts :+ ev(other))
 
+  /** @return the json representation of this JPath
+    */
   def json: Json = {
     new EncoderOps(this).asJson
   }
 
-  def apply(json: Json): Option[Json] = {
-    JPath.select(parts, json.hcursor).focus
+  /** selects the value represented by this JPath from the given json
+    *
+    * e.g. the JPath x.y.z would select the json value of 'z', if it exists
+    *
+    * @param json the json from which the value should be extracted
+    * @return the value if it exists
+    */
+  def apply(json: Json): Option[Json] = selectValue(json)
+
+  def selectValue(json: Json): Option[Json] = JPath.select(parts, json.hcursor).focus
+
+  /** like selectValue, but the json include the path
+    *
+    * e.g. given the json
+    * {{{
+    *   {
+    *     "x" : { "y" : { "z" : 123, "z1" : 456 } }
+    *   }
+    * }}}
+    *
+    * 'select' would returns the json number '123'.
+    *
+    * 'selectJson' would return
+    *
+    * {{{
+    *   {
+    *     "x" : { "y" : { "z" : 123 } }
+    *   }
+    * }}}
+    *
+    * select only json which contains this path
+    */
+  def selectJson(json: Json): Option[Json] = {
+    selectValue(json).map { value =>
+      JPath.selectJson(parts, value)
+    }
   }
 
   /**
@@ -53,7 +89,7 @@ case class JPath(parts: List[JPart]) {
     */
   def removeFrom(json: Json): Option[Json] = select(parts, json.hcursor).delete.top
 
-  def asMatcher = JPredicate(this)
+  def asMatcher(filter: JPredicate = JPredicate.matchAll) = JPredicate(this, filter)
 }
 
 object JPath {
@@ -62,8 +98,7 @@ object JPath {
 
   def apply(first: JPart, parts: JPart*): JPath = JPath(first :: parts.toList)
 
-  def apply(only: String): JPath =
-    forParts(only.split("\\.", -1).map(_.trim).filterNot(_.isEmpty).toList)
+  def apply(only: String): JPath = forParts(only.split("\\.", -1).map(_.trim).filterNot(_.isEmpty).toList)
 
   def apply(first: String, second: String, parts: String*): JPath =
     forParts(first :: second :: parts.toList)
@@ -87,12 +122,8 @@ object JPath {
     }
   }
 
-  implicit class RichCursor(val a: ACursor) extends AnyVal {
-    def asHCursor: Option[HCursor] = Option(a) collect {
-      case h: HCursor => h
-    }
-
-    def withHCursor(f: HCursor => ACursor): ACursor = asHCursor.fold(a)(f)
+  private implicit class RichCursor(val a: ACursor) extends AnyVal {
+    def withHCursor(f: HCursor => ACursor): ACursor = a.success.fold(a)(f)
   }
 
   def select(parts: List[JPart], cursor: HCursor): ACursor = {
@@ -116,6 +147,34 @@ object JPath {
             new FailedCursor(c, CursorOp.DownField(field))
           }
         }
+    }
+  }
+
+  private object ObjectPart {
+    def unapply(part: JPart): Option[String] = {
+      part match {
+        case JField(field)     => Option(field)
+        case JFilter(field, _) => Option(field)
+        case _                 => None
+      }
+    }
+  }
+
+  private object ArrayPart {
+    def unapply(part: JPart): Boolean = {
+      part match {
+        case JPos(_)       => true
+        case JArrayFind(_) => true
+        case _             => false
+      }
+    }
+  }
+
+  def selectJson(parts: List[JPart], value: Json): Json = {
+    parts match {
+      case Nil                       => value
+      case ObjectPart(field) :: tail => Json.obj(field -> selectJson(tail, value))
+      case ArrayPart() :: tail       => Json.arr(selectJson(tail, value))
     }
   }
 

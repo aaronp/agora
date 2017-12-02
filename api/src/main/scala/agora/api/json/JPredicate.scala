@@ -46,11 +46,11 @@ object JPredicate {
 
   def matchNone: JPredicate = MatchNone
 
-  def apply(jpath: JPath): JPredicate = ExistsMatcher(jpath)
+  def apply(select: JPath, test: JPredicate = JPredicate.matchAll) = TestPredicate(select, test)
 
-  implicit def filterAsMatcher(filter: JFilter): JPredicate = filter.asMatcher
+  implicit def filterAsMatcher(filter: JFilter): JPredicate = filter.asMatcher()
 
-  implicit def pathAsMatcher(jpath: JPath): JPredicate = jpath.asMatcher
+  implicit def pathAsMatcher(jpath: JPath): JPredicate = jpath.asMatcher()
 
   object implicits extends LowPriorityPredicateImplicits
 
@@ -67,10 +67,12 @@ object JPredicate {
       def inArray: JArrayFind = Eq(ev(value)).inArray
     }
 
-    implicit class RichJson(field: String) {
+    implicit class RichJsonField(field: String) {
       private implicit def predAsJFilter(p: JPredicate): JFilter = JFilter(field, p)
 
       def asJPath = JPath(field)
+
+      def asJField = JField(field)
 
       def !(other: JPredicate): JFilter = Not(other)
 
@@ -102,7 +104,7 @@ object JPredicate {
         * given json elements
         *
         * @param items
-        * @return
+        * @return a filter for arrays which include the given items
         */
       def includes[J](items: Set[J])(implicit ev: J => Json): JFilter = JIncludes(items.map(ev))
 
@@ -126,7 +128,7 @@ object JPredicate {
       import cats.syntax.either._
 
       // format: off
-      c.as[ExistsMatcher].
+      c.as[TestPredicate].
         orElse(asMatchAllOrNone(c)).
         orElse(c.as[And]).
         orElse(c.as[Or]).
@@ -144,7 +146,7 @@ object JPredicate {
     }
 
     override def apply(a: JPredicate): Json = a match {
-      case p: ExistsMatcher => p.asJson
+      case p: TestPredicate => p.asJson
       case MatchAll         => MatchAll.json
       case MatchNone        => MatchNone.json
       case p: And           => p.asJson
@@ -343,14 +345,14 @@ case class Lte(lte: Json) extends ComparablePredicate(lte, _ <= _, _ <= _) {
   override def json: Json = this.asJson
 }
 
-case class ExistsMatcher(exists: JPath) extends JPredicate {
+case class TestPredicate(select: JPath, test: JPredicate) extends JPredicate {
   override def matches(json: Json): Boolean = {
-    exists(json).isDefined
+    select(json).exists(test.matches)
   }
 
-  override def toString = s"Exists($exists)"
+  override def toString = s"Test($select, $test)"
 
   override def json = {
-    Json.obj("exists" -> exists.json)
+    Json.obj("select" -> select.json, "test" -> test.json)
   }
 }
