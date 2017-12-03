@@ -1,4 +1,4 @@
-package agora.rest.websocket
+package agora.rest.stream
 
 import akka.http.scaladsl.model.ws.{Message, TextMessage}
 import akka.stream.Materializer

@@ -1,4 +1,4 @@
-package agora.rest.websocket
+package agora.rest.stream
 
 import agora.api.streams.{BasePublisher, BaseSubscriber}
 import agora.rest.ui.UIRoutes

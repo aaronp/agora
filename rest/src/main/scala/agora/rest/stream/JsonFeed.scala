@@ -1,4 +1,4 @@
-package agora.rest.websocket
+package agora.rest.stream
 
 import cats.Functor
 
