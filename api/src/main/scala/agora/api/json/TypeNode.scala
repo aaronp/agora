@@ -10,6 +10,13 @@ import scala.compat.Platform
 sealed trait JType
 
 object JType {
+  val Null  = NullType
+  val Bool  = BooleanType
+  val Num   = NumericType
+  val Text  = TextType
+  val Array = ArrayType
+  val Obj   = ObjType
+
   def apply(json: Json): JType = {
     json.fold(
       NullType,

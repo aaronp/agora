@@ -1,5 +1,7 @@
 package agora.api.streams
 
+import cats.Semigroup
+import io.circe.{Decoder, Encoder}
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
 /**
@@ -10,6 +12,45 @@ import org.reactivestreams.{Publisher, Subscriber, Subscription}
 class PublisherOps[T](val publisher: Publisher[T]) extends AnyVal {
 
   import PublisherOps._
+
+  def map[A](f: T => A): Publisher[A] = new Publisher[A] {
+    override def subscribe(s: Subscriber[_ >: A]): Unit = {
+      val aSubscriber = new DelegateSubscriber[T](s) {
+        override def onNext(t: T) = {
+          s.onNext(f(t))
+        }
+      }
+      publisher.subscribe(aSubscriber)
+    }
+  }
+
+  def onDeltas(initialRequest: Int)(onUpdate: T => Unit)(implicit enc: Encoder[T], dec: Decoder[T]) = {
+
+    import io.circe.Json
+    import io.circe.syntax._
+    import org.reactivestreams.{Publisher, Subscriber}
+
+    val jsonPublisher: Publisher[Json] = map(_.asJson)
+
+    val fromJsonSubscriber: Subscriber[Json] = {
+      val s = new BaseSubscriber[T](initialRequest) {
+        override def onNext(t: T) = onUpdate(t)
+      }
+
+      s.contraMap[Json] { jsonDelta: Json =>
+// TODO - we need to remember the last value to apply this to via a ConflatingQueue
+        jsonDelta.as[T] match {
+          case Left(e)      => throw e
+          case Right(value) => value
+        }
+      }
+    }
+
+    val jsonOps = new PublisherOps[Json](jsonPublisher)
+
+    implicit val jsonDelta = DataDiff.JsonDiffAsDeltas
+    jsonOps.subscribeToUpdates(fromJsonSubscriber, initialRequest)
+  }
 
   def filter(subscriber: Subscriber[T], initialRequest: Long)(predicate: T => Boolean) = {
     val keySubscriber = new FilterSubscriber[T](predicate, subscriber, initialRequest)
@@ -32,6 +73,11 @@ class PublisherOps[T](val publisher: Publisher[T]) extends AnyVal {
     * @param initialRequest
     * @param diff
     */
+  def subscribeToUpdateDeltas(subscriber: Subscriber[T], initialRequest: Long)(implicit diff: DataDiff[T, T], isEmpty: IsEmpty[T]) = {
+    val keySubscriber = new UpdateSubscriber[T](diff, subscriber, initialRequest)
+    publisher.subscribe(keySubscriber)
+  }
+
   def subscribeToUpdates(subscriber: Subscriber[T], initialRequest: Long)(implicit diff: DataDiff[T, T], isEmpty: IsEmpty[T]) = {
     val keySubscriber = new UpdateSubscriber[T](diff, subscriber, initialRequest)
     publisher.subscribe(keySubscriber)
@@ -51,7 +97,12 @@ class PublisherOps[T](val publisher: Publisher[T]) extends AnyVal {
 }
 
 object PublisherOps {
-  implicit def asOps[T](publisher: Publisher[T]) = new PublisherOps[T](publisher)
+
+  trait LowPriorityPublisherImplicits {
+    implicit def asOps[T](publisher: Publisher[T]) = new PublisherOps[T](publisher)
+  }
+
+  object implicits extends LowPriorityPublisherImplicits
 
   private class FilterSubscriber[T](predicate: T => Boolean, subscriber: Subscriber[T], initialRequest: Long) extends BaseSubscriber[T](initialRequest) {
 
@@ -61,7 +112,10 @@ object PublisherOps {
 
     override def onComplete() = subscriber.onComplete()
 
-    override def onSubscribe(s: Subscription) = subscriber.onSubscribe(s)
+    override def onSubscribe(s: Subscription) = {
+      subscriber.onSubscribe(s)
+      super.onSubscribe(s)
+    }
 
     override def onNext(t: T): Unit = {
       if (predicate(t)) {
@@ -81,7 +135,10 @@ object PublisherOps {
 
     override def onComplete() = subscriber.onComplete()
 
-    override def onSubscribe(s: Subscription) = subscriber.onSubscribe(s)
+    override def onSubscribe(s: Subscription) = {
+      subscriber.onSubscribe(s)
+      super.onSubscribe(s)
+    }
 
     override def onNext(t: T): Unit = {
       val key = selector.select(t)
@@ -98,7 +155,10 @@ object PublisherOps {
 
     override def onComplete() = subscriber.onComplete()
 
-    override def onSubscribe(s: Subscription) = subscriber.onSubscribe(s)
+    override def onSubscribe(s: Subscription) = {
+      subscriber.onSubscribe(s)
+      super.onSubscribe(s)
+    }
 
     override def onNext(value: T): Unit = {
       previous match {
@@ -124,7 +184,10 @@ object PublisherOps {
 
     override def onComplete() = subscriber.onComplete()
 
-    override def onSubscribe(s: Subscription) = subscriber.onSubscribe(s)
+    override def onSubscribe(s: Subscription) = {
+      subscriber.onSubscribe(s)
+      super.onSubscribe(s)
+    }
 
     override def onNext(value: T): Unit = {
       previous match {
@@ -133,13 +196,12 @@ object PublisherOps {
           val delta: T = diff.diff(last, value)
 
           import IsEmpty._
-          if (delta.isEmpty) {
-            request(1)
-          } else {
+          if (delta.nonEmpty) {
             subscriber.onNext(delta)
           }
       }
       previous = Option(value)
+      request(1)
     }
   }
 

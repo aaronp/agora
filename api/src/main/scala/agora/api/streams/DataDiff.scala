@@ -37,5 +37,14 @@ object DataDiff {
     override def diff(lhs: Json, rhs: Json): JsonDiff = JsonDiff(lhs, rhs)
   }
 
-  implicit val JsonDiffAsDeltas = JsonDiffAsDataDiff.map(_.asJson)
+  val JsonDiffAsDeltas = JsonDiffAsDataDiff.map { jsonDiff =>
+    jsonDiff.asJson
+  }
+
+  object StrippedJsonDiff extends DataDiff[Json, Json] {
+    override def diff(lhs: Json, rhs: Json): Json = {
+      JsonDiff(lhs, rhs).strip(rhs)
+    }
+  }
+
 }

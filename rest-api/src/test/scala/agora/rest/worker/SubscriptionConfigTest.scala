@@ -44,7 +44,7 @@ class SubscriptionConfigTest extends BaseSpec {
           |    {
           |      "and" : [
           |        {
-          |          "exists" : {
+          |          "select" : {
           |            "parts" : [
           |              {
           |                "field" : "x",
@@ -53,10 +53,11 @@ class SubscriptionConfigTest extends BaseSpec {
           |                }
           |              }
           |            ]
-          |          }
+          |          },
+          |          "test" : "match-all"
           |        },
           |        {
-          |          "exists" : {
+          |          "select" : {
           |            "parts" : [
           |              {
           |                "field" : "foo",
@@ -65,16 +66,18 @@ class SubscriptionConfigTest extends BaseSpec {
           |                }
           |              }
           |            ]
-          |          }
+          |          },
+          |          "test" : "match-all"
           |        }
           |      ]
           |    },
           |    {
-          |      "exists" : {
+          |      "select" : {
           |        "parts" : [
           |          "x", "y", "z"
           |        ]
-          |      }
+          |      },
+          |      "test" : "match-all"
           |    }
           |  ]
           |}""".stripMargin

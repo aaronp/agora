@@ -2,13 +2,21 @@ package agora.api.json
 
 import io.circe.Json
 
-case class DiffEntry(path: List[String], lhs: Json, rhs: Json)
+case class DiffEntry(path: List[String], lhs: Json, rhs: Json) {
+  def jPath = JPath.forParts(path)
+}
 
 object DiffEntry {
   def apply(lhs: Json, rhs: Json): DiffEntry = new DiffEntry(Nil, lhs, rhs)
 }
 
 case class JsonDiff(deltas: List[DiffEntry]) {
+
+  def strip(lhs: Json): Json = {
+    import RichJsonOps._
+    lhs.onlyWith(deltas.map(_.jPath))
+  }
+
   def size = deltas.size
 
   def isEmpty = deltas.isEmpty
