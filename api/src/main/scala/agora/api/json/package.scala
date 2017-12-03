@@ -3,8 +3,13 @@ package agora.api
 import _root_.io.circe.Json.fromJsonObject
 import _root_.io.circe._
 import _root_.io.circe.Decoder.Result
+import agora.api.json.TypesByPath
 
 package object json {
+
+  type TypeByPath  = (List[String], JType)
+  type TypesByPath = Vector[TypeByPath]
+  def newTypesByPath() = Vector[TypeByPath]()
 
   implicit class RichDec[T](val result: Result[T]) extends AnyVal {
     def orDecode[A <: T: Decoder](c: HCursor): Result[T] = {

@@ -79,7 +79,7 @@ sealed trait TypeNode {
   /**
     * @return all the paths (List[String] and the type for that path)
     */
-  def flattenPaths: Vector[(List[String], JType)]
+  def flattenPaths: TypesByPath
 }
 
 object TypeNode {
@@ -110,7 +110,7 @@ object TypeNode {
 case class TypeNodeObject(children: Map[String, TypeNode]) extends TypeNode {
   val `type`: JType = ObjType
 
-  override def flattenPaths: Vector[(List[String], JType)] = {
+  override def flattenPaths: TypesByPath = {
     children.toVector.flatMap {
       case (key, array: TypeNodeArray) =>
         array.flattenPaths.map {
@@ -127,7 +127,7 @@ case class TypeNodeObject(children: Map[String, TypeNode]) extends TypeNode {
 case class TypeNodeArray(children: Vector[TypeNode]) extends TypeNode {
   val `type`: JType = ArrayType
 
-  override def flattenPaths: Vector[(List[String], JType)] = {
+  override def flattenPaths: TypesByPath = {
     if (children.isEmpty) {
       Vector(Nil -> NullType)
     } else {
@@ -137,5 +137,5 @@ case class TypeNodeArray(children: Vector[TypeNode]) extends TypeNode {
 }
 
 case class TypeNodeValue(val `type`: JType) extends TypeNode {
-  override def flattenPaths: Vector[(List[String], JType)] = Vector(Nil -> `type`)
+  override def flattenPaths: TypesByPath = Vector(Nil -> `type`)
 }

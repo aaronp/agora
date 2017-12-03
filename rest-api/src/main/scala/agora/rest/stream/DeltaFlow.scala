@@ -1,12 +1,10 @@
 package agora.rest.stream
 
-import agora.api.json.{JType, TypeNode}
+import agora.api.json.{TypesByPath, _}
 import agora.api.streams.DataDiff.StrippedJsonDiff
 import agora.api.streams._
 import io.circe.Json
 import org.reactivestreams.Publisher
-
-import scala.util.Try
 
 /**
   * we're going for a dynamically updating table view for a data feed.
@@ -32,36 +30,61 @@ object DeltaFlow {
     def pathForLabel(label: String): Option[List[String]]
   }
 
+  object Labels {
+    def apply(initialMap: Map[List[String], String] = Map()) = new Buffer(initialMap)
+
+    class Buffer(initialMap: Map[List[String], String] = Map()) extends Labels {
+      private var labelsByPath = initialMap
+      def setLabel(path: List[String], label: String) = {
+        labelsByPath = labelsByPath.updated(path, label)
+      }
+
+      def default(path: List[String]) = path.map(_.capitalize).mkString(" ")
+
+      override def labelFor(path: List[String]): String = labelsByPath.getOrElse(path, default(path))
+
+      override def pathForLabel(label: String): Option[List[String]] = {
+        val found = labelsByPath.collectFirst {
+          case (key, value) if value == label => key
+        }
+        found
+      }
+    }
+  }
+
   /**
     * #5 path feed
     */
   trait FieldFeed {
-    def fields: Vector[(List[String], JType)]
-
-    def onNewFields(callback: Vector[(List[String], JType)] => Unit): Unit
+    def fields: TypesByPath
   }
 
   object FieldFeed {
+    type Callback = TypesByPath => Unit
 
     import PublisherOps.implicits._
 
-    class JsonFeed() extends FieldFeed {
-      type Callback = Vector[(List[String], JType)] => Unit
+    def apply(callback: TypesByPath => Unit) = new JsonFeed(callback)
 
-      @volatile private var latestFields = Vector[(List[String], JType)]()
-      private var callbacks              = Vector[Callback]()
+    /**
+      * This feed expects json messages from a publisher which sends small snippets
+      * (via StrippedJsonDiff)
+      * @param callback
+      */
+    class JsonFeed(callback: TypesByPath => Unit) extends FieldFeed {
 
-      private val deltaSubscriber = new BaseSubscriber[Json](0) {
-        override def onNext(delta: Json) = {
-          val deltaPaths: Vector[(List[String], JType)] = TypeNode(delta).flattenPaths
-          val newPaths                                  = deltaPaths.filterNot(latestFields.contains)
+      private val deltaSubscriber = new AccumulatingSubscriber[TypesByPath, Json](0, newTypesByPath()) {
+        override protected def combine(lastState: TypesByPath, delta: Json) = {
+          val deltaPaths = TypeNode(delta).flattenPaths
+          val newPaths   = deltaPaths.filterNot(lastState.contains)
           if (newPaths.nonEmpty) {
-            latestFields = latestFields ++ newPaths
-            callbacks.foreach { cb =>
-              Try(cb(newPaths))
-            }
+            callback(newPaths)
+            lastState ++ newPaths
+          } else {
+            lastState
           }
         }
+        def fields = state
       }
 
       def connect(publisher: Publisher[Json], initialRequest: Long = 1L) = {
@@ -75,13 +98,7 @@ object DeltaFlow {
         p
       }
 
-      override def fields: Vector[(List[String], JType)] = {
-        latestFields
-      }
-
-      override def onNewFields(callback: Vector[(List[String], JType)] => Unit): Unit = {
-        callbacks = callback +: callbacks
-      }
+      override def fields = deltaSubscriber.fields
     }
 
   }
