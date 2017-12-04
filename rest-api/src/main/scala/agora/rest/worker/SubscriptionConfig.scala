@@ -1,5 +1,6 @@
 package agora.rest.worker
 
+import agora.api.config.JsonConfig
 import agora.api.exchange.WorkSubscription
 import agora.api.json.JPredicate
 import agora.api.worker.{HostLocation, WorkerDetails}
@@ -54,16 +55,16 @@ case class SubscriptionConfig(subscriptionConfig: Config) {
       case HostLocation(loc) if loc.host.nonEmpty => loc
       case _                                      => defaultLocation
     }
-    WorkerDetails(resolvedLocation, path, name, id, runUser).append(asJson(detailsConf.withoutPath("resolvedHostPort")))
+    WorkerDetails(resolvedLocation, path, name, id, runUser).append(JsonConfig.asJson(detailsConf.withoutPath("resolvedHostPort")))
   }
 
   def asMatcher(at: String): Either[circe.Error, JPredicate] = {
     val fromConfig: Option[Either[circe.Error, JPredicate]] = Try(subscriptionConfig.getConfig(at)).toOption.map { subConf =>
-      val json = asJson(subConf)
+      val json = JsonConfig.asJson(subConf)
       json.as[JPredicate]
     }
 
-    val fromString = asJson(subscriptionConfig).hcursor.downField(at).as[JPredicate]
+    val fromString = JsonConfig.asJson(subscriptionConfig).hcursor.downField(at).as[JPredicate]
 
     fromConfig.getOrElse(fromString)
   }
@@ -80,12 +81,4 @@ case class SubscriptionConfig(subscriptionConfig: Config) {
 
   def subscriptionReferences = subscriptionConfig.asList("subscriptionReferences").toSet
 
-}
-
-object SubscriptionConfig {
-
-  def asJson(c: Config): Json = {
-    val json = c.root.render(ConfigRenderOptions.concise().setJson(true))
-    _root_.io.circe.parser.parse(json).right.get
-  }
 }

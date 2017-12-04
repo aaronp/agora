@@ -2,14 +2,90 @@ package agora.api.exchange
 
 import agora.BaseSpec
 import agora.api.Implicits._
+import agora.api.exchange.bucket.{BucketKey, BucketValueKey}
 import agora.api.exchange.instances.ExchangeState
 import agora.api.exchange.observer.{ExchangeObserver, OnMatch, TestObserver}
-import agora.api.json.JPredicate
+import agora.api.json.{JPath, JPredicate, MatchNone}
 import agora.api.worker.{HostLocation, SubscriptionKey, WorkerDetails}
+import io.circe.Json
 
 import scala.util.Success
 
 class ExchangeStateTest extends BaseSpec {
+
+  implicit class RichPath(p: JPath) {
+    def asKey(optional: Boolean = false) = BucketKey(p, optional)
+  }
+
+  "ExchangeState bucketing" should {
+    "create a new work bucket when one is specified in a job submission" in {
+      val state         = ExchangeState()
+      val job           = "meh".asJob
+      val fooJob        = job.withDetails(job.submissionDetails.withBuckets(JPath("topic") -> Json.fromString("foo")))
+      val (_, fooState) = state.submit(fooJob)
+      fooState.bucketsByKey.keySet shouldBe Set(List(JPath("topic").asKey()))
+
+      withClue("A different topic but with the same jpath should use the same bucket") {
+
+        val barJob        = job.withDetails(job.submissionDetails.withBuckets(JPath("topic") -> Json.fromString("bar")))
+        val (_, barState) = fooState.submit(barJob)
+        barState.bucketsByKey.keySet shouldBe Set(List(JPath("topic").asKey()))
+      }
+
+    }
+    "group new work subscriptions into all known existing buckets" in {
+      val state         = ExchangeState()
+      val job           = "meh".asJob
+      val fooJob        = job.withDetails(job.submissionDetails.withBuckets(JPath("topic") -> Json.fromString("foo")))
+      val (_, fooState) = state.submit(fooJob)
+      fooState.bucketsByKey.keySet shouldBe Set(List(JPath("topic").asKey()))
+
+      val newSubscriptionWithoutTopic       = WorkSubscription.localhost(1234).withSubscriptionKey("doesn't have topic")
+      val newSubscriptionWithMatchingTopic  = WorkSubscription.localhost(1234).withSubscriptionKey("fooSubscription").append(json"""{ "topic" : "foo"}""")
+      val newSubscriptionWithDifferentTopic = WorkSubscription.localhost(1234).withSubscriptionKey("mehSubscription").append(json"""{ "topic" : "meh"}""")
+      val withSubscriptions = List(newSubscriptionWithoutTopic, newSubscriptionWithMatchingTopic, newSubscriptionWithDifferentTopic).foldLeft(fooState) {
+        case (state, subscr) =>
+          val (_, newState) = state.subscribe(subscr)
+          newState
+      }
+
+      withSubscriptions.bucketsByKey(List(JPath("topic").asKey())).containsSubscription("fooSubscription") shouldBe true
+      withSubscriptions.bucketsByKey(List(JPath("topic").asKey())).containsSubscription("mehSubscription") shouldBe true
+      withSubscriptions.bucketsByKey(List(JPath("topic").asKey())).containsSubscription("doesn't have topic") shouldBe false
+    }
+    "move updated work subscriptions into new buckets and remove them from old ones" in {
+
+      // 1) start with a work subscription (no buckets, as no jobs have yet been submitted)
+      val stateWithSubscription = {
+        val state = ExchangeState()
+        val newSubscriptionWithMatchingTopic =
+          WorkSubscription.localhost(1234).withSubscriptionKey("fooSubscription").append(json"""{ "topic" : "foo"}""").copy(submissionCriteria = MatchNone)
+        val (_, stateWithTopic) = state.subscribe(newSubscriptionWithMatchingTopic)
+        stateWithTopic
+      }
+
+      // 2) create a state which will be putting things into both 'topic' and 'id' buckets. The 'topic' one
+      // should find the existing subscription
+      val twoBucketsState = {
+        val babeJob = "meh".asJob
+
+        val fooJob        = babeJob.withDetails(babeJob.submissionDetails.withBuckets(JPath("topic") -> Json.fromString("foo")))
+        val (_, fooState) = stateWithSubscription.submit(fooJob)
+
+        val idJob           = babeJob.withDetails(babeJob.submissionDetails.withBuckets(JPath("myId") -> Json.fromString("123")))
+        val (_, twoBuckets) = fooState.submit(idJob)
+        twoBuckets
+      }
+
+      twoBucketsState.bucketsByKey.keySet shouldBe Set(List(JPath("topic").asKey()), List(JPath("myId").asKey()))
+
+      twoBucketsState.bucketsByKey(List(JPath("topic").asKey())).containsSubscription("fooSubscription") shouldBe true
+
+      val idsBucket = twoBucketsState.bucketsByKey(List(JPath("myId").asKey()))
+      idsBucket.keysBySubscription shouldBe Map[SubscriptionKey, Set[BucketValueKey]]()
+      idsBucket.subscriptionsByKey shouldBe Map[BucketValueKey, Set[SubscriptionKey]]()
+    }
+  }
 
   "ExchangeState.updateSubscription" should {
     "append additional subscription details" in {

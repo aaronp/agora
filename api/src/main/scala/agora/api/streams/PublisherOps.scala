@@ -1,15 +1,18 @@
 package agora.api.streams
 
-import cats.Semigroup
-import io.circe.{Decoder, Encoder}
+import agora.api.data.{DataDiff, FieldSelector, IsEmpty}
+import agora.api.json.JsonDiff
+import io.circe.{Decoder, Encoder, Json}
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
+
+import scala.reflect.ClassTag
 
 /**
   * The PublisherOps consumes raw data of type T and groups it based on a field 'A'
   *
   * @tparam T
   */
-class PublisherOps[T](val publisher: Publisher[T]) extends AnyVal {
+class PublisherOps[T: ClassTag](val publisher: Publisher[T]) {
 
   import PublisherOps._
 
@@ -24,42 +27,61 @@ class PublisherOps[T](val publisher: Publisher[T]) extends AnyVal {
     }
   }
 
-  def onDeltas(initialRequest: Int)(onUpdate: T => Unit)(implicit enc: Encoder[T], dec: Decoder[T]) = {
-
+  def onDeltas(onUpdate: T => Unit)(implicit enc: Encoder[T], dec: Decoder[T]): DeltaSubscriber[Json, (Json, Json, JsonDiff)] = {
     import io.circe.Json
     import io.circe.syntax._
     import org.reactivestreams.{Publisher, Subscriber}
 
-    val jsonPublisher: Publisher[Json] = map(_.asJson)
+    val fromJsonSubscriber: Subscriber[Either[Json, (Json, Json, JsonDiff)]] = {
+      val s = new BaseSubscriber[T] {
+        override def toString = "onDeltas subscriber"
 
-    val fromJsonSubscriber: Subscriber[Json] = {
-      val s = new BaseSubscriber[T](initialRequest) {
-        override def onNext(t: T) = onUpdate(t)
+        override def onNext(t: T) = {
+          logger.debug(s"onDeltas($t)")
+          onUpdate(t)
+          request(1)
+        }
       }
 
-      s.contraMap[Json] { jsonDelta: Json =>
-// TODO - we need to remember the last value to apply this to via a ConflatingQueue
-        jsonDelta.as[T] match {
-          case Left(e)      => throw e
-          case Right(value) => value
-        }
+      s.contraMap[Either[Json, (Json, Json, JsonDiff)]] {
+        case Right((before, after, diff)) =>
+          // TODO - we need to remember the last value to apply this to via a ConflatingQueue
+          after.as[T] match {
+            case Left(e) =>
+              throw new Exception(s"Couldn't unmarshal ${implicitly[ClassTag[T]].runtimeClass.getSimpleName} from: $after", e)
+            case Right(value) => value
+          }
+        case Left(json) =>
+          json.as[T] match {
+            case Left(e) =>
+              throw new Exception(s"Couldn't unmarshal ${implicitly[ClassTag[T]].runtimeClass.getSimpleName} from: $json", e)
+            case Right(value) => value
+          }
       }
     }
 
-    val jsonOps = new PublisherOps[Json](jsonPublisher)
+    // first, publish the T as json (so we can diff the json)
+    val jsonPublisher: Publisher[Json]                             = map(_.asJson)
+    val jsonOps                                                    = new PublisherOps[Json](jsonPublisher)
+    implicit val jsonDelta: DataDiff[Json, (Json, Json, JsonDiff)] = DataDiff.JsonDiffWithValues
+    implicit val isEmpty                                           = DataDiff.IsTupleEmpty
+    // TODO - we're getting the unmarshalled json diff, not the json for 'T'.
 
-    implicit val jsonDelta = DataDiff.JsonDiffAsDeltas
-    jsonOps.subscribeToUpdates(fromJsonSubscriber, initialRequest)
+    // we need to get a diff which includes the full previous value
+    //
+    //    implicit obj
+
+    jsonOps.subscribeToDeltas(fromJsonSubscriber)
   }
 
-  def filter(subscriber: Subscriber[T], initialRequest: Long)(predicate: T => Boolean) = {
-    val keySubscriber = new FilterSubscriber[T](predicate, subscriber, initialRequest)
+  def filter(subscriber: Subscriber[T])(predicate: T => Boolean) = {
+    val keySubscriber = new FilterSubscriber[T](predicate, subscriber)
     publisher.subscribe(keySubscriber)
   }
 
   def subscribeByKey[K](subscriber: Subscriber[(K, T)], initialRequest: Long)(implicit
                                                                               selector: FieldSelector[T, K]) = {
-    val keySubscriber = new KeySubscriber[T, K](selector, subscriber, initialRequest)
+    val keySubscriber = new KeySubscriber[T, K](selector, subscriber)
     publisher.subscribe(keySubscriber)
   }
 
@@ -70,41 +92,36 @@ class PublisherOps[T](val publisher: Publisher[T]) extends AnyVal {
     * When that's not the case, we need [[subscribeToDeltas]]
     *
     * @param subscriber
-    * @param initialRequest
     * @param diff
     */
-  def subscribeToUpdateDeltas(subscriber: Subscriber[T], initialRequest: Long)(implicit diff: DataDiff[T, T], isEmpty: IsEmpty[T]) = {
-    val keySubscriber = new UpdateSubscriber[T](diff, subscriber, initialRequest)
+  def subscribeToUpdateDeltas(subscriber: Subscriber[T])(implicit diff: DataDiff[T, T], isEmpty: IsEmpty[T]): UpdateSubscriber[T] = {
+    val keySubscriber = new UpdateSubscriber[T](diff, subscriber)
     publisher.subscribe(keySubscriber)
-  }
-
-  def subscribeToUpdates(subscriber: Subscriber[T], initialRequest: Long)(implicit diff: DataDiff[T, T], isEmpty: IsEmpty[T]) = {
-    val keySubscriber = new UpdateSubscriber[T](diff, subscriber, initialRequest)
-    publisher.subscribe(keySubscriber)
+    keySubscriber
   }
 
   /** Get notified of either a state-of-the-world Left value of T or a delta value D
     *
     * @param subscriber
-    * @param initialRequest
     * @param diff
     * @tparam D
     */
-  def subscribeToDeltas[D: IsEmpty](subscriber: Subscriber[Either[T, D]], initialRequest: Long)(implicit diff: DataDiff[T, D]) = {
-    val keySubscriber = new DeltaSubscriber[T, D](diff, subscriber, initialRequest)
+  def subscribeToDeltas[D: IsEmpty](subscriber: Subscriber[Either[T, D]])(implicit diff: DataDiff[T, D]) = {
+    val keySubscriber = new DeltaSubscriber[T, D](diff, subscriber)
     publisher.subscribe(keySubscriber)
+    keySubscriber
   }
 }
 
 object PublisherOps {
 
   trait LowPriorityPublisherImplicits {
-    implicit def asOps[T](publisher: Publisher[T]) = new PublisherOps[T](publisher)
+    implicit def asOps[T: ClassTag](publisher: Publisher[T]) = new PublisherOps[T](publisher)
   }
 
   object implicits extends LowPriorityPublisherImplicits
 
-  private class FilterSubscriber[T](predicate: T => Boolean, subscriber: Subscriber[T], initialRequest: Long) extends BaseSubscriber[T](initialRequest) {
+  private class FilterSubscriber[T](predicate: T => Boolean, subscriber: Subscriber[T]) extends BaseSubscriber[T] {
 
     override def onError(t: Throwable) = {
       subscriber.onError(t)
@@ -126,8 +143,7 @@ object PublisherOps {
     }
   }
 
-  private class KeySubscriber[T, K](selector: FieldSelector[T, K], subscriber: Subscriber[(K, T)], initialRequest: Long)
-      extends BaseSubscriber[T](initialRequest) {
+  private class KeySubscriber[T, K](selector: FieldSelector[T, K], subscriber: Subscriber[(K, T)]) extends BaseSubscriber[T] {
 
     override def onError(t: Throwable) = {
       subscriber.onError(t)
@@ -146,8 +162,7 @@ object PublisherOps {
     }
   }
 
-  private class DeltaSubscriber[T, D: IsEmpty](diff: DataDiff[T, D], subscriber: Subscriber[Either[T, D]], initialRequest: Long)
-      extends BaseSubscriber[T](initialRequest) {
+  class DeltaSubscriber[T, D: IsEmpty](diff: DataDiff[T, D], subscriber: Subscriber[Either[T, D]]) extends BaseSubscriber[T] {
 
     private var previous: Option[T] = None
 
@@ -176,7 +191,7 @@ object PublisherOps {
     }
   }
 
-  private class UpdateSubscriber[T: IsEmpty](diff: DataDiff[T, T], subscriber: Subscriber[T], initialRequest: Long) extends BaseSubscriber[T](initialRequest) {
+  class UpdateSubscriber[T: IsEmpty](diff: DataDiff[T, T], subscriber: Subscriber[T]) extends BaseSubscriber[T] {
 
     private var previous: Option[T] = None
 

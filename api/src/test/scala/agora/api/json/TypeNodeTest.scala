@@ -10,7 +10,9 @@ class TypeNodeTest extends BaseSpec {
       TypeNode(Json.fromBoolean(true)) shouldBe TypeNode(BooleanType)
       TypeNode(Json.fromInt(3)) shouldBe TypeNode(NumericType)
       TypeNode(Json.fromString("hi")) shouldBe TypeNode(TextType)
+      TypeNode(json"""[]""") shouldBe TypeNodeArray(Vector.empty)
     }
+
     "return all the json paths for a given json object" in {
       val paths = TypeNode(json"""{
               "base" : {
@@ -52,7 +54,7 @@ class TypeNodeTest extends BaseSpec {
 
       val actual: Vector[String] = paths.flatten.sorted
       actual should contain inOrderOnly (
-        "ary[]:NullType",
+        "ary[]:ArrayType",
         "base.nestedArray[]:NumericType",
         "base.nestedBoolean:BooleanType",
         "base.objArray[].deepNestedArray[].buzz:NumericType",

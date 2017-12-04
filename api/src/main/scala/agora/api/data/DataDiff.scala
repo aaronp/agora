@@ -1,4 +1,4 @@
-package agora.api.streams
+package agora.api.data
 
 import agora.api.json.JsonDiff
 import io.circe.Json
@@ -32,6 +32,13 @@ object DataDiff {
 
   import io.circe.generic.auto._
   import io.circe.syntax._
+
+  object JsonDiffWithValues extends DataDiff[Json, (Json, Json, JsonDiff)] {
+    override def diff(lhs: Json, rhs: Json) = (lhs, rhs, JsonDiff(lhs, rhs))
+  }
+  implicit object IsTupleEmpty extends IsEmpty[(Json, Json, JsonDiff)] {
+    override def isEmpty(value: (Json, Json, JsonDiff)): Boolean = IsEmpty.JsonDiffIsEmpty.isEmpty(value._3)
+  }
 
   object JsonDiffAsDataDiff extends DataDiff[Json, JsonDiff] {
     override def diff(lhs: Json, rhs: Json): JsonDiff = JsonDiff(lhs, rhs)

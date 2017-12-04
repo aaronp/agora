@@ -2,7 +2,8 @@ package agora.api.exchange
 
 import java.time.LocalDateTime
 
-import agora.api.json.{JPredicate, JPath, JsonDelta, MatchAll}
+import agora.api.exchange.bucket.WorkerMatchBucket
+import agora.api.json.{JPath, JPredicate, JsonDelta, MatchAll}
 import agora.api.worker.{HostLocation, SubscriptionKey, WorkerDetails, WorkerRedirectCoords}
 import agora.api.{JobId, MatchId}
 import io.circe.generic.auto._
@@ -97,6 +98,8 @@ case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends Cl
     */
   def withSelection(mode: SelectionMode) = withDetails(submissionDetails.withSelection(mode))
 
+  def withBucket(bucket: WorkerMatchBucket) = withDetails(submissionDetails.withBucket(bucket))
+
   /**
     * @param matcher the new submission matcher
     * @param ev
@@ -104,7 +107,7 @@ case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends Cl
     * @return a new SubmitJob using the given details matcher
     */
   def matching[T](matcher: T)(implicit ev: T => JPredicate): SubmitJob = {
-    withDetails(submissionDetails.copy(workMatcher = ev(matcher)))
+    withDetails(submissionDetails.copy(workMatcher = WorkMatcher(ev(matcher))))
   }
 
   /** Means to append a jobId to the SubmitJob
@@ -135,9 +138,11 @@ case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends Cl
     * @param otherCriteria the json matching criteria
     * @return an updated SubmitJob with the given 'orElse' criteria specified
     */
-  def orElse(otherCriteria: JPredicate) = {
+  def orElse(otherCriteria: WorkMatcher): SubmitJob = {
     withDetails(submissionDetails.copy(orElse = submissionDetails.orElse :+ otherCriteria))
   }
+
+  def orElse(otherCriteria: JPredicate): SubmitJob = orElse(WorkMatcher(otherCriteria))
 
   /**
     * @return a submit job with the 'orElse' criteria for the submission details, if specified
@@ -166,6 +171,12 @@ case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends Cl
   def withData[T: Encoder](data: T, name: String = null) = {
     withDetails(submissionDetails.withData(data, name))
   }
+
+  /**
+    * Just to improve my law-of-demeter karma
+    * @return the worker bucket for this job submission
+    */
+  def workerBucket = submissionDetails.workMatcher.workerBucket
 
 }
 

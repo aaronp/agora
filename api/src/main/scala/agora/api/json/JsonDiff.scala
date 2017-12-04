@@ -1,17 +1,23 @@
 package agora.api.json
 
+import cats.Semigroup
 import io.circe.Json
 
-case class DiffEntry(path: List[String], lhs: Json, rhs: Json) {
-  def jPath = JPath.forParts(path)
-}
-
-object DiffEntry {
-  def apply(lhs: Json, rhs: Json): DiffEntry = new DiffEntry(Nil, lhs, rhs)
-}
-
+/**
+  * A JsonDiff represents a collection of differences between two json documents.
+  * Each diff contains the path to the json and the left-hand-side/right-hand-side values which differ.
+  *
+  * the 'asDelta' can be used to create a [[JsonDelta]] from this diff,
+  *
+  * @param deltas
+  */
 case class JsonDiff(deltas: List[DiffEntry]) {
 
+  /** A convenience method to return json which only contains values which include the paths referenced in this diff
+    *
+    * @param lhs the json to strip
+    * @return json which only contains entries for the values in this diff.
+    */
   def strip(lhs: Json): Json = {
     import RichJsonOps._
     lhs.onlyWith(deltas.map(_.jPath))
@@ -58,6 +64,17 @@ object JsonDiff {
     new JsonDiff(diffs)
   }
 
+  /** @param only the single json value
+    * @return a diff between nothing (json null) and this value
+    */
+  def apply(only: Json): JsonDiff = {
+    if (only.isNull) {
+      JsonDiff(Nil)
+    } else {
+      JsonDiff(List(DiffEntry(Nil, Json.Null, only)))
+    }
+  }
+
   private def arrayDiff(path: List[String], lhsArray: Vector[Json], rhsArray: Vector[Json], diffs: List[DiffEntry]) = {
     // TODO - cleverer array diff, like longest prefix
     if (lhsArray != rhsArray) {
@@ -95,4 +112,18 @@ object JsonDiff {
     }
   }
 
+  implicit object JsonDiffSemigroup extends Semigroup[JsonDiff] {
+    override def combine(x: JsonDiff, y: JsonDiff): JsonDiff = {
+      JsonDiff((x.deltas ++ y.deltas).distinct)
+    }
+  }
+
+}
+
+case class DiffEntry(path: List[String], lhs: Json, rhs: Json) {
+  def jPath = JPath.forParts(path)
+}
+
+object DiffEntry {
+  def apply(lhs: Json, rhs: Json): DiffEntry = new DiffEntry(Nil, lhs, rhs)
 }

@@ -31,9 +31,7 @@ trait RichConfigOps extends RichConfig.LowPriorityImplicits {
     }
   }
 
-  def asFiniteDuration(key: String): FiniteDuration = {
-    config.getDuration(key).toMillis.millis
-  }
+  def asFiniteDuration(key: String): FiniteDuration = config.getDuration(key).toMillis.millis
 
   /**
     * If 'show=X' specified, configuration values which contain X in their path.
@@ -139,6 +137,10 @@ trait RichConfigOps extends RichConfig.LowPriorityImplicits {
   def entries: mutable.Set[Map.Entry[String, ConfigValue]] = {
     import scala.collection.JavaConverters._
     config.entrySet().asScala
+  }
+
+  def entryPairs = entries.map { entry =>
+    (entry.getKey, entry.getValue)
   }
 
   /** @return a sorted list of the origins from when the config values come

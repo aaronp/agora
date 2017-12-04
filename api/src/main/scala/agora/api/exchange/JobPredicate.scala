@@ -30,14 +30,14 @@ object JobPredicate extends StrictLogging {
   object JsonJobPredicate extends JobPredicate with StrictLogging {
 
     override def matches(job: SubmitJob, subscription: WorkSubscription, requested: Int): Boolean = {
-      val offerMatcher: JPredicate       = job.submissionDetails.workMatcher
+      val offerMatcher: WorkMatcher      = job.submissionDetails.workMatcher
       val submissionCriteria: JPredicate = subscription.submissionCriteria
       val jobCriteria                    = subscription.jobCriteria
 
-      val subscriptionDetails = subscription.matchJson(requested)
+      val subscriptionDetails: Json = subscription.matchJson(requested)
 
       logger.debug(s"""
-           | == JOB MATCHES WORKER (${offerMatcher.matches(subscriptionDetails)}) ==
+           | == JOB MATCHES WORKER (${offerMatcher.criteria.matches(subscriptionDetails)}) ==
            | $offerMatcher
            | with
            | ${subscription.details.aboutMe.spaces4}
@@ -67,7 +67,7 @@ object JobPredicate extends StrictLogging {
     }
 
     def jobSubmissionDetailsMatchesWorkSubscription(submissionDetails: SubmissionDetails, subscriptionDetails: Json) = {
-      submissionDetails.workMatcher.matches(subscriptionDetails)
+      submissionDetails.workMatcher.criteria.matches(subscriptionDetails)
     }
 
   }

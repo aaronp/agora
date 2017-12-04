@@ -1,7 +1,8 @@
 package agora.api.exchange
 
 import agora.api.User
-import agora.api.json.{JPredicate, JsonAppendable}
+import agora.api.exchange.bucket.{BucketKey, JobBucket, WorkerMatchBucket}
+import agora.api.json.{JPath, JPredicate, JsonAppendable}
 import io.circe._
 import io.circe.optics.JsonPath
 
@@ -22,22 +23,33 @@ import scala.util.Properties
   * @param workMatcher the json criteria used to match work subscriptions
   * @param orElse      should the 'workMatcher' not match _any_ current work subscriptions, the [[SubmitJob]] is resubmitted with the 'orElse' criteria
   */
-case class SubmissionDetails(override val aboutMe: Json, selection: SelectionMode, awaitMatch: Boolean, workMatcher: JPredicate, orElse: List[JPredicate])
+case class SubmissionDetails(override val aboutMe: Json, selection: SelectionMode, awaitMatch: Boolean, workMatcher: WorkMatcher, orElse: List[WorkMatcher])
     extends JsonAppendable {
-  def matchingPath(path: String): SubmissionDetails = {
-    import agora.api.Implicits._
-    copy(workMatcher = workMatcher.and("path" === path))
-  }
+
+  def matchingPath(path: String): SubmissionDetails = copy(workMatcher = workMatcher.matchingPath(path))
 
   def withSelection(mode: SelectionMode) = copy(selection = mode)
 
-  def orElseMatch(other: JPredicate) = copy(orElse = orElse :+ other)
+  def withBucket(bucket: WorkerMatchBucket): SubmissionDetails = copy(workMatcher = workMatcher.withBucket(bucket))
+  def withJobBuckets(buckets: JobBucket*): SubmissionDetails = {
+    withBucket(WorkerMatchBucket(buckets.toList))
+  }
+  def withBuckets(buckets: (JPath, Json)*): SubmissionDetails = {
+    val jobBuckets = buckets.map {
+      case (path, json) => JobBucket(BucketKey(path, false), json)
+    }
+    withJobBuckets(jobBuckets: _*)
+  }
 
-  def withMatcher(newMatcher: JPredicate) = copy(workMatcher = newMatcher)
+  def orElseMatch(other: JPredicate): SubmissionDetails = orElseMatch(WorkMatcher(other))
 
-  def andMatching(andCriteria: JPredicate) = copy(workMatcher = workMatcher.and(andCriteria))
+  def orElseMatch(other: WorkMatcher): SubmissionDetails = copy(orElse = orElse :+ other)
 
-  def orMatching(orCriteria: JPredicate) = copy(workMatcher = workMatcher.or(orCriteria))
+  def withMatcher(newMatcher: JPredicate) = copy(workMatcher = workMatcher.withCriteria(newMatcher))
+
+  def andMatching(andCriteria: JPredicate) = copy(workMatcher = workMatcher.andMatching(andCriteria))
+
+  def orMatching(orCriteria: JPredicate) = copy(workMatcher = workMatcher.orMatching(orCriteria))
 
   def submittedBy: User = SubmissionDetails.submissionUser.getOption(aboutMe).getOrElse {
     sys.error(s"Invalid json, 'submissionUser' not set in $aboutMe")
@@ -80,8 +92,8 @@ object SubmissionDetails {
   def apply(submissionUser: User = Properties.userName,
             matchMode: SelectionMode = SelectionOne,
             awaitMatch: Boolean = true,
-            workMatcher: JPredicate = JPredicate.matchAll,
-            orElse: List[JPredicate] = Nil) = {
+            workMatcher: WorkMatcher = WorkMatcher(JPredicate.matchAll),
+            orElse: List[WorkMatcher] = Nil) = {
     val json = Json.obj("submissionUser" -> Json.fromString(submissionUser))
     new SubmissionDetails(json, matchMode, awaitMatch, workMatcher, orElse)
   }

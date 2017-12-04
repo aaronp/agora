@@ -44,39 +44,33 @@ class SubscriptionConfigTest extends BaseSpec {
           |    {
           |      "and" : [
           |        {
-          |          "select" : {
-          |            "parts" : [
+          |          "select" : [
           |              {
           |                "field" : "x",
           |                "predicate" : {
           |                  "eq" : "y"
           |                }
           |              }
-          |            ]
-          |          },
+          |            ],
           |          "test" : "match-all"
           |        },
           |        {
-          |          "select" : {
-          |            "parts" : [
+          |          "select" : [
           |              {
           |                "field" : "foo",
           |                "predicate" : {
           |                  "gte" : 3
           |                }
           |              }
-          |            ]
-          |          },
+          |            ],
           |          "test" : "match-all"
           |        }
           |      ]
           |    },
           |    {
-          |      "select" : {
-          |        "parts" : [
+          |      "select" :  [
           |          "x", "y", "z"
-          |        ]
-          |      },
+          |        ],
           |      "test" : "match-all"
           |    }
           |  ]

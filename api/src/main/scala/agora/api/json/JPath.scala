@@ -1,24 +1,25 @@
 package agora.api.json
 
 import agora.api.json.JPath.select
+import io.circe.Decoder.Result
 import io.circe._
 
 /**
   * Represents a json path (like an xpath is to xml)
   *
-  * @param parts the segments of the path
+  * @param path the segments of the path
   */
-case class JPath(parts: List[JPart]) {
+case class JPath(path: List[JPart]) {
 
   import io.circe._
   import io.circe.generic.auto._
   import io.circe.syntax._
 
-  def ++(other: JPath) = copy(parts = parts ++ other.parts)
+  def ++(other: JPath) = copy(path = path ++ other.path)
 
-  def +:[T](other: T)(implicit ev: T => JPart) = copy(parts = ev(other) +: parts)
+  def +:[T](other: T)(implicit ev: T => JPart) = copy(path = ev(other) +: path)
 
-  def :+[T](other: T)(implicit ev: T => JPart) = copy(parts = parts :+ ev(other))
+  def :+[T](other: T)(implicit ev: T => JPart) = copy(path = path :+ ev(other))
 
   /** @return the json representation of this JPath
     */
@@ -35,7 +36,7 @@ case class JPath(parts: List[JPart]) {
     */
   def apply(json: Json): Option[Json] = selectValue(json)
 
-  def selectValue(json: Json): Option[Json] = JPath.select(parts, json.hcursor).focus
+  def selectValue(json: Json): Option[Json] = JPath.select(path, json.hcursor).focus
 
   /** like selectValue, but the json include the path
     *
@@ -60,7 +61,7 @@ case class JPath(parts: List[JPart]) {
     */
   def selectJson(json: Json): Option[Json] = {
     selectValue(json).map { value =>
-      JPath.selectJson(parts, value)
+      JPath.selectJson(path, value)
     }
   }
 
@@ -73,7 +74,7 @@ case class JPath(parts: List[JPart]) {
     * @return the updated json if the path existed in the target json
     */
   def appendTo[T: Encoder](json: Json, value: T): Option[Json] = {
-    val opt = JPath.select(parts, json.hcursor).withFocus { json =>
+    val opt = JPath.select(path, json.hcursor).withFocus { json =>
       deepMergeWithArrayConcat(json, implicitly[Encoder[T]].apply(value))
     }
     opt.top
@@ -87,7 +88,7 @@ case class JPath(parts: List[JPart]) {
     * @param json the target json to which the value will be removed
     * @return the updated json if the path existed in the target json
     */
-  def removeFrom(json: Json): Option[Json] = select(parts, json.hcursor).delete.top
+  def removeFrom(json: Json): Option[Json] = select(path, json.hcursor).delete.top
 
   def asMatcher(filter: JPredicate = JPredicate.matchAll) = JPredicate(this, filter)
 }
@@ -100,8 +101,26 @@ object JPath {
 
   def apply(only: String): JPath = forParts(only.split("\\.", -1).map(_.trim).filterNot(_.isEmpty).toList)
 
-  def apply(first: String, second: String, parts: String*): JPath =
+  def apply(first: String, second: String, parts: String*): JPath = {
     forParts(first :: second :: parts.toList)
+  }
+
+  implicit object JsonFormat extends Encoder[JPath] with Decoder[JPath] {
+    override def apply(a: JPath): Json = {
+      import io.circe.generic.auto._
+      import io.circe.syntax._
+      a.path.asJson
+    }
+
+    override def apply(c: HCursor): Result[JPath] = {
+      c.as[List[JPart]].map(JPath.apply)
+    }
+  }
+
+  /** @param typeByPath as produced by a [[TypeNode]]
+    * @return a path for a TypeByPath as produced e.g. from a [[TypeNode]]
+    */
+  def forTypesByPath(typeByPath: TypeByPath): JPath = forParts(typeByPath._1)
 
   def forParts(first: String, theRest: String*): JPath = forParts(first :: theRest.toList)
 
@@ -112,6 +131,11 @@ object JPath {
       case name         => JField(name)
     })
 
+  /**
+    * Unmarshalls a JPath from the JPath's json representation
+    * @param jsonString
+    * @return the unmarshalled JPath
+    */
   def fromJson(jsonString: String): JPath = {
 
     import io.circe.generic.auto._
@@ -126,7 +150,7 @@ object JPath {
     def withHCursor(f: HCursor => ACursor): ACursor = a.success.fold(a)(f)
   }
 
-  def select(parts: List[JPart], cursor: HCursor): ACursor = {
+  private[json] def select(parts: List[JPart], cursor: HCursor): ACursor = {
     parts match {
       case Nil                   => cursor
       case JField(field) :: tail => cursor.downField(field).withHCursor(select(tail, _))
@@ -150,6 +174,7 @@ object JPath {
     }
   }
 
+  // used by selectJson to extract JParts which represent objects
   private object ObjectPart {
     def unapply(part: JPart): Option[String] = {
       part match {
@@ -160,6 +185,7 @@ object JPath {
     }
   }
 
+  // used by selectJson to extract JParts which represent arrays
   private object ArrayPart {
     def unapply(part: JPart): Boolean = {
       part match {

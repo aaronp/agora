@@ -153,21 +153,17 @@ class JPredicateTest extends BaseSpec {
     "unmarshal simple paths json" in {
       val json =
         json"""{
-              |  "select" : {
-              |    "parts" : [ "command" ]
-              |  },
+              |  "select" : [ "command" ],
               |  "test" : "match-all"
               |}"""
 
-      println(JPath("command").asMatcher().json.spaces4)
-      json.as[JPredicate].right.get shouldBe JPath("command").asMatcher()
+      val expected: JPredicate = JPath("command").asMatcher()
+      json.as[JPredicate].right.get shouldBe expected
     }
     "unmarshal complex paths json" in {
       val json =
         json"""{
-              |  "select" : {
-              |    "parts" : [ "list", 2, "next" ]
-              |  },
+              |  "select" : [ "list", 2, "next" ],
               |  "test" : "match-all"
               |}"""
       json.as[JPredicate].right.get shouldBe JPath.forParts("list", "2", "next").asMatcher()
@@ -175,8 +171,7 @@ class JPredicateTest extends BaseSpec {
     "unmarshal paths with a filter" in {
       val json =
         json"""{
-              |  "select" : {
-              |    "parts" : [
+              |  "select" : [
               |      "rute",
               |      {
               |        "field" : "someField",
@@ -184,8 +179,7 @@ class JPredicateTest extends BaseSpec {
               |          "eq" : 4
               |        }
               |      }
-              |    ]
-              |  },
+              |    ],
               |  "test" : "match-all"
               |}"""
       val expected = JPath(JPart("rute"), ("someField" === 4))
@@ -199,8 +193,7 @@ class JPredicateTest extends BaseSpec {
               |    {
               |      "and" : [
               |        {
-              |          "select" : {
-              |            "parts" : [
+              |          "select" : [
               |              {
               |                "field" : "array",
               |                "predicate" : {
@@ -210,28 +203,24 @@ class JPredicateTest extends BaseSpec {
               |                  ]
               |                }
               |              }
-              |            ]
-              |          },
+              |            ],
               |          "test" : "match-all"
               |        },
               |        {
-              |          "select" : {
-              |            "parts" : [
+              |          "select" : [
               |              {
               |                "field" : "foo",
               |                "predicate" : {
               |                  "gte" : 3
               |                }
               |              }
-              |            ]
-              |          },
+              |            ],
               |          "test" : "match-all"
               |        }
               |      ]
               |    },
               |    {
-              |      "select" : {
-              |        "parts" : [
+              |      "select" : [
               |          "x",
               |          "y",
               |          {
@@ -240,8 +229,7 @@ class JPredicateTest extends BaseSpec {
               |              "regex" : "subtext"
               |            }
               |          }
-              |        ]
-              |      },
+              |        ],
               |      "test" : "match-all"
               |    }
               |  ]

@@ -2,7 +2,7 @@ package agora.api.streams
 
 import org.reactivestreams.Subscriber
 
-trait CollatingSubscriber[T] extends Subscriber[T] {
+trait ConflatingSubscriber[T] extends Subscriber[T] {
 
   private var last: Option[T] = None
 

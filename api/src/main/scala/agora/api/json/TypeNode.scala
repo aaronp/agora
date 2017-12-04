@@ -100,7 +100,10 @@ object TypeNode {
     TypeNodeObject(json.toMap.mapValues(forJson))
   }
 
-  private def forArray(json: Vector[Json]): TypeNode = TypeNodeArray(json.map(forJson).distinct)
+  private def forArray(json: Vector[Json]): TypeNode = {
+    val arrayValues = json.map(forJson).distinct
+    TypeNodeArray(arrayValues)
+  }
 
   private def forJson(json: Json): TypeNode = {
     json.arrayOrObject(apply(JType(json)), forArray, forObject)
@@ -129,7 +132,7 @@ case class TypeNodeArray(children: Vector[TypeNode]) extends TypeNode {
 
   override def flattenPaths: TypesByPath = {
     if (children.isEmpty) {
-      Vector(Nil -> NullType)
+      Vector(Nil -> ArrayType)
     } else {
       children.flatMap(_.flattenPaths)
     }

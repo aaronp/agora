@@ -6,6 +6,7 @@ import agora.BaseSpec
 import agora.rest.HasMaterializer
 import agora.rest.logging.{BufferedAppender, LoggingOps}
 import akka.actor.Props
+import com.typesafe.scalalogging.StrictLogging
 import org.scalatest.BeforeAndAfterAll
 import org.slf4j.LoggerFactory
 
@@ -13,7 +14,9 @@ import scala.concurrent.Promise
 import scala.concurrent.duration._
 import scala.util.{Failure, Try}
 
-class WorkspaceActorTest extends BaseSpec with HasMaterializer with BeforeAndAfterAll {
+class WorkspaceActorTest extends BaseSpec with HasMaterializer with BeforeAndAfterAll with StrictLogging {
+
+  logger.trace("leave this line in -- Trying to get away w/ not having a SubstituteLoggerFactory impl when using LoggingOps")
 
   "WorkspaceActor.logger" should {
     "be able to be seen via LoggingOps" in {

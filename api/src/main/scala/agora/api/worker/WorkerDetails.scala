@@ -95,7 +95,7 @@ case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
   }
 
   def withSubscriptionKey(key: SubscriptionKey) =
-    append("id", key)
+    append("_subscriptionKey", key)
 
   def subscriptionKey =
     keyPath
@@ -160,7 +160,7 @@ object WorkerDetails {
   val portStringPath = locationPath.port.string
   val pathPath       = root.path.string
   val namePath       = root.name.string
-  val keyPath        = root.id.string
+  val keyPath        = root._subscriptionKey.string
   val runUserPath    = root.runUser.string
 
   implicit object Format extends Decoder[WorkerDetails] with Encoder[WorkerDetails] {

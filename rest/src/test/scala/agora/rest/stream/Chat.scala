@@ -23,7 +23,7 @@ class ChatServer {
   val publisher = BasePublisher[ChatNotification](100)
 
   def flow(implicit mat: Materializer): Flow[Message, Message, NotUsed] = {
-    val subscriber = new BaseSubscriber[ChatRequest](1) {
+    val subscriber = new BaseSubscriber[ChatRequest] {
       override def onNext(t: ChatRequest) = {
         publisher.publish(ChatNotification(t.from, t.msg))
         request(1)

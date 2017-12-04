@@ -4,6 +4,7 @@ import _root_.io.circe.Json.fromJsonObject
 import _root_.io.circe._
 import _root_.io.circe.Decoder.Result
 import agora.api.json.TypesByPath
+import cats.kernel.Semigroup
 
 package object json {
 
@@ -11,6 +12,11 @@ package object json {
   type TypesByPath = Vector[TypeByPath]
   def newTypesByPath() = Vector[TypeByPath]()
 
+  implicit object TypesByPathSemigroup extends Semigroup[TypesByPath] {
+    override def combine(x: TypesByPath, y: TypesByPath): TypesByPath = {
+      (x ++ y).distinct
+    }
+  }
   implicit class RichDec[T](val result: Result[T]) extends AnyVal {
     def orDecode[A <: T: Decoder](c: HCursor): Result[T] = {
       val aDec: Decoder[A] = implicitly[Decoder[A]]
@@ -18,6 +24,13 @@ package object json {
         aDec.tryDecode(c)
       }
     }
+  }
+
+  /** This instance is intentionally NOT implicit. It is just defined so that, where appropriate,
+    * it can be used for semigroup operations
+    */
+  object JsonSemigroup extends Semigroup[Json] {
+    override def combine(x: Json, y: Json): Json = deepMergeWithArrayConcat(x, y)
   }
 
   /**

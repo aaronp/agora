@@ -1,4 +1,4 @@
-package agora.api.streams
+package agora.api.data
 
 import agora.api.json.JPath
 import io.circe.Json

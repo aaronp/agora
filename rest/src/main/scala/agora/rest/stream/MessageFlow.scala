@@ -31,7 +31,7 @@ object MessageFlow extends StrictLogging {
       }
     }
 
-    val source = Source.fromPublisher(publisher).map { next =>
+    val source: Source[TextMessage.Strict, NotUsed] = Source.fromPublisher(publisher).map { next =>
       TextMessage(next.asJson.noSpaces)
     }
 

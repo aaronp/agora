@@ -3,7 +3,8 @@ package agora.api.json
 import io.circe.{Encoder, Json}
 
 /**
-  * Represents changes to some json
+  * Represents changes to some json. This is different to a [[JsonDiff]] (which represents all the diffs between
+  * two documents). A delta contains instructions for what to add remove from some json
   *
   * @param remove the jpaths to remove
   * @param append the json to append

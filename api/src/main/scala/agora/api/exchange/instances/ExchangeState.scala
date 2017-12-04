@@ -1,6 +1,7 @@
 package agora.api.exchange.instances
 
 import agora.api.exchange._
+import agora.api.exchange.bucket.{BucketMap, BucketPathKey, WorkerMatchBucket}
 import agora.api.exchange.observer.{ExchangeObserver, OnMatch}
 import agora.api.json.JsonDelta
 import agora.api.worker._
@@ -15,6 +16,7 @@ import scala.util.{Failure, Success, Try}
   */
 case class ExchangeState(observer: ExchangeObserver = ExchangeObserver(),
                          subscriptionsById: Map[SubscriptionKey, (WorkSubscription, Requested)] = Map[SubscriptionKey, (WorkSubscription, Requested)](),
+                         bucketsByKey: Map[BucketPathKey, BucketMap] = Map.empty,
                          jobsById: Map[JobId, SubmitJob] = Map[JobId, SubmitJob]())
     extends StrictLogging { self =>
 
@@ -144,12 +146,43 @@ case class ExchangeState(observer: ExchangeObserver = ExchangeObserver(),
     }
   }
 
+  private def filterForBucket(jobBucket: WorkerMatchBucket): Option[Set[SubscriptionKey]] = {
+    if (jobBucket.isEmpty) {
+      // no bucket - consider all subscriptions
+      None
+    } else {
+      bucketsByKey.get(jobBucket.keys).flatMap { existingBucket: BucketMap =>
+        existingBucket.workSubscriptionKeysForWorkerMatchBucket(jobBucket.valueKeys)
+      }
+    }
+  }
+
   /** @param jobId the job id belonging to the job to match
     * @param job   the job to match
     * @return a collection of subscription keys, subscriptions and the remaining items which would match the given job
     */
   private def workCandidatesForJob(jobId: JobId, job: SubmitJob)(implicit matcher: JobPredicate): CandidateSelection = {
-    subscriptionsById.collect {
+
+    val validSubscriptions: Map[SubscriptionKey, (WorkSubscription, Requested)] = {
+
+      // if the job specifies a bucket, then limit our subscriptions to those workers in the bucket
+      val jobBucket: WorkerMatchBucket = job.workerBucket
+
+      //
+      // try and reduce the subscriptions based on buckets
+      //
+      val filter: Option[Set[SubscriptionKey]] = filterForBucket(jobBucket)
+
+      logger.debug(s"worker bucket for ${jobBucket.keys} resolved to ${filter}")
+      filter.fold(subscriptionsById) { idsInBucket =>
+        val pairs = idsInBucket.flatMap { key =>
+          subscriptionsById.get(key).map(value => key -> value)
+        }
+        pairs.toMap
+      }
+    }
+
+    validSubscriptions.collect {
       case (id, ResolvedRequestedExtractor(subscription, requested, resolvedRequested)) if job.matches(subscription, resolvedRequested) =>
         val newState  = updatePending(id, -1)
         val remaining = newState.pending(id)
@@ -268,9 +301,15 @@ case class ExchangeState(observer: ExchangeObserver = ExchangeObserver(),
         val requested            = Requested(subscription.subscriptionReferences)
         val newSubscriptionsById = subscriptionsById.updated(id, subscription -> requested)
 
+        val newBuckets = {
+          bucketsByKey.mapValues { bucket =>
+            bucket.update(id, subscription.details.aboutMe)
+          }
+        }
+
         observer.onSubscriptionCreated(id, subscription, requested.remaining(this))
 
-        copy(subscriptionsById = newSubscriptionsById)
+        copy(subscriptionsById = newSubscriptionsById, bucketsByKey = newBuckets)
     }
     WorkSubscriptionAck(id) -> newState
   }
@@ -290,12 +329,23 @@ case class ExchangeState(observer: ExchangeObserver = ExchangeObserver(),
     }
     logger.debug(s"submitting job [$id] $job")
 
+    val newBuckets = if (inputJob.workerBucket.isEmpty) {
+      bucketsByKey
+    } else {
+      if (bucketsByKey.isEmpty || !bucketsByKey.contains(inputJob.workerBucket.keys)) {
+        // this is a new bucket - group the work subscriptions
+        bucketsByKey.updated(inputJob.workerBucket.keys, BucketMap(inputJob.workerBucket.keys, subscriptionsById))
+      } else {
+        bucketsByKey
+      }
+    }
+
     // let people know we've got a job ... we may subsequently let people know it's matched summat too
     observer.onJobSubmitted(job)
 
     val newJobsById = jobsById.updated(id, job)
 
-    SubmitJobResponse(id) -> copy(jobsById = newJobsById)
+    SubmitJobResponse(id) -> copy(jobsById = newJobsById, bucketsByKey = newBuckets)
   }
 
   def request(id: SubscriptionKey, n: Int): Try[(RequestWorkAck, ExchangeState)] = {
@@ -317,16 +367,27 @@ case class ExchangeState(observer: ExchangeObserver = ExchangeObserver(),
     * @return an option of an updated state, should the subscription exist, update condition return true, and delta have effect
     */
   def updateSubscription(msg: UpdateSubscription): Option[ExchangeState] = {
+
     subscriptionsById.get(msg.id).flatMap {
       case (subscription, n) =>
         if (msg.condition.matches(subscription.details.aboutMe)) {
-          val updated = subscription.update(msg.delta)
+          val updated: Option[WorkSubscription] = subscription.update(msg.delta)
 
+          //
+          // our subscription has changed - update all the buckets
+          //
           updated.map { newSubscription =>
+            val newBuckets = {
+              bucketsByKey.mapValues { bucket =>
+                bucket.update(msg.id, newSubscription.details.aboutMe)
+              }
+            }
+
             observer.onSubscriptionUpdated(msg.id, newSubscription, n.remaining(this), msg.delta)
-            copy(subscriptionsById = subscriptionsById.updated(msg.id, (newSubscription, n)))
+            copy(subscriptionsById = subscriptionsById.updated(msg.id, (newSubscription, n)), bucketsByKey = newBuckets)
           }
         } else {
+          require(bucketsByKey.values.forall(!_.containsSubscription(msg.id)), "we have buckets referencing unknown subscriptions")
           None
         }
     }

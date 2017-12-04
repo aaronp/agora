@@ -10,7 +10,7 @@ import org.reactivestreams.Subscriber
   *
   * @tparam T
   */
-trait SemigroupPublisher[T] extends BasePublisher[T] with SemigroupSyntax {
+trait ConflatingPublisher[T] extends BasePublisher[T] with SemigroupSyntax {
 
   private[this] object SowLock
 
@@ -26,7 +26,7 @@ trait SemigroupPublisher[T] extends BasePublisher[T] with SemigroupSyntax {
     s
   }
 
-  override def publish(elem: T): Unit = {
+  override def publish(elem: T) = {
     val sg = implicitly[Semigroup[T]]
     SowLock.synchronized {
       //      val newSOW = stateOfTheWorld.fold(elem)(_.combine(elem))
@@ -41,10 +41,10 @@ trait SemigroupPublisher[T] extends BasePublisher[T] with SemigroupSyntax {
 
 }
 
-object SemigroupPublisher {
+object ConflatingPublisher {
   def apply[T: Semigroup](mkQueue: () => ConsumerQueue[T]) = {
     val sg = implicitly[Semigroup[T]]
-    new SemigroupPublisher[T] {
+    new ConflatingPublisher[T] {
       override val semigroup = sg
 
       override def newQueue() = mkQueue()
@@ -53,7 +53,7 @@ object SemigroupPublisher {
 
   def apply[T: Semigroup](maxCapacity: Int) = {
     val sg = implicitly[Semigroup[T]]
-    new SemigroupPublisher[T] {
+    new ConflatingPublisher[T] {
       override val semigroup = sg
 
       override def newQueue() = ConsumerQueue(maxCapacity)
@@ -62,7 +62,7 @@ object SemigroupPublisher {
 
   def apply[T: Semigroup](initialValue: Option[T] = None) = {
     val sg = implicitly[Semigroup[T]]
-    new SemigroupPublisher[T] {
+    new ConflatingPublisher[T] {
       override val semigroup = sg
 
       override def newQueue() = ConsumerQueue(initialValue)

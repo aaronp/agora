@@ -5,23 +5,43 @@ import java.lang.reflect.Field
 
 import ch.qos.logback.classic.joran.JoranConfigurator
 import ch.qos.logback.classic.{Level, Logger, LoggerContext}
-import org.slf4j.LoggerFactory
-import org.slf4j.helpers.SubstituteLoggerFactory
+import com.typesafe.scalalogging.StrictLogging
+import org.slf4j.{ILoggerFactory, LoggerFactory}
+import org.slf4j.helpers.{SubstituteLogger, SubstituteLoggerFactory}
 
 import scala.util.Try
 
-object LoggingOps {
+object LoggingOps extends StrictLogging {
+
+  logger.trace("Try to avoid substitution logging in sbt tests... see https://stackoverflow.com/questions/25844441/slf4j-initialization-substitute-loggers")
 
   def context(): Option[LoggerContext] = {
-    LoggerFactory.getILoggerFactory match {
+    val factory: ILoggerFactory = LoggerFactory.getILoggerFactory
+    extractContextFromFactory(factory, 10)
+  }
+  private def extractContextFromFactory(factory: ILoggerFactory, depth: Int): Option[LoggerContext] = {
+    factory match {
       case ctxt: LoggerContext => Option(ctxt)
       case slf: SubstituteLoggerFactory =>
         import scala.collection.JavaConverters._
         val all = slf.getLoggers.asScala.toList
 
-        all.foreach(println)
+        require(depth > 0, s"Couldn't determine logback logger context from $factory")
 
-        None
+        val delegateMethod = classOf[SubstituteLogger].getDeclaredMethod("delegate")
+        if (delegateMethod != null) {
+          delegateMethod.setAccessible(true)
+          val lbCtxt = all.view.flatMap { substituteLogger =>
+            delegateMethod.invoke(substituteLogger) match {
+              case lgr: Logger =>
+                Option(lgr.getLoggerContext).flatMap(extractContextFromFactory(_, depth - 1))
+              case _ => None
+            }
+          }
+          lbCtxt.headOption
+        } else {
+          None
+        }
       case _ => None
     }
   }

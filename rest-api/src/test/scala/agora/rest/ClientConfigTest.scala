@@ -1,13 +1,19 @@
 package agora.rest
 
 import agora.BaseSpec
-import agora.api.exchange.{SelectionFirst, SelectionMode, SubmissionDetails}
+import agora.api.exchange.{SelectionFirst, SelectionMode, SubmissionDetails, WorkMatcher}
 import agora.api.json.{MatchAll, MatchNone}
 import io.circe.optics.JsonPath
 
 import scala.util.Properties
 
 class ClientConfigTest extends BaseSpec {
+  "ClientConfig.load" should {
+    "parse its config" in {
+      val conf = ClientConfig.load()
+      conf.submissionDetails.workMatcher.workerBucket.isEmpty shouldBe true
+    }
+  }
   "ClientConfig.submissionDetailsFromConfig" should {
     import agora.api.Implicits._
     import io.circe.syntax._
@@ -17,7 +23,11 @@ class ClientConfigTest extends BaseSpec {
         conf"""
         details : { }
         awaitMatch : true
-        matcher : match-none
+        workMatcher : {
+          criteria : match-none
+          buckets : []
+          bucketsIncludeMissingValues : false
+        }
         selectionMode : select-first
         orElse : [ ]
         """
@@ -26,7 +36,7 @@ class ClientConfigTest extends BaseSpec {
 
       details.awaitMatch shouldBe true
       details.selection shouldBe SelectionFirst()
-      details.workMatcher shouldBe MatchNone
+      details.workMatcher shouldBe WorkMatcher(MatchNone)
       details.orElse shouldBe empty
       SubmissionDetails.submissionUser.getOption(details.aboutMe) shouldBe Option(Properties.userName)
     }
@@ -43,9 +53,13 @@ class ClientConfigTest extends BaseSpec {
            submissionUser : dave
         }
         awaitMatch : false
-        matcher : ${json}
+        workMatcher : {
+          criteria : ${json}
+          buckets : []
+          bucketsIncludeMissingValues : false
+        }
         selectionMode : {
-           max.parts : [ "machine", "cpus" ]
+           max : [ "machine", "cpus" ]
         }
         orElse : [
           {
@@ -62,8 +76,8 @@ class ClientConfigTest extends BaseSpec {
 
       details.awaitMatch shouldBe false
       details.selection shouldBe mode
-      details.workMatcher shouldBe matcher
-      details.orElse should contain only (MatchAll, MatchNone)
+      details.workMatcher shouldBe WorkMatcher(matcher)
+      details.orElse should contain only (WorkMatcher(MatchAll), WorkMatcher(MatchNone))
       SubmissionDetails.submissionUser.getOption(details.aboutMe) shouldBe Option("dave")
     }
   }

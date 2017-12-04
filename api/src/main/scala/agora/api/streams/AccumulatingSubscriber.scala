@@ -1,6 +1,9 @@
 package agora.api.streams
 
-abstract class AccumulatingSubscriber[S, T](initialRequest: Long, initialState: S) extends BaseSubscriber[T](initialRequest: Long) {
+/**
+  * A subscriber which acts like a fold
+  */
+abstract class AccumulatingSubscriber[T, S](initialState: S) extends BaseSubscriber[T] {
 
   @volatile protected var state = initialState
 

@@ -71,7 +71,7 @@ class ExchangeRoutesTest extends BaseRoutesSpec {
       }
 
       val QueueStateResponse(Nil, List(PendingSubscription("testing", subscription, 0))) =
-        routeUnderTest.exchange.queueState(QueueState(workerSubscriptionMatcher = "id" === "testing")).futureValue
+        routeUnderTest.exchange.queueState(QueueState(workerSubscriptionMatcher = "_subscriptionKey" === "testing")).futureValue
 
       verifyUpdatedJson(subscription.details.aboutMe)
     }

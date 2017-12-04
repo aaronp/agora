@@ -100,7 +100,7 @@ case class JField(name: String) extends JPart
 case class JPos(pos: Int) extends JPart
 
 /**
-  * Represents a json value within an array
+  * Represents a json value within an array which matches the 'arrayFind' predicate
   *
   * @param arrayFind the value to find within an array
   */

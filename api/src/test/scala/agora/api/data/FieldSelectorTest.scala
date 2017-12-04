@@ -1,4 +1,4 @@
-package agora.api.streams
+package agora.api.data
 
 import agora.BaseSpec
 import io.circe.Json

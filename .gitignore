@@ -1,5 +1,5 @@
 target
-data
+./data
 *.gz
 *.log
 .DS_Store

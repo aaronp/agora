@@ -1,19 +1,33 @@
 package agora.api.exchange
 
 import agora.api._
-import _root_.io.circe._
-import agora.api.`match`.MatchDetails
 import agora.api.exchange.dsl.JobSyntax
 import agora.api.exchange.instances.{ExchangeInstance, ExchangeState}
 import agora.api.exchange.observer.{ExchangeObserver, ExchangeObserverDelegate}
-import agora.api.json.{JPath, JPredicate, MatchAll}
-import agora.api.worker.{SubscriptionKey, WorkerDetails, WorkerRedirectCoords}
+import agora.api.worker.SubscriptionKey
 
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
-  * An exchange supports both 'client' requests (e.g. offering and cancelling work to be done)
-  * and work subscriptions
+  * The exchange is where 'SubmitJob' elements are enqueued and matched against [[WorkSubscription]]s requesting work.
+  *
+  * On each job enqueued or work subscription created (or updated), we check each for a 'match' and notify
+  * an observer that we've crossed work w/ a work subscription.
+  *
+  * Both the job and the work subscription contain opaque blocks of data which the other can match by specifying
+  * some kind of criteria. It's only when the work subscription matches the job AND the job matches a work subscription
+  * that we consider a match successful.
+  *
+  * Also, any number of work subscriptions can match a job, and so it's the [[SubmissionDetails]] selection which decides
+  * which workers to choose (first, all, based on some criteria, etc).
+  *
+  * Also of note is that work subscriptions pull work -- they each have some concept of a number of work items requested
+  * as per reactive streams. When a match is successful, the exchange will decrement the requested work before notifying
+  * of the match. By doing this eagerly in the exchange we get around the problem of complicated handshakes between
+  * the thing submitting the job and the worker requesting the work (e.g. having to lock/ack/etc).
+  *
+  * It is the responsibility of the [[ExchangeObserver]] to do something with the matched work -- the exchange is
+  * simply the mechanism for matching up enqueued [[SubmitJob]] requests with [[WorkSubscription]]s.
   */
 trait Exchange extends JobSyntax {
 
@@ -83,9 +97,10 @@ trait Exchange extends JobSyntax {
 
   /**
     * Convenience method to subscribe and immediately request work items
+    *
     * @param workSubscription the work subscription
-    * @param initialRequest the number of work items to request
-    * @param ec the execution context
+    * @param initialRequest   the number of work items to request
+    * @param ec               the execution context
     * @return a tuple of the subscribe ack and request ack
     */
   def subscribe(workSubscription: WorkSubscription, initialRequest: Int)(implicit ec: ExecutionContext): Future[(WorkSubscriptionAck, RequestWorkAck)] = {
@@ -166,7 +181,7 @@ object Exchange {
     * Creates a new, in-memory exchange with the given job/worker match notifier
     *
     * @param observer the observer notified when a job is paired with a worker subscription
-    * @param matcher the match logic used to pair work with subscriptions
+    * @param matcher  the match logic used to pair work with subscriptions
     * @return a new Exchange instance
     */
   def apply(observer: ExchangeObserver)(implicit matcher: JobPredicate = JobPredicate()) =

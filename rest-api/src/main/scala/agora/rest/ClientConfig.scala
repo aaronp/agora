@@ -2,7 +2,7 @@ package agora.rest
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import agora.api.exchange.{SelectionMode, SubmissionDetails}
+import agora.api.exchange.{SelectionMode, SubmissionDetails, WorkMatcher}
 import agora.api.json.JPredicate
 import agora.api.worker.HostLocation
 import agora.rest.client._
@@ -117,7 +117,7 @@ class ClientConfig(config: Config) extends AutoCloseable {
 
 object ClientConfig {
 
-  def load() = new ClientConfig(ConfigFactory.load("client.conf"))
+  def load() = new ClientConfig(ConfigFactory.load("client.conf").getConfig("client"))
 
   def asLocation(uri: Uri): HostLocation = {
     val addresses = uri.authority.host.inetAddresses.toList
@@ -126,34 +126,16 @@ object ClientConfig {
   }
 
   def submissionDetailsFromConfig(config: Config): SubmissionDetails = {
-    import SubscriptionConfig.asJson
+    import agora.api.config.JsonConfig._
+    import agora.api.config.JsonConfig.implicits._
 
     import scala.collection.JavaConverters._
 
-    def as[T: Decoder](key: String): T = {
-      val json = try {
-        asJson(config.getConfig(key))
-      } catch {
-        case _: ConfigException.WrongType =>
-          Json.fromString(config.getString(key))
-      }
+    val details     = asJson(config.getConfig("details"))
+    val awaitMatch  = config.getBoolean("awaitMatch")
+    val workMatcher = WorkMatcher.fromConfig(config.getConfig("workMatcher"))
 
-      cast(json, key)
-    }
-
-    def cast[T: Decoder](json: Json, key: String): T = {
-      json.as[T] match {
-        case Right(m) => m
-        case Left(err) => {
-          sys.error(s"Couldn't parse the client subscription '$key' $json : $err")
-        }
-      }
-    }
-
-    val details    = asJson(config.getConfig("details"))
-    val awaitMatch = config.getBoolean("awaitMatch")
-    val matcher    = as[JPredicate]("matcher")
-    val mode       = as[SelectionMode]("selectionMode")
+    val mode = config.as[SelectionMode]("selectionMode")
     val orElse = config.getConfigList("orElse").asScala.toList.map { c =>
       val json = try {
         asJson(c.getConfig("match"))
@@ -161,8 +143,9 @@ object ClientConfig {
         case _: ConfigException.WrongType =>
           Json.fromString(c.getString("match"))
       }
-      cast[JPredicate](json, "orElse")
+      val criteria = cast[JPredicate](json, "orElse")
+      WorkMatcher(criteria)
     }
-    SubmissionDetails(Properties.userName, mode, awaitMatch, matcher, orElse).append(details)
+    SubmissionDetails(Properties.userName, mode, awaitMatch, workMatcher, orElse).append(details)
   }
 }

@@ -2,7 +2,6 @@ package agora.exec.test
 
 import java.util.UUID
 
-import agora.{BaseIOSpec, BaseSpec}
 import agora.api.exchange.PendingSubscription
 import agora.exec.ExecConfig
 import agora.exec.client.RemoteRunner
@@ -11,6 +10,7 @@ import agora.exec.rest.ExecutionRoutes
 import agora.rest.client.{AkkaClient, RestClient, RetryClient}
 import agora.rest.logging.LoggingOps
 import agora.rest.{HasMaterializer, RunningService}
+import agora.{BaseIOSpec, BaseSpec}
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 
@@ -38,11 +38,11 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
         }
       }
     }
-//
-//    "be able to execute simple commands against a running server" in {
-//      val result = client.stream("echo", "this", "is", "a", "test").futureValue.output
-//      result.mkString("") shouldBe "this is a test"
-//    }
+    //
+    //    "be able to execute simple commands against a running server" in {
+    //      val result = client.stream("echo", "this", "is", "a", "test").futureValue.output
+    //      result.mkString("") shouldBe "this is a test"
+    //    }
   }
 
   /**
@@ -73,6 +73,7 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
             }
 
         }
+      case other => sys.error(s"Not using logback: $other")
     }
   }
 

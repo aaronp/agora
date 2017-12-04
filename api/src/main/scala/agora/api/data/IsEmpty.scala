@@ -1,5 +1,6 @@
-package agora.api.streams
+package agora.api.data
 
+import agora.api.json.JsonDiff
 import io.circe.Json
 
 trait IsEmpty[T] {
@@ -19,7 +20,12 @@ object IsEmpty {
   }
   implicit object JsonIsEmpty extends IsEmpty[Json] {
     override def isEmpty(value: Json): Boolean = {
-      value.isNull || value.hcursor.downField("deltas").values.exists(_.isEmpty)
+      value.isNull || !value.hcursor.downField("deltas").values.exists(_.nonEmpty)
+    }
+  }
+  implicit object JsonDiffIsEmpty extends IsEmpty[JsonDiff] {
+    override def isEmpty(diff: JsonDiff): Boolean = {
+      diff.deltas.isEmpty
     }
   }
 }

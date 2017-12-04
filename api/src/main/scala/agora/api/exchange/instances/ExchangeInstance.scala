@@ -7,7 +7,8 @@ import scala.concurrent.Future
 import scala.util.Try
 
 /**
-  * A default, ephemeral, non-thread-safe implementation of an exchange
+  * A default, ephemeral, non-thread-safe implementation of an exchange.
+  *
   *
   */
 class ExchangeInstance(initialState: ExchangeState)(implicit matcher: JobPredicate) extends Exchange {

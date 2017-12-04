@@ -112,7 +112,8 @@ case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes
     val startFuture =
       RunningService.start[ExecConfig, ExecutionRoutes](conf, restRoutes(uploadRoutes), executionRoutes)
 
-    eventMonitor.accept(StartedSystem(SubscriptionConfig.asJson(conf.config)))
+    import agora.api.config.JsonConfig.implicits._
+    eventMonitor.accept(StartedSystem(conf.config.configAsJson))
 
     for {
       rs: RunningService[ExecConfig, ExecutionRoutes] <- startFuture

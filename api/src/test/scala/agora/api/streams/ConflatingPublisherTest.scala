@@ -4,10 +4,10 @@ import agora.BaseSpec
 import cats.instances.int._
 import org.scalatest.concurrent.Eventually
 
-class SemigroupPublisherTest extends BaseSpec with Eventually {
-  "SemigroupPublisher.subscribe" should {
+class ConflatingPublisherTest extends BaseSpec with Eventually {
+  "ConflatingPublisher.subscribe" should {
     "not receive elements once cancelled" in {
-      val pub = SemigroupPublisher[Int](3)
+      val pub = ConflatingPublisher[Int](3)
 
       object Consume extends ListSubscriber[Int]
 
@@ -26,7 +26,7 @@ class SemigroupPublisherTest extends BaseSpec with Eventually {
       Consume.received() shouldBe List(1)
     }
     "notify elements as soon as they are published when elements are already requested" in {
-      val pub = SemigroupPublisher[Int](3)
+      val pub = ConflatingPublisher[Int](3)
 
       object Consume extends ListSubscriber[Int]
 
@@ -47,7 +47,7 @@ class SemigroupPublisherTest extends BaseSpec with Eventually {
       }
     }
     "not notify until elements are requested" in {
-      val pub = SemigroupPublisher[Int](3)
+      val pub = ConflatingPublisher[Int](3)
 
       object Consume extends ListSubscriber[Int]
 
@@ -60,7 +60,7 @@ class SemigroupPublisherTest extends BaseSpec with Eventually {
       Consume.received shouldBe List(1)
     }
     "notify new subscriptions with the state-of-the-world when they first subscribe" in {
-      val pub = SemigroupPublisher[Int](3)
+      val pub = ConflatingPublisher[Int](3)
       // start off w/ a couple already published (to nobody)
       pub.publish(1)
       pub.publish(2)

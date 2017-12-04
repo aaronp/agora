@@ -11,7 +11,9 @@ sealed trait ClientSubscriptionMessage
 
 case class TakeNext(take: Long) extends ClientSubscriptionMessage
 
-case object Cancel extends ClientSubscriptionMessage
+case object Cancel extends ClientSubscriptionMessage {
+  def jsonRepr = Json.fromString("cancel")
+}
 
 object ClientSubscriptionMessage {
   def unapply(json: String): Option[ClientSubscriptionMessage] = {
@@ -34,7 +36,7 @@ object ClientSubscriptionMessage {
 
   implicit object JsonEncoder extends Encoder[ClientSubscriptionMessage] {
     override def apply(a: ClientSubscriptionMessage): Json = a match {
-      case Cancel        => Json.fromString("cancel")
+      case Cancel        => Cancel.jsonRepr
       case msg: TakeNext => implicitly[Encoder[TakeNext]].apply(msg)
     }
   }

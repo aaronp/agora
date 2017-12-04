@@ -20,6 +20,7 @@ trait ConsumerQueue[T] {
 
   /**
     * request more -- this will trigger a check and return the 'more'
+    *
     * @param n the additional n to request
     * @return the maximum ready elements to
     */
@@ -27,10 +28,13 @@ trait ConsumerQueue[T] {
 
   /**
     * push a value on to the queue
+    *
     * @param value
     * @return the values now ready to publish to the subscription
     */
   def offer(value: T): List[T]
+
+  def requested(): Long
 }
 
 object ConsumerQueue {
@@ -45,48 +49,62 @@ object ConsumerQueue {
 
     import cats.syntax.semigroup._
 
-    @volatile private var requested = 0L
-    var currentValue: Option[T]     = initialValue
+    @volatile private var currentRequested = 0L
+    private var previousValue: Option[T]   = initialValue
+    private var currentValue: Option[T]    = initialValue
 
     private object Lock
 
-    private def nextResult() = {
-      if (requested > 0) {
+    override def request(n: Long): List[T] = Lock.synchronized {
+      val newRequested = currentRequested + n
+      if (newRequested > 0 && currentValue.nonEmpty) {
+        currentRequested = newRequested - 1
+        val list = currentValue.toList
+        currentValue = None
+        list
+      } else {
+        currentRequested = newRequested
+        Nil
+      }
+    }
+
+    override def offer(value: T): List[T] = Lock.synchronized {
+      previousValue = previousValue match {
+        case None => Option(value)
+        case Some(old) =>
+          val newValue = old.combine(value)
+          Option(newValue)
+      }
+      currentValue = previousValue
+      if (currentRequested > 0) {
+        currentRequested = (currentRequested - 1).max(0)
         currentValue.toList
       } else {
         Nil
       }
     }
 
-    override def request(n: Long): List[T] = Lock.synchronized {
-      requested = requested + n
-      nextResult()
-    }
+    override def requested(): Long = currentRequested
 
-    override def offer(value: T): List[T] = Lock.synchronized {
-      currentValue match {
-        case None    => Option(value)
-        case Some(v) => Option(v.combine(value))
-      }
-      nextResult()
-    }
   }
 
   class Instance[T](queue: jQueue[T]) extends ConsumerQueue[T] with StrictLogging {
 
     private object Lock
 
-    @volatile private var requested = 0L
+    @volatile private var currentRequested = 0L
 
     def request(n: Long): List[T] = {
-      drain(requested + n)
+      drain(currentRequested + n)
     }
+
+    override def requested(): Long = currentRequested
 
     def offer(value: T): List[T] = {
       Lock.synchronized {
         queue.add(value)
-        if (requested > 0) {
-          drain(requested)
+        if (currentRequested > 0) {
+          drain(currentRequested)
         } else {
           Nil
         }
@@ -103,7 +121,7 @@ object ConsumerQueue {
         values += next
         next = queue.poll()
       }
-      requested = i
+      currentRequested = i
       values.toList
     }
   }

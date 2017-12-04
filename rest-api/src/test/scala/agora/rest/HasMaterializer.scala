@@ -1,43 +1,43 @@
 package agora.rest
 
-import agora.rest.HasMaterializer.{getClass, systemConf}
 import akka.actor.ActorSystem
-import akka.stream.{ActorMaterializer, Materializer}
+import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.concurrent.ScalaFutures
 
 import scala.concurrent.ExecutionContext
-import scala.util.Try
 
-trait HasMaterializer extends BeforeAndAfterAll { this: org.scalatest.BeforeAndAfterAll with org.scalatest.Suite =>
+trait HasMaterializer extends BeforeAndAfterAll with ScalaFutures { this: org.scalatest.BeforeAndAfterAll with org.scalatest.Suite =>
 
   implicit def execContext: ExecutionContext = materializer.executionContext
 
-//  implicit def system: ActorSystem = HasMaterializer.testSystem
-
-//  implicit def materializer: Materializer = HasMaterializer.materializer
+  private var systemCreated       = false
+  private var materializerCreated = false
 
   implicit lazy val system: ActorSystem = {
+    systemCreated = true
     ActorSystem(getClass.getSimpleName.filter(_.isLetter), HasMaterializer.systemConf).ensuring(_.settings.Daemonicity)
   }
+
   implicit lazy val materializer: ActorMaterializer = {
+    materializerCreated = true
     ActorMaterializer()(system)
   }
 
   override protected def afterAll(): Unit = {
+    if (materializerCreated) {
+      materializer.shutdown()
+    }
+    if (systemCreated) {
+      system.terminate().futureValue
+    }
     super.afterAll()
   }
+
 }
 
 object HasMaterializer {
 
   lazy val systemConf = ConfigFactory.load("test-system")
-//  private[this] def systemConf = ConfigFactory.load("test-system")
-//
-//  private lazy val testSystem: ActorSystem = {
-//    ActorSystem(getClass.getSimpleName.filter(_.isLetter), systemConf).ensuring(_.settings.Daemonicity)
-//  }
-//  private lazy val materializer: ActorMaterializer = {
-//    ActorMaterializer()(testSystem)
-//  }
 }

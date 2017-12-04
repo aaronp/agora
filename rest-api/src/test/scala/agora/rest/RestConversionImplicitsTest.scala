@@ -33,15 +33,12 @@ class RestConversionImplicitsTest extends BaseSpec with RestConversionImplicits 
       import io.circe.generic.auto._
       implicit val clientConf: ClientConfig = ClientConfig.load()
 
-//      import agora.api.Implicits._
-
       val tem: ToEntityMarshaller[SomeCustomDto]       = implicitly[ToEntityMarshaller[SomeCustomDto]]
       val fem: FromEntityUnmarshaller[SomeResponseDto] = implicitly[FromEntityUnmarshaller[SomeResponseDto]]
       val m                                            = implicitly[Materializer]
       val ac2: AsClient[SomeCustomDto, SomeResponseDto] =
         asInferredClient[SomeCustomDto, SomeResponseDto](clientConf, m, tem, fem)
 
-//      val ops: ClientConfigOps  = clientConf
       val ops1: ClientConfigOps = asConfigOps(clientConf)
 
       val t: AsClient[SomeCustomDto, SomeResponseDto] = ops1.typed[SomeCustomDto, SomeResponseDto]
