@@ -36,6 +36,9 @@ case class JPath(path: List[JPart]) {
     */
   def apply(json: Json): Option[Json] = selectValue(json)
 
+  /** @param json
+    * @return the json value designated by this path. If you want to include
+    */
   def selectValue(json: Json): Option[Json] = JPath.select(path, json.hcursor).focus
 
   /** like selectValue, but the json include the path

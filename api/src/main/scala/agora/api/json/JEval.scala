@@ -10,33 +10,33 @@ object NumOp {
   implicit object NumOpJsonFormat extends Encoder[NumOp] with Decoder[NumOp] {
     override def apply(op: NumOp): Json = {
       op match {
-        case AddOp => Json.fromString("+")
+        case AddOp       => Json.fromString("+")
         case SubstractOp => Json.fromString("-")
-        case MultiplyOp => Json.fromString("*")
-        case DivideOp => Json.fromString("/")
-        case ModuloOp => Json.fromString("%")
+        case MultiplyOp  => Json.fromString("*")
+        case DivideOp    => Json.fromString("/")
+        case ModuloOp    => Json.fromString("%")
       }
     }
 
     override def apply(c: HCursor): Result[NumOp] = {
       c.as[String].flatMap {
-        case "+" => Right(AddOp)
-        case "-" => Right(SubstractOp)
-        case "*" => Right(MultiplyOp)
-        case "/" => Right(DivideOp)
-        case "%" => Right(ModuloOp)
+        case "+"   => Right(AddOp)
+        case "-"   => Right(SubstractOp)
+        case "*"   => Right(MultiplyOp)
+        case "/"   => Right(DivideOp)
+        case "%"   => Right(ModuloOp)
         case other => Left(DecodingFailure(s"Expected one of +, -, *, / or %, but got $other", c.history))
       }
     }
   }
 }
 
-abstract class JEvalImpl() extends NumOp {
+abstract class JEvalImpl() {
   def calculateLong(lhs: Long, rhs: Long): Long
 
-  def calculateBigDecimal(lhs: BigDecimal, rhs: BigDecimal: BigDecimal
+  def calculateBigDecimal(lhs: BigDecimal, rhs: BigDecimal): BigDecimal
 
-  override def eval(lhsNum: JsonNumber, rhsNum: JsonNumber): Option[Json] = {
+  def eval(lhsNum: JsonNumber, rhsNum: JsonNumber): Option[Json] = {
     (lhsNum.toLong, rhsNum.toLong) match {
       case (Some(n1), Some(n2)) =>
         Option(Json.fromLong(calculateLong(n1, n2)))
@@ -50,30 +50,30 @@ abstract class JEvalImpl() extends NumOp {
   }
 }
 
-case object ModuloOp extends JEvalImpl {
+case object ModuloOp extends JEvalImpl with NumOp {
   override def calculateLong(lhs: Long, rhs: Long): Long = lhs % rhs
 
   override def calculateBigDecimal(lhs: BigDecimal, rhs: BigDecimal): BigDecimal = lhs % rhs
 }
-case object DivideOp extends JEvalImpl {
+case object DivideOp extends JEvalImpl with NumOp {
   override def calculateLong(lhs: Long, rhs: Long): Long = lhs / rhs
 
   override def calculateBigDecimal(lhs: BigDecimal, rhs: BigDecimal): BigDecimal = lhs / rhs
 }
 
-case object MultiplyOp extends JEvalImpl {
+case object MultiplyOp extends JEvalImpl with NumOp {
   override def calculateLong(lhs: Long, rhs: Long): Long = lhs * rhs
 
   override def calculateBigDecimal(lhs: BigDecimal, rhs: BigDecimal): BigDecimal = lhs * rhs
 }
 
-case object SubstractOp extends JEvalImpl {
+case object SubstractOp extends JEvalImpl with NumOp {
   override def calculateLong(lhs: Long, rhs: Long): Long = lhs - rhs
 
   override def calculateBigDecimal(lhs: BigDecimal, rhs: BigDecimal): BigDecimal = lhs - rhs
 }
 
-case object AddOp extends JEvalImpl {
+case object AddOp extends JEvalImpl with NumOp {
   override def calculateLong(lhs: Long, rhs: Long): Long = lhs + rhs
 
   override def calculateBigDecimal(lhs: BigDecimal, rhs: BigDecimal): BigDecimal = lhs + rhs
@@ -94,7 +94,7 @@ object StrOp {
     override def apply(c: HCursor): Result[StrOp] = {
       c.as[String].flatMap {
         case "concat" => Right(ConcatString)
-        case other => Left(DecodingFailure(s"Expected one of 'concat', but got $other", c.history))
+        case other    => Left(DecodingFailure(s"Expected one of 'concat', but got $other", c.history))
       }
     }
   }
@@ -108,24 +108,32 @@ sealed trait JExpression {
 }
 object JExpression {
 
-  def apply(path : JPath) = JPathExpression(path)
-  def apply(result: Json) = JConstantExpression(Option(result))
+  def apply(path: JPath)          = JPathExpression(path)
+  def apply(result: Json)         = JConstantExpression(Option(result))
   def apply(result: Option[Json]) = JConstantExpression(result)
 
-  class JExpressionOps(exp : JExpression) {
-    def add(other : JExpression) = JNumericExpression(exp, other, AddOp)
-    def +(other : JExpression) = JNumericExpression(exp, other, AddOp)
-    def subtract(other : JExpression) = JNumericExpression(exp, other, SubstractOp)
-    def -(other : JExpression) = JNumericExpression(exp, other, SubstractOp)
-    def multiply(other : JExpression) = JNumericExpression(exp, other, MultiplyOp)
-    def *(other : JExpression) = JNumericExpression(exp, other, MultiplyOp)
-    def divide(other : JExpression) = JNumericExpression(exp, other, DivideOp)
-    def /(other : JExpression) = JNumericExpression(exp, other, DivideOp)
-    def modulo(other : JExpression) = JNumericExpression(exp, other, ModuloOp)
-    def %(other : JExpression) = JNumericExpression(exp, other, ModuloOp)
+  class JExpressionOps(exp: JExpression) {
+    def add(other: JExpression)      = JNumericExpression(exp, other, AddOp)
+    def +(other: JExpression)        = JNumericExpression(exp, other, AddOp)
+    def subtract(other: JExpression) = JNumericExpression(exp, other, SubstractOp)
+    def -(other: JExpression)        = JNumericExpression(exp, other, SubstractOp)
+    def multiply(other: JExpression) = JNumericExpression(exp, other, MultiplyOp)
+    def *(other: JExpression)        = JNumericExpression(exp, other, MultiplyOp)
+    def divide(other: JExpression)   = JNumericExpression(exp, other, DivideOp)
+    def /(other: JExpression)        = JNumericExpression(exp, other, DivideOp)
+    def modulo(other: JExpression)   = JNumericExpression(exp, other, ModuloOp)
+    def %(other: JExpression)        = JNumericExpression(exp, other, ModuloOp)
+    def merge(other: JExpression)    = JMergeExpression(exp, other)
+    def concat(other: JExpression)   = JStringExpression(exp, other, ConcatString)
   }
   trait LowPriorityJExpressionImplicits {
-    implicit def asExpressionOpt(exp : JExpression) = new JExpressionOps(exp)
+    implicit def asExpressionOps(exp: JExpression) = new JExpressionOps(exp)
+    implicit def asJPathOps(exp: JPath) = new {
+      def asExpression = JPathExpression(exp)
+    }
+    implicit def asJsonOps(json: Json) = new {
+      def asExpression = JExpression(json)
+    }
   }
   object implicits extends LowPriorityJExpressionImplicits
 
@@ -141,21 +149,29 @@ object JExpression {
 }
 
 case class JPathExpression(path: JPath) extends JExpression {
-  override def eval(json: Json): Option[Json] = path.selectJson(json)
+  override def eval(json: Json): Option[Json] = path.selectValue(json)
 }
 
 case class JConstantExpression(result: Option[Json]) extends JExpression {
   override def eval(json: Json): Option[Json] = result
 }
 
+case class JMergeExpression(lhs: JExpression, rhs: JExpression) extends JExpression {
+  override def eval(json: Json) = {
+    for {
+      lhsValue <- lhs.eval(json)
+      rhsValue <- rhs.eval(json)
+    } yield deepMergeWithArrayConcat(lhsValue, rhsValue)
+  }
+}
 case class JStringExpression(lhs: JExpression, rhs: JExpression, op: StrOp) extends JExpression {
   override def eval(json: Json) = {
     for {
       lhsValue <- lhs.eval(json)
       rhsValue <- rhs.eval(json)
-      lhsStr <- lhsValue.asString
-      rhsStr <- rhsValue.asString
-      value <- op.eval(lhsStr, rhsStr)
+      lhsStr   <- lhsValue.asString
+      rhsStr   <- rhsValue.asString
+      value    <- op.eval(lhsStr, rhsStr)
     } yield value
   }
 }
@@ -166,9 +182,9 @@ case class JNumericExpression(lhs: JExpression, rhs: JExpression, op: NumOp) ext
     for {
       lhsValue <- lhs.eval(json)
       rhsValue <- rhs.eval(json)
-      lhsNum <- lhsValue.asNumber
-      rhsNum <- rhsValue.asNumber
-      value <- op.eval(lhsNum, rhsNum)
+      lhsNum   <- lhsValue.asNumber
+      rhsNum   <- rhsValue.asNumber
+      value    <- op.eval(lhsNum, rhsNum)
     } yield value
   }
 }
