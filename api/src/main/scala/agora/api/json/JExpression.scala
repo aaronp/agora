@@ -197,8 +197,8 @@ object JExpression {
 
 }
 
-case class JPathExpression(select: JPath) extends JExpression {
-  override def eval(json: Json): Option[Json] = select.selectValue(json)
+case class JPathExpression(selectPath: JPath) extends JExpression {
+  override def eval(json: Json): Option[Json] = selectPath.selectValue(json)
 }
 
 case class JConstantExpression(const: Option[Json]) extends JExpression {
@@ -254,8 +254,8 @@ object JStringExpression {
     }
 
     override def apply(c: HCursor): Result[JStringExpression] = {
-      c.downField("concat").downField("lhs").as[JStringExpression].right.flatMap { lhsExpr =>
-        c.downField("concat").downField("rhs").as[JStringExpression].right.map { rhs =>
+      c.downField("concat").downField("lhs").as[JExpression].right.flatMap { lhsExpr =>
+        c.downField("concat").downField("rhs").as[JExpression].right.map { rhs =>
           JStringExpression(lhsExpr, rhs, ConcatString)
         }
       }

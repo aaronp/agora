@@ -23,17 +23,26 @@ import scala.util.Properties
   * @param workMatcher the json criteria used to match work subscriptions
   * @param orElse      should the 'workMatcher' not match _any_ current work subscriptions, the [[SubmitJob]] is resubmitted with the 'orElse' criteria
   */
-case class SubmissionDetails(override val aboutMe: Json, selection: SelectionMode, awaitMatch: Boolean, workMatcher: WorkMatcher, orElse: List[WorkMatcher])
-    extends JsonAppendable {
+// format: off
+case class SubmissionDetails(
+                              override val aboutMe: Json,
+                              selection: SelectionMode,
+                              awaitMatch: Boolean,
+                              workMatcher: WorkMatcher,
+                              orElse: List[WorkMatcher])
+  extends JsonAppendable {
+  // format: on
 
   def matchingPath(path: String): SubmissionDetails = copy(workMatcher = workMatcher.matchingPath(path))
 
   def withSelection(mode: SelectionMode) = copy(selection = mode)
 
   def withBucket(bucket: WorkerMatchBucket): SubmissionDetails = copy(workMatcher = workMatcher.withBucket(bucket))
+
   def withJobBuckets(buckets: JobBucket*): SubmissionDetails = {
     withBucket(WorkerMatchBucket(buckets.toList))
   }
+
   def withBuckets(buckets: (JPath, Json)*): SubmissionDetails = {
     val jobBuckets = buckets.map {
       case (path, json) => JobBucket(BucketKey(path, false), json)

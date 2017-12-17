@@ -3,6 +3,7 @@ package agora.api.json
 import agora.BaseSpec
 import agora.api.json.JExpression.implicits._
 import io.circe.Json
+import io.circe.syntax._
 
 class JExpressionTest extends BaseSpec {
   "JExpression" should {
@@ -18,8 +19,8 @@ class JExpressionTest extends BaseSpec {
       JStringExpression(Json.fromString("x").asExpression, Json.fromString("y").asExpression, ConcatString)
     ).foreach { expected =>
       s"marshal ${expected} to/from json" in {
-        import io.circe.syntax._
         val json = expected.asJson
+        println(json)
         json.as[JExpression] shouldBe Right(expected)
       }
     }

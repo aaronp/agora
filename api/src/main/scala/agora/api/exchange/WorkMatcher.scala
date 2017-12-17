@@ -9,7 +9,14 @@ import com.typesafe.config.Config
 import io.circe.generic.auto._
 import io.circe.parser._
 
-case class WorkMatcher(criteria: JPredicate, workerBucket: WorkerMatchBucket = WorkerMatchBucket.Empty) {
+/**
+  * Contains details pertaining to a [[SubmitJob]] matching a [[WorkSubscription]].
+  *
+  * @param criteria     the match criteria to evaluate against each worker's [[agora.api.worker.WorkerDetails]]
+  * @param workerBucket a performance measure - a means to group work submissions into 'buckets' based on data obtained by some [[agora.api.json.JPath]]s so that we only need to evaluate eligible buckets instead of *all* work subscriptions
+  * @param onMatchUpdate an action used to update the [[agora.api.worker.WorkerDetails]] of matched workers
+  */
+case class WorkMatcher(criteria: JPredicate, workerBucket: WorkerMatchBucket = WorkerMatchBucket.Empty, onMatchUpdate: List[OnMatchUpdateAction] = Nil) {
 
   def matchingPath(path: String) = copy(criteria = criteria.and("path" === path))
 
