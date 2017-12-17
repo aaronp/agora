@@ -5,6 +5,25 @@ import agora.api.json.JExpression.implicits._
 import io.circe.Json
 
 class JExpressionTest extends BaseSpec {
+  "JExpression" should {
+    List[JExpression](
+      JConstantExpression(Option(json"""{"x" : "y"}""")),
+      JMergeExpression(json"""{"x1" : "y1"}""".asExpression, json"""{"x2" : "y2"}""".asExpression),
+      JNumericExpression(Json.fromInt(1).asExpression, Json.fromInt(2).asExpression, DivideOp),
+      JNumericExpression(Json.fromInt(1).asExpression, Json.fromInt(2).asExpression, AddOp),
+      JNumericExpression(Json.fromInt(1).asExpression, Json.fromInt(2).asExpression, MultiplyOp),
+      JNumericExpression(Json.fromInt(1).asExpression, Json.fromInt(2).asExpression, SubstractOp),
+      JNumericExpression(Json.fromInt(1).asExpression, Json.fromInt(2).asExpression, ModuloOp),
+      JPathExpression(JPath("hi")),
+      JStringExpression(Json.fromString("x").asExpression, Json.fromString("y").asExpression, ConcatString)
+    ).foreach { expected =>
+      s"marshal ${expected} to/from json" in {
+        import io.circe.syntax._
+        val json = expected.asJson
+        json.as[JExpression] shouldBe Right(expected)
+      }
+    }
+  }
   "JPathExpression" should {
     "select the json at the given jpath" in {
       val path = JPath("foo", "bar").asExpression
@@ -24,10 +43,8 @@ class JExpressionTest extends BaseSpec {
 
       val Some(merged) = expr.eval(json"""{ "foo" : { "bar" : { "original" : true} } }""")
       merged shouldBe
-        json"""{
-                            "meh" : 123,
-                            "original" : true
-                          } """
+        json"""{ "meh" : 123,
+                 "original" : true } """
     }
   }
   "JStringExpression" should {
@@ -58,14 +75,14 @@ class JExpressionTest extends BaseSpec {
     }
     "be able to multiply" in {
       (intPath * intPath).eval(jsonDoc) shouldBe Some(Json.fromInt(123 * 123))
-      (intPath * doublePath).eval(jsonDoc) shouldBe Some(Json.fromDouble(123 * 123.456D))
+      (intPath * doublePath).eval(jsonDoc) shouldBe Json.fromDouble(123 * 123.456D)
     }
     "be able to divide" in {
       (intPath / doublePath).eval(jsonDoc) shouldBe Some(Json.fromBigDecimal(BigDecimal(123) / 123.456D))
-      (intPath / intPath).eval(jsonDoc) shouldBe Some(Json.fromDouble(1))
+      (intPath / intPath).eval(jsonDoc) shouldBe Json.fromDouble(1)
     }
     "be able to moduloificate" in {
-      (longPath % intPath).eval(jsonDoc) shouldBe Some(Json.fromDouble(3223372036854775807L % 123))
+      (longPath % intPath).eval(jsonDoc) shouldBe Json.fromDouble(3223372036854775807L % 123)
     }
   }
 }
