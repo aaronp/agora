@@ -42,7 +42,7 @@ object NumOp {
 
 }
 
-abstract class JEvalImpl(val symbol: Symbol) {
+abstract class BaseNumOp(val symbol: Symbol) {
   def calculateLong(lhs: Long, rhs: Long): Long
 
   def calculateBigDecimal(lhs: BigDecimal, rhs: BigDecimal): BigDecimal
@@ -61,31 +61,31 @@ abstract class JEvalImpl(val symbol: Symbol) {
   }
 }
 
-case object ModuloOp extends JEvalImpl('%) with NumOp {
+case object ModuloOp extends BaseNumOp('%) with NumOp {
   override def calculateLong(lhs: Long, rhs: Long): Long = lhs % rhs
 
   override def calculateBigDecimal(lhs: BigDecimal, rhs: BigDecimal): BigDecimal = lhs % rhs
 }
 
-case object DivideOp extends JEvalImpl('/) with NumOp {
+case object DivideOp extends BaseNumOp('/) with NumOp {
   override def calculateLong(lhs: Long, rhs: Long): Long = lhs / rhs
 
   override def calculateBigDecimal(lhs: BigDecimal, rhs: BigDecimal): BigDecimal = lhs / rhs
 }
 
-case object MultiplyOp extends JEvalImpl('*) with NumOp {
+case object MultiplyOp extends BaseNumOp('*) with NumOp {
   override def calculateLong(lhs: Long, rhs: Long): Long = lhs * rhs
 
   override def calculateBigDecimal(lhs: BigDecimal, rhs: BigDecimal): BigDecimal = lhs * rhs
 }
 
-case object SubstractOp extends JEvalImpl('-) with NumOp {
+case object SubstractOp extends BaseNumOp('-) with NumOp {
   override def calculateLong(lhs: Long, rhs: Long): Long = lhs - rhs
 
   override def calculateBigDecimal(lhs: BigDecimal, rhs: BigDecimal): BigDecimal = lhs - rhs
 }
 
-case object AddOp extends JEvalImpl('+) with NumOp {
+case object AddOp extends BaseNumOp('+) with NumOp {
   override def calculateLong(lhs: Long, rhs: Long): Long = lhs + rhs
 
   override def calculateBigDecimal(lhs: BigDecimal, rhs: BigDecimal): BigDecimal = lhs + rhs
