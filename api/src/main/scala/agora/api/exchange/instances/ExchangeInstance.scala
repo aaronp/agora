@@ -86,22 +86,26 @@ class ExchangeInstance(initialState: ExchangeState)(implicit matcher: JobPredica
     * To check for matches in the above scenarios, we don't need to check every single job or every single work
     * subscription -- we just need to reevaluate what's changed ... hence the 'filterState' predicate.
     *
-    * @param newState    the initial state
+    * @param fullState    the initial state
     * @param filterState a predicate which will optionally return an exchange state centered around the event which
     *                    triggered this match check
     * @return the match notifications
     */
-  private def checkMatchesAndUpdateState(newState: ExchangeState, filterState: ExchangeState => Option[ExchangeState]): List[OnMatch] = {
+  private def checkMatchesAndUpdateState(fullState: ExchangeState, filterState: ExchangeState => Option[ExchangeState]): List[OnMatch] = {
     // checks for matches on the filtered state, returning the notifications from said matches
-    val notifications: List[OnMatch] =
-      ExchangeInstance.checkForMatches(newState, filterState)
+    val (notifications: List[OnMatch], updatedState) =
+      ExchangeInstance.checkForMatches(fullState, filterState)
 
     notifications.foreach { onMatch =>
-      newState.observer.onMatch(onMatch)
+      fullState.observer.onMatch(onMatch)
     }
 
     // send out our notifications for matches and update the internal state
-    state = notifications.foldLeft(newState)(_ updateStateFromMatch _)
+//    state = notifications.foldLeft(fullState) {
+//      case (state, not) => state.updateStateFromMatch(not)
+//    }
+
+    state = updatedState
 
     notifications
   }
@@ -124,27 +128,34 @@ object ExchangeInstance {
   /**
     * Checks the jobs against the work subscriptions for matches using
     */
-  private def checkForMatches(state: ExchangeState, filterState: ExchangeState => Option[ExchangeState])(implicit matcher: JobPredicate): List[OnMatch] = {
-    val notifications = checkForMatchesRecursive(state, filterState)
+  private def checkForMatches(state: ExchangeState, filterState: ExchangeState => Option[ExchangeState])(implicit matcher: JobPredicate) = {
+    val (notifications, updatedState) = checkForMatchesRecursive(state, state, filterState)
 
     // as the notifications may be on updated SubmitJobs (e.g. the 'orElse' cases of jobs), we need to reinstate the
     // original jobs, not the 'orElse' SubmitJob produced by 'orElseSubmission'
-    notifications.map { onMatch: OnMatch =>
+    val newNotifications = notifications.map { onMatch: OnMatch =>
       val newNotification = onMatch.copy(matchedJob = state.jobsById(onMatch.matchedJobId))
       newNotification
     }
+
+    newNotifications -> updatedState
   }
 
-  private def checkForMatchesRecursive(state: ExchangeState, filterState: ExchangeState => Option[ExchangeState])(
-      implicit matcher: JobPredicate): List[OnMatch] = {
+  private def checkForMatchesRecursive(unfilteredState: ExchangeState, state: ExchangeState, filterState: ExchangeState => Option[ExchangeState])(
+      implicit matcher: JobPredicate): (List[OnMatch], ExchangeState) = {
     filterState(state) match {
       case Some(filtered) =>
-        val (notifications, newState) = filtered.matches
+        val (originalNotifications, newState) = filtered.matches()
+
+        // this should only be evaluated if the match didn't succeed
         newState.orElseState match {
-          case Some(orElse) => checkForMatchesRecursive(orElse, filterState) ++ notifications
-          case None         => notifications
+          case Some(orElseState) =>
+            val (nots, updatedState) = checkForMatchesRecursive(unfilteredState, orElseState, filterState)
+            val allNotifications     = nots ++ originalNotifications
+            allNotifications -> updatedState
+          case None => originalNotifications -> state
         }
-      case None => Nil
+      case None => Nil -> state
     }
   }
 }

@@ -4,6 +4,7 @@ import agora.api.exchange._
 import agora.api.exchange.bucket.{BucketMap, BucketPathKey, WorkerMatchBucket}
 import agora.api.exchange.observer.{ExchangeObserver, OnMatch}
 import agora.api.json.JsonDelta
+import agora.api.time.Timestamp
 import agora.api.worker._
 import agora.api.{JobId, nextJobId, nextSubscriptionKey}
 import com.typesafe.scalalogging.StrictLogging
@@ -80,18 +81,61 @@ case class ExchangeState(observer: ExchangeObserver = ExchangeObserver(),
     }
   }
 
-  private[exchange] def updatePending(key: SubscriptionKey, delta: Int, seenCheck: Set[SubscriptionKey] = Set.empty): ExchangeState = {
+  private[exchange] def updatePending(key: SubscriptionKey, delta: Int) = updateSubscriptionOnMatch(key, delta)
+
+  private[exchange] def calculatePending(key: SubscriptionKey, delta: Int): Int = {
+    val state = calculatePendingRecursive(key, delta)
+    state.subscriptionsById.get(key) match {
+      case Some((_, FixedRequested(n))) => n
+      case _                            => 0
+    }
+  }
+
+  private[exchange] def calculatePendingRecursive(key: SubscriptionKey, delta: Int, seenCheck: Set[SubscriptionKey] = Set.empty): ExchangeState = {
     val newStateOpt = subscriptionsById.get(key).map {
       case (sub, FixedRequested(n)) =>
         val newRequested = FixedRequested((n + delta).max(0))
-        observer.onSubscriptionRequestCountChanged(key, n, newRequested.n)
+
         copy(subscriptionsById = subscriptionsById.updated(key, (sub, newRequested)))
+      case (sub, LinkedRequested(ids)) =>
+        val seen = seenCheck + key
+        ids.foldLeft(this) {
+          case (_, id) if seen.contains(id) => sys.error(s"Circular reference detected with linked subscription from $key -> $id, seen: $seen")
+          case (state, id)                  => state.calculatePendingRecursive(id, delta, seen + id)
+        }
+    }
+
+    newStateOpt.getOrElse(this)
+  }
+
+  /**
+    * Alter the requested count by 'delta' for this subscription key (including referenced subscriptions)
+    *
+    * @param key
+    * @param delta
+    * @param updates
+    * @param seenCheck
+    * @return
+    */
+  private[exchange] def updateSubscriptionOnMatch(key: SubscriptionKey,
+                                                  delta: Int,
+                                                  updates: Vector[OnMatchUpdateAction] = Vector.empty,
+                                                  seenCheck: Set[SubscriptionKey] = Set.empty): ExchangeState = {
+    val newStateOpt = subscriptionsById.get(key).map {
+      case (oldSub, FixedRequested(n)) =>
+        val newRequested = FixedRequested((n + delta).max(0))
+
+        observer.onSubscriptionRequestCountChanged(key, n, newRequested.n)
+
+        val newSub = updates.foldLeft(oldSub) {
+          case (workerSubscription, action) => action.update(workerSubscription)
+        }
+        copy(subscriptionsById = subscriptionsById.updated(key, (newSub, newRequested)))
       case (_, LinkedRequested(ids)) =>
         val seen = seenCheck + key
         ids.foldLeft(this) {
-          case (_, id) if seen.contains(id) =>
-            sys.error(s"Circular reference detected with linked subscription from $key -> $id, seen: $seen")
-          case (state, id) => state.updatePending(id, delta, seen + id)
+          case (_, id) if seen.contains(id) => sys.error(s"Circular reference detected with linked subscription from $key -> $id, seen: $seen")
+          case (state, id)                  => state.updateSubscriptionOnMatch(id, delta, updates, seen + id)
         }
     }
 
@@ -105,7 +149,7 @@ case class ExchangeState(observer: ExchangeObserver = ExchangeObserver(),
     * matches then all of its constituent parts would as well.
     *
     */
-  def matches(implicit matcher: JobPredicate): (List[OnMatch], ExchangeState) = {
+  def matches(matchTime: Timestamp = agora.api.time.now())(implicit matcher: JobPredicate): (List[OnMatch], ExchangeState) = {
 
     logger.trace(s"Checking for matches between ${jobsById.size} jobs and ${subscriptionsById.size} subscriptions")
 
@@ -117,7 +161,7 @@ case class ExchangeState(observer: ExchangeObserver = ExchangeObserver(),
         if (chosen.isEmpty) {
           accumulator
         } else {
-          val (thisMatch, newState) = oldState.createMatch(jobId, job, chosen)
+          val (thisMatch, newState) = oldState.createMatch(jobId, job, chosen, matchTime)
           (thisMatch :: matches, newState)
         }
     }
@@ -184,8 +228,7 @@ case class ExchangeState(observer: ExchangeObserver = ExchangeObserver(),
 
     validSubscriptions.collect {
       case (id, ResolvedRequestedExtractor(subscription, requested, resolvedRequested)) if job.matches(subscription, resolvedRequested) =>
-        val newState  = updatePending(id, -1)
-        val remaining = newState.pending(id)
+        val remaining = calculatePending(id, -1)
 
         def check = requested.remaining(this)
 
@@ -194,18 +237,20 @@ case class ExchangeState(observer: ExchangeObserver = ExchangeObserver(),
     }.toSeq
   }
 
-  private def createMatch(jobId: JobId, job: SubmitJob, chosen: CandidateSelection): (OnMatch, ExchangeState) = {
-    val notification = OnMatch(agora.api.time.now(), jobId, job, chosen)
+  private def createMatch(jobId: JobId, job: SubmitJob, chosen: CandidateSelection, matchTime: Timestamp): (OnMatch, ExchangeState) = {
+    val notification = OnMatch(matchTime, jobId, job, chosen)
 
-    notification -> updateStateFromMatch(notification)
+    val updates: Vector[OnMatchUpdateAction] = job.submissionDetails.workMatcher.onMatchUpdate
+    notification -> updateStateFromMatch(notification, updates)
   }
 
   /** @return a new state w/ the match removed */
-  def updateStateFromMatch(notification: OnMatch): ExchangeState = {
+  def updateStateFromMatch(notification: OnMatch, updates: Vector[OnMatchUpdateAction]): ExchangeState = {
     val newJobsById = jobsById - notification.matchedJobId
 
     notification.selection.foldLeft(copy(jobsById = newJobsById)) {
-      case (state, Candidate(key, _, _)) => state.updatePending(key, -1)
+      case (state, Candidate(key, _, _)) =>
+        state.updateSubscriptionOnMatch(key, -1, updates)
     }
   }
 

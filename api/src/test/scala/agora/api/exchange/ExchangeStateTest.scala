@@ -46,8 +46,11 @@ class ExchangeStateTest extends BaseSpec {
         .appendJsonOnMatch(json"""{ "anotherSessionId" : "another id" }""", JPath("foo"))
         .removeOnMatch("removeMe".asJPath)
         .removeOnMatch("doesntExist".asJPath) // try and remove some json which doesn't exist (trying to do this shouldn't throw an error)
-      val job                                     = "meh".asJob.withDetails(details)
-      val (jobResp, stateWithUpdatedSubscription) = state.submit(job)
+      val job                     = "meh".asJob.withDetails(details)
+      val (jobResp, stateWithJob) = state.submit(job)
+
+      implicit val jsonJobPredicate                 = JobPredicate()
+      val (matchResp, stateWithUpdatedSubscription) = stateWithJob.matches()
 
       // verify the state
       println(observer)
@@ -372,7 +375,7 @@ class ExchangeStateTest extends BaseSpec {
       val (SubmitJobResponse(jobId), stateWithJob) =
         newState.submit("123".asJob.add("topic", "exec"))
 
-      val (List(notification), matchedState) = stateWithJob.matches
+      val (List(notification), matchedState) = stateWithJob.matches()
 
       stateWithJob.pending("vanilla") shouldBe 2
       stateWithJob.pending("workspace") shouldBe 2
@@ -384,7 +387,7 @@ class ExchangeStateTest extends BaseSpec {
     }
     "find which jobs match which subscriptions" in new TestData {
       // call the method under test
-      val (matches, newState) = state.matches
+      val (matches, newState) = state.matches()
 
       // both work subscriptions should match and thus be decremented
       newState.subscriptionsById shouldBe Map[SubscriptionKey, (WorkSubscription, Requested)]("s1"              -> (s1, Requested(0)),
@@ -402,7 +405,7 @@ class ExchangeStateTest extends BaseSpec {
       val empty = Map[SubscriptionKey, (WorkSubscription, Requested)]("just has the one" -> (s1, Requested(1)), "exhausted" -> (s2, Requested(0)))
 
       // call the method under test
-      val (matches, newState) = state.copy(subscriptionsById = empty).matches
+      val (matches, newState) = state.copy(subscriptionsById = empty).matches()
       val newSubscriptions    = newState.subscriptionsById
 
       // only 'just has the one' should match
@@ -424,7 +427,7 @@ class ExchangeStateTest extends BaseSpec {
       val stateOnlyMatchingJ1 =
         new ExchangeState(subscriptionsById = missingSubscriptions, jobsById = jobs)
 
-      val (matches, newState) = stateOnlyMatchingJ1.matches
+      val (matches, newState) = stateOnlyMatchingJ1.matches()
 
       newState.jobsById.keySet shouldBe Set("j2", "never match job")
 
