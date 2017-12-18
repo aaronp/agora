@@ -24,7 +24,10 @@ import io.circe.parser._
   */
 case class WorkMatcher(criteria: JPredicate,
                        workerBucket: WorkerMatchBucket = WorkerMatchBucket.Empty,
-                       onMatchUpdate: Vector[OnMatchUpdateAction] = Vector.empty) {
+                       onMatchUpdate: Vector[OnMatchUpdateAction] = Vector.empty)
+    extends HasWorkMatcher {
+
+  override type Me = WorkMatcher
 
   def matchingPath(path: String) = copy(criteria = criteria.and("path" === path))
 

@@ -16,6 +16,8 @@ class ExchangeInstance(initialState: ExchangeState)(implicit matcher: JobPredica
 
   private var state = initialState
 
+  private[instances] def currentState() = state
+
   override def toString = state.toString
 
   override def queueState(request: QueueState): Future[QueueStateResponse] = {
@@ -151,9 +153,9 @@ object ExchangeInstance {
     newNotifications -> reconstitutedState
   }
 
-  private def checkForMatchesRecursive(unfilteredState: ExchangeState, state: ExchangeState, filterState: ExchangeState => Option[ExchangeState])(
+  private def checkForMatchesRecursive(unfilteredState: ExchangeState, inputState: ExchangeState, filterState: ExchangeState => Option[ExchangeState])(
       implicit matcher: JobPredicate): (List[OnMatch], ExchangeState) = {
-    filterState(state) match {
+    filterState(inputState) match {
       case Some(filtered) =>
         val (originalNotifications, newState) = filtered.matches()
 
@@ -163,9 +165,9 @@ object ExchangeInstance {
             val (nots, updatedState) = checkForMatchesRecursive(unfilteredState, orElseState, filterState)
             val allNotifications     = nots ++ originalNotifications
             allNotifications -> updatedState
-          case None => originalNotifications -> state
+          case None => originalNotifications -> newState
         }
-      case None => Nil -> state
+      case None => Nil -> inputState
     }
   }
 }

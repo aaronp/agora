@@ -121,6 +121,14 @@ case class ExchangeState(observer: ExchangeObserver = ExchangeObserver(),
                                                   delta: Int,
                                                   updates: Vector[OnMatchUpdateAction] = Vector.empty,
                                                   seenCheck: Set[SubscriptionKey] = Set.empty): ExchangeState = {
+    val newStateOpt = updateSubscriptionOnMatchOpt(key, delta, updates, seenCheck)
+    newStateOpt.getOrElse(this)
+  }
+
+  private[exchange] def updateSubscriptionOnMatchOpt(key: SubscriptionKey,
+                                                     delta: Int,
+                                                     updates: Vector[OnMatchUpdateAction] = Vector.empty,
+                                                     seenCheck: Set[SubscriptionKey] = Set.empty) = {
     val newStateOpt = subscriptionsById.get(key).map {
       case (oldSub, FixedRequested(n)) =>
         val newRequested = FixedRequested((n + delta).max(0))
@@ -139,7 +147,7 @@ case class ExchangeState(observer: ExchangeObserver = ExchangeObserver(),
         }
     }
 
-    newStateOpt.getOrElse(this)
+    newStateOpt
   }
 
   /**
@@ -229,29 +237,36 @@ case class ExchangeState(observer: ExchangeObserver = ExchangeObserver(),
     validSubscriptions.collect {
       case (id, ResolvedRequestedExtractor(subscription, requested, resolvedRequested)) if job.matches(subscription, resolvedRequested) =>
         val remaining = calculatePending(id, -1)
-
-        def check = requested.remaining(this)
-
-        assert(remaining == (check - 1), s"${remaining} != $check - 1 for $id in $this")
         Candidate(id, subscription, remaining)
     }.toSeq
   }
 
   private def createMatch(jobId: JobId, job: SubmitJob, chosen: CandidateSelection, matchTime: Timestamp): (OnMatch, ExchangeState) = {
-    val notification = OnMatch(matchTime, jobId, job, chosen)
 
     val updates = job.submissionDetails.workMatcher.onMatchUpdate
-    notification -> updateStateFromMatch(notification, updates)
+    updateStateFromMatch(OnMatch(matchTime, jobId, job, chosen), updates)
   }
 
   /** @return a new state w/ the match removed */
-  def updateStateFromMatch(notification: OnMatch, updates: Vector[OnMatchUpdateAction]): ExchangeState = {
+  def updateStateFromMatch(notification: OnMatch, updates: Vector[OnMatchUpdateAction]) = {
     val newJobsById = jobsById - notification.matchedJobId
 
-    notification.selection.foldLeft(copy(jobsById = newJobsById)) {
-      case (state, Candidate(key, _, _)) =>
-        state.updateSubscriptionOnMatch(key, -1, updates)
+    val (updatedState, updatedSelection) = notification.selection.foldLeft(copy(jobsById = newJobsById) -> List[Candidate]()) {
+      case ((state, selectionList), candidate @ Candidate(key, _, _)) =>
+        state.updateSubscriptionOnMatchOpt(key, -1, updates) match {
+          case Some(newState) =>
+            newState.subscriptionsById.get(key) match {
+              case Some((updatedSubscription, _)) =>
+                val newSelection = candidate.copy(subscription = updatedSubscription) :: selectionList
+                newState -> newSelection
+              case None => newState -> (candidate :: selectionList)
+            }
+
+          case None => state -> (candidate :: selectionList)
+        }
     }
+
+    notification.copy(selection = updatedSelection) -> updatedState
   }
 
   def cancelJobs(request: CancelJobs): (CancelJobsResponse, ExchangeState) = {

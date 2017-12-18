@@ -331,9 +331,8 @@ class ExchangeStateTest extends BaseSpec {
       val newSubscriptions    = newState.subscriptionsById
 
       // only 'just has the one' should match
-      newSubscriptions shouldBe Map[SubscriptionKey, (WorkSubscription, Requested)]("just has the one" -> (s1, Requested(0)),
-                                                                                    "exhausted"        -> (s2, Requested(0)))
-      newState.jobsById shouldBe Map("j2"                                                              -> j2, "never match job" -> neverMatchJob, "never match job" -> neverMatchJob)
+      newSubscriptions shouldBe Map[SubscriptionKey, (WorkSubscription, Requested)]("just has the one" -> (s1, Requested(0)), "exhausted" -> (s2, Requested(0)))
+      newState.jobsById shouldBe Map("j2"                                                              -> j2, "never match job"           -> neverMatchJob, "never match job" -> neverMatchJob)
       matches.map(_.copy(time = mehTime)) should contain only (
         OnMatch(mehTime,
                 "j1",
@@ -404,7 +403,6 @@ class ExchangeStateTest extends BaseSpec {
     val observer     = new TestObserver
     val initialState = new ExchangeState(observer = observer, subscriptionsById = Map("vanilla" -> (vanillaExec, Requested(2))))
 
-    // now we make available some data to a workspace, but w/ the same endpoint.
     // We reference the 'vanilla' subscription though, so matches will decrement 'vanilla', and 'take' requests will
     // increment it
     val workspace = vanillaExec
