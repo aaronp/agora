@@ -3,7 +3,7 @@ package agora.api
 import agora.api.config.JsonConfig
 import agora.api.exchange.JobPredicate
 import agora.api.exchange.dsl.LowPriorityCirceSubmitable
-import agora.api.json.{AgoraJsonImplicits, JPredicate}
+import agora.api.json.{AgoraJsonImplicits, JExpression, JPredicate}
 import agora.api.streams.PublisherOps
 import agora.io.dao.HasId
 
@@ -15,7 +15,8 @@ trait Implicits extends
   AgoraJsonImplicits with
   PublisherOps.LowPriorityPublisherImplicits with
   HasId.LowPriorityHasIdImplicits with
-  JsonConfig.LowPriorityConfigImplicits
+  JsonConfig.LowPriorityConfigImplicits with
+  JExpression.LowPriorityJExpressionImplicits
 // format: on
 
 object Implicits extends Implicits

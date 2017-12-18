@@ -12,9 +12,15 @@ import io.circe.parser._
 /**
   * Contains details pertaining to a [[SubmitJob]] matching a [[WorkSubscription]].
   *
-  * @param criteria     the match criteria to evaluate against each worker's [[agora.api.worker.WorkerDetails]]
-  * @param workerBucket a performance measure - a means to group work submissions into 'buckets' based on data obtained by some [[agora.api.json.JPath]]s so that we only need to evaluate eligible buckets instead of *all* work subscriptions
-  * @param onMatchUpdate an action used to update the [[agora.api.worker.WorkerDetails]] of matched workers
+  * Both the 'criteria' and 'workerBucket' are concerned with matching a ob again
+  *
+  * @param criteria      the match criteria to evaluate against each worker's [[agora.api.worker.WorkerDetails]]
+  * @param workerBucket  a performance measure - a means to group work submissions into 'buckets' based on data obtained
+  *                      by some [[agora.api.json.JPath]]s so that we only need to evaluate eligible buckets instead of
+  *                      *all* work subscriptions
+  * @param onMatchUpdate update actions used to update the [[agora.api.worker.WorkerDetails]] of matched workers.
+  *                      Useful for e.g. creating sticky sessions or anytime when you want to ensure certain matched
+  *                      criteria always gets routed to a single worker.
   */
 case class WorkMatcher(criteria: JPredicate, workerBucket: WorkerMatchBucket = WorkerMatchBucket.Empty, onMatchUpdate: List[OnMatchUpdateAction] = Nil) {
 
