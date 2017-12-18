@@ -1,7 +1,8 @@
 package agora.api.exchange.instances
 
 import agora.api.exchange._
-import agora.api.exchange.observer.{ExchangeObserver, OnJobSubmitted, OnMatch}
+import agora.api.exchange.observer.OnMatch
+import agora.api.worker.SubscriptionKey
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -86,7 +87,7 @@ class ExchangeInstance(initialState: ExchangeState)(implicit matcher: JobPredica
     * To check for matches in the above scenarios, we don't need to check every single job or every single work
     * subscription -- we just need to reevaluate what's changed ... hence the 'filterState' predicate.
     *
-    * @param fullState    the initial state
+    * @param fullState   the initial state
     * @param filterState a predicate which will optionally return an exchange state centered around the event which
     *                    triggered this match check
     * @return the match notifications
@@ -101,9 +102,9 @@ class ExchangeInstance(initialState: ExchangeState)(implicit matcher: JobPredica
     }
 
     // send out our notifications for matches and update the internal state
-//    state = notifications.foldLeft(fullState) {
-//      case (state, not) => state.updateStateFromMatch(not)
-//    }
+    //    state = notifications.foldLeft(fullState) {
+    //      case (state, not) => state.updateStateFromMatch(not)
+    //    }
 
     state = updatedState
 
@@ -138,7 +139,16 @@ object ExchangeInstance {
       newNotification
     }
 
-    newNotifications -> updatedState
+    // We now need to put together the updated state w/ the initial, full state
+    val reconstitutedState = {
+      val newSubscriptionsById: Map[SubscriptionKey, (WorkSubscription, Requested)] = {
+        state.subscriptionsById ++ updatedState.subscriptionsById
+      }
+      val newJobsById = state.jobsById -- newNotifications.map(_.matchedJobId)
+
+      state.copy(subscriptionsById = newSubscriptionsById, jobsById = newJobsById)
+    }
+    newNotifications -> reconstitutedState
   }
 
   private def checkForMatchesRecursive(unfilteredState: ExchangeState, state: ExchangeState, filterState: ExchangeState => Option[ExchangeState])(

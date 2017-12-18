@@ -240,7 +240,7 @@ case class ExchangeState(observer: ExchangeObserver = ExchangeObserver(),
   private def createMatch(jobId: JobId, job: SubmitJob, chosen: CandidateSelection, matchTime: Timestamp): (OnMatch, ExchangeState) = {
     val notification = OnMatch(matchTime, jobId, job, chosen)
 
-    val updates: Vector[OnMatchUpdateAction] = job.submissionDetails.workMatcher.onMatchUpdate
+    val updates = job.submissionDetails.workMatcher.onMatchUpdate
     notification -> updateStateFromMatch(notification, updates)
   }
 
