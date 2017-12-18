@@ -22,7 +22,9 @@ import io.circe.parser._
   *                      Useful for e.g. creating sticky sessions or anytime when you want to ensure certain matched
   *                      criteria always gets routed to a single worker.
   */
-case class WorkMatcher(criteria: JPredicate, workerBucket: WorkerMatchBucket = WorkerMatchBucket.Empty, onMatchUpdate: List[OnMatchUpdateAction] = Nil) {
+case class WorkMatcher(criteria: JPredicate,
+                       workerBucket: WorkerMatchBucket = WorkerMatchBucket.Empty,
+                       onMatchUpdate: Vector[OnMatchUpdateAction] = Vector.empty) {
 
   def matchingPath(path: String) = copy(criteria = criteria.and("path" === path))
 
@@ -33,6 +35,8 @@ case class WorkMatcher(criteria: JPredicate, workerBucket: WorkerMatchBucket = W
   def orMatching(orCriteria: JPredicate) = copy(criteria = criteria.or(orCriteria))
 
   def withBucket(bucket: WorkerMatchBucket) = copy(workerBucket = bucket)
+
+  def addUpdateAction(action: OnMatchUpdateAction) = copy(onMatchUpdate = onMatchUpdate :+ action)
 }
 
 object WorkMatcher {

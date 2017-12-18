@@ -98,6 +98,8 @@ case class JPath(path: List[JPart]) {
 
 object JPath {
 
+  val root = JPath(Nil)
+
   import JPredicate.implicits._
 
   def apply(first: JPart, parts: JPart*): JPath = JPath(first :: parts.toList)

@@ -10,6 +10,11 @@ class TestObserver extends ExchangeObserver {
 
   def eventsInTheOrderTheyWereReceived = events.reverse
 
+  override def toString = {
+    // TODO = use pprint
+    eventsInTheOrderTheyWereReceived.mkString("\n\n")
+  }
+
   override def onEvent(event: ExchangeNotificationMessage): Unit = {
     events = event :: events
   }

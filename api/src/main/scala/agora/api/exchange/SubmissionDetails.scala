@@ -2,7 +2,7 @@ package agora.api.exchange
 
 import agora.api.User
 import agora.api.exchange.bucket.{BucketKey, JobBucket, WorkerMatchBucket}
-import agora.api.json.{JPath, JPredicate, JsonAppendable}
+import agora.api.json.{JExpression, JPath, JPredicate, JsonAppendable}
 import io.circe._
 import io.circe.optics.JsonPath
 
@@ -54,12 +54,16 @@ case class SubmissionDetails(
 
   def orElseMatch(other: WorkMatcher): SubmissionDetails = copy(orElse = orElse :+ other)
 
-  def withMatcher(newMatcher: JPredicate) = copy(workMatcher = workMatcher.withCriteria(newMatcher))
+  def withMatchCriteria(newMatcher: JPredicate) = copy(workMatcher = workMatcher.withCriteria(newMatcher))
+
+  def withMatcher(newMatcher: WorkMatcher) = copy(workMatcher = newMatcher)
 
   def andMatching(andCriteria: JPredicate) = copy(workMatcher = workMatcher.andMatching(andCriteria))
 
   def orMatching(orCriteria: JPredicate) = copy(workMatcher = workMatcher.orMatching(orCriteria))
 
+  /** @return the user who submitted this job
+    */
   def submittedBy: User = SubmissionDetails.submissionUser.getOption(aboutMe).getOrElse {
     sys.error(s"Invalid json, 'submissionUser' not set in $aboutMe")
   }
@@ -88,10 +92,36 @@ case class SubmissionDetails(
     append(qualified)
   }
 
-  def append(json: Json): SubmissionDetails = {
-    copy(aboutMe = aboutMe.deepMerge(json))
+  def append(json: Json): SubmissionDetails = copy(aboutMe = aboutMe.deepMerge(json))
+
+  def addUpdateAction(action: OnMatchUpdateAction): SubmissionDetails = copy(workMatcher = workMatcher.addUpdateAction(action))
+
+  /**
+    * Append the value obtained by evaluating the given expression to matched worker subscriptions on match.
+    *
+    * the expression is evaluated against the current work-subscription json.
+    *
+    * @param expression the json expression which will be evaluated against the existing worker details whose result value will be appended at the specified append path
+    * @param path       the path to which the value should be appended
+    * @return an updated SubsmissionDetails w/ an added [[OnMatchUpdateAction]]
+    */
+  def appendOnMatch(expression: JExpression, path: JPath = JPath.root) = {
+    addUpdateAction(OnMatchUpdateAction.appendAction(expression, path))
   }
 
+  def removeOnMatch(path: JPath) = addUpdateAction(OnMatchUpdateAction.removeAction(path))
+
+  /**
+    * Append the given json value to the matched worker subscription's path on match
+    *
+    * @param value the json value to append to the work matcher
+    * @param path  the path to which the value should be appended
+    * @return an updated [[SubmissionDetails]] w/ an added [[OnMatchUpdateAction]]
+    */
+  def appendJsonOnMatch(value: Json, path: JPath = JPath.root) = {
+    import JExpression.implicits._
+    appendOnMatch(value.asExpression, path)
+  }
 }
 
 object SubmissionDetails {
