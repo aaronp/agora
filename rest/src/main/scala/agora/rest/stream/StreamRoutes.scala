@@ -7,6 +7,9 @@ import com.typesafe.scalalogging.StrictLogging
 import io.circe.Json
 import io.circe.syntax._
 
+/**
+  * A PoC set of routes for creating publishers/subscribers over web sockets
+  */
 class StreamRoutes extends StrictLogging {
 
   private object Lock

@@ -6,6 +6,9 @@ import io.circe.Json
 import io.circe.generic.auto._
 import io.circe.syntax._
 
+/**
+  * In practice people may start w/ a 'DataFeedDsl', marshalling their 'T : Encoder' types into a JsonFeedDsl
+  */
 class JsonFeedDslTest extends BaseSpec {
 
   case class Meh(theKey: String)

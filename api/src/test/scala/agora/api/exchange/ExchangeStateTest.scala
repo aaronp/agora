@@ -331,8 +331,9 @@ class ExchangeStateTest extends BaseSpec {
       val newSubscriptions    = newState.subscriptionsById
 
       // only 'just has the one' should match
-      newSubscriptions shouldBe Map[SubscriptionKey, (WorkSubscription, Requested)]("just has the one" -> (s1, Requested(0)), "exhausted" -> (s2, Requested(0)))
-      newState.jobsById shouldBe Map("j2"                                                              -> j2, "never match job"           -> neverMatchJob, "never match job" -> neverMatchJob)
+      newSubscriptions shouldBe Map[SubscriptionKey, (WorkSubscription, Requested)]("just has the one" -> (s1, Requested(0)),
+                                                                                    "exhausted"        -> (s2, Requested(0)))
+      newState.jobsById shouldBe Map("j2"                                                              -> j2, "never match job" -> neverMatchJob, "never match job" -> neverMatchJob)
       matches.map(_.copy(time = mehTime)) should contain only (
         OnMatch(mehTime,
                 "j1",

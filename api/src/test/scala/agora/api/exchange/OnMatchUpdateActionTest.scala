@@ -14,7 +14,6 @@ class OnMatchUpdateActionTest extends BaseSpec {
     ).foreach { expected =>
       s"marshal $expected to/from json" in {
         val json = expected.asJson
-        println(json)
         json.as[OnMatchUpdateAction] shouldBe Right(expected)
       }
     }
