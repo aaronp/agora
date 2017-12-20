@@ -135,7 +135,7 @@ class JsonFeedDslTest extends BaseSpec {
       // call the method under test - create an IndexSubscriber
       val byKey = feed.indexOnKeys(JPath.forParts("path", "2", "theKey")) {
         queueCreationCount = queueCreationCount + 1
-        ConsumerQueue(10)
+        ConsumerQueue.withMaxCapacity(10)
       }
 
       val redHotListener = new ListSubscriber[Json]()

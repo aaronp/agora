@@ -112,7 +112,7 @@ object BaseProcessor {
     new BaseProcessor[T] {
       override def toString = s"BaseProcessor w/ ${subscriptionCount} subscriptions, ${currentRequestedCount} requested, $maxCapacity capacity"
 
-      override def newQueue() = ConsumerQueue(maxCapacity)
+      override def newQueue() = ConsumerQueue.withMaxCapacity(maxCapacity)
     }
   }
 

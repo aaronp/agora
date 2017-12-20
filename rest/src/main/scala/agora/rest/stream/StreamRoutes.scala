@@ -22,6 +22,9 @@ class StreamRoutes extends StrictLogging {
     subscribeRawData() ~ subscribeRawDataTakeNext() ~ subscribeRawDataCancel() ~ subscribeRawDataList()
   }
 
+  /**
+    * @return control routes for normal REST (non web-socket) requests to force take next/cancel/list:
+    */
   def publishRoutes = {
     publishRawData() ~ publishRawDataTakeNext() ~ publishRawDataCancel() ~ publishRawDataList()
   }
@@ -48,8 +51,8 @@ class StreamRoutes extends StrictLogging {
         extractMaterializer { implicit materializer =>
           Lock.synchronized {
 
-            val sp             = new DataConsumerFlow[Json](name, maxCapacity, initialRequest)
-            val subscriberFlow = state.newSimpleSubscriber(sp)
+            val consumerFlow: DataConsumerFlow[Json] = new DataConsumerFlow[Json](name, maxCapacity, initialRequest)
+            val subscriberFlow                       = state.newSimpleSubscriber(consumerFlow)
             handleWebSocketMessages(subscriberFlow)
           }
         }
@@ -108,7 +111,7 @@ class StreamRoutes extends StrictLogging {
   /**
     * Just publishes what's sent verbatim. This is the most basic publish route, demonstrating the
     * {{{
-    * data in -->
+    * arbitrary data in -->
     *
     * <-- take next | cancel
     * }}}

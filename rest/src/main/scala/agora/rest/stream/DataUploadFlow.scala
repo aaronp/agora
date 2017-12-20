@@ -39,7 +39,7 @@ class DataUploadFlow[A: Decoder: Encoder](val name: String, maxCapacity: Int, in
   private object UpstreamMessagePublisher extends BasePublisher[ClientSubscriptionMessage] {
     override def toString = "upstreamMessagePublisher"
 
-    override def newQueue() = ConsumerQueue(maxCapacity)
+    override def newQueue() = ConsumerQueue.withMaxCapacity(maxCapacity)
 
     override protected def newSubscription(s: Subscriber[_ >: ClientSubscriptionMessage]) = {
       val subscription = super.newSubscription(s)

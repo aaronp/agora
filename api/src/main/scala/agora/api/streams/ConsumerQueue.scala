@@ -38,7 +38,21 @@ trait ConsumerQueue[T] {
 }
 
 object ConsumerQueue {
-  def apply[T](maxCapacity: Int) = {
+
+  /** @param capacity
+    * @tparam T
+    * @return a queue which will just keep the latest N elements and silently dump those which aren't consumed
+    */
+  def keepLatest[T](capacity: Int): ConsumerQueue[T] = {
+    capacity match {
+      case 1 => apply(None)(new RightBiasedSemigroup[T])
+      case n =>
+        val queue = new java.util.concurrent.LinkedBlockingQueue[T](n)
+        new KeepNQueue(queue, n)
+    }
+  }
+
+  def withMaxCapacity[T](maxCapacity: Int) = {
     val queue = new java.util.concurrent.LinkedBlockingQueue[T](maxCapacity)
     new Instance(queue)
   }
@@ -75,17 +89,67 @@ object ConsumerQueue {
           val newValue = old.combine(value)
           Option(newValue)
       }
-      currentValue = previousValue
       if (currentRequested > 0) {
         currentRequested = (currentRequested - 1).max(0)
-        currentValue.toList
+        currentValue = None
+        previousValue.toList
       } else {
+        currentValue = previousValue
         Nil
       }
     }
 
     override def requested(): Long = currentRequested
 
+  }
+
+  /**
+    * Queue which just keeps the latest N items
+    *
+    * @param queue
+    * @tparam T
+    */
+  class KeepNQueue[T](queue: jQueue[T], keep: Int) extends ConsumerQueue[T] with StrictLogging {
+
+    private object Lock
+
+    @volatile private var currentRequested = 0L
+
+    def request(n: Long): List[T] = {
+      drain(currentRequested + n)
+    }
+
+    override def requested(): Long = currentRequested
+
+    def offer(value: T): List[T] = {
+      Lock.synchronized {
+        if (queue.size() == keep) {
+          queue.poll()
+        }
+        queue.add(value)
+        if (currentRequested > 0) {
+          drain(currentRequested)
+        } else {
+          Nil
+        }
+      }
+    }
+
+    private def drain(totalRequested: Long): List[T] = {
+      var i = totalRequested
+
+      val values  = ListBuffer[T]()
+      var next: T = queue.poll()
+      while (i > 0 && next != null) {
+        values += next
+        i = i - 1
+        if (i > 0) {
+          next = queue.poll()
+        }
+      }
+      currentRequested = i
+      values.toList
+    }
   }
 
   class Instance[T](queue: jQueue[T]) extends ConsumerQueue[T] with StrictLogging {
@@ -119,11 +183,17 @@ object ConsumerQueue {
       while (i > 0 && next != null) {
         i = i - 1
         values += next
-        next = queue.poll()
+        if (i > 0) {
+          next = queue.poll()
+        }
       }
       currentRequested = i
       values.toList
     }
+  }
+
+  private class RightBiasedSemigroup[T] extends Semigroup[T] {
+    override def combine(x: T, y: T): T = y
   }
 
 }

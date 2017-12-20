@@ -56,7 +56,7 @@ object ConflatingPublisher {
     new ConflatingPublisher[T] {
       override val semigroup = sg
 
-      override def newQueue() = ConsumerQueue(maxCapacity)
+      override def newQueue() = ConsumerQueue.withMaxCapacity(maxCapacity)
     }
   }
 

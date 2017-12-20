@@ -34,6 +34,6 @@ object FieldFeed {
     override def fields = state
   }
 
-  def apply(initialFieldRequest: Int = 1) = new AccumulatingJsonPathsSubscriber(() => ConsumerQueue(initialFieldRequest))
+  def apply(initialFieldRequest: Int = 1) = new AccumulatingJsonPathsSubscriber(() => ConsumerQueue.withMaxCapacity(initialFieldRequest))
 
 }

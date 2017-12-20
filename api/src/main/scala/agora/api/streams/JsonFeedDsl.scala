@@ -18,7 +18,7 @@ import org.reactivestreams.{Publisher, Subscriber}
   */
 class JsonFeedDsl(override protected val underlyingPublisher: Publisher[Json]) extends HasPublisher[Json] {
 
-  def withFields(maxQueueSize: Int): JsonFieldSubscriber = withFields(() => ConsumerQueue(maxQueueSize))
+  def withFields(maxQueueSize: Int): JsonFieldSubscriber = withFields(() => ConsumerQueue.withMaxCapacity(maxQueueSize))
 
   /**
     * A field subscription which conflates fields

@@ -116,7 +116,7 @@ object BasePublisher extends StrictLogging {
 
   def apply[T](maxCapacity: Int) = {
     new BasePublisher[T] {
-      override def newQueue() = ConsumerQueue(maxCapacity)
+      override def newQueue() = ConsumerQueue.withMaxCapacity(maxCapacity)
     }
   }
 

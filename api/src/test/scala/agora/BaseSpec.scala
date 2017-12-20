@@ -16,6 +16,7 @@ import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions}
 abstract class BaseSpec extends BaseIOSpec {
 
   implicit class JsonHelper(sc: StringContext) {
+    // TODO - use io.circe.literal._
     def json(args: Any*) = {
       val text = sc.s(args: _*).stripMargin
       parse(text).right.getOrElse(sys.error(s"Couldn't parse json '$text'"))
