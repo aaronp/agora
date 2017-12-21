@@ -18,7 +18,7 @@ import scala.reflect.ClassTag
   * @param underlyingProcessor
   * @tparam T
   */
-class DataFeedDsl[T: ClassTag](override protected val underlyingProcessor: BaseProcessor[T]) extends HasProcessor[T, T] {
+class DataFeedDsl[T: ClassTag](override val underlyingProcessor: BaseProcessor[T]) extends HasProcessor[T, T] {
 
   def asJsonDsl(implicit asJson: Encoder[T]): JsonFeedDsl = {
     val jsonPublisher = underlyingProcessor.map(asJson.apply)
@@ -27,7 +27,7 @@ class DataFeedDsl[T: ClassTag](override protected val underlyingProcessor: BaseP
 }
 
 object DataFeedDsl {
-  def withMaxCapacity[T: ClassTag](maxCapacity: Int = 100) = {
+  def withMaxCapacity[T: ClassTag](maxCapacity: Int = 10000) = {
     new DataFeedDsl[T](BaseProcessor.withMaxCapacity[T](maxCapacity))
   }
 }

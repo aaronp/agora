@@ -115,6 +115,12 @@ object JsonFeedDsl {
 
   def apply(publisher: Publisher[Json]) = new JsonFeedDsl(publisher)
 
+  trait LowPriorityJsonFeedImplicits {
+    implicit def asJsonFeed(pub: BasePublisher[Json]) = new JsonFeedDsl(pub)
+  }
+
+  object implicits extends LowPriorityJsonFeedImplicits
+
   /**
     * A Subscription which will in turn publish data per key, where the key is the value(s) determined by the JPaths
     *

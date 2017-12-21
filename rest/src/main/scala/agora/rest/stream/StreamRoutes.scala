@@ -1,8 +1,12 @@
 package agora.rest.stream
 
+import agora.api.streams.BaseProcessor
+import akka.NotUsed
 import akka.http.scaladsl.model.StatusCodes._
+import akka.http.scaladsl.model.ws.Message
 import akka.http.scaladsl.server.Directives.{extractMaterializer, handleWebSocketMessages, path, _}
 import akka.http.scaladsl.server.Route
+import akka.stream.scaladsl.Flow
 import com.typesafe.scalalogging.StrictLogging
 import io.circe.Json
 import io.circe.syntax._
@@ -50,9 +54,9 @@ class StreamRoutes extends StrictLogging {
 
         extractMaterializer { implicit materializer =>
           Lock.synchronized {
-
-            val consumerFlow: DataConsumerFlow[Json] = new DataConsumerFlow[Json](name, maxCapacity, initialRequest)
-            val subscriberFlow                       = state.newSimpleSubscriber(consumerFlow)
+            val republish: BaseProcessor[Json]                  = BaseProcessor.withMaxCapacity[Json](maxCapacity)
+            val consumerFlow: DataConsumerFlow[Json]            = new DataConsumerFlow[Json](name, republish, initialRequest)
+            val subscriberFlow: Flow[Message, Message, NotUsed] = state.newSimpleSubscriber(consumerFlow)
             handleWebSocketMessages(subscriberFlow)
           }
         }
