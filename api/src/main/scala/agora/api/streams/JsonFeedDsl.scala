@@ -56,7 +56,7 @@ class JsonFeedDsl(override protected val underlyingPublisher: Publisher[Json]) e
 
         override def toString: String = key.mkString("[", ",", "[")
 
-        override def newQueue() = newQ
+        override def newDefaultSubscriberQueue() = newQ
       }
     }
 
@@ -102,7 +102,7 @@ class JsonFeedDsl(override protected val underlyingPublisher: Publisher[Json]) e
         nrToTake
       }
 
-      override def newQueue(): ConsumerQueue[JsonDiff] = mkQueue()
+      override def newDefaultSubscriberQueue(): ConsumerQueue[JsonDiff] = mkQueue()
     }
 
     underlyingPublisher.subscribeToDeltas(DownstreamPublisher)

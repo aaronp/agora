@@ -20,21 +20,6 @@ case class DataConsumerFlow[T: Encoder: Decoder](val name: String, republish: Ba
 
   override protected def underlyingProcessor = republish
 
-  def msgJoin(other: Flow[Message, Message, NotUsed])(implicit mat: Materializer): Flow[Message, Message, NotUsed] = {
-    val myFlow: Flow[Message, Message, NotUsed] = flow
-    myFlow.via(other)
-  }
-
-  def join[A, Mat](other: Flow[T, A, Mat])(implicit mat: Materializer): Flow[ClientSubscriptionMessage, A, NotUsed] = {
-    typedFlow.via(other)
-  }
-
-  def typedFlow(implicit mat: Materializer): Flow[ClientSubscriptionMessage, T, NotUsed] = {
-    val source      = Source.fromPublisher(republish)
-    val controlSink = Sink.fromSubscriber(controlMessageSubscriber)
-    Flow.fromSinkAndSource(controlSink, source)
-  }
-
   /**
     * A subscription to websocket client messages to explicitly take next/cancel the feed.
     *

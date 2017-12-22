@@ -28,7 +28,7 @@ trait BasePublisher[T] extends Publisher[T] with StrictLogging {
     *
     * @return a new consumer queue
     */
-  def newQueue(): ConsumerQueue[T]
+  def newDefaultSubscriberQueue(): ConsumerQueue[T]
 
   protected def useMinTakeNext: Boolean = false
 
@@ -38,7 +38,11 @@ trait BasePublisher[T] extends Publisher[T] with StrictLogging {
   }
 
   protected def newSubscription(s: Subscriber[_ >: T]): BasePublisherSubscription[T] = {
-    new BasePublisher.BasePublisherSubscription[T](toString, ids.incrementAndGet(), this, s, newQueue())
+    val queue = s match {
+      case hasQ: HasConsumerQueue[T] => hasQ.consumerQueue
+      case _                         => newDefaultSubscriberQueue()
+    }
+    new BasePublisher.BasePublisherSubscription[T](toString, ids.incrementAndGet(), this, s, queue)
   }
 
   def isSubscribed(name: String) = subscriptionsById.contains(name)
@@ -110,13 +114,13 @@ object BasePublisher extends StrictLogging {
 
   def apply[T](mkQueue: () => ConsumerQueue[T]) = {
     new BasePublisher[T] {
-      override def newQueue() = mkQueue()
+      override def newDefaultSubscriberQueue() = mkQueue()
     }
   }
 
   def apply[T](maxCapacity: Int) = {
     new BasePublisher[T] {
-      override def newQueue() = ConsumerQueue.withMaxCapacity(maxCapacity)
+      override def newDefaultSubscriberQueue() = ConsumerQueue.withMaxCapacity(maxCapacity)
     }
   }
 
@@ -131,7 +135,7 @@ object BasePublisher extends StrictLogging {
     */
   def apply[T: Semigroup](initialValue: Option[T] = None) = {
     new BasePublisher[T] {
-      override def newQueue() = ConsumerQueue(initialValue)
+      override def newDefaultSubscriberQueue() = ConsumerQueue(initialValue)
     }
   }
 

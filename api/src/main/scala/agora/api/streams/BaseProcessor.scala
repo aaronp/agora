@@ -58,7 +58,9 @@ trait BaseProcessor[T] extends BasePublisher[T] with BaseSubscriber[T] with Proc
   }
 
   /**
-    * Can be overridden by subclasses
+    * This is invoked when a subscription
+    *
+    * Added as a hook to be overridden by subclasses
     *
     * @param value
     */
@@ -72,7 +74,7 @@ trait BaseProcessor[T] extends BasePublisher[T] with BaseSubscriber[T] with Proc
     * Callback function when a subscription invokes its 'request' (e.g. 'takeNext') method
     *
     * @param subscription
-    * @param requested
+    * @param requested the max number requested across all subscriptions
     */
   override protected def onRequestNext(subscription: BasePublisherSubscription[T], requested: Long): Long = {
 
@@ -103,7 +105,7 @@ object BaseProcessor {
 
   def apply[T](mkQueue: () => ConsumerQueue[T]): BaseProcessor[T] = {
     new BaseProcessor[T] {
-      override def newQueue() = mkQueue()
+      override def newDefaultSubscriberQueue() = mkQueue()
     }
   }
   def apply[T](maxCapacity: Int): BaseProcessor[T] = withMaxCapacity(maxCapacity)
@@ -112,7 +114,7 @@ object BaseProcessor {
     new BaseProcessor[T] {
       override def toString = s"BaseProcessor w/ ${subscriptionCount} subscriptions, ${currentRequestedCount} requested, $maxCapacity capacity"
 
-      override def newQueue() = ConsumerQueue.withMaxCapacity(maxCapacity)
+      override def newDefaultSubscriberQueue() = ConsumerQueue.withMaxCapacity(maxCapacity)
     }
   }
 
@@ -127,7 +129,7 @@ object BaseProcessor {
     */
   def apply[T: Semigroup](initialValue: Option[T] = None): BaseProcessor[T] = {
     new BaseProcessor[T] {
-      override def newQueue() = ConsumerQueue(initialValue)
+      override def newDefaultSubscriberQueue() = ConsumerQueue(initialValue)
     }
   }
 }

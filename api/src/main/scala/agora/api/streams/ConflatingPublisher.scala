@@ -47,7 +47,7 @@ object ConflatingPublisher {
     new ConflatingPublisher[T] {
       override val semigroup = sg
 
-      override def newQueue() = mkQueue()
+      override def newDefaultSubscriberQueue() = mkQueue()
     }
   }
 
@@ -56,7 +56,7 @@ object ConflatingPublisher {
     new ConflatingPublisher[T] {
       override val semigroup = sg
 
-      override def newQueue() = ConsumerQueue.withMaxCapacity(maxCapacity)
+      override def newDefaultSubscriberQueue() = ConsumerQueue.withMaxCapacity(maxCapacity)
     }
   }
 
@@ -65,7 +65,7 @@ object ConflatingPublisher {
     new ConflatingPublisher[T] {
       override val semigroup = sg
 
-      override def newQueue() = ConsumerQueue(initialValue)
+      override def newDefaultSubscriberQueue() = ConsumerQueue(initialValue)
     }
   }
 }

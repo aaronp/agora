@@ -1,13 +1,18 @@
 language: scala
 scala:
    - 2.12.4
-   - 2.11.8
+   - 2.11.11
 script:
   - sbt ++$TRAVIS_SCALA_VERSION -jvm-opts travis/jvmopts clean test
+  - (test $TRAVIS_SCALA_VERSION == "2.11.11" && sbt ++$TRAVIS_SCALA_VERSION -J-Xms2g -J-Xmx2g cucumber) || test $TRAVIS_SCALA_VERSION == "2.12.4"
 jdk:
     - oraclejdk8
+
+sudo: false
+
 cache:
   directories:
     - $HOME/.sbt
     - $HOME/.ivy2
     - $HOME/.coursier
+
