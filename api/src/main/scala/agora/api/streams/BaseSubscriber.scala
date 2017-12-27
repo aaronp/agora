@@ -9,11 +9,13 @@ import org.reactivestreams.{Subscriber, Subscription}
   *
   * @tparam T
   */
-trait BaseSubscriber[T] extends Subscriber[T] with StrictLogging {
+trait BaseSubscriber[T] extends Subscriber[T] with StrictLogging with HasConsumerQueue[T] {
 
   private var _subscriptionOption: Option[Subscription] = None
 
   protected var initialRequest = 0L
+
+  override def consumerQueue: ConsumerQueue[T] = ConsumerQueue.withMaxCapacity[T](10)
 
   def subscriptionOption: Option[Subscription] = _subscriptionOption
 
@@ -65,16 +67,14 @@ trait BaseSubscriber[T] extends Subscriber[T] with StrictLogging {
 }
 
 object BaseSubscriber {
-  def apply[T](name: String, initialRequested: Long)(f: (BaseSubscriber[T], T) => Unit): BaseSubscriber[T] = new BaseSubscriber[T] { self =>
-    override def toString = name
+  def apply[T](initialRequested: Long)(f: (BaseSubscriber[T], T) => Unit): BaseSubscriber[T] = new BaseSubscriber[T] { self =>
     initialRequest = initialRequested
     override def onNext(value: T): Unit = f(self, value)
   }
 
-  def fromJson[T: Decoder](name: String, initialRequested: Long = 0L)(f: (BaseSubscriber[Json], T) => Unit): BaseSubscriber[Json] = {
+  def fromJson[T: Decoder](initialRequested: Long = 0L)(f: (BaseSubscriber[Json], T) => Unit): BaseSubscriber[Json] = {
     new BaseSubscriber[Json] { self =>
 
-      override def toString = name
       initialRequest = initialRequested
       override def onNext(value: Json): Unit = {
 
@@ -83,7 +83,7 @@ object BaseSubscriber {
         value.as[T] match {
           case Right(tea) => f(self, tea)
           case Left(err) =>
-            logger.error(s"$name couldn't unmarshal '$value': $err")
+            logger.error(s"Couldn't unmarshal '$value': $err")
             self.onError(err)
         }
       }

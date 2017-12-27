@@ -5,7 +5,7 @@ import agora.api.streams.{BaseProcessor, ConsumerQueue, HasConsumerQueue}
 import agora.rest.exchange.ClientSubscriptionMessage
 import akka.NotUsed
 import akka.http.scaladsl.HttpExt
-import akka.http.scaladsl.model.ws.{Message, TextMessage, WebSocketRequest}
+import akka.http.scaladsl.model.ws.{Message, TextMessage, WebSocketRequest, WebSocketUpgradeResponse}
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import io.circe.Json
@@ -13,12 +13,12 @@ import io.circe.parser._
 import io.circe.syntax._
 import org.reactivestreams.Subscriber
 
+import scala.concurrent.Future
+
 /** contains the publishers/subscribers needed to setup a websocket message flow
   *
-  * @tparam Mat
   */
-class AkkaWSClient[Mat](subscriber: Subscriber[Json] with HasConsumerQueue[Json])(implicit httpExp: HttpExt, mat: Materializer) {
-  wsClient =>
+class AkkaWSClient(subscriber: Subscriber[Json] with HasConsumerQueue[Json]) { wsClient =>
 
   // when we request/cancel our subscriptions, we end up sending a message upstream to take/cancel
   private val controlMessagePublisher: BaseProcessor[ClientSubscriptionMessage] = BaseProcessor(10)
@@ -69,12 +69,15 @@ class AkkaWSClient[Mat](subscriber: Subscriber[Json] with HasConsumerQueue[Json]
     Flow.fromSinkAndSource(kitchen, msgSrc)
   }
 
-  httpExp.singleWebSocketRequest(WebSocketRequest("ws://echo.websocket.org"), flow)
-
 }
 
 object AkkaWSClient {
-  def apply[Mat](subscriber: Subscriber[Json] with HasConsumerQueue[Json])(implicit mat: Materializer): AkkaWSClient[Mat] = {
-    new AkkaWSClient[Mat](subscriber)
+  //"ws://echo.websocket.org"
+  def apply[Mat](address: String, subscriber: Subscriber[Json] with HasConsumerQueue[Json])(implicit httpExp: HttpExt, mat: Materializer) = {
+    val client          = new AkkaWSClient(subscriber)
+    val (respFuture, _) = httpExp.singleWebSocketRequest(WebSocketRequest(address), client.flow)
+    respFuture.map { upgradeResp =>
+      upgradeResp.response -> client
+    }
   }
 }

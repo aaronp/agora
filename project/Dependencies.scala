@@ -12,8 +12,8 @@ object Dependencies {
 
   val testDependencies = List(
     "org.scalactic" %% "scalactic" % "3.0.4" % "test",
-    "org.scalatest" %% "scalatest" % "3.0.4" % ("test->*"),
-    "org.pegdown"   % "pegdown"    % "1.6.0" % ("test->*"),
+    "org.scalatest" %% "scalatest" % "3.0.4" % "test",
+    "org.pegdown"   % "pegdown"    % "1.6.0" % "test",
     "junit"         % "junit"      % "4.12"  % "test"
   )
 
