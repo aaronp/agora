@@ -17,7 +17,7 @@ import org.reactivestreams.Subscriber
 /** contains the publishers/subscribers needed to setup a websocket message flow
   *
   */
-class AkkaWSClient(subscriber: Subscriber[Json] with HasConsumerQueue[Json]) extends StrictLogging { wsClient =>
+class StreamWebsocketClient(subscriber: Subscriber[Json] with HasConsumerQueue[Json]) extends StrictLogging { wsClient =>
 
   // when we request/cancel our subscriptions, we end up sending a message upstream to take/cancel
   private val controlMessagePublisher: BaseProcessor[ClientSubscriptionMessage] = BaseProcessor(10)
@@ -73,12 +73,12 @@ class AkkaWSClient(subscriber: Subscriber[Json] with HasConsumerQueue[Json]) ext
 
 }
 
-object AkkaWSClient {
+object StreamWebsocketClient {
   //"ws://echo.websocket.org"
   def apply[Mat](address: String, subscriber: Subscriber[Json] with HasConsumerQueue[Json])(implicit httpExp: HttpExt, mat: Materializer) = {
     import mat.executionContext
 
-    val client          = new AkkaWSClient(subscriber)
+    val client          = new StreamWebsocketClient(subscriber)
     val (respFuture, _) = httpExp.singleWebSocketRequest(WebSocketRequest(address), client.flow)
     respFuture.map { upgradeResp =>
       upgradeResp.response -> client

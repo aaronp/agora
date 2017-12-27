@@ -7,9 +7,9 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.StatusCodes
 import io.circe.Json
 
-class AkkaWSClientTest extends BaseSpec with HasMaterializer {
+class StreamWebsocketClientTest extends BaseSpec with HasMaterializer {
 
-  "AkkaWSClient" should {
+  "StreamWebsocketClient" should {
     "work" in {
       implicit val http = Http()
 
@@ -19,7 +19,7 @@ class AkkaWSClientTest extends BaseSpec with HasMaterializer {
           sub.request(1)
       }
 
-      val (resp, client) = AkkaWSClient("ws://echo.websocket.org", jsonObs).futureValue
+      val (resp, client) = StreamWebsocketClient("ws://echo.websocket.org", jsonObs).futureValue
       resp.status shouldBe StatusCodes.SwitchingProtocols
       println(client)
       client.takeNext(3)
