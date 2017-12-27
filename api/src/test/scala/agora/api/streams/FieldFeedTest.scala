@@ -12,7 +12,7 @@ class FieldFeedTest extends BaseSpec {
       var fieldUpdates = Vector[TypesByPath]()
 
       val feed = FieldFeed()
-      feed.pathPublisher.subscribe(BaseSubscriber[TypesByPath]("FieldFeed", 1) {
+      feed.pathPublisher.subscribe(BaseSubscriber[TypesByPath](1) {
         case (_, update) => fieldUpdates = update +: fieldUpdates
       })
 

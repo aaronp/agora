@@ -14,9 +14,8 @@ import org.reactivestreams.Publisher
   * the data from the 'republish' processor and subscribe to client TakeNext/Cancel message.
   *
   */
-case class DataConsumerFlow[T: Encoder: Decoder](val name: String, republish: BaseProcessor[T], initialClientMessageTakeNext: Int = 10)
-    extends HasProcessor[T, T] {
-  simpleSubscriber =>
+case class DataConsumerFlow[T: Encoder: Decoder](name : String, republish: BaseProcessor[T], initialClientMessageTakeNext: Int = 10)
+    extends HasProcessor[T, T] { simpleSubscriber =>
 
   override protected def underlyingProcessor = republish
 
@@ -26,7 +25,7 @@ case class DataConsumerFlow[T: Encoder: Decoder](val name: String, republish: Ba
     * The FeedSubscriber subscription should then feed that 'takeNext' back to the input publisher
     */
   private val controlMessageSubscriber: BaseSubscriber[ClientSubscriptionMessage] =
-    BaseSubscriber[ClientSubscriptionMessage](s"$name control messages", initialClientMessageTakeNext) {
+    BaseSubscriber[ClientSubscriptionMessage](initialClientMessageTakeNext) {
       case (self, Cancel) =>
         republish.cancel()
 
@@ -51,5 +50,4 @@ case class DataConsumerFlow[T: Encoder: Decoder](val name: String, republish: Ba
 
   override protected def underlyingSubscriber = republish
 
-  override def toString = name
 }

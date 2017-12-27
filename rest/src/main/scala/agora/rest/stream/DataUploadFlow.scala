@@ -63,7 +63,7 @@ class DataUploadFlow[A: Decoder: Encoder](val name: String, maxCapacity: Int, in
       nrToTake
     }
 
-    override def newDefaultSubscriberQueue() = ConsumerQueue[A](maxCapacity)
+    override def newDefaultSubscriberQueue() = ConsumerQueue.withMaxCapacity[A](maxCapacity)
   }
 
   def takeNextJson(n: Long) = {

@@ -15,7 +15,7 @@ class StreamRoutesTest extends BaseRoutesSpec {
 
       // tests:
       // create a testing probe representing the client-side
-      val wsClient = WSProbe()
+      val wsClient: WSProbe = WSProbe()
 
       // WS creates a WebSocket request for testing
       WS("/rest/stream/publish/dave?maxCapacity=10&initialRequest=3", wsClient.flow) ~> streamRoutes.routes ~> check {
