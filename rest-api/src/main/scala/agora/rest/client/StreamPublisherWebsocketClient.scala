@@ -1,58 +1,41 @@
 package agora.rest.client
 
-import agora.api.streams.BasePublisher.BasePublisherSubscription
-import agora.api.streams.{BaseProcessor, ConsumerQueue, HasConsumerQueue}
-import agora.rest.exchange.ClientSubscriptionMessage
+import agora.api.streams.{BaseProcessor, ConsumerQueue, HasPublisher}
+import agora.rest.exchange.{Cancel, ClientSubscriptionMessage, TakeNext}
 import akka.NotUsed
 import akka.http.scaladsl.HttpExt
 import akka.http.scaladsl.model.ws.{Message, TextMessage, WebSocketRequest}
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import com.typesafe.scalalogging.StrictLogging
-import io.circe.Json
 import io.circe.parser._
 import io.circe.syntax._
-import org.reactivestreams.{Publisher, Subscriber}
+import io.circe.{Encoder, Json}
+import org.reactivestreams.Publisher
+
+import scala.concurrent.Future
 
 /** contains the publishers/subscribers needed to setup a websocket message flow
   *
   */
-class StreamPublisherWebsocketClient[T <: Publisher[Json]](val publisher: T) extends StrictLogging { wsClient =>
+class StreamPublisherWebsocketClient[E: Encoder, P <: Publisher[E]](val publisher: P) extends StrictLogging with HasPublisher[ClientSubscriptionMessage] {
+  wsClient =>
 
-  // when we request/cancel our subscriptions, we end up sending a message upstream to take/cancel
-  private val controlMessagePublisher: BaseProcessor[ClientSubscriptionMessage] = BaseProcessor(10)
-
-  /** Convenience method to explicitly cancel outside of the subscription
-    */
-  def cancel() = {
-    controlMessagePublisher.publish(ClientSubscriptionMessage.cancel)
-  }
-
-  /** Convenience method to explicitly request more work items outside of the subscription
-    */
-  def takeNext(n: Long = 1) = {
-    controlMessagePublisher.publish(ClientSubscriptionMessage.takeNext(n))
-  }
+  private val clientMessagePublisher = BaseProcessor[E](10)
+  publisher.subscribe(clientMessagePublisher)
 
   // this will be a subscriber of upstream messages and local (re-)publisher
-  private val messageProcessor: BaseProcessor[Json] = new BaseProcessor[Json] {
-    override def remove(id: Int): Unit = {
-      wsClient.cancel()
-      super.remove(id)
-    }
-
-    override protected def onRequestNext(subscription: BasePublisherSubscription[Json], requested: Long): Long = {
-      val nrReq = super.onRequestNext(subscription, requested)
-      wsClient.takeNext(requested)
-      nrReq
-    }
-
-    override def newDefaultSubscriberQueue(): ConsumerQueue[Json] = ConsumerQueue.withMaxCapacity[Json](100)
+  private val messageProcessor: BaseProcessor[ClientSubscriptionMessage] = new BaseProcessor[ClientSubscriptionMessage] {
+    override def newDefaultSubscriberQueue(): ConsumerQueue[ClientSubscriptionMessage] = ConsumerQueue.keepLatest(100)
   }
 
+  def takeNext(n: Long) = clientMessagePublisher.request(n)
+
+  def cancel() = clientMessagePublisher.cancel()
+
   val flow: Flow[Message, Message, NotUsed] = {
-    val msgSrc: Source[Message, NotUsed] = Source.fromPublisher(controlMessagePublisher).map { msg =>
-      val json = msg.asJson.noSpaces
+    val msgSrc: Source[Message, NotUsed] = Source.fromPublisher(clientMessagePublisher).map { event: E =>
+      val json = event.asJson.noSpaces
       logger.debug(s"sending control message: $json")
       TextMessage(json)
     }
@@ -61,8 +44,17 @@ class StreamPublisherWebsocketClient[T <: Publisher[Json]](val publisher: T) ext
         case TextMessage.Strict(jsonText) =>
           logger.debug(s"received : $jsonText")
           parse(jsonText) match {
-            case Left(err)   => sys.error(s"couldn't parse ${jsonText} : $err")
-            case Right(json) => json
+            case Left(err) => sys.error(s"couldn't parse ${jsonText} : $err")
+            case Right(json) =>
+              json.as[ClientSubscriptionMessage] match {
+                case Right(msg @ TakeNext(n)) =>
+                  takeNext(n)
+                  msg
+                case Right(msg @ Cancel) =>
+                  cancel()
+                  msg
+                case Left(err) => sys.error(s"couldn't parse ${jsonText} as a client subscription message: $err")
+              }
           }
         case other => sys.error(s"Expected a strict message but got " + other)
       }
@@ -71,17 +63,21 @@ class StreamPublisherWebsocketClient[T <: Publisher[Json]](val publisher: T) ext
     Flow.fromSinkAndSource(kitchen, msgSrc)
   }
 
+  override protected def underlyingPublisher  = messageProcessor
+
 }
 
-object StreamPublisherWebsocketClient {
-  //"ws://echo.websocket.org"
-  def openConnection(address: String, publisher: Publisher[Json])(implicit httpExp: HttpExt, mat: Materializer) = {
+object StreamPublisherWebsocketClient extends StrictLogging {
+
+  def openConnection[E: Encoder, T <: Publisher[E]](address: String, publisher: T)(implicit httpExp: HttpExt, mat: Materializer): Future[StreamPublisherWebsocketClient[E, T]] = {
     import mat.executionContext
 
-    val client          = new StreamPublisherWebsocketClient(publisher)
+    val client = new StreamPublisherWebsocketClient[E, T](publisher)
     val (respFuture, _) = httpExp.singleWebSocketRequest(WebSocketRequest(address), client.flow)
     respFuture.map { upgradeResp =>
-      upgradeResp.response -> client
+      val status = upgradeResp.response.status
+      logger.debug(s"Upgraded publisher websocket w/ status $status for $address: ${upgradeResp.response}")
+      client
     }
   }
 }

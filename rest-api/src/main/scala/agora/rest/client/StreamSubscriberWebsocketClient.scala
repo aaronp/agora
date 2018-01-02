@@ -5,7 +5,6 @@ import agora.api.streams.{BaseProcessor, ConsumerQueue, HasConsumerQueue}
 import agora.rest.exchange.ClientSubscriptionMessage
 import akka.NotUsed
 import akka.http.scaladsl.HttpExt
-import akka.http.scaladsl.model.HttpResponse
 import akka.http.scaladsl.model.ws.{Message, TextMessage, WebSocketRequest}
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
@@ -15,12 +14,11 @@ import io.circe.parser._
 import io.circe.syntax._
 import org.reactivestreams.Subscriber
 
-import scala.concurrent.Future
-
 /** contains the publishers/subscribers needed to setup a websocket message flow
   *
   */
-class StreamSubscriberWebsocketClient[T <: Subscriber[Json] with HasConsumerQueue[Json]](val subscriber: T) extends StrictLogging { wsClient =>
+class StreamSubscriberWebsocketClient[T <: Subscriber[Json] with HasConsumerQueue[Json]](val subscriber: T) extends StrictLogging {
+  wsClient =>
 
   // when we request/cancel our subscriptions, we end up sending a message upstream to take/cancel
   private val controlMessagePublisher: BaseProcessor[ClientSubscriptionMessage] = BaseProcessor(10)
@@ -50,8 +48,9 @@ class StreamSubscriberWebsocketClient[T <: Subscriber[Json] with HasConsumerQueu
       nrReq
     }
 
-    override def newDefaultSubscriberQueue(): ConsumerQueue[Json] = ConsumerQueue.withMaxCapacity[Json](100)
+    override def newDefaultSubscriberQueue(): ConsumerQueue[Json] = sys.error("The subscriber's queue should always be used")
   }
+  messageProcessor.subscribe(subscriber)
 
   val flow: Flow[Message, Message, NotUsed] = {
     val msgSrc: Source[Message, NotUsed] = Source.fromPublisher(controlMessagePublisher).map { msg =>
@@ -64,7 +63,7 @@ class StreamSubscriberWebsocketClient[T <: Subscriber[Json] with HasConsumerQueu
         case TextMessage.Strict(jsonText) =>
           logger.debug(s"received : $jsonText")
           parse(jsonText) match {
-            case Left(err)   => sys.error(s"couldn't parse ${jsonText} : $err")
+            case Left(err) => sys.error(s"couldn't parse ${jsonText} : $err")
             case Right(json) => json
           }
         case other => sys.error(s"Expected a strict message but got " + other)
@@ -76,15 +75,17 @@ class StreamSubscriberWebsocketClient[T <: Subscriber[Json] with HasConsumerQueu
 
 }
 
-object StreamSubscriberWebsocketClient {
+object StreamSubscriberWebsocketClient extends StrictLogging {
   //"ws://echo.websocket.org"
   def openConnection(address: String, subscriber: Subscriber[Json] with HasConsumerQueue[Json])(implicit httpExp: HttpExt, mat: Materializer) = {
     import mat.executionContext
 
-    val client          = new StreamSubscriberWebsocketClient(subscriber)
+    val client = new StreamSubscriberWebsocketClient(subscriber)
     val (respFuture, _) = httpExp.singleWebSocketRequest(WebSocketRequest(address), client.flow)
     respFuture.map { upgradeResp =>
-      upgradeResp.response -> client
+      val status = upgradeResp.response.status
+      logger.debug(s"Upgraded subscriber websocket w/ status $status for $address: ${upgradeResp.response}")
+      client
     }
   }
 }

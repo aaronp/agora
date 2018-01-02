@@ -8,7 +8,7 @@ import akka.http.scaladsl.model.{HttpMethods, HttpRequest}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
-import io.circe.Json
+import io.circe.{Encoder, Json}
 import org.reactivestreams.Publisher
 
 import scala.concurrent.Future
@@ -26,8 +26,10 @@ case class StreamRoutesClient(clientConf: ClientConfig) extends FailFastCirceSup
   lazy val restClient: RestClient = clientConf.clientFor(location)
 
   object subscriptions {
+
+    import clientSystem._
+
     def takeNext(name: String, n: Int) = {
-      import clientSystem._
       takeNextVerb("subscribe", name, n).flatMap { resp =>
         Unmarshal(resp).to[Int]
       }
@@ -37,25 +39,35 @@ case class StreamRoutesClient(clientConf: ClientConfig) extends FailFastCirceSup
 
     def list() = listVerb("subscribe")
 
-    def createSubscriber(name: String, subscriber: BaseProcessor[Json] = BaseProcessor[Json](100)) = {
-      val url = s"${location.asWebsocketURL}/rest/stream/subscribe/$name"
+    def createSubscriber(name: String,
+                         subscriber: BaseProcessor[Json] = BaseProcessor[Json](100),
+                         maxCapacity: Option[Int] = None,
+                         initialRequest: Option[Int] = None,
+                         discardOverCapacity: Option[Boolean] = None
+                        ) = {
+      val queryString = {
+        val options: List[String] = maxCapacity.map(v => s"maxCapacity=$v").toList ++
+          initialRequest.map(v => s"initialRequest=$v").toList ++
+          discardOverCapacity.map(v => s"discardOverCapacity=$v").toList
+        options match {
+          case Nil => ""
+          case list => list.mkString("?", "&", "")
+        }
+      }
+      val url = s"${location.asWebsocketURL}/rest/stream/subscribe/$name$queryString"
       openConnection(url, subscriber)
     }
 
-    private def openConnection[T <: BaseProcessor[Json]](url: String, subscriber: T) = { //(implicit clientSystem: AkkaImplicits) = {
-      import clientSystem._
-
-      StreamSubscriberWebsocketClient.openConnection(url, subscriber).map {
-        case (httpResp, client) =>
-          logger.info(s"Connected websocket to $url: $httpResp")
-          client
-      }
+    private def openConnection[T <: BaseProcessor[Json]](url: String, subscriber: T) = {
+      StreamSubscriberWebsocketClient.openConnection(url, subscriber)
     }
   }
-  object publishers {
-    def takeNext(name: String, n: Int) = {
-      import clientSystem._
 
+  object publishers {
+
+    import clientSystem._
+
+    def takeNext(name: String, n: Int) = {
       takeNextVerb("publish", name, n).flatMap { resp =>
         Unmarshal(resp.entity).to[Int]
       }
@@ -65,20 +77,18 @@ case class StreamRoutesClient(clientConf: ClientConfig) extends FailFastCirceSup
 
     def list() = listVerb("publish")
 
-    def create(name: String, publisher: Publisher[Json]) = {
-      import clientSystem._
-
+    def create[E: Encoder, T <: Publisher[E]](name: String, publisher: T): Future[StreamPublisherWebsocketClient[E, T]] = {
       val url = s"${location.asWebsocketURL}/rest/stream/publish/$name"
       StreamPublisherWebsocketClient.openConnection(url, publisher)
     }
   }
 
-  private def takeNextVerb(publishOrSubscribe : String, name: String, n: Int) = {
+  private def takeNextVerb(publishOrSubscribe: String, name: String, n: Int) = {
     val url = s"/rest/stream/$publishOrSubscribe/$name/request"
     restClient.send(HttpRequest(HttpMethods.GET, url))
   }
 
-  private def cancelVerb(publishOrSubscribe : String, name: String) = {
+  private def cancelVerb(publishOrSubscribe: String, name: String) = {
     import clientSystem._
     val url = s"/rest/stream/$publishOrSubscribe/$name/cancel"
     restClient.send(HttpRequest(HttpMethods.GET, url)).flatMap { resp =>
@@ -86,18 +96,11 @@ case class StreamRoutesClient(clientConf: ClientConfig) extends FailFastCirceSup
     }
   }
 
-  private def listVerb(publishOrSubscribe : String): Future[Set[String]] = {
+  private def listVerb(publishOrSubscribe: String): Future[Set[String]] = {
     import clientSystem._
     val url = s"/rest/stream/$publishOrSubscribe"
     restClient.send(HttpRequest(HttpMethods.GET, url)).flatMap { resp =>
       Unmarshal(resp.entity).to[Set[String]]
     }
   }
-
-
-}
-
-
-object StreamRoutesClient extends StrictLogging {
-
 }

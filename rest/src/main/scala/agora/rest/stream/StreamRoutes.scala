@@ -8,13 +8,14 @@ import akka.http.scaladsl.server.Directives.{extractMaterializer, handleWebSocke
 import akka.http.scaladsl.server.Route
 import akka.stream.scaladsl.Flow
 import com.typesafe.scalalogging.StrictLogging
+import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.Json
 import io.circe.syntax._
 
 /**
   * A PoC set of routes for creating publishers/subscribers over web sockets
   */
-class StreamRoutes extends StrictLogging {
+class StreamRoutes extends StrictLogging with FailFastCirceSupport {
 
   private object Lock
 
@@ -80,7 +81,7 @@ class StreamRoutes extends StrictLogging {
             case Some(found) =>
               logger.debug(s"$name subscriber taking $takeNextInt")
               found.foreach(_.takeNext(takeNextInt))
-              complete(found.size.asJson.noSpaces)
+              complete(found.size.asJson)
           }
         }
       }
@@ -98,7 +99,7 @@ class StreamRoutes extends StrictLogging {
             case Some(sp) =>
               logger.debug(s"$name publisher cancelling")
 
-              complete(sp.cancel().asJson.noSpaces)
+              complete(sp.cancel().asJson)
           }
         }
       }
@@ -109,7 +110,7 @@ class StreamRoutes extends StrictLogging {
     get {
       (path("rest" / "stream" / "subscribe") & pathEnd) {
         val list = Lock.synchronized {
-          state.simpleSubscriberByName.keySet.toList.asJson.noSpaces
+          state.simpleSubscriberByName.keySet.toList.asJson
         }
         complete(list)
       }
@@ -155,7 +156,7 @@ class StreamRoutes extends StrictLogging {
               complete(NotFound, s"Couldn't find $name, available publishers are: ${keys}")
             case Some(sp) =>
               logger.debug(s"$name publisher taking $takeNextInt")
-              complete(sp.takeNext(takeNextInt).asJson.noSpaces)
+              complete(sp.takeNext(takeNextInt).asJson)
           }
         }
       }
@@ -172,7 +173,7 @@ class StreamRoutes extends StrictLogging {
               complete(NotFound, s"Couldn't find $name, available publishers are: ${keys}")
             case Some(sp) =>
               logger.debug(s"$name publisher cancelling")
-              complete(sp.cancel().asJson.noSpaces)
+              complete(sp.cancel().asJson)
           }
         }
       }
@@ -183,7 +184,7 @@ class StreamRoutes extends StrictLogging {
     get {
       (path("rest" / "stream" / "publish") & pathEnd) {
         val list = Lock.synchronized {
-          state.uploadEntrypointByName.keySet.toList.asJson.noSpaces
+          state.uploadEntrypointByName.keySet.toList.asJson
         }
         complete(list)
       }
