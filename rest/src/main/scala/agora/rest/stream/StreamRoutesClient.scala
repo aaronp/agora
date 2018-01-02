@@ -38,6 +38,16 @@ case class StreamRoutesClient(clientConf: ClientConfig) {
       val url = s"${location.asWebsocketURL}/rest/stream/subscribe/$name"
       openConnection(subscriber, url)
     }
+
+    private def openConnection[T <: BaseProcessor[Json]](subscriber: T, url: String) = { //(implicit clientSystem: AkkaImplicits) = {
+      import clientSystem._
+
+      StreamWebsocketClient.openConnection(url, subscriber).map {
+        case (httpResp, client) =>
+          logger.info(s"Connected websocket to $url: $httpResp")
+          client
+      }
+    }
   }
   object publishers {
     def takeNext(name: String, n: Int) = {
@@ -76,16 +86,6 @@ case class StreamRoutesClient(clientConf: ClientConfig) {
   }
 
 
-    def openConnection[T <: BaseProcessor[Json]](subscriber: T, url: String) = { //(implicit clientSystem: AkkaImplicits) = {
-      import clientSystem._
-
-      StreamWebsocketClient.openConnection(url, subscriber).map {
-        case (httpResp, client) =>
-          logger.info(s"Connected websocket to $url: $httpResp")
-          client
-
-      }
-    }
 }
 
 
