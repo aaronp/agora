@@ -6,12 +6,12 @@ import io.circe.Json
 /**
   * Keeps track of the upload and consumer subscriptions
   *
-  * @param initialuploadEntrypointByName
+  * @param initialUploadEntrypointByName
   */
 private[stream] case class StreamRoutesState(
-    initialuploadEntrypointByName: Map[String, DataUploadFlow[Json]] = Map.empty
+    initialUploadEntrypointByName: Map[String, DataUploadFlow[Json]] = Map.empty
 ) {
-  var uploadEntrypointByName = initialuploadEntrypointByName
+  var uploadEntrypointByName = initialUploadEntrypointByName
   var simpleSubscriberByName = Map[String, List[DataConsumerFlow[Json]]]()
 
   def getUploadEntrypoint(name: String): Option[DataUploadFlow[Json]] = uploadEntrypointByName.get(name)

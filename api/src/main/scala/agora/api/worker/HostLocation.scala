@@ -12,6 +12,14 @@ case class HostLocation(host: String, port: Int, secure: Boolean = false) {
   }
 
   def asURL = s"http://$asHostPort"
+
+  def asWebsocketURL = {
+    if (secure) {
+      s"wss://${asHostPort}"
+    } else {
+      s"ws://${asHostPort}"
+    }
+  }
 }
 
 object HostLocation {

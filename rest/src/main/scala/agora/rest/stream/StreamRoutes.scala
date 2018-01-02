@@ -1,6 +1,6 @@
 package agora.rest.stream
 
-import agora.api.streams.BaseProcessor
+import agora.api.streams.{BaseProcessor, ConsumerQueue}
 import akka.NotUsed
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.ws.Message
@@ -37,7 +37,7 @@ class StreamRoutes extends StrictLogging {
     * The inverse of the publish route.
     * Incoming data will be either 'take' or 'cancel' messages, and pushed data will be the subscription.
     *
-    * This shows that the back-pressure from downstream subscribers going via a publisher is propogated
+    * This shows that the back-pressure from downstream subscribers going via a publisher is propagated
     *
     * {{{
     * data in -->
@@ -47,18 +47,22 @@ class StreamRoutes extends StrictLogging {
     */
   def subscribeRawData(): Route = {
     path("rest" / "stream" / "subscribe" / Segment) { name =>
-      parameter('maxCapacity.?, 'initialRequest.?) { (maxCapacityOpt, initialRequestOpt) =>
-        val maxCapacity    = maxCapacityOpt.map(_.toInt).getOrElse(10)
+      parameter('maxCapacity.?, 'initialRequest.?, 'discardOverCapacity.?) { (maxCapacityOpt, initialRequestOpt, discardOpt) =>
+        val maxCapacity = maxCapacityOpt.map(_.toInt)
+        val discardOverCapacity = discardOpt.map(_.toBoolean)
         val initialRequest = initialRequestOpt.map(_.toInt).getOrElse(0)
-        logger.debug(s"starting simple subscribe to $name w/ maxCapacity $maxCapacity and initialRequest $initialRequest")
+        logger.debug(s"starting simple subscribe to $name w/ maxCapacity $maxCapacity, discard $discardOverCapacity and initialRequest $initialRequest")
+
+        def newQueue = ConsumerQueue.jsonQueue(maxCapacity, discardOverCapacity)
 
         extractMaterializer { implicit materializer =>
-          Lock.synchronized {
-            val republish: BaseProcessor[Json]                  = BaseProcessor.withMaxCapacity[Json](maxCapacity)
-            val consumerFlow: DataConsumerFlow[Json]            = new DataConsumerFlow[Json](name, republish, initialRequest)
-            val subscriberFlow: Flow[Message, Message, NotUsed] = state.newSimpleSubscriber(consumerFlow)
-            handleWebSocketMessages(subscriberFlow)
+          val subscriberFlow: Flow[Message, Message, NotUsed] = Lock.synchronized {
+            val republish: BaseProcessor[Json] = BaseProcessor[Json](() => newQueue)
+            val consumerFlow: DataConsumerFlow[Json] = new DataConsumerFlow[Json](name, republish, initialRequest)
+            state.newSimpleSubscriber(consumerFlow)
           }
+
+          handleWebSocketMessages(subscriberFlow)
         }
       }
     }
@@ -126,17 +130,16 @@ class StreamRoutes extends StrictLogging {
   def publishRawData(): Route = {
     path("rest" / "stream" / "publish" / Segment) { name =>
       parameter('maxCapacity.?, 'initialRequest.?) { (maxCapacityOpt, initialRequestOpt) =>
-        val maxCapacity    = maxCapacityOpt.map(_.toInt).getOrElse(10)
+        val maxCapacity = maxCapacityOpt.map(_.toInt).getOrElse(10)
         val initialRequest = initialRequestOpt.map(_.toInt).getOrElse(0)
         logger.debug(s"starting simple publish for $name w/ maxCapacity $maxCapacity and initialRequest $initialRequest")
 
         extractMaterializer { implicit materializer =>
-          Lock.synchronized {
-
-            val sp          = new DataUploadFlow[Json](name, maxCapacity, initialRequest)
-            val publishFlow = state.newUploadEntrypoint(sp)
-            handleWebSocketMessages(publishFlow)
+          val publishFlow = Lock.synchronized {
+            val sp = new DataUploadFlow[Json](name, maxCapacity, initialRequest)
+            state.newUploadEntrypoint(sp)
           }
+          handleWebSocketMessages(publishFlow)
         }
       }
     }
@@ -169,7 +172,6 @@ class StreamRoutes extends StrictLogging {
               complete(NotFound, s"Couldn't find $name, available publishers are: ${keys}")
             case Some(sp) =>
               logger.debug(s"$name publisher cancelling")
-
               complete(sp.cancel().asJson.noSpaces)
           }
         }
@@ -187,5 +189,4 @@ class StreamRoutes extends StrictLogging {
       }
     }
   }
-
 }

@@ -4,6 +4,7 @@ import java.util.{Queue => jQueue}
 
 import cats.Semigroup
 import com.typesafe.scalalogging.StrictLogging
+import io.circe.Json
 
 import scala.collection.mutable.ListBuffer
 
@@ -38,6 +39,19 @@ trait ConsumerQueue[T] {
 }
 
 object ConsumerQueue {
+
+  def jsonQueue(maxCapacity : Option[Int], discard : Option[Boolean]): ConsumerQueue[Json] = {
+    maxCapacity match {
+      case Some(capacity) =>
+        if (discard.getOrElse(false)) {
+          ConsumerQueue.keepLatest[Json](capacity)
+        } else {
+          ConsumerQueue.withMaxCapacity[Json](capacity)
+        }
+      case None =>
+        ConsumerQueue[Json](None)
+    }
+  }
 
   /** @param capacity
     * @tparam T

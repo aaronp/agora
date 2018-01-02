@@ -80,7 +80,6 @@ class DataUploadFlow[A: Decoder: Encoder](val name: String, maxCapacity: Int, in
   }
 
   def cancel(): ClientSubscriptionMessage = {
-    //    val json = Cancel.jsonRepr
     logger.info(s"$name Cancelling (replacing)")
     val msg = Cancel
     UpstreamMessagePublisher.publish(msg)

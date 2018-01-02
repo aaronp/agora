@@ -117,6 +117,13 @@ object BaseProcessor {
       override def newDefaultSubscriberQueue() = ConsumerQueue.withMaxCapacity(maxCapacity)
     }
   }
+  def keepingLatest[T](maxCapacity: Int): BaseProcessor[T] = {
+    new BaseProcessor[T] {
+      override def toString = s"BaseProcessor w/ ${subscriptionCount} subscriptions, ${currentRequestedCount} requested, keeping latest $maxCapacity"
+
+      override def newDefaultSubscriberQueue() = ConsumerQueue.keepLatest(maxCapacity)
+    }
+  }
 
   /**
     * Note: This BasePublisher will conflate messages ONLY AFTER A SUBSCRIBER SUBSCRIBES.
