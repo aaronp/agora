@@ -1,7 +1,6 @@
 package agora.rest.stream
 
 import agora.BaseSpec
-import agora.rest.client.StreamWebsocketClient
 import agora.rest.{HasMaterializer, RunningService, ServerConfig}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import org.scalatest.BeforeAndAfterEach
@@ -13,7 +12,8 @@ class StreamRoutesIntegrationTest extends BaseSpec with FailFastCirceSupport wit
 
   "StreamRoutes" should {
     "service websocket requests" in {
-      StreamWebsocketClient(serverConfig.clientConfig.location)
+      val client = StreamRoutesClient(serverConfig.clientConfig)
+      val subscriber = client.subscriptions.createSubscriber("dave")
 
     }
   }

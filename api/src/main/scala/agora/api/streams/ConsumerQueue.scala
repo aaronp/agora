@@ -2,6 +2,7 @@ package agora.api.streams
 
 import java.util.{Queue => jQueue}
 
+import agora.api.json.JsonSemigroup
 import cats.Semigroup
 import com.typesafe.scalalogging.StrictLogging
 import io.circe.Json
@@ -49,7 +50,7 @@ object ConsumerQueue {
           ConsumerQueue.withMaxCapacity[Json](capacity)
         }
       case None =>
-        ConsumerQueue[Json](None)
+        ConsumerQueue[Json](None)(JsonSemigroup)
     }
   }
 
