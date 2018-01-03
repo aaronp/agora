@@ -41,16 +41,15 @@ trait ConsumerQueue[T] {
 
 object ConsumerQueue {
 
-  def jsonQueue(maxCapacity : Option[Int], discard : Option[Boolean]): ConsumerQueue[Json] = {
+  def newQueue[T : Semigroup](maxCapacity : Option[Int], discard : Option[Boolean]): ConsumerQueue[T] = {
     maxCapacity match {
       case Some(capacity) =>
         if (discard.getOrElse(false)) {
-          ConsumerQueue.keepLatest[Json](capacity)
+          ConsumerQueue.keepLatest[T](capacity)
         } else {
-          ConsumerQueue.withMaxCapacity[Json](capacity)
+          ConsumerQueue.withMaxCapacity[T](capacity)
         }
-      case None =>
-        ConsumerQueue[Json](None)(JsonSemigroup)
+      case None => ConsumerQueue[T](None)
     }
   }
 
@@ -167,6 +166,11 @@ object ConsumerQueue {
     }
   }
 
+  /**
+    * A ConsumerQueue which will error if the queue is exceeded
+    * @param queue
+    * @tparam T
+    */
   class Instance[T](queue: jQueue[T]) extends ConsumerQueue[T] with StrictLogging {
 
     private object Lock

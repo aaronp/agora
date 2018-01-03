@@ -10,7 +10,7 @@ import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.{Encoder, Json}
 import org.reactivestreams.Publisher
-
+import agora.api.streams.AsConsumerQueue._
 import scala.concurrent.Future
 
 /**
@@ -40,7 +40,7 @@ case class StreamRoutesClient(clientConf: ClientConfig) extends FailFastCirceSup
     def list() = listVerb("subscribe")
 
     def createSubscriber(name: String,
-                         subscriber: BaseProcessor[Json] = BaseProcessor[Json](100),
+                         subscriber: BaseProcessor[Json] = BaseProcessor[MaxCapacity, Json](MaxCapacity(100)),
                          maxCapacity: Option[Int] = None,
                          initialRequest: Option[Int] = None,
                          discardOverCapacity: Option[Boolean] = None

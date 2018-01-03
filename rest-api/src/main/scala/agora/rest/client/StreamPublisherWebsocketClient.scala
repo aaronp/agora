@@ -8,9 +8,9 @@ import akka.http.scaladsl.model.ws.{Message, TextMessage, WebSocketRequest}
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import com.typesafe.scalalogging.StrictLogging
+import io.circe.Encoder
 import io.circe.parser._
 import io.circe.syntax._
-import io.circe.{Encoder, Json}
 import org.reactivestreams.Publisher
 
 import scala.concurrent.Future
@@ -21,7 +21,7 @@ import scala.concurrent.Future
 class StreamPublisherWebsocketClient[E: Encoder, P <: Publisher[E]](val publisher: P) extends StrictLogging with HasPublisher[ClientSubscriptionMessage] {
   wsClient =>
 
-  private val clientMessagePublisher = BaseProcessor[E](10)
+  private val clientMessagePublisher = BaseProcessor.withMaxCapacity[E](10)
   publisher.subscribe(clientMessagePublisher)
 
   // this will be a subscriber of upstream messages and local (re-)publisher

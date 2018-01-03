@@ -38,7 +38,7 @@ class PublisherOpsTest extends BaseSpec {
   }
   "PublisherOps.filter" should {
     "only publish values which pass the filter" in {
-      val publisher = BaseProcessor[Json](10)
+      val publisher = BaseProcessor.withMaxCapacity[Json](10)
 
       val deltaSubscriber = new ListSubscriber[Json]
       deltaSubscriber.request(1)
@@ -76,7 +76,7 @@ class PublisherOpsTest extends BaseSpec {
   }
   "PublisherOps.subscribeByKey" should {
     "publish json updates with their key field" in {
-      val publisher = BaseProcessor[Json](10)
+      val publisher = BaseProcessor.withMaxCapacity[Json](10)
 
       val deltaSubscriber = new ListSubscriber[Json]
       publisher.subscribeToUpdateDeltas(deltaSubscriber)

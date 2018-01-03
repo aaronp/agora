@@ -1,7 +1,7 @@
 package agora.rest.stream
 
 import agora.api.json.{TypeNode, TypesByPath, newTypesByPath}
-import agora.api.streams.{AccumulatingSubscriber, BaseProcessor, ConsumerQueue}
+import agora.api.streams.{AccumulatingSubscriber, AsConsumerQueue, BaseProcessor, ConsumerQueue}
 import io.circe.Json
 
 /**
@@ -13,11 +13,11 @@ trait FieldFeed {
 
 object FieldFeed {
 
-  class AccumulatingJsonPathsSubscriber(newQ: () => ConsumerQueue[TypesByPath])
+  class AccumulatingJsonPathsSubscriber[F[_]](newQueueInput: F[TypesByPath])(implicit asConsumerQueue : AsConsumerQueue[F])
       extends AccumulatingSubscriber[Json, TypesByPath](newTypesByPath())
       with FieldFeed {
 
-    val pathPublisher = BaseProcessor[TypesByPath](newQ)
+    val pathPublisher = BaseProcessor[F, TypesByPath](newQueueInput)(asConsumerQueue)
 
     override protected def combine(lastState: TypesByPath, delta: Json) = {
       val deltaPaths: TypesByPath = TypeNode(delta).flattenPaths
@@ -34,6 +34,8 @@ object FieldFeed {
     override def fields = state
   }
 
-  def apply(initialFieldRequest: Int = 1) = new AccumulatingJsonPathsSubscriber(() => ConsumerQueue.withMaxCapacity(initialFieldRequest))
+  def apply[F[_]](newQueueInput: F[TypesByPath])(implicit asConsumerQueue : AsConsumerQueue[F]): AccumulatingJsonPathsSubscriber[F] = {
+    new AccumulatingJsonPathsSubscriber(newQueueInput)
+  }
 
 }

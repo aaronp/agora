@@ -112,9 +112,9 @@ trait BasePublisher[T] extends Publisher[T] with StrictLogging {
 
 object BasePublisher extends StrictLogging {
 
-  def apply[T](mkQueue: () => ConsumerQueue[T]) = {
+  def apply[F[_], T](newQueueArgs: F[T])(implicit asQueue : AsConsumerQueue[F]) = {
     new BasePublisher[T] {
-      override def newDefaultSubscriberQueue() = mkQueue()
+      override def newDefaultSubscriberQueue() = asQueue.newQueue(newQueueArgs)
     }
   }
 
@@ -186,5 +186,4 @@ object BasePublisher extends StrictLogging {
       }
     }
   }
-
 }

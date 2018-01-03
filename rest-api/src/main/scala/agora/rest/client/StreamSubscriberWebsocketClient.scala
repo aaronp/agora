@@ -21,7 +21,7 @@ class StreamSubscriberWebsocketClient[T <: Subscriber[Json] with HasConsumerQueu
   wsClient =>
 
   // when we request/cancel our subscriptions, we end up sending a message upstream to take/cancel
-  private val controlMessagePublisher: BaseProcessor[ClientSubscriptionMessage] = BaseProcessor(10)
+  private val controlMessagePublisher: BaseProcessor[ClientSubscriptionMessage] = BaseProcessor.withMaxCapacity(10)
 
   /** Convenience method to explicitly cancel outside of the subscription
     */

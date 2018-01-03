@@ -103,12 +103,12 @@ trait BaseProcessor[T] extends BasePublisher[T] with BaseSubscriber[T] with Proc
 
 object BaseProcessor {
 
-  def apply[T](mkQueue: () => ConsumerQueue[T]): BaseProcessor[T] = {
+  def apply[F[_], T](newQueueArgs: F[T])(implicit asQueue : AsConsumerQueue[F]): BaseProcessor[T] = {
     new BaseProcessor[T] {
-      override def newDefaultSubscriberQueue() = mkQueue()
+      override def newDefaultSubscriberQueue() = asQueue.newQueue(newQueueArgs)
     }
   }
-  def apply[T](maxCapacity: Int): BaseProcessor[T] = withMaxCapacity(maxCapacity)
+//  def apply[T](maxCapacity: Int): BaseProcessor[T] = withMaxCapacity(maxCapacity)
 
   def withMaxCapacity[T](maxCapacity: Int): BaseProcessor[T] = {
     new BaseProcessor[T] {

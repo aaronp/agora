@@ -1,6 +1,7 @@
 package agora.rest.stream
 
-import agora.api.streams.{BaseProcessor, ConsumerQueue}
+import agora.api.json.JsonSemigroup
+import agora.api.streams.{AsConsumerQueue, BaseProcessor}
 import akka.NotUsed
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.ws.Message
@@ -49,16 +50,23 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
   def subscribeRawData(): Route = {
     path("rest" / "stream" / "subscribe" / Segment) { name =>
       parameter('maxCapacity.?, 'initialRequest.?, 'discardOverCapacity.?) { (maxCapacityOpt, initialRequestOpt, discardOpt) =>
-        val maxCapacity = maxCapacityOpt.map(_.toInt)
-        val discardOverCapacity = discardOpt.map(_.toBoolean)
-        val initialRequest = initialRequestOpt.map(_.toInt).getOrElse(0)
-        logger.debug(s"starting simple subscribe to $name w/ maxCapacity $maxCapacity, discard $discardOverCapacity and initialRequest $initialRequest")
 
-        def newQueue = ConsumerQueue.jsonQueue(maxCapacity, discardOverCapacity)
+        import AsConsumerQueue._
+//        implicit val jsg = JsonSemigroup
+
+        val args = {
+
+          val maxCapacity: Option[Int] = maxCapacityOpt.map(_.toInt)
+          val discardOverCapacity: Option[Boolean] = discardOpt.map(_.toBoolean)
+          QueueArgs[Json](maxCapacity, discardOverCapacity)(JsonSemigroup)
+        }
+        val initialRequest = initialRequestOpt.map(_.toInt).getOrElse(0)
+        logger.debug(s"starting simple subscribe to $name w/ $args and initialRequest $initialRequest")
+
 
         extractMaterializer { implicit materializer =>
           val subscriberFlow: Flow[Message, Message, NotUsed] = Lock.synchronized {
-            val republish: BaseProcessor[Json] = BaseProcessor[Json](() => newQueue)
+            val republish: BaseProcessor[Json] = BaseProcessor(args)
             val consumerFlow: DataConsumerFlow[Json] = new DataConsumerFlow[Json](name, republish, initialRequest)
             state.newSimpleSubscriber(consumerFlow)
           }
