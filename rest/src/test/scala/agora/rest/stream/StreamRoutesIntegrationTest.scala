@@ -19,7 +19,7 @@ class StreamRoutesIntegrationTest extends BaseSpec with FailFastCirceSupport wit
       val client = StreamRoutesClient(serverConfig.clientConfig)
       client.subscriptions.list().futureValue shouldBe empty
 
-      // 1) create a subscriber
+      // 1) create a subscriber -- someone to listen to the data we're going to publish against some named topic 'dave'
       val subscriber = client.subscriptions.createSubscriber("dave").futureValue
       val initialSubscribers = client.subscriptions.list().futureValue
       initialSubscribers shouldBe Set("dave")

@@ -13,6 +13,13 @@ object AsConsumerQueue {
 
   case class KeepOnly[T](keepOnly: Int)
 
+  /** If maxCapacity and discardOverCapacity are set to None, then the queue will be a semigroup queue which conflates
+    * its elements (e.g. T + T => T)
+    *
+    * @param maxCapacity The maximum size of the buffer used between pulling data from the publisher and dispatching it to the subscriber
+    * @param discardOverCapacity determines whether we should error or silenty discard elements when the queue exceeds maxCapacity
+    * @tparam T
+    */
   case class QueueArgs[T : Semigroup](maxCapacity: Option[Int], discardOverCapacity: Option[Boolean]) {
     def semigroup: Semigroup[T] = Semigroup[T]
   }

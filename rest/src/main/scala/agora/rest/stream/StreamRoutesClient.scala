@@ -1,6 +1,7 @@
 package agora.rest.stream
 
-import agora.api.streams.BaseProcessor
+import agora.api.streams.AsConsumerQueue._
+import agora.api.streams.{BaseProcessor, HasConsumerQueue}
 import agora.rest.client.{RestClient, StreamPublisherWebsocketClient, StreamSubscriberWebsocketClient}
 import agora.rest.exchange.ClientSubscriptionMessage
 import agora.rest.{AkkaImplicits, ClientConfig}
@@ -9,8 +10,8 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.{Encoder, Json}
-import org.reactivestreams.Publisher
-import agora.api.streams.AsConsumerQueue._
+import org.reactivestreams.{Publisher, Subscriber}
+
 import scala.concurrent.Future
 
 /**
@@ -39,22 +40,30 @@ case class StreamRoutesClient(clientConf: ClientConfig) extends FailFastCirceSup
 
     def list() = listVerb("subscribe")
 
-    def createSubscriber(name: String,
+    /** attaches the provided subscriber to the data feed for the given 'topic' name running on the webservice
+      * pointed to by the client configuration. Phew!
+      *
+      * @param topic          the name to listen to
+      * @param subscriber     the subscriber callback
+      * @param initialRequest should we request data immediately upon creating the subscription? If so, how much?
+      * @param queueArgs      how should we create the queue which pulls data from the topic?
+      * @return a websocket client representing the JSon subscription of data
+      */
+    def createSubscriber(topic: String,
                          subscriber: BaseProcessor[Json] = BaseProcessor[MaxCapacity, Json](MaxCapacity(100)),
-                         maxCapacity: Option[Int] = None,
                          initialRequest: Option[Int] = None,
-                         discardOverCapacity: Option[Boolean] = None
-                        ) = {
+                         queueArgs: QueueArgs[Json] = QueueArgs[Json](None, None)
+                        ): Future[StreamSubscriberWebsocketClient[Subscriber[Json] with HasConsumerQueue[Json]]] = {
       val queryString = {
-        val options: List[String] = maxCapacity.map(v => s"maxCapacity=$v").toList ++
+        val options: List[String] = queueArgs.maxCapacity.map(v => s"maxCapacity=$v").toList ++
           initialRequest.map(v => s"initialRequest=$v").toList ++
-          discardOverCapacity.map(v => s"discardOverCapacity=$v").toList
+          queueArgs.discardOverCapacity.map(v => s"discardOverCapacity=$v").toList
         options match {
           case Nil => ""
           case list => list.mkString("?", "&", "")
         }
       }
-      val url = s"${location.asWebsocketURL}/rest/stream/subscribe/$name$queryString"
+      val url = s"${location.asWebsocketURL}/rest/stream/subscribe/$topic$queryString"
       openConnection(url, subscriber)
     }
 
