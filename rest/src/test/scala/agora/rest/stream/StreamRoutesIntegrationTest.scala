@@ -28,7 +28,7 @@ class StreamRoutesIntegrationTest extends BaseSpec with FailFastCirceSupport wit
       client.publishers.list().futureValue shouldBe empty
       val msgSource = BaseProcessor.withMaxCapacity[Json](10)
 
-      val publisher = client.publishers.create[Json, BaseProcessor[Json]]("dave", msgSource).futureValue
+      val publisher: StreamPublisherWebsocketClient[Json, BaseProcessor[Json]] = client.publishers.create[Json, BaseProcessor[Json]]("dave", msgSource).futureValue
       val publisherListener1 = new ListSubscriber[ClientSubscriptionMessage]
       val publisherListener2 = new ListSubscriber[ClientSubscriptionMessage]
       publisher.subscribe(publisherListener1)

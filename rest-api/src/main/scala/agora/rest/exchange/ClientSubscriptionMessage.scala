@@ -1,5 +1,6 @@
 package agora.rest.exchange
 
+import cats.Semigroup
 import io.circe.generic.auto._
 import io.circe.parser._
 import io.circe.{Decoder, DecodingFailure, Encoder, Json}
@@ -24,6 +25,18 @@ object ClientSubscriptionMessage {
 
   def cancel = Cancel
 
+  /**
+    * A semigroup which will consider any cancel message over a 'TakeNext' message
+    */
+  implicit object ClientSubscriptionMessageSemigroup extends Semigroup[ClientSubscriptionMessage] {
+    override def combine(x: ClientSubscriptionMessage, y: ClientSubscriptionMessage): ClientSubscriptionMessage = {
+      (x, y) match {
+        case (TakeNext(a), TakeNext(b)) => TakeNext(a + b)
+        case _ => Cancel
+      }
+    }
+  }
+
   implicit val JsonDecoder: Decoder[ClientSubscriptionMessage] = {
     val cancelDecoder = Decoder.decodeString.flatMap {
       case "cancel" =>
@@ -36,7 +49,7 @@ object ClientSubscriptionMessage {
 
   implicit object JsonEncoder extends Encoder[ClientSubscriptionMessage] {
     override def apply(a: ClientSubscriptionMessage): Json = a match {
-      case Cancel        => Cancel.jsonRepr
+      case Cancel => Cancel.jsonRepr
       case msg: TakeNext => implicitly[Encoder[TakeNext]].apply(msg)
     }
   }

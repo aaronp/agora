@@ -88,7 +88,7 @@ case class StreamRoutesClient(clientConf: ClientConfig) extends FailFastCirceSup
 
     def create[E: Encoder, T <: Publisher[E]](name: String, publisher: T): Future[StreamPublisherWebsocketClient[E, T]] = {
       val url = s"${location.asWebsocketURL}/rest/stream/publish/$name"
-      StreamPublisherWebsocketClient.openConnection(url, publisher)
+      StreamPublisherWebsocketClient.bindPublisherToSocket(url, publisher)
     }
   }
 

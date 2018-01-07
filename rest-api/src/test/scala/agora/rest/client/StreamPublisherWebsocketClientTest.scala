@@ -1,0 +1,28 @@
+package agora.rest.client
+
+import agora.BaseSpec
+import agora.api.streams.BasePublisher
+import agora.rest.exchange.TakeNext
+import org.scalatest.{FunSuite, Matchers}
+
+class StreamPublisherWebsocketClientTest extends BaseSpec with Matchers {
+
+  "StreamPublisherWebsocketClient" should {
+    "work" in {
+
+      val somePublisher = BasePublisher[String](10)
+
+
+      // create the publisher under test which will create a flow for our underlying 'somePublisher'
+      val spwc = new StreamPublisherWebsocketClient(somePublisher)
+
+
+      // we should be able to pull from the 'pullsFromPFP', but only when a client message comes through
+      // to the controlMessageProcessor should items be pulled
+
+      spwc.controlMessageProcessor.onNext(TakeNext(1))
+
+      ???
+    }
+  }
+}

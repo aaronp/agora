@@ -14,14 +14,17 @@ import io.circe.parser._
 import io.circe.syntax._
 import org.reactivestreams.Subscriber
 
-/** contains the publishers/subscribers needed to setup a websocket message flow
+/**
+  * contains the publishers/subscribers needed to setup a websocket message flow
   *
+  * @param subscriber the subscriber to connect to the data coming from the websocket
+  * @tparam S
   */
-class StreamSubscriberWebsocketClient[T <: Subscriber[Json] with HasConsumerQueue[Json]](val subscriber: T) extends StrictLogging {
+class StreamSubscriberWebsocketClient[S <: Subscriber[Json] with HasConsumerQueue[Json]](val subscriber: S) extends StrictLogging {
   wsClient =>
 
   // when we request/cancel our subscriptions, we end up sending a message upstream to take/cancel
-  private val controlMessagePublisher: BaseProcessor[ClientSubscriptionMessage] = BaseProcessor.withMaxCapacity(10)
+  private val controlMessagePublisher: BaseProcessor[ClientSubscriptionMessage] = BaseProcessor(None)
 
   /** Convenience method to explicitly cancel outside of the subscription
     */
@@ -35,7 +38,7 @@ class StreamSubscriberWebsocketClient[T <: Subscriber[Json] with HasConsumerQueu
     controlMessagePublisher.publish(ClientSubscriptionMessage.takeNext(n))
   }
 
-  // this will be a subscriber of upstream messages and local (re-)publisher
+  // this will be a subscriber of upstream messages which republishes the messages to the subscriber
   private val messageProcessor: BaseProcessor[Json] = new BaseProcessor[Json] {
     override def remove(id: Int): Unit = {
       wsClient.cancel()

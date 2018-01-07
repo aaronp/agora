@@ -108,7 +108,6 @@ object BaseProcessor {
       override def newDefaultSubscriberQueue() = asQueue.newQueue(newQueueArgs)
     }
   }
-//  def apply[T](maxCapacity: Int): BaseProcessor[T] = withMaxCapacity(maxCapacity)
 
   def withMaxCapacity[T](maxCapacity: Int): BaseProcessor[T] = {
     new BaseProcessor[T] {
