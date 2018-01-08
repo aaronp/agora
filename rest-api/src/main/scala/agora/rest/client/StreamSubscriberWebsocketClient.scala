@@ -20,7 +20,7 @@ import org.reactivestreams.Subscriber
   * @param subscriber the subscriber to connect to the data coming from the websocket
   * @tparam S
   */
-class StreamSubscriberWebsocketClient[S <: Subscriber[Json] with HasConsumerQueue[Json]](val subscriber: S) extends StrictLogging {
+class StreamSubscriberWebsocketClient[S <: Subscriber[Json] ](val subscriber: S) extends StrictLogging {
   wsClient =>
 
   // when we request/cancel our subscriptions, we end up sending a message upstream to take/cancel

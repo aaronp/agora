@@ -1,5 +1,6 @@
 package agora.rest.stream
 
+import agora.api.json.JsonSemigroup
 import agora.api.streams.AsConsumerQueue._
 import agora.api.streams.{BaseProcessor, HasConsumerQueue}
 import agora.rest.client.{RestClient, StreamPublisherWebsocketClient, StreamSubscriberWebsocketClient}
@@ -20,6 +21,7 @@ import scala.concurrent.Future
   * @param clientConf
   */
 case class StreamRoutesClient(clientConf: ClientConfig) extends FailFastCirceSupport with StrictLogging {
+  private implicit val jsonSemigroup = JsonSemigroup
   private lazy val clientSystem: AkkaImplicits = clientConf.newSystem()
 
   def location = clientConf.location

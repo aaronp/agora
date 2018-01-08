@@ -95,8 +95,10 @@ class JsonFeedDslTest extends BaseSpec {
       //
       // 1) create a subscription for 'foo' data
       //
+      queueCreationCount shouldBe 0
       val fooListener = new ListSubscriber[Json]()
       conflatingPriceByRIC.getPublisher("foo").subscribe(fooListener)
+      queueCreationCount shouldBe 1
 
       //
       // 2) push some initial 'foo' data through
@@ -110,6 +112,7 @@ class JsonFeedDslTest extends BaseSpec {
       fooListener.received() shouldBe Nil
       fooListener.request(1)
       fooListener.received() shouldBe List(json"""{ "ric" : "foo", "price" : 12.34, "first" : true }""")
+      queueCreationCount shouldBe 1
 
       //
       // 4) exercise the test -- push TWO updates before 'fooListener' requests the next value.

@@ -18,7 +18,7 @@ import scala.concurrent.Future
 /** contains the publishers/subscribers needed to setup a websocket message flow
   *
   */
-private[client] class StreamPublisherWebsocketClient[E: Encoder, P <: Publisher[E]](val publisher: P, bufferCapacity: Int = 50) extends StrictLogging with HasPublisher[ClientSubscriptionMessage] {
+class StreamPublisherWebsocketClient[E: Encoder, P <: Publisher[E]](val publisher: P, bufferCapacity: Int = 50) extends StrictLogging with HasPublisher[ClientSubscriptionMessage] {
   wsClient =>
 
   // we use this as a publisher so we can more directly control the request (take) /cancel messages

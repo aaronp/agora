@@ -9,13 +9,12 @@ import org.reactivestreams.{Subscriber, Subscription}
   *
   * @tparam T
   */
-trait BaseSubscriber[T] extends Subscriber[T] with StrictLogging with HasConsumerQueue[T] {
+trait BaseSubscriber[T] extends Subscriber[T] with StrictLogging {
 
   private var _subscriptionOption: Option[Subscription] = None
 
   protected var initialRequest = 0L
 
-  override def consumerQueue: ConsumerQueue[T] = ConsumerQueue.withMaxCapacity[T](10)
 
   def subscriptionOption: Option[Subscription] = _subscriptionOption
 
