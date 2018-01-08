@@ -103,7 +103,7 @@ trait BaseProcessor[T] extends BasePublisher[T] with BaseSubscriber[T] with Proc
 
 object BaseProcessor {
 
-  def apply[F[_], T](newQueueArgs: F[T])(implicit asQueue : AsConsumerQueue[F]): BaseProcessor[T] = {
+  def apply[F[_], T](newQueueArgs: F[T])(implicit asQueue: AsConsumerQueue[F]): BaseProcessor[T] = {
     new BaseProcessor[T] {
       override def newDefaultSubscriberQueue() = asQueue.newQueue(newQueueArgs)
     }

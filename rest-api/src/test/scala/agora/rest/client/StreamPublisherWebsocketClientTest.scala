@@ -13,12 +13,10 @@ class StreamPublisherWebsocketClientTest extends BaseSpec with Matchers {
 
       val somePublisher = BasePublisher[String](10)
 
-
       // create the publisher under test which will create a flow for our underlying 'somePublisher'
       val spwc: StreamPublisherWebsocketClient[String, BasePublisher[String]] = {
         new StreamPublisherWebsocketClient[String, BasePublisher[String]](somePublisher)
       }
-
 
       // we should be able to pull from the 'pullsFromPFP', but only when a client message comes through
       // to the controlMessageProcessor should items be pulled

@@ -13,7 +13,7 @@ trait FieldFeed {
 
 object FieldFeed {
 
-  class AccumulatingJsonPathsSubscriber[F[_]](newQueueInput: F[TypesByPath])(implicit asConsumerQueue : AsConsumerQueue[F])
+  class AccumulatingJsonPathsSubscriber[F[_]](newQueueInput: F[TypesByPath])(implicit asConsumerQueue: AsConsumerQueue[F])
       extends AccumulatingSubscriber[Json, TypesByPath](newTypesByPath())
       with FieldFeed {
 
@@ -34,7 +34,7 @@ object FieldFeed {
     override def fields = state
   }
 
-  def apply[F[_]](newQueueInput: F[TypesByPath])(implicit asConsumerQueue : AsConsumerQueue[F]): AccumulatingJsonPathsSubscriber[F] = {
+  def apply[F[_]](newQueueInput: F[TypesByPath])(implicit asConsumerQueue: AsConsumerQueue[F]): AccumulatingJsonPathsSubscriber[F] = {
     new AccumulatingJsonPathsSubscriber(newQueueInput)
   }
 

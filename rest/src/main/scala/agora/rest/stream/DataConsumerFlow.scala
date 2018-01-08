@@ -14,7 +14,7 @@ import org.reactivestreams.Publisher
   * the data from the 'republish' processor and subscribe to client TakeNext/Cancel message.
   *
   */
-case class DataConsumerFlow[T: Encoder: Decoder](name : String, republish: BaseProcessor[T], initialClientMessageTakeNext: Int = 10)
+case class DataConsumerFlow[T: Encoder: Decoder](name: String, republish: BaseProcessor[T], initialClientMessageTakeNext: Int = 10)
     extends HasProcessor[T, T] { simpleSubscriber =>
 
   override protected def underlyingProcessor = republish

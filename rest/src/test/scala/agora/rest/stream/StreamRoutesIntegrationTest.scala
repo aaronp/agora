@@ -14,7 +14,7 @@ class StreamRoutesIntegrationTest extends BaseSpec with FailFastCirceSupport wit
   var serverConfig: ServerConfig = null
   var service: RunningService[ServerConfig, StreamRoutes] = null
 
-  "StreamRoutes" should {
+  "StreamRoutes" ignore {
     "service websocket requests" in {
       val client = StreamRoutesClient(serverConfig.clientConfig)
       client.subscriptions.list().futureValue shouldBe empty

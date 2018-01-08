@@ -15,7 +15,6 @@ trait BaseSubscriber[T] extends Subscriber[T] with StrictLogging {
 
   protected var initialRequest = 0L
 
-
   def subscriptionOption: Option[Subscription] = _subscriptionOption
 
   def contraMap[A](f: A => T): Subscriber[A] = {

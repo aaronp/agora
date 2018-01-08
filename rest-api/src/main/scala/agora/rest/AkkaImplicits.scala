@@ -22,7 +22,7 @@ class AkkaImplicits(val actorSystemName: String, actorConfig: Config) extends Au
   }
   implicit val materializer                       = ActorMaterializer()
   implicit val executionContext: ExecutionContext = system.dispatcher
-  implicit val http: HttpExt                               = Http()
+  implicit val http: HttpExt                      = Http()
 
   override def close(): Unit = stop()
 

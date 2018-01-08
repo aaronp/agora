@@ -20,8 +20,7 @@ import org.reactivestreams.Subscriber
   * @param subscriber the subscriber to connect to the data coming from the websocket
   * @tparam S
   */
-class StreamSubscriberWebsocketClient[S <: Subscriber[Json] ](val subscriber: S) extends StrictLogging {
-  wsClient =>
+class StreamSubscriberWebsocketClient[S <: Subscriber[Json]](val subscriber: S) extends StrictLogging { wsClient =>
 
   // when we request/cancel our subscriptions, we end up sending a message upstream to take/cancel
   private val controlMessagePublisher: BaseProcessor[ClientSubscriptionMessage] = BaseProcessor(None)
@@ -66,7 +65,7 @@ class StreamSubscriberWebsocketClient[S <: Subscriber[Json] ](val subscriber: S)
         case TextMessage.Strict(jsonText) =>
           logger.debug(s"received : $jsonText")
           parse(jsonText) match {
-            case Left(err) => sys.error(s"couldn't parse ${jsonText} : $err")
+            case Left(err)   => sys.error(s"couldn't parse ${jsonText} : $err")
             case Right(json) => json
           }
         case other => sys.error(s"Expected a strict message but got " + other)
@@ -80,10 +79,10 @@ class StreamSubscriberWebsocketClient[S <: Subscriber[Json] ](val subscriber: S)
 
 object StreamSubscriberWebsocketClient extends StrictLogging {
   //"ws://echo.websocket.org"
-  def openConnection(address: String, subscriber: Subscriber[Json] with HasConsumerQueue[Json])(implicit httpExp: HttpExt, mat: Materializer) = {
+  def openConnection(address: String, subscriber: Subscriber[Json])(implicit httpExp: HttpExt, mat: Materializer) = {
     import mat.executionContext
 
-    val client = new StreamSubscriberWebsocketClient(subscriber)
+    val client          = new StreamSubscriberWebsocketClient(subscriber)
     val (respFuture, _) = httpExp.singleWebSocketRequest(WebSocketRequest(address), client.flow)
     respFuture.map { upgradeResp =>
       val status = upgradeResp.response.status

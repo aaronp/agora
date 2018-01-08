@@ -18,17 +18,18 @@ import scala.concurrent.Future
 /** contains the publishers/subscribers needed to setup a websocket message flow
   *
   */
-class StreamPublisherWebsocketClient[E: Encoder, P <: Publisher[E]](val publisher: P, bufferCapacity: Int = 50) extends StrictLogging with HasPublisher[ClientSubscriptionMessage] {
-  wsClient =>
+class StreamPublisherWebsocketClient[E: Encoder, P <: Publisher[E]](val publisher: P, bufferCapacity: Int = 50)
+    extends StrictLogging
+    with HasPublisher[ClientSubscriptionMessage] { wsClient =>
 
   // we use this as a publisher so we can more directly control the request (take) /cancel messages
   private[client] val pullsFromPublisher = BaseProcessor.withMaxCapacity[E](bufferCapacity)
-  private[client] val pullsFromPFP = BaseProcessor.withMaxCapacity[E](bufferCapacity)
+  private[client] val pullsFromPFP       = BaseProcessor.withMaxCapacity[E](bufferCapacity)
   publisher.subscribe(pullsFromPublisher)
   pullsFromPublisher.subscribe(pullsFromPFP)
 
   // this subscribe to take/cancel messages coming from the remote service
-  private[client]  val controlMessageProcessor: BaseProcessor[ClientSubscriptionMessage] = new BaseProcessor[ClientSubscriptionMessage] {
+  private[client] val controlMessageProcessor: BaseProcessor[ClientSubscriptionMessage] = new BaseProcessor[ClientSubscriptionMessage] {
     override def newDefaultSubscriberQueue(): ConsumerQueue[ClientSubscriptionMessage] = ConsumerQueue.keepLatest(bufferCapacity)
   }
 
@@ -64,10 +65,10 @@ class StreamPublisherWebsocketClient[E: Encoder, P <: Publisher[E]](val publishe
             case Left(err) => sys.error(s"couldn't parse ${jsonText} : $err")
             case Right(json) =>
               json.as[ClientSubscriptionMessage] match {
-                case Right(msg@TakeNext(n)) =>
+                case Right(msg @ TakeNext(n)) =>
                   takeNext(n)
                   msg
-                case Right(msg@Cancel) =>
+                case Right(msg @ Cancel) =>
                   cancel()
                   msg
                 case Left(err) => sys.error(s"couldn't parse ${jsonText} as a client subscription message: $err")
@@ -83,10 +84,11 @@ class StreamPublisherWebsocketClient[E: Encoder, P <: Publisher[E]](val publishe
 
 object StreamPublisherWebsocketClient extends StrictLogging {
 
-  def bindPublisherToSocket[E: Encoder, T <: Publisher[E]](address: String, publisher: T)(implicit httpExp: HttpExt, mat: Materializer): Future[StreamPublisherWebsocketClient[E, T]] = {
+  def bindPublisherToSocket[E: Encoder, T <: Publisher[E]](address: String, publisher: T)(implicit httpExp: HttpExt,
+                                                                                          mat: Materializer): Future[StreamPublisherWebsocketClient[E, T]] = {
     import mat.executionContext
 
-    val client = new StreamPublisherWebsocketClient[E, T](publisher)
+    val client          = new StreamPublisherWebsocketClient[E, T](publisher)
     val (respFuture, _) = httpExp.singleWebSocketRequest(WebSocketRequest(address), client.flow)
     respFuture.map { upgradeResp =>
       val status = upgradeResp.response.status
@@ -95,5 +97,3 @@ object StreamPublisherWebsocketClient extends StrictLogging {
     }
   }
 }
-
-

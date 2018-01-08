@@ -20,7 +20,7 @@ object AsConsumerQueue {
     * @param discardOverCapacity determines whether we should error or silenty discard elements when the queue exceeds maxCapacity
     * @tparam T
     */
-  case class QueueArgs[T : Semigroup](maxCapacity: Option[Int], discardOverCapacity: Option[Boolean]) {
+  case class QueueArgs[T: Semigroup](maxCapacity: Option[Int], discardOverCapacity: Option[Boolean]) {
     def semigroup: Semigroup[T] = Semigroup[T]
   }
 
@@ -30,7 +30,7 @@ object AsConsumerQueue {
     }
   }
   implicit object QueueArgsAsQueue extends AsConsumerQueue[QueueArgs] {
-    override def newQueue[T](args : QueueArgs[T]): ConsumerQueue[T] = {
+    override def newQueue[T](args: QueueArgs[T]): ConsumerQueue[T] = {
       ConsumerQueue.newQueue[T](args.maxCapacity, args.discardOverCapacity)(args.semigroup)
     }
   }

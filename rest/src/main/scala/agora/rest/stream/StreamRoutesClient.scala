@@ -21,7 +21,7 @@ import scala.concurrent.Future
   * @param clientConf
   */
 case class StreamRoutesClient(clientConf: ClientConfig) extends FailFastCirceSupport with StrictLogging {
-  private implicit val jsonSemigroup = JsonSemigroup
+  private implicit val jsonSemigroup           = JsonSemigroup
   private lazy val clientSystem: AkkaImplicits = clientConf.newSystem()
 
   def location = clientConf.location
@@ -51,17 +51,17 @@ case class StreamRoutesClient(clientConf: ClientConfig) extends FailFastCirceSup
       * @param queueArgs      how should we create the queue which pulls data from the topic?
       * @return a websocket client representing the JSon subscription of data
       */
-    def createSubscriber(topic: String,
-                         subscriber: BaseProcessor[Json] = BaseProcessor[MaxCapacity, Json](MaxCapacity(100)),
-                         initialRequest: Option[Int] = None,
-                         queueArgs: QueueArgs[Json] = QueueArgs[Json](None, None)
-                        ): Future[StreamSubscriberWebsocketClient[Subscriber[Json] with HasConsumerQueue[Json]]] = {
+    def createSubscriber(
+        topic: String,
+        subscriber: BaseProcessor[Json] = BaseProcessor[MaxCapacity, Json](MaxCapacity(100)),
+        initialRequest: Option[Int] = None,
+        queueArgs: QueueArgs[Json] = QueueArgs[Json](None, None)): Future[StreamSubscriberWebsocketClient[Subscriber[Json]]] = {
       val queryString = {
         val options: List[String] = queueArgs.maxCapacity.map(v => s"maxCapacity=$v").toList ++
           initialRequest.map(v => s"initialRequest=$v").toList ++
           queueArgs.discardOverCapacity.map(v => s"discardOverCapacity=$v").toList
         options match {
-          case Nil => ""
+          case Nil  => ""
           case list => list.mkString("?", "&", "")
         }
       }

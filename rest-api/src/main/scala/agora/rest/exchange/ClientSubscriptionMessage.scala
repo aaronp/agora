@@ -32,7 +32,7 @@ object ClientSubscriptionMessage {
     override def combine(x: ClientSubscriptionMessage, y: ClientSubscriptionMessage): ClientSubscriptionMessage = {
       (x, y) match {
         case (TakeNext(a), TakeNext(b)) => TakeNext(a + b)
-        case _ => Cancel
+        case _                          => Cancel
       }
     }
   }
@@ -49,7 +49,7 @@ object ClientSubscriptionMessage {
 
   implicit object JsonEncoder extends Encoder[ClientSubscriptionMessage] {
     override def apply(a: ClientSubscriptionMessage): Json = a match {
-      case Cancel => Cancel.jsonRepr
+      case Cancel        => Cancel.jsonRepr
       case msg: TakeNext => implicitly[Encoder[TakeNext]].apply(msg)
     }
   }

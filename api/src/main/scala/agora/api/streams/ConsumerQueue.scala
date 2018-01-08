@@ -41,7 +41,7 @@ trait ConsumerQueue[T] {
 
 object ConsumerQueue {
 
-  def newQueue[T : Semigroup](maxCapacity : Option[Int], discard : Option[Boolean]): ConsumerQueue[T] = {
+  def newQueue[T: Semigroup](maxCapacity: Option[Int], discard: Option[Boolean]): ConsumerQueue[T] = {
     maxCapacity match {
       case Some(capacity) =>
         if (discard.getOrElse(false)) {
