@@ -2,6 +2,7 @@ package agora.api.streams
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.function.Consumer
 
 import agora.api.streams.BasePublisher.BasePublisherSubscription
 import cats.Semigroup
@@ -21,7 +22,7 @@ import scala.util.control.NonFatal
   */
 trait BasePublisher[T] extends Publisher[T] with StrictLogging {
 
-  private val ids               = new AtomicInteger(0)
+  private val ids = new AtomicInteger(0)
   private val subscriptionsById = new ConcurrentHashMap[Int, BasePublisherSubscription[T]]()
 
   /** create a new queue for a subscription
@@ -40,7 +41,7 @@ trait BasePublisher[T] extends Publisher[T] with StrictLogging {
   protected def newSubscription(s: Subscriber[_ >: T]): BasePublisherSubscription[T] = {
     val queue = s match {
       case hasQ: HasConsumerQueue[T] => hasQ.consumerQueue
-      case _                         => newDefaultSubscriberQueue()
+      case _ => newDefaultSubscriberQueue()
     }
     new BasePublisher.BasePublisherSubscription[T](toString, ids.incrementAndGet(), this, s, queue)
   }
@@ -74,11 +75,10 @@ trait BasePublisher[T] extends Publisher[T] with StrictLogging {
     */
   def publish(elem: T): Unit = {
     logger.debug(s"$this notifying ${subscriptionsById.size} subscriber(s) of $elem")
-    val values = subscriptionsById.values().iterator()
-    while (values.hasNext) {
-      val subscriber = values.next()
-      subscriber.onElement(elem)
+    val consumer = new Consumer[BasePublisherSubscription[T]] {
+      override def accept(subscriber: BasePublisherSubscription[T]): Unit = subscriber.onElement(elem)
     }
+    subscriptionsById.values().forEach(consumer)
   }
 
   /** send 'onComplete' to all subscriptions
@@ -144,7 +144,7 @@ object BasePublisher extends StrictLogging {
                                      val publisher: BasePublisher[T],
                                      val subscriber: Subscriber[_ >: T],
                                      queue: ConsumerQueue[T])
-      extends Subscription {
+    extends Subscription {
 
     override def toString = s"subscription $id to $publisherName"
 
@@ -186,4 +186,5 @@ object BasePublisher extends StrictLogging {
       }
     }
   }
+
 }

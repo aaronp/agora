@@ -28,6 +28,8 @@ case class StreamRoutesClient(clientConf: ClientConfig) extends FailFastCirceSup
 
   lazy val restClient: RestClient = clientConf.clientFor(location)
 
+  /** Contains subscription operations
+    */
   object subscriptions {
 
     import clientSystem._
@@ -51,11 +53,10 @@ case class StreamRoutesClient(clientConf: ClientConfig) extends FailFastCirceSup
       * @param queueArgs      how should we create the queue which pulls data from the topic?
       * @return a websocket client representing the JSon subscription of data
       */
-    def createSubscriber(
-        topic: String,
-        subscriber: BaseProcessor[Json] = BaseProcessor[MaxCapacity, Json](MaxCapacity(100)),
-        initialRequest: Option[Int] = None,
-        queueArgs: QueueArgs[Json] = QueueArgs[Json](None, None)): Future[StreamSubscriberWebsocketClient[Subscriber[Json]]] = {
+    def createSubscriber(topic: String,
+                         subscriber: BaseProcessor[Json] = BaseProcessor[MaxCapacity, Json](MaxCapacity(100)),
+                         initialRequest: Option[Int] = None,
+                         queueArgs: QueueArgs[Json] = QueueArgs[Json](None, None)): Future[StreamSubscriberWebsocketClient[Subscriber[Json]]] = {
       val queryString = {
         val options: List[String] = queueArgs.maxCapacity.map(v => s"maxCapacity=$v").toList ++
           initialRequest.map(v => s"initialRequest=$v").toList ++
@@ -74,6 +75,8 @@ case class StreamRoutesClient(clientConf: ClientConfig) extends FailFastCirceSup
     }
   }
 
+  /** Contains publish operations
+    */
   object publishers {
 
     import clientSystem._

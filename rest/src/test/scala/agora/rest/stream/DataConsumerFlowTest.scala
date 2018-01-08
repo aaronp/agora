@@ -22,9 +22,9 @@ class DataConsumerFlowTest extends BaseSpec with HasMaterializer {
       val fieldSubscriberCheck = baseProcessor.withFields
 
       // ... and one which will be joined
-      val joinedProcessor                                    = BaseProcessor.withMaxCapacity[Json](100)
-      val joiedFields                                        = joinedProcessor.withFields
-      val a: DataConsumerFlow[Json]                          = DataConsumerFlow("joined", joinedProcessor)
+      val joinedProcessor           = BaseProcessor.withMaxCapacity[Json](100)
+      val joiedFields               = joinedProcessor.withFields
+      val a: DataConsumerFlow[Json] = DataConsumerFlow("joined", joinedProcessor)
 
 //      baseFlow.join(tf)
     }

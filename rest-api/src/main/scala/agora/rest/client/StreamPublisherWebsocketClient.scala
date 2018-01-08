@@ -27,6 +27,12 @@ class StreamPublisherWebsocketClient[E: Encoder, P <: Publisher[E]](val publishe
   private[client] val pullsFromPFP       = BaseProcessor.withMaxCapacity[E](bufferCapacity)
   publisher.subscribe(pullsFromPublisher)
   pullsFromPublisher.subscribe(pullsFromPFP)
+  // this source will call 'request' when a message is delivered
+  private[client] val flowMessageSource: Source[Message, NotUsed] = Source.fromPublisher(pullsFromPFP).map { event: E =>
+    val json = event.asJson.noSpaces
+    logger.debug(s"sending control message: $json")
+    TextMessage(json)
+  }
 
   // this subscribe to take/cancel messages coming from the remote service
   private[client] val controlMessageProcessor: BaseProcessor[ClientSubscriptionMessage] = new BaseProcessor[ClientSubscriptionMessage] {
@@ -46,12 +52,6 @@ class StreamPublisherWebsocketClient[E: Encoder, P <: Publisher[E]](val publishe
   }
 
   val flow: Flow[Message, Message, NotUsed] = {
-    // this source will call 'request' when a message is delivered
-    val msgSrc: Source[Message, NotUsed] = Source.fromPublisher(pullsFromPFP).map { event: E =>
-      val json = event.asJson.noSpaces
-      logger.debug(s"sending control message: $json")
-      TextMessage(json)
-    }
 
     /*
      * These are the messages we'll receive from the server -- and as WE'RE publishing data to it, the server
@@ -78,7 +78,7 @@ class StreamPublisherWebsocketClient[E: Encoder, P <: Publisher[E]](val publishe
       }
     }
 
-    Flow.fromSinkAndSource(kitchen, msgSrc)
+    Flow.fromSinkAndSource(kitchen, flowMessageSource)
   }
 }
 

@@ -21,7 +21,7 @@ import scala.collection.mutable.ListBuffer
 trait ConsumerQueue[T] {
 
   /**
-    * request more -- this will trigger a check and return the 'more'
+    * request more -- this will trigger a check and return the elements which may be notified
     *
     * @param n the additional n to request
     * @return the maximum ready elements to
