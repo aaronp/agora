@@ -53,6 +53,8 @@ trait BaseSubscriber[T] extends Subscriber[T] with StrictLogging {
       s.cancel()
   }
 
+  def isSubscribed() = _subscriptionOption.isDefined
+
   override def onSubscribe(s: Subscription) = {
     require(_subscriptionOption.isEmpty, s"$this subscriptionOption already set to $subscriptionOption")
     _subscriptionOption = Option(s)

@@ -1,7 +1,7 @@
 package agora.rest.client
 
 import agora.api.streams.BasePublisher.BasePublisherSubscription
-import agora.api.streams.{BaseProcessor, ConsumerQueue, HasConsumerQueue}
+import agora.api.streams._
 import agora.rest.exchange.ClientSubscriptionMessage
 import akka.NotUsed
 import akka.http.scaladsl.HttpExt
@@ -12,7 +12,9 @@ import com.typesafe.scalalogging.StrictLogging
 import io.circe.Json
 import io.circe.parser._
 import io.circe.syntax._
-import org.reactivestreams.Subscriber
+import org.reactivestreams.{Publisher, Subscriber}
+
+import scala.concurrent.Future
 
 /**
   * contains the publishers/subscribers needed to setup a websocket message flow
@@ -20,7 +22,9 @@ import org.reactivestreams.Subscriber
   * @param subscriber the subscriber to connect to the data coming from the websocket
   * @tparam S
   */
-class StreamSubscriberWebsocketClient[S <: Subscriber[Json]](val subscriber: S) extends StrictLogging { wsClient =>
+class StreamSubscriberWebsocketClient[NewQ[_], S <: Subscriber[Json]](val subscriber: S, newQueueArgs: NewQ[Json])(implicit asQueue: AsConsumerQueue[NewQ])
+    extends HasPublisher[Json]
+    with StrictLogging { wsClient =>
 
   // when we request/cancel our subscriptions, we end up sending a message upstream to take/cancel
   private val controlMessagePublisher: BaseProcessor[ClientSubscriptionMessage] = BaseProcessor(None)
@@ -50,7 +54,9 @@ class StreamSubscriberWebsocketClient[S <: Subscriber[Json]](val subscriber: S) 
       nrReq
     }
 
-    override def newDefaultSubscriberQueue(): ConsumerQueue[Json] = sys.error("The subscriber's queue should always be used")
+    override def newDefaultSubscriberQueue(): ConsumerQueue[Json] = {
+      asQueue.newQueue(newQueueArgs)
+    }
   }
   messageProcessor.subscribe(subscriber)
 
@@ -75,14 +81,18 @@ class StreamSubscriberWebsocketClient[S <: Subscriber[Json]](val subscriber: S) 
     Flow.fromSinkAndSource(kitchen, msgSrc)
   }
 
+  override protected def underlyingPublisher: Publisher[Json] = messageProcessor
 }
 
 object StreamSubscriberWebsocketClient extends StrictLogging {
   //"ws://echo.websocket.org"
-  def openConnection(address: String, subscriber: Subscriber[Json])(implicit httpExp: HttpExt, mat: Materializer) = {
+  def openConnection[NewQ[_], S <: Subscriber[Json]](address: String, subscriber: S, newQueueArgs: NewQ[Json])(
+      implicit httpExp: HttpExt,
+      mat: Materializer,
+      asQ: AsConsumerQueue[NewQ]): Future[StreamSubscriberWebsocketClient[NewQ, S]] = {
     import mat.executionContext
 
-    val client          = new StreamSubscriberWebsocketClient(subscriber)
+    val client          = new StreamSubscriberWebsocketClient(subscriber, newQueueArgs)
     val (respFuture, _) = httpExp.singleWebSocketRequest(WebSocketRequest(address), client.flow)
     respFuture.map { upgradeResp =>
       val status = upgradeResp.response.status

@@ -1,12 +1,13 @@
 package agora.rest.stream
 
 import agora.api.json.JsonSemigroup
+import agora.api.streams.AsConsumerQueue.QueueArgs
 import agora.api.streams.{AsConsumerQueue, BaseProcessor}
 import akka.NotUsed
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.ws.Message
 import akka.http.scaladsl.server.Directives.{extractMaterializer, handleWebSocketMessages, path, _}
-import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.server.{Route, ValidationRejection}
 import akka.stream.scaladsl.Flow
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
@@ -51,7 +52,7 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
     path("rest" / "stream" / "subscribe" / Segment) { name =>
       parameter('maxCapacity.?, 'initialRequest.?, 'discardOverCapacity.?) { (maxCapacityOpt, initialRequestOpt, discardOpt) =>
         import AsConsumerQueue._
-//        implicit val jsg = JsonSemigroup
+        //        implicit val jsg = JsonSemigroup
 
         val args = {
 
@@ -136,17 +137,33 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
     */
   def publishRawData(): Route = {
     path("rest" / "stream" / "publish" / Segment) { name =>
-      parameter('maxCapacity.?, 'initialRequest.?) { (maxCapacityOpt, initialRequestOpt) =>
-        val maxCapacity    = maxCapacityOpt.map(_.toInt).getOrElse(10)
+      parameter('maxCapacity.?, 'initialRequest.?, 'discardOverCapacity.?) { (maxCapacityOpt, initialRequestOpt, discardOverCapacityOpt) =>
         val initialRequest = initialRequestOpt.map(_.toInt).getOrElse(0)
-        logger.debug(s"starting simple publish for $name w/ maxCapacity $maxCapacity and initialRequest $initialRequest")
+
+        implicit val jsonSemi = JsonSemigroup
+        val newQueue = {
+          val maxCapacity         = maxCapacityOpt.map(_.toInt)
+          val discardOverCapacity = discardOverCapacityOpt.map(_.toBoolean)
+          QueueArgs[Json](maxCapacity, discardOverCapacity)
+        }
+
+        logger.debug(s"starting simple publish for $name w/ $newQueue and initialRequest $initialRequest")
 
         extractMaterializer { implicit materializer =>
-          val publishFlow = Lock.synchronized {
-            val sp = new DataUploadFlow[Json](name, maxCapacity, initialRequest)
-            state.newUploadEntrypoint(sp)
+          val publishFlowOpt = Lock.synchronized {
+            state.getUploadEntrypoint(name) match {
+              case None =>
+                val sp = new DataUploadFlow[QueueArgs, Json](name, initialRequest, newQueue)
+                Option(state.newUploadEntrypoint(sp))
+              case Some(_) => None
+            }
           }
-          handleWebSocketMessages(publishFlow)
+
+          publishFlowOpt match {
+            case Some(publishFlow) => handleWebSocketMessages(publishFlow)
+            case None =>
+              reject(ValidationRejection(s"Publisher '$name' already exists"))
+          }
         }
       }
     }

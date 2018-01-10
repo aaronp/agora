@@ -53,10 +53,11 @@ case class StreamRoutesClient(clientConf: ClientConfig) extends FailFastCirceSup
       * @param queueArgs      how should we create the queue which pulls data from the topic?
       * @return a websocket client representing the JSon subscription of data
       */
-    def createSubscriber(topic: String,
-                         subscriber: BaseProcessor[Json] = BaseProcessor[MaxCapacity, Json](MaxCapacity(100)),
-                         initialRequest: Option[Int] = None,
-                         queueArgs: QueueArgs[Json] = QueueArgs[Json](None, None)): Future[StreamSubscriberWebsocketClient[Subscriber[Json]]] = {
+    def createSubscriber[S <: Subscriber[Json]](
+        topic: String,
+        subscriber: S = BaseProcessor[MaxCapacity, Json](MaxCapacity(100)),
+        initialRequest: Option[Int] = None,
+        queueArgs: QueueArgs[Json] = QueueArgs[Json](None, None)): Future[StreamSubscriberWebsocketClient[QueueArgs, S]] = {
       val queryString = {
         val options: List[String] = queueArgs.maxCapacity.map(v => s"maxCapacity=$v").toList ++
           initialRequest.map(v => s"initialRequest=$v").toList ++
@@ -67,11 +68,13 @@ case class StreamRoutesClient(clientConf: ClientConfig) extends FailFastCirceSup
         }
       }
       val url = s"${location.asWebsocketURL}/rest/stream/subscribe/$topic$queryString"
-      openConnection(url, subscriber)
+      openConnection(url, subscriber, queueArgs)
     }
 
-    private def openConnection[T <: BaseProcessor[Json]](url: String, subscriber: T) = {
-      StreamSubscriberWebsocketClient.openConnection(url, subscriber)
+    private def openConnection[T <: Subscriber[Json]](url: String,
+                                                      subscriber: T,
+                                                      queueArgs: QueueArgs[Json]): Future[StreamSubscriberWebsocketClient[QueueArgs, T]] = {
+      StreamSubscriberWebsocketClient.openConnection(url, subscriber, queueArgs)
     }
   }
 

@@ -9,6 +9,8 @@ trait AsConsumerQueue[F[_]] {
 
 object AsConsumerQueue {
 
+  def apply[F[_]: AsConsumerQueue](): AsConsumerQueue[F] = implicitly[AsConsumerQueue[F]]
+
   case class MaxCapacity[T](maxCapacity: Int)
 
   case class KeepOnly[T](keepOnly: Int)

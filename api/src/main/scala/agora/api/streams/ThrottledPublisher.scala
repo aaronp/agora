@@ -33,14 +33,20 @@ class ThrottledPublisher[T](underlying: Publisher[T]) extends Publisher[T] { sel
     s.allowRequested(n)
   }
 
+  def cancel(): Boolean = singleSubscription.fold(false) { s =>
+    s.cancel()
+    singleSubscription = None
+    true
+  }
+
   def allowed() = singleSubscription.fold(Long.MinValue)(_.allowed())
 }
 
 object ThrottledPublisher {
 
   private case class ThrottledSubscriber[T](underlying: Subscriber[_ >: T], publisher: ThrottledPublisher[T]) extends Subscriber[T] with Subscription {
-    private var subscriptionOpt = Option.empty[Subscription]
-    private val userRequested = new AtomicLong(0)
+    private var subscriptionOpt    = Option.empty[Subscription]
+    private val userRequested      = new AtomicLong(0)
     private val throttledRequested = new AtomicLong(0)
 
     def allowed() = throttledRequested.get()

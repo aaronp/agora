@@ -1,16 +1,19 @@
 package agora.api.data
 
 import agora.BaseSpec
+import agora.io.core.FieldSelector
 import io.circe.Json
 import io.circe.generic.auto._
 import io.circe.syntax._
 
 class FieldSelectorTest extends BaseSpec {
+
   import FieldSelectorTest._
+
   "FieldSelector instances" should {
     "be able to get fields from json" in {
       import agora.api.Implicits._
-      val selector = FieldSelector.forPath("y".asJPath)
+      val selector = agora.api.json.jsonSelectorForPath("y".asJPath)
       selector.select(MyData(None, 42).asJson) shouldBe Json.fromInt(42)
     }
     "be able to get fields from some other data type" in {
@@ -23,4 +26,5 @@ class FieldSelectorTest extends BaseSpec {
 object FieldSelectorTest {
 
   case class MyData(x: Option[Int], y: Int)
+
 }

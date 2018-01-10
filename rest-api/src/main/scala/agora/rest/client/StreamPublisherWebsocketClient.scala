@@ -1,6 +1,6 @@
 package agora.rest.client
 
-import agora.api.streams.{BaseProcessor, ConsumerQueue, HasPublisher}
+import agora.api.streams.{BaseProcessor, ConsumerQueue, HasPublisher, ThrottledPublisher}
 import agora.rest.exchange.{Cancel, ClientSubscriptionMessage, TakeNext}
 import akka.NotUsed
 import akka.http.scaladsl.HttpExt
@@ -18,17 +18,12 @@ import scala.concurrent.Future
 /** contains the publishers/subscribers needed to setup a websocket message flow
   *
   */
-class StreamPublisherWebsocketClient[E: Encoder, P <: Publisher[E]](val publisher: P, bufferCapacity: Int = 50)
-    extends StrictLogging
-    with HasPublisher[ClientSubscriptionMessage] { wsClient =>
+class StreamPublisherWebsocketClient[E: Encoder, P <: Publisher[E]](val underlyingUserPublisher: P, bufferCapacity: Int = 50) extends StrictLogging {
+  wsClient =>
 
-  // we use this as a publisher so we can more directly control the request (take) /cancel messages
-  private[client] val pullsFromPublisher = BaseProcessor.withMaxCapacity[E](bufferCapacity)
-  private[client] val pullsFromPFP       = BaseProcessor.withMaxCapacity[E](bufferCapacity)
-  publisher.subscribe(pullsFromPublisher)
-  pullsFromPublisher.subscribe(pullsFromPFP)
+  private val throttledPublisher = new ThrottledPublisher[E](underlyingUserPublisher)
   // this source will call 'request' when a message is delivered
-  private[client] val flowMessageSource: Source[Message, NotUsed] = Source.fromPublisher(pullsFromPFP).map { event: E =>
+  private[client] val flowMessageSource: Source[Message, NotUsed] = Source.fromPublisher(throttledPublisher).map { event: E =>
     val json = event.asJson.noSpaces
     logger.debug(s"sending control message: $json")
     TextMessage(json)
@@ -39,16 +34,14 @@ class StreamPublisherWebsocketClient[E: Encoder, P <: Publisher[E]](val publishe
     override def newDefaultSubscriberQueue(): ConsumerQueue[ClientSubscriptionMessage] = ConsumerQueue.keepLatest(bufferCapacity)
   }
 
-  override protected def underlyingPublisher: Publisher[ClientSubscriptionMessage] = controlMessageProcessor
-
   def takeNext(n: Long) = {
     logger.debug(s"Taking next $n...")
-    pullsFromPublisher.request(n)
+    throttledPublisher.allowRequested(n)
   }
 
   def cancel() = {
     logger.debug("Cancelling...")
-    pullsFromPublisher.cancel()
+    throttledPublisher.cancel()
   }
 
   val flow: Flow[Message, Message, NotUsed] = {

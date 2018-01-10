@@ -1,10 +1,10 @@
-package agora.api.data
-
-import agora.api.json.JPath
-import io.circe.Json
+package agora.io.core
 
 /**
   * The ability to choose a particular field B from an input value of type A
+  *
+  * Like a Lens, but w/ only the 'get' accessor
+  *
   * @tparam A the input type
   * @tparam B the selected field type (which may be an Option)
   */
@@ -17,11 +17,6 @@ trait FieldSelector[A, B] {
 }
 
 object FieldSelector {
-  def forPath(path: JPath): FieldSelector[Json, Json] = {
-    lift[Json, Json] { data =>
-      path.apply(data).getOrElse(Json.Null)
-    }
-  }
 
   def lift[A, B](f: A => B): FieldSelector[A, B] = {
     new FieldSelector[A, B] {

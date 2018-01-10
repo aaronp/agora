@@ -2,8 +2,10 @@ package agora.api
 
 import _root_.io.circe.Json.fromJsonObject
 import _root_.io.circe._
+import _root_.io.circe.syntax._
 import _root_.io.circe.Decoder.Result
 import agora.api.json.TypesByPath
+import agora.io.core.FieldSelector
 import cats.kernel.Semigroup
 
 package object json {
@@ -26,11 +28,15 @@ package object json {
     }
   }
 
-  /** This instance is intentionally NOT implicit. It is just defined so that, where appropriate,
-    * it can be used for semigroup operations
-    */
-  object JsonSemigroup extends Semigroup[Json] {
-    override def combine(x: Json, y: Json): Json = deepMergeWithArrayConcat(x, y)
+  def jsonSelectorForPath(path: JPath): FieldSelector[Json, Json] = {
+    FieldSelector.lift[Json, Json] { data =>
+      path.apply(data).getOrElse(Json.Null)
+    }
+  }
+
+  val JsonDiffAsDeltas = JsonDiffAsDataDiff.map { jsonDiff: JsonDiff =>
+    import _root_.io.circe.generic.auto._
+    jsonDiff.asJson
   }
 
   /**

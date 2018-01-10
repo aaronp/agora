@@ -2,16 +2,17 @@ package agora.api.streams
 
 import java.util.concurrent.locks.ReentrantLock
 
-import agora.api.data.DataDiff
-import agora.api.data.DataDiff.JsonDiffAsDataDiff
+import agora.api.json.JsonDiffAsDataDiff
 import agora.api.json.JsonDiff.JsonDiffSemigroup
 import agora.api.json.{JPath, JsonDiff, TypesByPath, TypesByPathSemigroup}
 import agora.api.streams.JsonFeedDsl.{IndexSubscriber, JsonDeltaSubscriber, JsonFieldSubscriber}
 import agora.api.streams.PublisherOps.implicits._
+import agora.io.core.DataDiff
 import agora.rest.stream.FieldFeed
 import cats.Semigroup
 import io.circe.{Encoder, Json}
 import org.reactivestreams.Publisher
+import agora.api.data.implicits._
 
 /**
   * DSL for putting things on an upstream json feed (publisher)

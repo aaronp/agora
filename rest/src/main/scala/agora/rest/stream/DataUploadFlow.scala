@@ -1,6 +1,6 @@
 package agora.rest.stream
 
-import agora.api.streams.{BasePublisher, BaseSubscriber, ConsumerQueue}
+import agora.api.streams.{AsConsumerQueue, BasePublisher, BaseSubscriber, ConsumerQueue}
 import agora.rest.exchange.ClientSubscriptionMessage
 import agora.rest.exchange.ClientSubscriptionMessage._
 import akka.NotUsed
@@ -17,10 +17,10 @@ import org.reactivestreams.Subscriber
   * [A] which will republish messages to a delegatingPublisher.
   *
   * @param name
-  * @param maxCapacity
-  * @param initialTakeNext
+  * @param initialTakeNext the number pending before the publisher starts
   */
-class DataUploadFlow[A: Decoder: Encoder](val name: String, maxCapacity: Int, initialTakeNext: Int) extends StrictLogging { simplePublisher =>
+class DataUploadFlow[NewQ[_]: AsConsumerQueue, A: Decoder: Encoder](val name: String, initialTakeNext: Long, newQueueArgs: NewQ[A]) extends StrictLogging {
+  simplePublisher =>
 
   override def toString = name
 
@@ -39,7 +39,7 @@ class DataUploadFlow[A: Decoder: Encoder](val name: String, maxCapacity: Int, in
   private object UpstreamMessagePublisher extends BasePublisher[ClientSubscriptionMessage] {
     override def toString = "upstreamMessagePublisher"
 
-    override def newDefaultSubscriberQueue() = ConsumerQueue.withMaxCapacity(maxCapacity)
+    override def newDefaultSubscriberQueue() = ConsumerQueue.withMaxCapacity(1)
 
     override protected def newSubscription(s: Subscriber[_ >: ClientSubscriptionMessage]) = {
       val subscription = super.newSubscription(s)
@@ -53,7 +53,10 @@ class DataUploadFlow[A: Decoder: Encoder](val name: String, maxCapacity: Int, in
 
   // this publisher re-publishes consumed messages
   object delegatingPublisher extends BasePublisher[A] {
-    override def toString = "delegatingPublisher"
+    private val mkNewQueue: AsConsumerQueue[NewQ] = AsConsumerQueue[NewQ]()
+    override def toString                         = "delegatingPublisher"
+
+    def isSubscribed(name: String): Boolean = ??? //subscriptionsById.contains(name)
 
     override def onRequestNext(subscription: BasePublisher.BasePublisherSubscription[A], requested: Long) = {
       val nrToTake = super.onRequestNext(subscription, requested)
@@ -63,11 +66,10 @@ class DataUploadFlow[A: Decoder: Encoder](val name: String, maxCapacity: Int, in
       nrToTake
     }
 
-    override def newDefaultSubscriberQueue() = ConsumerQueue.withMaxCapacity[A](maxCapacity)
+    override def newDefaultSubscriberQueue(): ConsumerQueue[A] = mkNewQueue.newQueue(newQueueArgs)
   }
 
   def takeNextJson(n: Long) = {
-    import agora.rest.exchange.ClientSubscriptionMessage
     val tnMsg: ClientSubscriptionMessage = TakeNext(n)
     tnMsg.asJson
   }
@@ -96,5 +98,8 @@ class DataUploadFlow[A: Decoder: Encoder](val name: String, maxCapacity: Int, in
       request(1)
     }
   }
+}
 
+object DataUploadFlow {
+  case class Snapshot()
 }

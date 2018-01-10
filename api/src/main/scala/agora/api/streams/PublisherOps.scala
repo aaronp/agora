@@ -1,7 +1,7 @@
 package agora.api.streams
 
-import agora.api.data.{DataDiff, FieldSelector, IsEmpty}
-import agora.api.json.JsonDiff
+import agora.api.json.{JsonDiff, JsonDiffIsEmpty, JsonDiffWithValues}
+import agora.io.core.{DataDiff, FieldSelector, IsEmpty}
 import io.circe.{Decoder, Encoder, Json}
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
@@ -63,8 +63,11 @@ class PublisherOps[T: ClassTag](val publisher: Publisher[T]) {
     // first, publish the T as json (so we can diff the json)
     val jsonPublisher: Publisher[Json]                             = map(_.asJson)
     val jsonOps                                                    = new PublisherOps[Json](jsonPublisher)
-    implicit val jsonDelta: DataDiff[Json, (Json, Json, JsonDiff)] = DataDiff.JsonDiffWithValues
-    implicit val isEmpty                                           = DataDiff.IsTupleEmpty
+    implicit val jsonDelta: DataDiff[Json, (Json, Json, JsonDiff)] = JsonDiffWithValues
+
+    implicit object IsTupleEmpty extends IsEmpty[(Json, Json, JsonDiff)] {
+      override def isEmpty(value: (Json, Json, JsonDiff)): Boolean = JsonDiffIsEmpty.isEmpty(value._3)
+    }
     // TODO - we're getting the unmarshalled json diff, not the json for 'T'.
 
     // we need to get a diff which includes the full previous value

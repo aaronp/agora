@@ -1,7 +1,4 @@
-package agora.api.data
-
-import agora.api.json.JsonDiff
-import io.circe.Json
+package agora.io.core
 
 trait IsEmpty[T] {
   def isEmpty(value: T): Boolean
@@ -17,15 +14,5 @@ object IsEmpty {
 
   implicit object SeqIsEmpty extends IsEmpty[TraversableOnce[_]] {
     override def isEmpty(value: TraversableOnce[_]): Boolean = value.isEmpty
-  }
-  implicit object JsonIsEmpty extends IsEmpty[Json] {
-    override def isEmpty(value: Json): Boolean = {
-      value.isNull || !value.hcursor.downField("deltas").values.exists(_.nonEmpty)
-    }
-  }
-  implicit object JsonDiffIsEmpty extends IsEmpty[JsonDiff] {
-    override def isEmpty(diff: JsonDiff): Boolean = {
-      diff.deltas.isEmpty
-    }
   }
 }
