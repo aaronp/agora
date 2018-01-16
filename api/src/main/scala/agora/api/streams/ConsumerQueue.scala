@@ -2,10 +2,9 @@ package agora.api.streams
 
 import java.util.{Queue => jQueue}
 
-import agora.api.json.JsonSemigroup
+import agora.api.streams.ConsumerQueue.QueueLimit
 import cats.Semigroup
 import com.typesafe.scalalogging.StrictLogging
-import io.circe.Json
 
 import scala.collection.mutable.ListBuffer
 
@@ -37,9 +36,21 @@ trait ConsumerQueue[T] {
   def offer(value: T): List[T]
 
   def requested(): Long
+
+  def buffered(): Long
+
+  def limit(): QueueLimit
 }
 
 object ConsumerQueue {
+
+  sealed trait QueueLimit
+
+  case object Unbounded extends QueueLimit
+
+  case class HardLimit(size: Long) extends QueueLimit
+
+  case class DiscardLimit(size: Long) extends QueueLimit
 
   def newQueue[T: Semigroup](maxCapacity: Option[Int], discard: Option[Boolean]): ConsumerQueue[T] = {
     maxCapacity match {
@@ -62,13 +73,13 @@ object ConsumerQueue {
       case 1 => apply(None)(new RightBiasedSemigroup[T])
       case n =>
         val queue = new java.util.concurrent.LinkedBlockingQueue[T](n)
-        new KeepNQueue(queue, n)
+        new KeepNQueue(queue, DiscardLimit(n))
     }
   }
 
   def withMaxCapacity[T](maxCapacity: Int) = {
     val queue = new java.util.concurrent.LinkedBlockingQueue[T](maxCapacity)
-    new Instance(queue)
+    new Instance(queue, HardLimit(maxCapacity))
   }
 
   def apply[T: Semigroup](initialValue: Option[T] = None) = new ConflatingQueue(initialValue)
@@ -78,8 +89,8 @@ object ConsumerQueue {
     import cats.syntax.semigroup._
 
     @volatile private var currentRequested = 0L
-    private var previousValue: Option[T]   = initialValue
-    private var currentValue: Option[T]    = initialValue
+    private var previousValue: Option[T] = initialValue
+    private var currentValue: Option[T] = initialValue
 
     private object Lock
 
@@ -114,7 +125,8 @@ object ConsumerQueue {
     }
 
     override def requested(): Long = currentRequested
-
+    override def buffered(): Long = currentValue.size
+    override val limit = Unbounded
   }
 
   /**
@@ -123,7 +135,7 @@ object ConsumerQueue {
     * @param queue
     * @tparam T
     */
-  class KeepNQueue[T](queue: jQueue[T], keep: Int) extends ConsumerQueue[T] with StrictLogging {
+  class KeepNQueue[T](queue: jQueue[T], override val limit : DiscardLimit) extends ConsumerQueue[T] with StrictLogging {
 
     private object Lock
 
@@ -134,10 +146,11 @@ object ConsumerQueue {
     }
 
     override def requested(): Long = currentRequested
+    override def buffered(): Long = queue.size
 
     def offer(value: T): List[T] = {
       Lock.synchronized {
-        if (queue.size() == keep) {
+        if (queue.size() == limit.size) {
           queue.poll()
         }
         queue.add(value)
@@ -152,7 +165,7 @@ object ConsumerQueue {
     private def drain(totalRequested: Long): List[T] = {
       var i = totalRequested
 
-      val values  = ListBuffer[T]()
+      val values = ListBuffer[T]()
       var next: T = queue.poll()
       while (i > 0 && next != null) {
         values += next
@@ -168,10 +181,11 @@ object ConsumerQueue {
 
   /**
     * A ConsumerQueue which will error if the queue is exceeded
+    *
     * @param queue
     * @tparam T
     */
-  class Instance[T](queue: jQueue[T]) extends ConsumerQueue[T] with StrictLogging {
+  class Instance[T](queue: jQueue[T], override val limit: HardLimit) extends ConsumerQueue[T] with StrictLogging {
 
     private object Lock
 
@@ -182,6 +196,8 @@ object ConsumerQueue {
     }
 
     override def requested(): Long = currentRequested
+
+    override def buffered(): Long = queue.size()
 
     def offer(value: T): List[T] = {
       Lock.synchronized {
@@ -197,7 +213,7 @@ object ConsumerQueue {
     private def drain(totalRequested: Long): List[T] = {
       var i = totalRequested
 
-      val values  = ListBuffer[T]()
+      val values = ListBuffer[T]()
       var next: T = queue.poll()
       while (i > 0 && next != null) {
         i = i - 1

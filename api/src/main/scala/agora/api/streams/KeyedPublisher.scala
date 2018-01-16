@@ -19,7 +19,8 @@ import scala.util.control.NonFatal
   *
   * @tparam T
   */
-trait KeyedPublisher[T] extends Publisher[T] with StrictLogging { self =>
+trait KeyedPublisher[T] extends Publisher[T] with StrictLogging {
+  self =>
 
   type SubscriberKey
 
@@ -43,17 +44,24 @@ trait KeyedPublisher[T] extends Publisher[T] with StrictLogging { self =>
   protected def newSubscription(s: Subscriber[_ >: T]): KeyedPublisherSubscription[SubscriberKey, T] = {
     val queue = s match {
       case hasQ: HasConsumerQueue[T] => hasQ.consumerQueue
-      case _                         => newDefaultSubscriberQueue()
+      case _ => newDefaultSubscriberQueue()
     }
 
     val id: SubscriberKey = s match {
       case hasKey: HasKey[SubscriberKey] => hasKey.key
-      case _                             => nextId()
+      case _ => nextId()
     }
 
-//    val aux: Aux[SubscriberKey, T] = KeyedPublisher.asAux[SubscriberKey, T](self)
     val aux: Aux[SubscriberKey, T] = self.asInstanceOf[Aux[SubscriberKey, T]]
     new KeyedPublisher.KeyedPublisherSubscription[SubscriberKey, T](toString, id, aux, s, queue)
+  }
+
+  def snapshot(): PublisherSnapshot[SubscriberKey] = {
+    import scala.collection.JavaConverters._
+    val map = subscriptionsById.asScala.mapValues { subscriber =>
+      subscriber.snapshot()
+    }
+    PublisherSnapshot[SubscriberKey](map.toMap)
   }
 
   override def subscribe(s: Subscriber[_ >: T]) = {
@@ -62,8 +70,6 @@ trait KeyedPublisher[T] extends Publisher[T] with StrictLogging { self =>
     subscriptionsById.put(subscription.id, subscription)
     s.onSubscribe(subscription)
   }
-
-  // we just need to know what the max requested is for
 
   /**
     * Callback function when a subscription invokes its 'request' (e.g. 'takeNext') method
@@ -120,20 +126,19 @@ trait KeyedPublisher[T] extends Publisher[T] with StrictLogging { self =>
 
 object KeyedPublisher extends StrictLogging {
 
-  def asAux[K, T](value: KeyedPublisher[T] { type SubscriberKey = K }): Aux[K, T] = {
-    value
-  }
-
-  type Aux[K, T] = KeyedPublisher[T] { type SubscriberKey = K }
-//
-//  implicit def auxAsPublisher[K, T](aux: Aux[K, T]): KeyedPublisher[T] = aux
+  type Aux[K, T] = KeyedPublisher[T] {type SubscriberKey = K}
 
   class KeyedPublisherSubscription[SubscriberKey, T](publisherName: String,
                                                      val id: SubscriberKey,
                                                      val publisher: Aux[SubscriberKey, T],
                                                      val subscriber: Subscriber[_ >: T],
                                                      queue: ConsumerQueue[T])
-      extends Subscription {
+    extends Subscription {
+
+    def snapshot(): SubscriberSnapshot[SubscriberKey] = {
+      SubscriberSnapshot[SubscriberKey](requested, queue.buffered(), queue.limit())
+    }
+
 
     override def toString = s"subscription $id to $publisherName"
 
@@ -175,4 +180,5 @@ object KeyedPublisher extends StrictLogging {
       }
     }
   }
+
 }

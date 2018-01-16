@@ -21,7 +21,6 @@ trait BaseSubscriber[T] extends Subscriber[T] with StrictLogging {
     val self = this
     new DelegateSubscriber[A](self) {
       override def toString = s"contra-mapped $self"
-
       override def onNext(t: A) = self.onNext(f(t))
     }
   }
