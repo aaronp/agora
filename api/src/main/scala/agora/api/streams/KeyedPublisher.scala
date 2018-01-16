@@ -135,8 +135,8 @@ object KeyedPublisher extends StrictLogging {
                                                      queue: ConsumerQueue[T])
     extends Subscription {
 
-    def snapshot(): SubscriberSnapshot[SubscriberKey] = {
-      SubscriberSnapshot[SubscriberKey](requested, queue.buffered(), queue.limit())
+    def snapshot(): SubscriberSnapshot = {
+      SubscriberSnapshot(requested, queue.buffered(), queue.limit())
     }
 
 
