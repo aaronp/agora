@@ -1,7 +1,5 @@
 package agora.api.streams
 
-import java.util.concurrent.atomic.AtomicInteger
-
 import cats.Semigroup
 
 /**
@@ -13,14 +11,7 @@ import cats.Semigroup
   *
   * @tparam T
   */
-trait BasePublisher[T] extends KeyedPublisher[T] {
-
-  private val ids = new AtomicInteger(0)
-
-  override type SubscriberKey = Int
-
-  override protected def nextId() = ids.incrementAndGet()
-}
+trait BasePublisher[T] extends IntKeyedPublisher[T]
 
 object BasePublisher {
   type BasePublisherSubscription[T] = KeyedPublisher.KeyedPublisherSubscription[Int, T]

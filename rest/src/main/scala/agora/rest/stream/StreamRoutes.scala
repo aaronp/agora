@@ -54,9 +54,8 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
         import AsConsumerQueue._
         //        implicit val jsg = JsonSemigroup
 
-        val args = {
-
-          val maxCapacity: Option[Int]             = maxCapacityOpt.map(_.toInt)
+        val args: QueueArgs[Json] = {
+          val maxCapacity: Option[Int] = maxCapacityOpt.map(_.toInt)
           val discardOverCapacity: Option[Boolean] = discardOpt.map(_.toBoolean)
           QueueArgs[Json](maxCapacity, discardOverCapacity)(JsonSemigroup)
         }
@@ -65,7 +64,7 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
 
         extractMaterializer { implicit materializer =>
           val subscriberFlow: Flow[Message, Message, NotUsed] = Lock.synchronized {
-            val republish: BaseProcessor[Json]       = BaseProcessor(args)
+            val republish: BaseProcessor[Json] = BaseProcessor(args)
             val consumerFlow: DataConsumerFlow[Json] = new DataConsumerFlow[Json](name, republish, initialRequest)
             state.newSimpleSubscriber(consumerFlow)
           }
@@ -137,23 +136,22 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
     */
   def publishRawData(): Route = {
     path("rest" / "stream" / "publish" / Segment) { name =>
-      parameter('maxCapacity.?, 'initialRequest.?, 'discardOverCapacity.?) { (maxCapacityOpt, initialRequestOpt, discardOverCapacityOpt) =>
-        val initialRequest = initialRequestOpt.map(_.toInt).getOrElse(0)
+      parameter('maxCapacity.?, 'discardOverCapacity.?) { (maxCapacityOpt, discardOverCapacityOpt) =>
 
         implicit val jsonSemi = JsonSemigroup
-        val newQueue = {
-          val maxCapacity         = maxCapacityOpt.map(_.toInt)
+        val newQueue: QueueArgs[Json] = {
+          val maxCapacity = maxCapacityOpt.map(_.toInt)
           val discardOverCapacity = discardOverCapacityOpt.map(_.toBoolean)
           QueueArgs[Json](maxCapacity, discardOverCapacity)
         }
 
-        logger.debug(s"starting simple publish for $name w/ $newQueue and initialRequest $initialRequest")
+        logger.debug(s"starting simple publish for $name w/ $newQueue")
 
         extractMaterializer { implicit materializer =>
           val publishFlowOpt = Lock.synchronized {
             state.getUploadEntrypoint(name) match {
               case None =>
-                val sp = new DataUploadFlow[QueueArgs, Json](name, initialRequest, newQueue)
+                val sp = new DataUploadFlow[QueueArgs, Json](name, newQueue)
                 Option(state.newUploadEntrypoint(sp))
               case Some(_) => None
             }

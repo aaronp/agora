@@ -3,6 +3,7 @@ package agora.rest.stream
 import agora.BaseSpec
 import agora.api.json.JsonSemigroup
 import agora.api.streams.AsConsumerQueue.QueueArgs
+import agora.api.streams.{BaseProcessor, BasePublisher}
 import agora.rest.HasMaterializer
 import io.circe.Json
 
@@ -19,10 +20,16 @@ class DataUploadFlowTest extends BaseSpec with HasMaterializer {
 
       implicit val jsg = JsonSemigroup
 
-      val newQueue = QueueArgs[Json](None, None)
-      val duf = new DataUploadFlow[QueueArgs, Json]("name", 123, newQueue)
+      val newQueue = QueueArgs[String](None, None)
+      val duf = new DataUploadFlow[QueueArgs, String]("name", newQueue)
 
-      duf.flow
+      // listen to a test publisher
+      val testPublisher = BaseProcessor.withMaxCapacity[String](100)
+      testPublisher.subscribe(duf.DelegatingSubscriber)
+
+      duf.UpstreamMessagePublisher
+
+
 
     }
   }

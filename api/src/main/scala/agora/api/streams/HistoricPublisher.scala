@@ -13,7 +13,3 @@ trait HistoricProcessor[T] extends BaseProcessor[T] {
 
   def latestIndex: Option[Long]
 }
-
-object HistoricProcessor {
-  ???
-}
