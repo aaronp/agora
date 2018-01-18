@@ -50,13 +50,11 @@ trait ExchangeObserverWebsocketRoutes extends StrictLogging {
                   /** This executes Within the exchange lock, so we can capture the state-of-the-world
                     * while we add our observer
                     */
-                  val publisher = SingleSubscriptionExchangePublisher(maxCapacity, queueState)
-                  exchange.observer += publisher
-                  publisher
+                  SingleSubscriptionExchangePublisher(exchange.observer, maxCapacity, queueState)
                 }
               case _ =>
                 logger.warn("We can't perform a thread-safe subscription")
-                val publisher = SingleSubscriptionExchangePublisher(maxCapacity)
+                val publisher = SingleSubscriptionExchangePublisher(exchange.observer, maxCapacity)
                 Future.successful(publisher)
             }
           }

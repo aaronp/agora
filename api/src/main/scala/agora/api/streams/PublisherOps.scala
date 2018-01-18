@@ -1,6 +1,7 @@
 package agora.api.streams
 
 import agora.api.json.{JsonDiff, JsonDiffIsEmpty, JsonDiffWithValues}
+import agora.flow.{BaseSubscriber, DelegateSubscriber}
 import agora.io.core.{DataDiff, FieldSelector, IsEmpty}
 import io.circe.{Decoder, Encoder, Json}
 import org.reactivestreams.{Publisher, Subscriber, Subscription}

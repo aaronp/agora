@@ -1,11 +1,11 @@
 package agora.api.streams
 
-import agora.BaseSpec
+import agora.flow.{BaseFlowSpec, ListSubscriber}
 import io.circe.Json
 
 import scala.concurrent.duration._
 
-class DataFeedDslTest extends BaseSpec {
+class DataFeedDslTest extends BaseFlowSpec {
   "DataFeed.asJson" should {
     "produce json values" in {
       import io.circe.generic.auto._

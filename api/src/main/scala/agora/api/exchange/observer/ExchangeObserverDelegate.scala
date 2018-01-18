@@ -17,6 +17,8 @@ class ExchangeObserverDelegate(initialObservers: List[ExchangeObserver] = Nil) e
 
   private var observers = initialObservers
 
+  def observerList() = observers
+
   override def onEvent(event: ExchangeNotificationMessage): Unit = {
     observers.foreach { obs =>
       try {

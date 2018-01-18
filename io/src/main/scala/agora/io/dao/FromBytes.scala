@@ -35,7 +35,7 @@ object FromBytes {
     override def read(bytes: Array[Byte]) = f(bytes)
   }
 
-  object Utf8String extends FromBytes[String] {
+  implicit object Utf8String extends FromBytes[String] {
     override def read(bytes: Array[Byte]): Try[String] = {
       Success(new String(bytes, "UTF-8"))
     }

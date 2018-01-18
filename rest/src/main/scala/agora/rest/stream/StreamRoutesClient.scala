@@ -1,8 +1,8 @@
 package agora.rest.stream
 
 import agora.api.json.JsonSemigroup
-import agora.api.streams.AsConsumerQueue._
-import agora.api.streams.{BaseProcessor, HasConsumerQueue}
+import agora.flow.AsConsumerQueue._
+import agora.flow._
 import agora.rest.client.{RestClient, StreamPublisherWebsocketClient, StreamSubscriberWebsocketClient}
 import agora.rest.exchange.ClientSubscriptionMessage
 import agora.rest.{AkkaImplicits, ClientConfig}
@@ -28,7 +28,7 @@ case class StreamRoutesClient(clientConf: ClientConfig) extends FailFastCirceSup
 
   lazy val restClient: RestClient = clientConf.clientFor(location)
 
-  def snapshot(name : String): Future[Json] = {
+  def snapshot(name: String): Future[Json] = {
     import clientSystem._
     val url = s"/rest/stream/snapshot/$name"
     restClient.send(HttpRequest(HttpMethods.GET, url)).flatMap { resp =>

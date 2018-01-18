@@ -21,7 +21,7 @@ git.gitTagToVersionNumber := { tag: String =>
 
 // see http://scalameta.org/scalafmt/
 scalafmtOnCompile in ThisBuild := true
-scalafmtVersion in ThisBuild := "1.0.0"
+scalafmtVersion in ThisBuild := "1.4.0"
 
 // Define a `Configuration` for each project, as per http://www.scala-sbt.org/sbt-site/api-documentation.html
 val Api      = config("api")
@@ -30,11 +30,12 @@ val RestApi  = config("restApi")
 val Exec     = config("exec")
 val ExecApi  = config("execApi")
 val ExecTest = config("execTest")
+val Flow     = config("flow")
 val IO       = config("io")
 val Config   = config("config")
 
 lazy val scaladocSiteProjects =
-  List((api, Api), (rest, Rest), (restApi, RestApi), (exec, Exec), (execApi, ExecApi), (execTest, ExecTest), (io, IO), (configProject, Config))
+  List((api, Api), (rest, Rest), (restApi, RestApi), (exec, Exec), (execApi, ExecApi), (execTest, ExecTest), (io, IO), (configProject, Config), (flow, Flow))
 
 lazy val scaladocSiteSettings = scaladocSiteProjects.flatMap {
   case (project, conf) =>
@@ -53,7 +54,7 @@ lazy val agora = (project in file("."))
   .enablePlugins(SiteScaladocPlugin)
   .enablePlugins(PamfletPlugin)
   .enablePlugins(ScalaUnidocPlugin)
-  .aggregate(io, configProject, api, restApi, rest, execApi, exec, execTest)
+  .aggregate(io, configProject, api, restApi, rest, execApi, exec, execTest, flow)
   .settings(
     sourceDirectory in Pamflet := sourceDirectory.value / "site",
     siteSubdirName in ScalaUnidoc := "api-all/latest",
@@ -152,6 +153,13 @@ lazy val configProject = project
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.Config)
 
+lazy val flow = project
+  .in(file("flow"))
+  .dependsOn(io % "compile->compile;test->test", configProject % "compile->compile;test->test")
+  .settings(name := s"${repo}-flow")
+  .settings(commonSettings: _*)
+  .settings(libraryDependencies ++= Dependencies.Flow)
+
 lazy val io = project
   .in(file("io"))
   .settings(name := s"${repo}-io")
@@ -161,6 +169,7 @@ lazy val io = project
 lazy val api = project
   .in(file("api"))
   .dependsOn(io % "compile->compile;test->test", configProject % "compile->compile;test->test")
+  .dependsOn(flow % "compile->compile;test->test", configProject % "compile->compile;test->test")
   .settings(name := s"${repo}-api")
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.Api)

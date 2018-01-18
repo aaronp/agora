@@ -8,7 +8,8 @@ import org.scalatest.concurrent.Eventually
 
 import scala.collection.immutable
 
-trait ExchangeWebsocketSpec extends Eventually { self: BaseIntegrationTest =>
+trait ExchangeWebsocketSpec extends Eventually {
+  self: BaseIntegrationTest =>
 
   "Exchange observers over a web socket" should {
     "be able to observe state-of-the-world messages" in {
@@ -90,6 +91,12 @@ trait ExchangeWebsocketSpec extends Eventually { self: BaseIntegrationTest =>
         obs.lastSubmitted.map(_.jobSubmitted) shouldBe Some(firstJob)
       }
 
+      def listServerSideObservers = exchangeService.service.exchange.observer.observerList
+
+      // check the server-side state to ensure we have our single websocket observer
+      val beforeObservers = listServerSideObservers
+      beforeObservers.size shouldBe 1
+
       // call the method under test - cancel the subscription and then trigger another event
       subscription.cancel()
 
@@ -97,12 +104,14 @@ trait ExchangeWebsocketSpec extends Eventually { self: BaseIntegrationTest =>
         obs.lastSubmitted.map(_.jobSubmitted) shouldBe Some(firstJob)
       }
 
+      // the async call should eventually remove it
+      eventually {
+        listServerSideObservers.size shouldBe beforeObservers.size - 1
+      }
+
       val secondJob                 = "second job".asJob.withAwaitMatch(false).withId("secondJobId")
       val SubmitJobResponse(jobId2) = exchangeClient.submit(secondJob).futureValue
       jobId2 shouldBe secondJob.jobId.get
-
-      // ermph -- how long do we wait for something NOT to happen?
-      Thread.sleep(800)
 
       withClue("We cancelled the observer so shouldn't have seen the second job event") {
         eventually {

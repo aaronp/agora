@@ -46,9 +46,8 @@ trait JobSyntax extends StrictLogging {
     *
     * @return the single result
     */
-  def enqueue[T, Out](request: T, overrideDetails: SubmissionDetails)(implicit submitable: Submitable[T],
-                                                                      asClient: AsClient[T, Out],
-                                                                      ec: ExecutionContext): Future[Out] = {
+  def enqueue[T, Out](request: T,
+                      overrideDetails: SubmissionDetails)(implicit submitable: Submitable[T], asClient: AsClient[T, Out], ec: ExecutionContext): Future[Out] = {
     val job: SubmitJob = submitable.asSubmitJob(request)
     enqueueSingleJob(request, job.copy(submissionDetails = overrideDetails))
   }

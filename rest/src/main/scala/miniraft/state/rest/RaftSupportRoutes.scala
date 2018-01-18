@@ -19,8 +19,7 @@ import scala.language.reflectiveCalls
   * for examining the current Raft state
   *
   */
-case class RaftSupportRoutes[T: Encoder: Decoder](logic: RaftNodeLogic[T], cluster: ClusterProtocol, messageLogDir: Option[Path])(
-    implicit ec: ExecutionContext)
+case class RaftSupportRoutes[T: Encoder: Decoder](logic: RaftNodeLogic[T], cluster: ClusterProtocol, messageLogDir: Option[Path])(implicit ec: ExecutionContext)
     extends RaftJson
     with FailFastCirceSupport {
 

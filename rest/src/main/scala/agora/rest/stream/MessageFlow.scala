@@ -23,6 +23,7 @@ object MessageFlow extends StrictLogging {
       val incomingHandler: Sink[A, NotUsed] = Sink.fromSubscriber(handler)
       incomingHandler.contramap[Message] {
         case TextMessage.Strict(json) =>
+          logger.info(s"\t\tdecoding handler json::: $json")
           decode[A](json) match {
             case Right(value) => value
             case Left(err)    => throw err
@@ -32,7 +33,9 @@ object MessageFlow extends StrictLogging {
     }
 
     val source: Source[TextMessage.Strict, NotUsed] = Source.fromPublisher(publisher).map { next =>
-      TextMessage(next.asJson.noSpaces)
+      val json = next.asJson.noSpaces
+      logger.info(s"\t\tnext as json::: $json")
+      TextMessage(json)
     }
 
     Flow.fromSinkAndSource(msgHandler, source)
@@ -40,7 +43,6 @@ object MessageFlow extends StrictLogging {
 
   def apply[T: Encoder](publisherFuture: Future[Publisher[T]])(onClientMessage: String => Unit)(implicit ec: ExecutionContext,
                                                                                                 mat: Materializer): Flow[Message, Message, NotUsed] = {
-
     val incomingHandler: Sink[Message, Future[Done]] = Sink.foreach[Message] {
       case TextMessage.Strict(json) => onClientMessage(json)
       case other                    => sys.error(s"Expected strict text messages in the websocket exchange, but encountered: $other")

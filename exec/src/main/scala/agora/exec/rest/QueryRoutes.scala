@@ -219,12 +219,9 @@ case class QueryRoutes(monitor: SystemEventMonitor) extends RouteSubscriptionSup
                            paramType = "query"),
       new ApiImplicitParam(name = "to", value = "the inclusive to date", defaultValue = "now", required = false, paramType = "query")
     ))
-  @ApiResponses(
-    Array(
-      new ApiResponse(code = 200,
-                      message = "the times the REST service was started and with which configurations",
-                      response = classOf[StartTimesBetweenResponse])
-    ))
+  @ApiResponses(Array(
+    new ApiResponse(code = 200, message = "the times the REST service was started and with which configurations", response = classOf[StartTimesBetweenResponse])
+  ))
   def querySystem = {
     (get & path("rest" / "query" / "system")) {
       parameter('from, 'to.?, 'verbose.?, 'filter.?) {

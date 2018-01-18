@@ -1,7 +1,5 @@
 package agora.rest.stream
 
-import agora.api.streams.PublisherSnapshot
+import agora.flow.PublisherSnapshot
 
-case class DataConsumerSnapshot(
-                                 name : String, republishSnapshot: PublisherSnapshot[Int]
-                               )
+case class DataConsumerSnapshot(name: String, republishSnapshot: PublisherSnapshot[Int])

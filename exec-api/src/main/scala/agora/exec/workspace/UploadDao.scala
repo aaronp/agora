@@ -61,7 +61,8 @@ object UploadDao {
       }
     }
 
-    def writeDown(inputFiles: List[Upload], options: Set[OpenOption] = UploadDao.DefaultWriteOptions)(implicit mat: Materializer): Future[List[(Long, Path)]] = {
+    def writeDown(inputFiles: List[Upload], options: Set[OpenOption] = UploadDao.DefaultWriteOptions)(
+        implicit mat: Materializer): Future[List[(Long, Path)]] = {
       import mat._
 
       val futures = inputFiles.map {

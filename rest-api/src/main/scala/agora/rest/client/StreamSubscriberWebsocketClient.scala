@@ -1,11 +1,12 @@
 package agora.rest.client
 
-import agora.api.streams.BasePublisher.BasePublisherSubscription
-import agora.api.streams._
+import agora.flow.BasePublisher.BasePublisherSubscription
+import agora.flow.{HasPublisher, _}
 import agora.rest.exchange.ClientSubscriptionMessage
 import akka.NotUsed
 import akka.http.scaladsl.HttpExt
 import akka.http.scaladsl.model.ws.{Message, TextMessage, WebSocketRequest}
+import akka.http.scaladsl.settings.ClientConnectionSettings
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import com.typesafe.scalalogging.StrictLogging
@@ -15,6 +16,7 @@ import io.circe.syntax._
 import org.reactivestreams.{Publisher, Subscriber}
 
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
 /**
   * contains the publishers/subscribers needed to setup a websocket message flow
@@ -24,7 +26,8 @@ import scala.concurrent.Future
   */
 class StreamSubscriberWebsocketClient[NewQ[_], S <: Subscriber[Json]](val subscriber: S, newQueueArgs: NewQ[Json])(implicit asQueue: AsConsumerQueue[NewQ])
     extends HasPublisher[Json]
-    with StrictLogging { wsClient =>
+    with StrictLogging {
+  self =>
 
   // when we request/cancel our subscriptions, we end up sending a message upstream to take/cancel
   private val controlMessagePublisher: BaseProcessor[ClientSubscriptionMessage] = BaseProcessor(None)
@@ -38,19 +41,21 @@ class StreamSubscriberWebsocketClient[NewQ[_], S <: Subscriber[Json]](val subscr
   /** Convenience method to explicitly request more work items outside of the subscription
     */
   def takeNext(n: Long = 1) = {
+    logger.debug(s"Stream Client taking $n")
     controlMessagePublisher.publish(ClientSubscriptionMessage.takeNext(n))
   }
 
   // this will be a subscriber of upstream messages which republishes the messages to the subscriber
   private val messageProcessor: BaseProcessor[Json] = new BaseProcessor[Json] {
     override def remove(id: Int): Unit = {
-      wsClient.cancel()
+      self.cancel()
       super.remove(id)
     }
 
     override protected def onRequestNext(subscription: BasePublisherSubscription[Json], requested: Long): Long = {
       val nrReq = super.onRequestNext(subscription, requested)
-      wsClient.takeNext(requested)
+      // we've requested 'nrReq', so ask upstream for nrReq
+      self.takeNext(nrReq)
       nrReq
     }
 
@@ -61,9 +66,8 @@ class StreamSubscriberWebsocketClient[NewQ[_], S <: Subscriber[Json]](val subscr
   messageProcessor.subscribe(subscriber)
 
   val flow: Flow[Message, Message, NotUsed] = {
-    val msgSrc: Source[Message, NotUsed] = Source.fromPublisher(controlMessagePublisher).map { msg =>
+    val controlMessagePublisherSrc: Source[Message, NotUsed] = Source.fromPublisher(controlMessagePublisher).map { msg =>
       val json = msg.asJson.noSpaces
-      logger.debug(s"sending control message: $json")
       TextMessage(json)
     }
     val kitchen: Sink[Message, NotUsed] = Sink.fromSubscriber(messageProcessor).contramap { msg: Message =>
@@ -78,22 +82,36 @@ class StreamSubscriberWebsocketClient[NewQ[_], S <: Subscriber[Json]](val subscr
       }
     }
 
-    Flow.fromSinkAndSource(kitchen, msgSrc)
+    Flow.fromSinkAndSource(kitchen, controlMessagePublisherSrc)
   }
 
   override protected def underlyingPublisher: Publisher[Json] = messageProcessor
 }
 
 object StreamSubscriberWebsocketClient extends StrictLogging {
-  //"ws://echo.websocket.org"
   def openConnection[NewQ[_], S <: Subscriber[Json]](address: String, subscriber: S, newQueueArgs: NewQ[Json])(
       implicit httpExp: HttpExt,
       mat: Materializer,
       asQ: AsConsumerQueue[NewQ]): Future[StreamSubscriberWebsocketClient[NewQ, S]] = {
     import mat.executionContext
 
-    val client          = new StreamSubscriberWebsocketClient(subscriber, newQueueArgs)
-    val (respFuture, _) = httpExp.singleWebSocketRequest(WebSocketRequest(address), client.flow)
+    val client = new StreamSubscriberWebsocketClient(subscriber, newQueueArgs)
+
+    val connSettings = {
+      val settings = ClientConnectionSettings(httpExp.system)
+
+      //
+      // TODO - deleteme
+      val x = settings.idleTimeout
+      println(x)
+      //
+      // TODO - deleteme
+      //
+
+      settings.withIdleTimeout(10.minutes)
+    }
+
+    val (respFuture, _) = httpExp.singleWebSocketRequest(WebSocketRequest(address), client.flow, settings = connSettings)
     respFuture.map { upgradeResp =>
       val status = upgradeResp.response.status
       logger.debug(s"Upgraded subscriber websocket w/ status $status for $address: ${upgradeResp.response}")

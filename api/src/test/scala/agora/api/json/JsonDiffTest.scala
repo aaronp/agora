@@ -64,14 +64,14 @@ class JsonDiffTest extends BaseSpec {
                   },
                   "same nested" : { "both" : true }
                 }"""
-      val diff = JsonDiff(lhs, rhs)
-      diff shouldBe JsonDiff(
-        List(
-          DiffEntry(List("only right"), Json.Null, json"""{ "right" : "is best" } """),
-          DiffEntry(List("different nested", "a"), Json.fromBoolean(true), Json.fromBoolean(false)),
-          DiffEntry(List("different nested", "deep", "array different"), json""" ["d", "e", "f" ]""", json""" [ "h", "i", "j" ] """),
-          DiffEntry(List("only left"), json""" { "left" : "is best" } """, Json.Null)
-        ))
+      val JsonDiff(deltas) = JsonDiff(lhs, rhs)
+
+      deltas.size shouldBe 4
+      deltas should contain(DiffEntry(List("only right"), Json.Null, json"""{ "right" : "is best" } """))
+      deltas should contain(DiffEntry(List("different nested", "a"), Json.fromBoolean(true), Json.fromBoolean(false)))
+      deltas should contain(DiffEntry(List("different nested", "deep", "array different"), json""" ["d", "e", "f" ]""", json""" [ "h", "i", "j" ] """))
+      deltas should contain(DiffEntry(List("only left"), json""" { "left" : "is best" } """, Json.Null))
+
     }
     "return an empty diff for the same values" in {
 

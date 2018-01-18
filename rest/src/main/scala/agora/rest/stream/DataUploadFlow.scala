@@ -1,8 +1,7 @@
 package agora.rest.stream
 
-import agora.api.streams.BasePublisher.BasePublisherSubscription
-import agora.api.streams.KeyedPublisher.KeyedPublisherSubscription
-import agora.api.streams._
+import agora.flow.BasePublisher.BasePublisherSubscription
+import agora.flow._
 import agora.rest.exchange.ClientSubscriptionMessage
 import agora.rest.exchange.ClientSubscriptionMessage._
 import akka.NotUsed
@@ -10,7 +9,7 @@ import akka.http.scaladsl.model.ws.Message
 import akka.stream.Materializer
 import akka.stream.scaladsl.Flow
 import com.typesafe.scalalogging.StrictLogging
-import io.circe.{Decoder, Encoder, Json}
+import io.circe.{Decoder, Encoder}
 
 /**
   * Contains a publisher which will sent [[ClientSubscriptionMessage]] control flow messages and a subscriber to
@@ -18,15 +17,22 @@ import io.circe.{Decoder, Encoder, Json}
   *
   * @param name
   */
-class DataUploadFlow[NewQ[_] : AsConsumerQueue, A: Decoder : Encoder](val name: String, newQueueArgs: NewQ[A]) extends StrictLogging {
+class DataUploadFlow[NewQ[_]: AsConsumerQueue, A: Decoder: Encoder](val name: String,
+                                                                    newQueueArgs: NewQ[A],
+                                                                    clientSubscriptionMessagePublisher: HistoricProcessor[ClientSubscriptionMessage])
+    extends StrictLogging {
   simplePublisher =>
 
   private val mkNewQueue: AsConsumerQueue[NewQ] = AsConsumerQueue[NewQ]()
 
-  def snapshot() = {
-    DataUploadSnapshot(name,
-      delegatingPublisher.snapshot(),
-      UpstreamMessagePublisher.snapshot())
+  def snapshot(): DataUploadSnapshot = {
+
+    // TODO - lift '.snapshot' into a trait so any instance can provide one
+    val clientSnap = clientSubscriptionMessagePublisher match {
+      case inst: HistoricProcessor.Instance[ClientSubscriptionMessage] => inst.snapshot()
+      case _                                                           => PublisherSnapshot[Int](Map.empty)
+    }
+    DataUploadSnapshot(name, republishingSubscriber.snapshot(), clientSnap)
   }
 
   override def toString = name
@@ -38,42 +44,39 @@ class DataUploadFlow[NewQ[_] : AsConsumerQueue, A: Decoder : Encoder](val name: 
     * @return a message flow for the entrypoint
     */
   def flow(implicit mat: Materializer): Flow[Message, Message, NotUsed] = {
-    MessageFlow(UpstreamMessagePublisher, DelegatingSubscriber)
+    MessageFlow(clientSubscriptionMessagePublisher, RepublishingSubscriber)
   }
-
 
   // this sends (publishes) messages up-stream. It will be used by the 'flow' whose subscriber
   // will be determined by the akka http machinery to send 'ClientSubscriptionMessage' when we wanna
   // consume some more data from the client publisher
-  private object UpstreamMessagePublisher extends BasePublisher[ClientSubscriptionMessage] {
-    override def toString = "upstreamMessagePublisher"
-
-    override def newDefaultSubscriberQueue() = ConsumerQueue(None)
-  }
+  //  private val clientSubscriptionMessagePublisher = HistoricProcessor(dao)
 
   def takeNext(n: Long): ClientSubscriptionMessage = {
     val json = TakeNext(n)
-    logger.info(s"$name sending : $json")
-    UpstreamMessagePublisher.publish(json)
+    logger.debug(s"$name takeNext($n) is sending : $json")
+    clientSubscriptionMessagePublisher.onNext(json)
     json
   }
 
   def cancel(): ClientSubscriptionMessage = {
-    logger.info(s"$name Cancelling (replacing)")
+    logger.debug(s"$name Cancelling")
     val msg = Cancel
-    UpstreamMessagePublisher.publish(msg)
+    clientSubscriptionMessagePublisher.onNext(msg)
     msg
   }
 
-  def delegatingPublisher = DelegatingSubscriber
+  def republishingSubscriber: BaseProcessor[A] = RepublishingSubscriber
 
   // this will receive messages sent from the publishing web socket
-  private[stream] object DelegatingSubscriber extends BaseProcessor[A] {
+  private object RepublishingSubscriber extends BaseProcessor[A] {
 
-    override def toString = s"Delegate Subscriber for $simplePublisher"
+    override def toString = s"RepublishingSubscriber for $simplePublisher"
 
     override protected def onRequestNext(subscription: BasePublisherSubscription[A], requested: Long): Long = {
+
       val nrToTake = super.onRequestNext(subscription, requested)
+      logger.debug(s"RepublishingSubscriber.onRequestNext($requested) yields $nrToTake")
       if (nrToTake > 0) {
         takeNext(nrToTake)
       }

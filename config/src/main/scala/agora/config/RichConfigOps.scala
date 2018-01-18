@@ -145,13 +145,17 @@ trait RichConfigOps extends RichConfig.LowPriorityImplicits {
 
   /** @return a sorted list of the origins from when the config values come
     */
-  def origins: List[URL] = {
-    val urls = entries.map(_.getValue.origin().url()).toList
-    urls.flatMap(url => Option(url)).distinct.sortBy(_.toString)
+  def origins: List[String] = {
+    val urls = entries.flatMap { e =>
+      val origin = e.getValue.origin()
+      Option(origin.url).orElse(Option(origin.filename)).orElse(Option(origin.resource)).map(_.toString)
+    }
+    urls.toList.distinct.sorted
   }
 
   /**
     * Return a property-like summary of the config using the pathFilter to trim property entries
+    *
     * @param pathFilter
     */
   def summary(pathFilter: String => Boolean = _ => true) = {

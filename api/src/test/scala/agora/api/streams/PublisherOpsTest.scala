@@ -1,6 +1,7 @@
 package agora.api.streams
 
 import agora.BaseSpec
+import agora.flow.{BaseProcessor, ListSubscriber}
 import cats.syntax.option._
 import io.circe.Json
 import io.circe.generic.auto._
@@ -9,8 +10,8 @@ import io.circe.syntax._
 class PublisherOpsTest extends BaseSpec {
 
   import PublisherOps.implicits._
-  import agora.api.data.implicits._
   import PublisherOpsTest._
+  import agora.api.data.implicits._
 
   implicit val jsonDelta = agora.api.json.JsonDiffAsDeltas
 

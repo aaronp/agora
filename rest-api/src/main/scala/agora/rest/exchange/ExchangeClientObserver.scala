@@ -30,12 +30,9 @@ object ExchangeClientObserver extends StrictLogging {
     */
   def connectClient(location: HostLocation, obs: ExchangeObserver, http: HttpExt)(implicit ec: ExecutionContext, mat: Materializer): Future[Subscription] = {
     val clientFlow = ClientFlow(obs)
-    val protocol   = if (location.secure) "wss" else "ws"
 
-    val url = s"$protocol://${location.asHostPort}/rest/exchange/observe"
-
+    val url                         = s"${location.asWebsocketURL}/rest/exchange/observe"
     val wsRequest: WebSocketRequest = WebSocketRequest(url)
-    //, extraHeaders = List(Authorization(BasicHttpCredentials("johan", "correcthorsebatterystaple"))
 
     val pear: (Future[WebSocketUpgradeResponse], NotUsed) = http.singleWebSocketRequest(wsRequest, clientFlow.flow)
     pear._1.map {
@@ -122,7 +119,7 @@ object ExchangeClientObserver extends StrictLogging {
     }
 
     override def cancel() = {
-      logger.debug(s"ClientPublisher being cancelled")
+      logger.debug("ClientPublisher being cancelled")
       // if this side wants to cancel
       notifyOfCancel()
     }

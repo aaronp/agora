@@ -8,7 +8,7 @@ import org.reactivestreams.{Subscriber, Subscription}
 class SingleSubscriptionExchangePublisherTest extends BaseSpec {
   "SingleSubscriptionExchangePublisher" should {
     "publish events to subscribers" in {
-      val publisher = SingleSubscriptionExchangePublisher()
+      val publisher = SingleSubscriptionExchangePublisher(ExchangeObserverDelegate())
       object subscriber extends Subscriber[ExchangeNotificationMessage] {
         var events = List[ExchangeNotificationMessage]()
 

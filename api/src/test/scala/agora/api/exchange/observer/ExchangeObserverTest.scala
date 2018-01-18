@@ -16,13 +16,6 @@ class ExchangeObserverTest extends BaseSpec {
   "ExchangeObserver.onMatch" should {
     "notify the observer when a match is made" in {
 
-      //      implicit object TestDispatch extends AsClient[SubmitJob, String] {
-      //        var dispatches: List[Dispatch[SubmitJob]] = List[Dispatch[SubmitJob]]()
-      //        override def dispatch[T <: SubmitJob](dispatch: Dispatch[T]) = {
-      //          dispatches = dispatch :: dispatches
-      //          Future.successful(dispatch.job.job.noSpaces)
-      //        }
-      //      }
       val observer = new TestObserver
       val exchange = Exchange(observer)
       val jobAck   = exchange.subscribe(WorkSubscription.localhost(7777).withSubscriptionKey("the worker")).futureValue

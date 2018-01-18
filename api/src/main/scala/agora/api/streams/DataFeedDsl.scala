@@ -1,6 +1,7 @@
 package agora.api.streams
 
 import agora.api.streams.PublisherOps.implicits._
+import agora.flow.{BaseProcessor, HasProcessor}
 import io.circe.Encoder
 
 import scala.reflect.ClassTag

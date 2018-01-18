@@ -87,9 +87,7 @@ object UpdatingWorkspaceClient {
     */
   def removeWorkspaceFromSubscription(exchange: Exchange, subscriptionKey: SubscriptionKey, workspaceId: WorkspaceId): Future[UpdateSubscriptionAck] = {
     val update =
-      UpdateSubscription(subscriptionKey,
-                         condition = WorkspacesKey includes workspaceId,
-                         delta = JsonDelta.remove(JPath(WorkspacesKey) :+ workspaceId.inArray))
+      UpdateSubscription(subscriptionKey, condition = WorkspacesKey includes workspaceId, delta = JsonDelta.remove(JPath(WorkspacesKey) :+ workspaceId.inArray))
     exchange.updateSubscriptionDetails(update)
   }
 }

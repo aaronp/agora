@@ -1,6 +1,7 @@
 package agora.rest.client
 
-import agora.api.streams.{BaseProcessor, ConsumerQueue, HasPublisher, ThrottledPublisher}
+import agora.flow.KeyedPublisher.KeyedPublisherSubscription
+import agora.flow.{BaseProcessor, ConsumerQueue, ThrottledPublisher}
 import agora.rest.exchange.{Cancel, ClientSubscriptionMessage, TakeNext}
 import akka.NotUsed
 import akka.http.scaladsl.HttpExt
@@ -15,32 +16,46 @@ import org.reactivestreams.Publisher
 
 import scala.concurrent.Future
 
-/** contains the publishers/subscribers needed to setup a websocket message flow
+/** contains the publishers/subscribers needed to setup a websocket message flow.
+  *
+  * The flow should be like this:
+  *
+  * 1) start with some local publisher of data 'localPublisher'
+  * 2) Add a 'StreamPublisherWebsocketClient' which will act as a subscriber to the 'localPublisher' which will
+  * request elements as they are consumed from a remote web service
+  * 3) when an element is explicitly requested (subscribed to) from the remote service, a control message will be
+  * sent to this StreamPublisherWebsocketClient which will then in turn pull from the 'localPublisher'
   *
   */
 class StreamPublisherWebsocketClient[E: Encoder, P <: Publisher[E]](val underlyingUserPublisher: P, bufferCapacity: Int = 50) extends StrictLogging {
   wsClient =>
 
-  private val throttledPublisher = new ThrottledPublisher[E](underlyingUserPublisher)
+  val throttledPublisher = new ThrottledPublisher[E](underlyingUserPublisher)
   // this source will call 'request' when a message is delivered
   private[client] val flowMessageSource: Source[Message, NotUsed] = Source.fromPublisher(throttledPublisher).map { event: E =>
+    //  private[client] val flowMessageSource: Source[Message, NotUsed] = Source.fromPublisher(underlyingUserPublisher).map { event: E =>
     val json = event.asJson.noSpaces
-    logger.debug(s"sending control message: $json")
+    logger.debug(s"pushing message: $json")
     TextMessage(json)
   }
 
   // this subscribe to take/cancel messages coming from the remote service
-  private[client] val controlMessageProcessor: BaseProcessor[ClientSubscriptionMessage] = new BaseProcessor[ClientSubscriptionMessage] {
+  private val controlMessageProcessor: BaseProcessor[ClientSubscriptionMessage] = new BaseProcessor[ClientSubscriptionMessage] {
+    override protected def onRequestNext(subscription: KeyedPublisherSubscription[SubscriberKey, ClientSubscriptionMessage], requested: Long): Long = {
+      val x = super.onRequestNext(subscription, requested)
+      logger.debug(s"the server's requested $requested ($x) control messages")
+      x
+    }
+
     override def newDefaultSubscriberQueue(): ConsumerQueue[ClientSubscriptionMessage] = ConsumerQueue.keepLatest(bufferCapacity)
   }
+  controlMessageProcessor.request(1)
 
-  def takeNext(n: Long) = {
-    logger.debug(s"Taking next $n...")
+  def remoteWebServiceRequestingNext(n: Long): Long = {
     throttledPublisher.allowRequested(n)
   }
 
-  def cancel() = {
-    logger.debug("Cancelling...")
+  def remoteWebServiceCancelling() = {
     throttledPublisher.cancel()
   }
 
@@ -53,16 +68,16 @@ class StreamPublisherWebsocketClient[E: Encoder, P <: Publisher[E]](val underlyi
     val kitchen: Sink[Message, NotUsed] = Sink.fromSubscriber(controlMessageProcessor).contramap { msg: Message =>
       msg match {
         case TextMessage.Strict(jsonText) =>
-          logger.debug(s"received : $jsonText")
+          logger.debug(s"received from remote web service : $jsonText")
           parse(jsonText) match {
             case Left(err) => sys.error(s"couldn't parse ${jsonText} : $err")
             case Right(json) =>
               json.as[ClientSubscriptionMessage] match {
                 case Right(msg @ TakeNext(n)) =>
-                  takeNext(n)
+                  remoteWebServiceRequestingNext(n)
                   msg
                 case Right(msg @ Cancel) =>
-                  cancel()
+                  remoteWebServiceCancelling()
                   msg
                 case Left(err) => sys.error(s"couldn't parse ${jsonText} as a client subscription message: $err")
               }

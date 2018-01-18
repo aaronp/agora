@@ -17,13 +17,18 @@ class StreamRoutesTest extends BaseRoutesSpec {
       // create a testing probe representing the client-side
       val wsClient: WSProbe = WSProbe()
 
-      // WS creates a WebSocket request for testing
-      WS("/rest/stream/publish/dave?maxCapacity=10&initialRequest=3", wsClient.flow) ~> streamRoutes.routes ~> check {
+      val routes = streamRoutes.routes
+
+      // WS creates a WebSocket publisher 'dave' w/ subscription queue size of 10
+      WS("/rest/stream/publish/dave?maxCapacity=10", wsClient.flow) ~> routes ~> check {
         // check response for WS Upgrade headers
         isWebSocketUpgrade shouldEqual true
 
-        // expect to see the state-of-the-world
-        val sowEvent = wsClient.expectMessage() match {
+        // sent an explicit request for taking 3 from the new publisher
+        Get("/rest/stream/publish/dave/request/3") ~> routes
+
+        // verify we receive the TakeNext
+        wsClient.expectMessage() match {
           case TextMessage.Strict(jsonString) =>
             decode[agora.rest.exchange.ClientSubscriptionMessage](jsonString) match {
               case Right(takeNext) => takeNext shouldBe TakeNext(3)

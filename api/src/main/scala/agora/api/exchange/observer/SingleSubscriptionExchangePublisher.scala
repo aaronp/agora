@@ -5,8 +5,9 @@ import java.util.{Queue => jQueue}
 import agora.api.exchange.QueueStateResponse
 import com.typesafe.scalalogging.StrictLogging
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
-import scala.util.control.NonFatal
+
 import scala.language.existentials
+import scala.util.control.NonFatal
 
 /**
   * An [[ExchangeObserver]] which publishes events to other subscriptions.
@@ -17,7 +18,7 @@ import scala.language.existentials
   * @param initialStateOfTheWorld the state of the world when this publisher was created
   * @param maxCapacity            the max capacity of the subscription queues
   */
-class SingleSubscriptionExchangePublisher private (maxCapacity: Int, var initialStateOfTheWorld: QueueStateResponse)
+class SingleSubscriptionExchangePublisher private (observers: ExchangeObserverDelegate, maxCapacity: Int, var initialStateOfTheWorld: QueueStateResponse)
     extends ExchangeObserver
     with Publisher[ExchangeNotificationMessage]
     with StrictLogging {
@@ -30,6 +31,7 @@ class SingleSubscriptionExchangePublisher private (maxCapacity: Int, var initial
     logger.debug(s"Removing subscription")
     val removed = subscriptionOpt.isDefined
     subscriptionOpt = None
+    observers -= this
     removed
   }
 
@@ -58,8 +60,12 @@ class SingleSubscriptionExchangePublisher private (maxCapacity: Int, var initial
 
 object SingleSubscriptionExchangePublisher {
 
-  def apply(maxCapacity: Int = Int.MaxValue, stateOfTheWorld: QueueStateResponse = QueueStateResponse(Nil, Nil)): SingleSubscriptionExchangePublisher = {
-    new SingleSubscriptionExchangePublisher(maxCapacity, stateOfTheWorld)
+  def apply(observers: ExchangeObserverDelegate,
+            maxCapacity: Int = Int.MaxValue,
+            stateOfTheWorld: QueueStateResponse = QueueStateResponse(Nil, Nil)): SingleSubscriptionExchangePublisher = {
+    val pub = new SingleSubscriptionExchangePublisher(observers, maxCapacity, stateOfTheWorld)
+    observers += pub
+    pub
   }
 
   /**
@@ -100,7 +106,10 @@ object SingleSubscriptionExchangePublisher {
       }
     }
 
-    override def cancel(): Unit = publisher.remove()
+    override def cancel(): Unit = {
+      publisher.remove()
+      //      subscriber.onComplete()
+    }
 
     override def request(n: Long): Unit = {
       requested = drain(requested + n)
