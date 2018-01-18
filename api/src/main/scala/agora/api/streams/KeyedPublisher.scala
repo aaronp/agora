@@ -28,6 +28,15 @@ trait KeyedPublisher[T] extends Publisher[T] with StrictLogging {
 
   private val subscriptionsById = new ConcurrentHashMap[SubscriberKey, KeyedPublisherSubscription[SubscriberKey, T]]()
 
+  /** @param s the subscriber to check
+    * @return true if the subscriber
+    */
+  def containsSubscriber(s : Subscriber[_ >: T]) : Boolean = {
+    import scala.collection.JavaConverters._
+    val jIter = subscriptionsById.values().iterator()
+    jIter.asScala.map(_.subscriber).contains(s)
+  }
+
   /** create a new queue for a subscription
     *
     * @return a new consumer queue
@@ -48,7 +57,10 @@ trait KeyedPublisher[T] extends Publisher[T] with StrictLogging {
     }
 
     val id: SubscriberKey = s match {
-      case hasKey: HasKey[SubscriberKey] => hasKey.key
+      case hasKey: HasKey[SubscriberKey] =>
+        val existingKey = hasKey.key
+        require(!subscriptionsById.contains(existingKey), s"${existingKey} is already subscribed")
+        existingKey
       case _ => nextId()
     }
 

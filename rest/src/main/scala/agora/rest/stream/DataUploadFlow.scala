@@ -10,7 +10,7 @@ import akka.http.scaladsl.model.ws.Message
 import akka.stream.Materializer
 import akka.stream.scaladsl.Flow
 import com.typesafe.scalalogging.StrictLogging
-import io.circe.{Decoder, Encoder}
+import io.circe.{Decoder, Encoder, Json}
 
 /**
   * Contains a publisher which will sent [[ClientSubscriptionMessage]] control flow messages and a subscriber to
@@ -20,6 +20,14 @@ import io.circe.{Decoder, Encoder}
   */
 class DataUploadFlow[NewQ[_] : AsConsumerQueue, A: Decoder : Encoder](val name: String, newQueueArgs: NewQ[A]) extends StrictLogging {
   simplePublisher =>
+
+  private val mkNewQueue: AsConsumerQueue[NewQ] = AsConsumerQueue[NewQ]()
+
+  def snapshot() = {
+    DataUploadSnapshot(name,
+      delegatingPublisher.snapshot(),
+      UpstreamMessagePublisher.snapshot())
+  }
 
   override def toString = name
 
@@ -33,32 +41,15 @@ class DataUploadFlow[NewQ[_] : AsConsumerQueue, A: Decoder : Encoder](val name: 
     MessageFlow(UpstreamMessagePublisher, DelegatingSubscriber)
   }
 
+
   // this sends (publishes) messages up-stream. It will be used by the 'flow' whose subscriber
   // will be determined by the akka http machinery to send 'ClientSubscriptionMessage' when we wanna
   // consume some more data from the client publisher
-  private[stream] object UpstreamMessagePublisher extends BasePublisher[ClientSubscriptionMessage] {
+  private object UpstreamMessagePublisher extends BasePublisher[ClientSubscriptionMessage] {
     override def toString = "upstreamMessagePublisher"
 
     override def newDefaultSubscriberQueue() = ConsumerQueue(None)
   }
-
-  private val mkNewQueue: AsConsumerQueue[NewQ] = AsConsumerQueue[NewQ]()
-
-  //  // this publisher re-publishes consumed messages
-  //  object delegatingPublisher extends BasePublisher[A] {
-  //
-  //    override def toString = "delegatingPublisher"
-  //
-  //    def isSubscribed(name: String): Boolean = ??? //subscriptionsById.contains(name)
-  //
-  //    override def newDefaultSubscriberQueue(): ConsumerQueue[A] = mkNewQueue.newQueue(newQueueArgs)
-  //  }
-  //
-  //
-  //  def takeNextJson(n: Long): Json = {
-  //    val tnMsg: ClientSubscriptionMessage = TakeNext(n)
-  //    tnMsg.asJson
-  //  }
 
   def takeNext(n: Long): ClientSubscriptionMessage = {
     val json = TakeNext(n)
@@ -77,10 +68,11 @@ class DataUploadFlow[NewQ[_] : AsConsumerQueue, A: Decoder : Encoder](val name: 
   def delegatingPublisher = DelegatingSubscriber
 
   // this will receive messages sent from the publishing web socket
-  private[stream] object DelegatingSubscriber extends BaseProcessor[String, A] {
+  private[stream] object DelegatingSubscriber extends BaseProcessor[A] {
+
     override def toString = s"Delegate Subscriber for $simplePublisher"
 
-    override protected def onRequestNext(subscription: KeyedPublisherSubscription[String, A], requested: Long): Long = {
+    override protected def onRequestNext(subscription: BasePublisherSubscription[A], requested: Long): Long = {
       val nrToTake = super.onRequestNext(subscription, requested)
       if (nrToTake > 0) {
         takeNext(nrToTake)
@@ -89,8 +81,6 @@ class DataUploadFlow[NewQ[_] : AsConsumerQueue, A: Decoder : Encoder](val name: 
     }
 
     override def newDefaultSubscriberQueue(): ConsumerQueue[A] = mkNewQueue.newQueue(newQueueArgs)
-
-    override protected def nextId(): DelegatingSubscriber.SubscriberKey = ???
   }
 
 }

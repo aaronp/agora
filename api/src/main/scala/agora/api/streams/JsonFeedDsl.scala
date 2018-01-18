@@ -2,9 +2,9 @@ package agora.api.streams
 
 import java.util.concurrent.locks.ReentrantLock
 
-import agora.api.json.JsonDiffAsDataDiff
+import agora.api.data.implicits._
 import agora.api.json.JsonDiff.JsonDiffSemigroup
-import agora.api.json.{JPath, JsonDiff, TypesByPath, TypesByPathSemigroup}
+import agora.api.json.{JPath, JsonDiff, JsonDiffAsDataDiff, TypesByPath, TypesByPathSemigroup}
 import agora.api.streams.JsonFeedDsl.{IndexSubscriber, JsonDeltaSubscriber, JsonFieldSubscriber}
 import agora.api.streams.PublisherOps.implicits._
 import agora.io.core.DataDiff
@@ -12,7 +12,6 @@ import agora.rest.stream.FieldFeed
 import cats.Semigroup
 import io.circe.{Encoder, Json}
 import org.reactivestreams.Publisher
-import agora.api.data.implicits._
 
 /**
   * DSL for putting things on an upstream json feed (publisher)
@@ -54,7 +53,7 @@ class JsonFeedDsl(override protected val underlyingPublisher: Publisher[Json]) e
   def indexOnKeys(path: JPath, theRest: JPath*)(newQ: => ConsumerQueue[Json]): IndexSubscriber = {
 
     def newPublisher(indexSubscriber: IndexSubscriber, key: List[Json]): BaseProcessor[Json] = {
-      new BaseProcessor[Json] {
+      new BaseProcessor[Json] with IntKeyedPublisher[Json] {
         override def onRequestNext(subscription: BasePublisher.BasePublisherSubscription[Json], requested: Long) = {
           val nrToTake = super.onRequestNext(subscription, requested)
           if (nrToTake > 0) {
@@ -84,7 +83,7 @@ class JsonFeedDsl(override protected val underlyingPublisher: Publisher[Json]) e
                   name: String = ""): IndexSubscriber = {
     val actualName = name match {
       case "" => paths.mkString("Index on [", ",", "]")
-      case n  => n
+      case n => n
     }
     val subscriber = new IndexSubscriber(actualName, paths, initialRequest, newPublisherForKey)
     underlyingPublisher.subscribe(subscriber)
@@ -99,7 +98,7 @@ class JsonFeedDsl(override protected val underlyingPublisher: Publisher[Json]) e
     * @return
     */
   def withDeltas(mkQueue: () => ConsumerQueue[JsonDiff] = () => ConsumerQueue(None), initialRequest: Int = 0)(implicit diff: DataDiff[Json, JsonDiff] =
-                                                                                                                JsonDiffAsDataDiff): JsonDeltaSubscriber = {
+  JsonDiffAsDataDiff): JsonDeltaSubscriber = {
 
     object DownstreamPublisher extends JsonDeltaSubscriber {
 
@@ -137,10 +136,13 @@ object JsonFeedDsl {
     * @param initialRequest
     * @param newPublisherForKey the factory to use when creating a new publisher
     */
-  class IndexSubscriber(name: String, paths: List[JPath], initialRequest: Int, newPublisherForKey: (IndexSubscriber, List[Json]) => BaseProcessor[Json])
-      extends BaseSubscriber[Json] {
+  class IndexSubscriber(name: String,
+                        paths: List[JPath],
+                        initialRequest: Int,
+                        newPublisherForKey: (IndexSubscriber, List[Json]) => BaseProcessor[Json])
+    extends BaseSubscriber[Json] {
     type Key = List[Json]
-    private val Lock                                          = new ReentrantLock()
+    private val Lock = new ReentrantLock()
     private var publisherByKey: Map[Key, BaseProcessor[Json]] = Map.empty
 
     def getPublisher[K: Encoder](key: K): Publisher[Json] = {
@@ -185,7 +187,7 @@ object JsonFeedDsl {
     def lastDeltaJson(): Json = {
       lastDiff match {
         case Some(delta) => delta.strip(latestJson)
-        case None        => latestJson
+        case None => latestJson
       }
     }
 
@@ -204,10 +206,8 @@ object JsonFeedDsl {
     }
   }
 
-  //  [F[_]](newQueueInput: F[TypesByPath])(implicit asConsumerQueue : AsConsumerQueue[F])
-
   class JsonFieldSubscriber[F[_]](publisher: Publisher[Json], override protected val underlyingSubscriber: FieldFeed.AccumulatingJsonPathsSubscriber[F])
-      extends HasSubscriber[Json] {
+    extends HasSubscriber[Json] {
 
     def request(n: Int) = underlyingSubscriber.request(n)
 

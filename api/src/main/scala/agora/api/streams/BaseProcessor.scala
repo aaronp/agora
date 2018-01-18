@@ -8,7 +8,12 @@ import org.reactivestreams.Processor
 
 import scala.collection.JavaConverters._
 
-trait BaseProcessor[T] extends BasePublisher[T] with BaseSubscriber[T] with Processor[T, T] {
+/**
+  * BaseProcessor an abstract, base implementation of a processor
+  *
+  * @tparam T the processor type
+  */
+trait BaseProcessor[T] extends IntKeyedPublisher[T] with BaseSubscriber[T] with Processor[T, T] {
 
   // the current amount requested across all subscriptions, decremented on publish, incremented on
   // 'onRequestNext'
@@ -80,7 +85,7 @@ trait BaseProcessor[T] extends BasePublisher[T] with BaseSubscriber[T] with Proc
 
     def conditionallyRequest(tries: Int): Long = {
       require(tries >= 0, s"$this couldn't consistently update ${maxRequestedCounter}")
-      val current  = maxRequestedCounter.get
+      val current = maxRequestedCounter.get
       val nrToTake = calculateNumberToTake(subscription, current, requested)
 
       if (nrToTake > 0) {
@@ -103,22 +108,23 @@ trait BaseProcessor[T] extends BasePublisher[T] with BaseSubscriber[T] with Proc
 
 object BaseProcessor {
 
-  def apply[F[_], T](newQueueArgs: F[T])(implicit asQueue: AsConsumerQueue[F]): BaseProcessor[T] = {
-    new BaseProcessor[T] {
+  def apply[F[_], T](newQueueArgs: F[T])(implicit asQueue: AsConsumerQueue[F]) = {
+    new BaseProcessor[T] with IntKeyedPublisher[T] {
       override def newDefaultSubscriberQueue() = asQueue.newQueue(newQueueArgs)
     }
   }
 
-  def withMaxCapacity[T](maxCapacity: Int): BaseProcessor[T] = {
-    new BaseProcessor[T] {
-      override def toString = s"BaseProcessor w/ ${subscriptionCount} subscriptions, ${currentRequestedCount} requested, $maxCapacity capacity"
+  def withMaxCapacity[T](maxCapacity: Int) = {
+    new BaseProcessor[T] with IntKeyedPublisher[T] {
+      override def toString = s"BaseProcessor w/ ${snapshot()}"
 
       override def newDefaultSubscriberQueue() = ConsumerQueue.withMaxCapacity(maxCapacity)
     }
   }
-  def keepingLatest[T](maxCapacity: Int): BaseProcessor[T] = {
-    new BaseProcessor[T] {
-      override def toString = s"BaseProcessor w/ ${subscriptionCount} subscriptions, ${currentRequestedCount} requested, keeping latest $maxCapacity"
+
+  def keepingLatest[T](maxCapacity: Int) = {
+    new BaseProcessor[T] with IntKeyedPublisher[T] {
+      override def toString = s"BaseProcessor w/ ${snapshot()}"
 
       override def newDefaultSubscriberQueue() = ConsumerQueue.keepLatest(maxCapacity)
     }
@@ -133,8 +139,8 @@ object BaseProcessor {
     * @tparam T
     * @return
     */
-  def apply[T: Semigroup](initialValue: Option[T] = None): BaseProcessor[T] = {
-    new BaseProcessor[T] {
+  def apply[T: Semigroup](initialValue: Option[T] = None) = {
+    new BaseProcessor[T] with IntKeyedPublisher[T] {
       override def newDefaultSubscriberQueue() = ConsumerQueue(initialValue)
     }
   }

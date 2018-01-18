@@ -5,17 +5,22 @@ import agora.rest.exchange.ClientSubscriptionMessage
 import akka.NotUsed
 import akka.http.scaladsl.model.ws.Message
 import akka.stream.Materializer
-import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.stream.scaladsl.Flow
 import io.circe.{Decoder, Encoder}
-import org.reactivestreams.Publisher
 
 /**
   * Used to consume data flowing through a publisher. This can make available a Flow[Message, Message] which will publish
   * the data from the 'republish' processor and subscribe to client TakeNext/Cancel message.
   *
   */
-case class DataConsumerFlow[T: Encoder: Decoder](name: String, republish: BaseProcessor[T], initialClientMessageTakeNext: Int = 10)
-    extends HasProcessor[T, T] { simpleSubscriber =>
+case class DataConsumerFlow[T: Encoder : Decoder](name: String, republish: BaseProcessor[T], initialClientMessageTakeNext: Int = 10)
+  extends HasProcessor[T, T] {
+  simpleSubscriber =>
+
+  def snapshot() = {
+    DataConsumerSnapshot(name, republish.snapshot())
+  }
+
 
   override protected def underlyingProcessor = republish
 

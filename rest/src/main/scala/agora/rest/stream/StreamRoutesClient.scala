@@ -28,6 +28,14 @@ case class StreamRoutesClient(clientConf: ClientConfig) extends FailFastCirceSup
 
   lazy val restClient: RestClient = clientConf.clientFor(location)
 
+  def snapshot(name : String): Future[Json] = {
+    import clientSystem._
+    val url = s"/rest/stream/snapshot/$name"
+    restClient.send(HttpRequest(HttpMethods.GET, url)).flatMap { resp =>
+      Unmarshal(resp.entity).to[Json]
+    }
+  }
+
   /** Contains subscription operations
     */
   object subscriptions {
@@ -92,7 +100,7 @@ case class StreamRoutesClient(clientConf: ClientConfig) extends FailFastCirceSup
 
     def cancel(name: String) = cancelVerb("publish", name)
 
-    def list() = listVerb("publish")
+    def list(): Future[Set[String]] = listVerb("publish")
 
     def create[E: Encoder, T <: Publisher[E]](name: String, publisher: T): Future[StreamPublisherWebsocketClient[E, T]] = {
       val url = s"${location.asWebsocketURL}/rest/stream/publish/$name"

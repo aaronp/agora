@@ -11,9 +11,11 @@ import org.reactivestreams.Publisher
   * The trick for those flows is that akka websocket sources have their own publishers, and will 'request' more
   * messages as soon as they are delivered.
   */
-class StreamRegistry {
+class StreamRegistry(initialStreamsByName: Map[String, NamedStream[_]] = Map.empty) {
 
-  def registerPublisher(key : String, publisher : Publisher[Json]) : Boolean = {
+  private var streamsByName = initialStreamsByName
+
+  def registerPublisher(key: String, publisher: Publisher[Json]): Boolean = {
     false
   }
 

@@ -23,7 +23,14 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
 
   private val state = StreamRoutesState()
 
-  def routes = publishRoutes ~ subscribeRoutes
+  def routes: Route = publishRoutes ~ subscribeRoutes ~ snapshotRoute()
+
+  def snapshotRoute() = get {
+    path("rest" / "stream" / "snapshot" / Segment) { name =>
+      val json: Json = state.snapshot(name)
+      complete(json)
+    }
+  }
 
   def subscribeRoutes = {
     subscribeRawData() ~ subscribeRawDataTakeNext() ~ subscribeRawDataCancel() ~ subscribeRawDataList()
@@ -82,7 +89,7 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
 
           state.getSimpleSubscriber(name) match {
             case None =>
-              val keys = state.simpleSubscriberByName.keySet.mkString(",")
+              val keys = state.subscriberKeys.mkString(",")
               complete(NotFound, s"Couldn't find $name, available subscribers are: ${keys}")
             case Some(found) =>
               logger.debug(s"$name subscriber taking $takeNextInt")
@@ -100,7 +107,7 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
         Lock.synchronized {
           state.getUploadEntrypoint(name) match {
             case None =>
-              val keys = state.simpleSubscriberByName.keySet.mkString(",")
+              val keys = state.subscriberKeys.mkString(",")
               complete(NotFound, s"Couldn't find $name, available subscribers are: ${keys}")
             case Some(sp) =>
               logger.debug(s"$name publisher cancelling")
@@ -116,7 +123,7 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
     get {
       (path("rest" / "stream" / "subscribe") & pathEnd) {
         val list = Lock.synchronized {
-          state.simpleSubscriberByName.keySet.toList.asJson
+          state.subscriberKeys.toList.asJson
         }
         complete(list)
       }
@@ -173,7 +180,7 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
         Lock.synchronized {
           state.getUploadEntrypoint(name) match {
             case None =>
-              val keys = state.uploadEntrypointByName.keySet.mkString(",")
+              val keys = state.uploadKeys.mkString(",")
               complete(NotFound, s"Couldn't find $name, available publishers are: ${keys}")
             case Some(sp) =>
               logger.debug(s"$name publisher taking $takeNextInt")
@@ -190,7 +197,7 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
         Lock.synchronized {
           state.getUploadEntrypoint(name) match {
             case None =>
-              val keys = state.uploadEntrypointByName.keySet.mkString(",")
+              val keys = state.uploadKeys.mkString(",")
               complete(NotFound, s"Couldn't find $name, available publishers are: ${keys}")
             case Some(sp) =>
               logger.debug(s"$name publisher cancelling")
@@ -205,7 +212,7 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
     get {
       (path("rest" / "stream" / "publish") & pathEnd) {
         val list = Lock.synchronized {
-          state.uploadEntrypointByName.keySet.toList.asJson
+          state.uploadKeys.toList.asJson
         }
         complete(list)
       }
