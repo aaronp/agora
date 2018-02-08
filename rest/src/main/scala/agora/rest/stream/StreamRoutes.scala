@@ -2,18 +2,22 @@ package agora.rest.stream
 
 import agora.api.json.JsonSemigroup
 import agora.flow.AsConsumerQueue.QueueArgs
-import agora.flow.{AsConsumerQueue, BaseProcessor, HistoricProcessor, HistoricProcessorDao}
-import agora.rest.exchange.ClientSubscriptionMessage
+import agora.flow.HistoricProcessor.HistoricSubscription
+import agora.flow.{AsConsumerQueue, HistoricProcessor, HistoricProcessorDao}
+import agora.rest.ui.UIRoutes
+import agora.rest.{RunningService, ServerConfig}
 import akka.NotUsed
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.ws.Message
 import akka.http.scaladsl.server.Directives.{extractMaterializer, handleWebSocketMessages, path, _}
 import akka.http.scaladsl.server.{Route, ValidationRejection}
 import akka.stream.scaladsl.Flow
+import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.Json
 import io.circe.syntax._
+import org.reactivestreams.Subscriber
 
 /**
   * A PoC set of routes for creating publishers/subscribers over web sockets
@@ -60,10 +64,9 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
     path("rest" / "stream" / "subscribe" / Segment) { name =>
       parameter('maxCapacity.?, 'initialRequest.?, 'discardOverCapacity.?) { (maxCapacityOpt, initialRequestOpt, discardOpt) =>
         import AsConsumerQueue._
-        //        implicit val jsg = JsonSemigroup
 
         val args: QueueArgs[Json] = {
-          val maxCapacity: Option[Int]             = maxCapacityOpt.map(_.toInt)
+          val maxCapacity: Option[Int] = maxCapacityOpt.map(_.toInt)
           val discardOverCapacity: Option[Boolean] = discardOpt.map(_.toBoolean)
           QueueArgs[Json](maxCapacity, discardOverCapacity)(JsonSemigroup)
         }
@@ -71,13 +74,23 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
         logger.debug(s"starting simple subscribe to $name w/ $args and initialRequest $initialRequest")
 
         extractMaterializer { implicit materializer =>
-          val subscriberFlow: Flow[Message, Message, NotUsed] = Lock.synchronized {
-            val republish: BaseProcessor[Json]       = BaseProcessor(args)
-            val consumerFlow: DataConsumerFlow[Json] = new DataConsumerFlow[Json](name, republish, initialRequest)
-            state.newSimpleSubscriber(consumerFlow)
+          val subscriberFlowOpt = Lock.synchronized {
+
+            // TODO - use a specific dao execution context
+            //            import materializer.executionContext
+            //            val dao = HistoricProcessorDao[Json](args.maxCapacity.getOrElse(100))
+            //
+            //            val publishDataToConsumer = {
+            //
+            //            }
+            state.newSimpleSubscriber(name)
           }
 
-          handleWebSocketMessages(subscriberFlow)
+          subscriberFlowOpt match {
+            case Some(subscriberFlow) => handleWebSocketMessages(subscriberFlow)
+            case None => reject(ValidationRejection(s"No publisher exists with name '$name'", None))
+          }
+
         }
       }
     }
@@ -92,9 +105,9 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
             case None =>
               val keys = state.subscriberKeys.mkString(",")
               complete(NotFound, s"Couldn't find $name, available subscribers are: ${keys}")
-            case Some(found) =>
+            case Some(found: Seq[SocketPipeline.DataSubscriber[Json]]) =>
               logger.debug(s"$name subscriber taking $takeNextInt")
-              found.foreach(_.takeNextFromRepublisher(takeNextInt))
+              found.foreach(_.takeNext(takeNextInt))
               complete(found.size.asJson)
           }
         }
@@ -110,7 +123,7 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
             case None =>
               val keys = state.subscriberKeys.mkString(",")
               complete(NotFound, s"Couldn't find $name, available subscribers are: ${keys}")
-            case Some(sp) =>
+            case Some(sp: SocketPipeline.DataPublisher[Json]) =>
               logger.debug(s"$name publisher cancelling")
 
               complete(sp.cancel().asJson)
@@ -147,7 +160,7 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
       parameter('maxCapacity.?, 'discardOverCapacity.?) { (maxCapacityOpt, discardOverCapacityOpt) =>
         implicit val jsonSemi = JsonSemigroup
         val newQueue: QueueArgs[Json] = {
-          val maxCapacity         = maxCapacityOpt.map(_.toInt)
+          val maxCapacity = maxCapacityOpt.map(_.toInt)
           val discardOverCapacity = discardOverCapacityOpt.map(_.toBoolean)
           QueueArgs[Json](maxCapacity, discardOverCapacity)
         }
@@ -155,15 +168,40 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
         logger.debug(s"starting simple publish for $name w/ $newQueue")
 
         extractMaterializer { implicit materializer =>
-          val publishFlowOpt = Lock.synchronized {
+          val publishFlowOpt: Option[Flow[Message, Message, NotUsed]] = Lock.synchronized {
             state.getUploadEntrypoint(name) match {
               case None =>
-                // TODO - we should have a single exec context specific for all historic publishers not tied
-                // to the initial request
+                // TODO - use a consistent/specific processor day, configurable max capacity default
                 import materializer.executionContext
-                val clientSubscriptionMessagePublisher = HistoricProcessor(HistoricProcessorDao[ClientSubscriptionMessage]())
-                val sp                                 = new DataUploadFlow[QueueArgs, Json](name, newQueue, clientSubscriptionMessagePublisher)
-                Option(state.newUploadEntrypoint(sp))
+
+                val dao = HistoricProcessorDao[Json](newQueue.maxCapacity.getOrElse(100))
+                //                val republisher: HistoricProcessor[Json] = HistoricProcessor(dao)
+                //                val republisher = HistoricProcessor[Json](dao)
+
+//                val republisher = new HistoricProcessor.Instance[Json](dao) {
+//                  self =>
+//
+//                  override def requestFromSubscription(n: Long) = {
+//                    super.requestFromSubscription(n)
+//                  }
+//
+//                  override protected def newSubscriber(lastRequestedIdx: Long, subscriber: Subscriber[_ >: Json]) = {
+//                    new HistoricSubscription[Json](self, -1, lastRequestedIdx, subscriber) { me =>
+//                      override val toString = s"$name  Republisher"
+//
+//                      override def request(n: Long): Unit = {
+//                        println(s"$name publisher requesting $n")
+////                        chicenAndEggPublisher.takeNext(n.toInt)
+//                        super.request(n)
+//                      }
+//                    }
+//                  }
+//                }
+
+//                val sp: SocketPipeline.DataPublisher[Json] = SocketPipeline.DataPublisher(republisher)
+                val sp: SocketPipeline.DataSubscriber[Json] = SocketPipeline.DataSubscriber(dao)
+//                chicenAndEggPublisher = sp
+                Option(state.newUploadEntrypoint(name, sp))
               case Some(_) => None
             }
           }
@@ -221,5 +259,16 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
         complete(list)
       }
     }
+  }
+}
+
+object StreamRoutes extends StrictLogging {
+  def start(conf: ServerConfig = ServerConfig(ConfigFactory.load("agora-defaults.conf"))) = {
+    val sr = new StreamRoutes
+
+    val routes: Route = UIRoutes.unapply(conf).fold(sr.routes)(_.routes ~ sr.routes)
+
+    logger.info(s"Starting demo on ${conf.location} w/ UI paths under ${conf.defaultUIPath}")
+    RunningService.start(conf, routes, sr)
   }
 }

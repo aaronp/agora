@@ -95,7 +95,7 @@ case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
   }
 
   def withSubscriptionKey(key: SubscriptionKey) =
-    append("_subscriptionKey", key)
+    append(WorkerDetails.SubscriptionKeyField, key)
 
   def subscriptionKey =
     keyPath
@@ -147,6 +147,7 @@ case class WorkerDetails(override val aboutMe: Json) extends JsonAppendable {
 }
 
 object WorkerDetails {
+  val SubscriptionKeyField = "_subscriptionKey"
 
   val empty = WorkerDetails(Json.Null)
 

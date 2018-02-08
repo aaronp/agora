@@ -38,11 +38,6 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
         }
       }
     }
-    //
-    //    "be able to execute simple commands against a running server" in {
-    //      val result = client.stream("echo", "this", "is", "a", "test").futureValue.output
-    //      result.mkString("") shouldBe "this is a test"
-    //    }
   }
 
   /**
@@ -121,7 +116,6 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
           .withDependencies(Set("file2.txt"), testTimeout))
 
     selectionFuture1.isCompleted shouldBe false
-
     selectionFuture2.isCompleted shouldBe false
 
     withClue("At this point both jobs should've been picked up and the subscriptions drained") {

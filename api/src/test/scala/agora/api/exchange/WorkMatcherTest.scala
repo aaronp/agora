@@ -3,17 +3,47 @@ package agora.api.exchange
 import agora.BaseSpec
 import agora.api.Implicits._
 import agora.api.exchange.bucket.{BucketKey, JobBucket, WorkerMatchBucket}
-import agora.api.json.{JFilter, JPart, JPath, MatchAll}
+import agora.api.json.{JExpression, JFilter, JPart, JPath, MatchAll, MatchNone}
 import io.circe.Json
+import io.circe.syntax._
 
 class WorkMatcherTest extends BaseSpec {
 
+  "WorkMatcher.decoder" should {
+    "decode matchers with buckest and onMatchUpdates" in {
+      val setSession: OnMatchUpdateAction = OnMatchUpdateAction.appendAction(JExpression(Json.fromString("newSession")), "session".asJPath)
+      val incCounter                      = OnMatchUpdateAction.appendAction(JPath("counter").asExpression + Json.fromInt(1).asExpression, "session".asJPath)
+      val expected =
+        WorkMatcher("foo".asJPath, WorkerMatchBucket("foo".asJPath -> Json.fromString("someTopic")), onMatchUpdate = Vector(setSession, incCounter))
+
+      val matcherJson = expected.asJson
+      matcherJson.as[WorkMatcher] shouldBe Right(expected)
+    }
+
+    "decode matchers with empty buckets or onMatchUpdates" in {
+      val matcherJson =
+        json"""{
+               "criteria" : "match-none",
+               "buckets" : [ ],
+               "onMatchUpdate" : [ ]
+      }"""
+      val result = matcherJson.as[WorkMatcher]
+      result shouldBe Right(WorkMatcher(MatchNone))
+    }
+    "decode matchers with no buckets or onMatchUpdates" in {
+      val matcherJson = json"""{ "criteria" : "match-none" }"""
+      val result      = matcherJson.as[WorkMatcher]
+      result shouldBe Right(WorkMatcher(MatchNone))
+    }
+  }
   "WorkMatcher.fromConfig" should {
     "parse a WorkMatcher from a simple configuration" in {
       val config =
         conf"""
             criteria : "match-all"
-            buckets : []"""
+            buckets : []
+            updates : []
+           """
 
       val actual = WorkMatcher.fromConfig(config)
       actual shouldBe WorkMatcher(MatchAll, WorkerMatchBucket(Nil))
@@ -48,6 +78,13 @@ class WorkMatcherTest extends BaseSpec {
                       }
                   ]
               }
+
+              updates : [
+                 {
+                     "value" : { "const" : "newSession" },
+                     "appendTo" : [ "session" ]
+                 }
+              ]
 
               buckets : [
                   {
@@ -86,11 +123,8 @@ class WorkMatcherTest extends BaseSpec {
                     "value" : "foo"
                   }
                 ]
-              
-              """
 
-      import io.circe.generic.auto._
-      import io.circe.syntax._
+              """
 
       val paths: List[JobBucket] = List(
         JobBucket(
@@ -99,8 +133,9 @@ class WorkMatcherTest extends BaseSpec {
         ),
         JobBucket(BucketKey(JPath(JPart("topic")), false), Json.fromString("foo"))
       )
-      val actual = WorkMatcher.fromConfig(config)
-      actual shouldBe WorkMatcher(("six" gte 5).and("seven" lte 8), WorkerMatchBucket(paths))
+      val actual                          = WorkMatcher.fromConfig(config)
+      val setSession: OnMatchUpdateAction = OnMatchUpdateAction.appendAction(JExpression(Json.fromString("newSession")), "session".asJPath)
+      actual shouldBe WorkMatcher(("six" gte 5).and("seven" lte 8), WorkerMatchBucket(paths), Vector(setSession))
     }
   }
 }

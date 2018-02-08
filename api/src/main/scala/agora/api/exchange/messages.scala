@@ -6,8 +6,9 @@ import agora.api.exchange.bucket.WorkerMatchBucket
 import agora.api.json.{JPath, JPredicate, JsonDelta, MatchAll}
 import agora.api.worker.{HostLocation, SubscriptionKey, WorkerDetails, WorkerRedirectCoords}
 import agora.api.{JobId, MatchId}
+import io.circe.Decoder.Result
 import io.circe.generic.auto._
-import io.circe.{Encoder, Json}
+import io.circe.{Decoder, Encoder, HCursor, Json}
 
 import scala.language.implicitConversions
 
@@ -21,7 +22,7 @@ sealed trait ClientResponse
 /**
   * Queries the exchange for a view of the pending jobs and subscriptions
   *
-  * @param workerSubscriptionMatcher         the same as what a SubmitJob matcher would be, used to match work subscriptions
+  * @param workerSubscriptionMatcher         the same as what a [[SubmitJob]] matcher would be, used to match work subscriptions
   * @param submitJobMatcher                  the same as a subscription matcher would be, used to match submitted job requests
   * @param submitJobSubmissionDetailsMatcher also as per a subscription matcher, this time matching the submissionDetails
   */
@@ -174,6 +175,7 @@ case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends Cl
 
   /**
     * Just to improve my law-of-demeter karma
+    *
     * @return the worker bucket for this job submission
     */
   def workerBucket = submissionDetails.workMatcher.workerBucket
@@ -181,8 +183,26 @@ case class SubmitJob(submissionDetails: SubmissionDetails, job: Json) extends Cl
 }
 
 object SubmitJob {
-  implicit val encoder = exportEncoder[SubmitJob].instance
-  implicit val decoder = exportDecoder[SubmitJob].instance
+
+  implicit object Format extends Encoder[SubmitJob] with Decoder[SubmitJob] {
+    override def apply(a: SubmitJob): Json = {
+      import io.circe.generic.auto._
+      import io.circe.syntax._
+      Json.obj(
+        "job"               -> a.job,
+        "submissionDetails" -> a.submissionDetails.asJson
+      )
+    }
+
+    override def apply(c: HCursor): Result[SubmitJob] = {
+      for {
+        job     <- c.downField("job").as[Json]
+        details <- c.downField("submissionDetails").as[SubmissionDetails]
+      } yield {
+        SubmitJob(details, job)
+      }
+    }
+  }
 
   def apply[T: Encoder](details: SubmissionDetails, value: T): SubmitJob = {
     val asJson = implicitly[Encoder[T]]
@@ -266,8 +286,8 @@ object UpdateSubscription {
   * Once a WorkSubscription is sent
   *
   * @param details                represents a json blob of data which can be matched by [[SubmissionDetails]] match criteria to filter out workers
-  * @param jobCriteria             the criteria used to match submitted job data
-  * @param submissionCriteria      the criteria used to match submitted jobs' submission details
+  * @param jobCriteria            the criteria used to match submitted job data
+  * @param submissionCriteria     the criteria used to match submitted jobs' submission details
   * @param subscriptionReferences If non-empty, changes to the number of work items requested for this subscription will be performed on the referenced subscriptions
   */
 case class WorkSubscription(details: WorkerDetails, jobCriteria: JPredicate, submissionCriteria: JPredicate, subscriptionReferences: Set[SubscriptionKey])
@@ -298,8 +318,6 @@ case class WorkSubscription(details: WorkerDetails, jobCriteria: JPredicate, sub
     withReferences(theRest.toSet + reference)
 
   def addReference(reference: SubscriptionKey) = withReferences(subscriptionReferences + reference)
-
-//  def withData[T: Encoder](data: T, name: String = null) = withDetails(_.withData(data, name))
 
   def withPath(path: String): WorkSubscription = withDetails(_.withPath(path))
 
@@ -362,8 +380,6 @@ object WorkSubscriptionAck {
 }
 
 case class RequestWork(id: SubscriptionKey, itemsRequested: Int) extends SubscriptionRequest {
-//  require(itemsRequested > 0)
-
   def dec = copy(itemsRequested = itemsRequested - 1)
 }
 

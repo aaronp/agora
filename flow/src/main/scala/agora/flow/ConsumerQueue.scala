@@ -126,6 +126,7 @@ object ConsumerQueue {
 
     override def requested(): Long = currentRequested
     override def buffered(): Long  = currentValue.size
+    def peek(): Option[T] = currentValue
     override val limit             = Unbounded
   }
 

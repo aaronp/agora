@@ -118,7 +118,8 @@ object JPath {
     }
 
     override def apply(c: HCursor): Result[JPath] = {
-      c.as[List[JPart]].map(JPath.apply)
+      val parts: Result[List[JPart]] = c.as[List[JPart]]
+      parts.right.map(JPath.apply)
     }
   }
 

@@ -6,21 +6,22 @@ import agora.flow._
 import agora.rest.client.{RestClient, StreamPublisherWebsocketClient, StreamSubscriberWebsocketClient}
 import agora.rest.exchange.ClientSubscriptionMessage
 import agora.rest.{AkkaImplicits, ClientConfig}
-import akka.http.scaladsl.model.{HttpMethods, HttpRequest}
+import akka.http.scaladsl.model.{HttpMethods, HttpRequest, Uri}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.{Encoder, Json}
 import org.reactivestreams.{Publisher, Subscriber}
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 /**
   * A client to the Routes provided by [[StreamRoutes]]
   *
   * @param clientConf
   */
-case class StreamRoutesClient(clientConf: ClientConfig) extends FailFastCirceSupport with StrictLogging {
+case class StreamRoutesClient(clientConf: ClientConfig = ClientConfig.load()) extends FailFastCirceSupport with AutoCloseable with StrictLogging {
+
   private implicit val jsonSemigroup           = JsonSemigroup
   private lazy val clientSystem: AkkaImplicits = clientConf.newSystem()
 
@@ -102,9 +103,13 @@ case class StreamRoutesClient(clientConf: ClientConfig) extends FailFastCirceSup
 
     def list(): Future[Set[String]] = listVerb("publish")
 
+    def create[E: Encoder](name: String, dao: HistoricProcessorDao[E] = HistoricProcessorDao(20)(ExecutionContext.global)): Future[StreamPublisherWebsocketClient[E, HistoricProcessor[E]]] = {
+      create[E, HistoricProcessor[E]](name, HistoricProcessor[E](dao))
+    }
+
     def create[E: Encoder, T <: Publisher[E]](name: String, publisher: T): Future[StreamPublisherWebsocketClient[E, T]] = {
       val url = s"${location.asWebsocketURL}/rest/stream/publish/$name"
-      StreamPublisherWebsocketClient.bindPublisherToSocket(url, publisher)
+      StreamPublisherWebsocketClient.bindPublisherToSocket(s"${location.asWebsocketURL}/rest/stream/publish/$name", publisher)
     }
   }
 
@@ -128,4 +133,6 @@ case class StreamRoutesClient(clientConf: ClientConfig) extends FailFastCirceSup
       Unmarshal(resp.entity).to[Set[String]]
     }
   }
+
+  override def close(): Unit = clientConf.close()
 }

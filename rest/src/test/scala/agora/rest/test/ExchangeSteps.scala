@@ -1,7 +1,8 @@
 package agora.rest.test
 
 import agora.api.exchange.SubmitJob
-import agora.rest.exchange.{ExchangeConfig, ExchangeServerConfig}
+import agora.api.worker.WorkerDetails
+import agora.rest.exchange.ExchangeServerConfig
 import agora.rest.worker.{WorkContext, WorkerConfig}
 import com.typesafe.config.ConfigFactory
 import cucumber.api.DataTable
@@ -50,8 +51,9 @@ class ExchangeSteps extends ScalaDsl with EN with Matchers with TestData {
   When("""^worker (.*) creates work subscription (.*) with$""") { (name: String, subscriptionKey: String, subscriptionJson: String) =>
     val worker = state.workersByName(name)
 
-    val conf = WorkerConfig(s"subscription.details.id=$subscriptionKey")
+    val conf = WorkerConfig(s"subscription.details.${WorkerDetails.SubscriptionKeyField}=$subscriptionKey")
       .withOverrides(ConfigFactory.parseString(subscriptionJson))
+
     conf.subscription.details.subscriptionKey shouldBe Option(subscriptionKey)
 
     worker.service.usingSubscription(_ => conf.subscription).withInitialRequest(0).addHandler[String] { ctxt =>

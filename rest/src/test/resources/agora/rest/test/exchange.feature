@@ -12,7 +12,7 @@ Feature: Exchange should match work with offers
           "jobId" : "some id"
         },
         "selection" : "select-first",
-        "workMatcher" : "match-all",
+        "workMatcher" : { "criteria" : "match-all" },
         "awaitMatch" : false,
         "orElse" : []
       },
@@ -53,7 +53,7 @@ Feature: Exchange should match work with offers
           "jobId" : "match me"
         },
         "selection" : "select-first",
-        "workMatcher" : "match-all",
+        "workMatcher" : { "criteria" : "match-all" },
         "awaitMatch" : false,
         "orElse" : []
       },

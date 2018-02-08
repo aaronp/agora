@@ -20,9 +20,13 @@ class ThrottledPublisher[T](underlying: Publisher[T]) extends Publisher[T] with 
   self =>
   private var singleSubscription: Option[ThrottledPublisher.ThrottledSubscriber[T]] = None
 
+  protected def newThrottledSubscriber(s: Subscriber[_ >: T]): ThrottledPublisher.ThrottledSubscriber[T] = {
+    new ThrottledPublisher.ThrottledSubscriber[T](s, self)
+  }
+
   override def subscribe(s: Subscriber[_ >: T]): Unit = {
     require(singleSubscription.isEmpty, "A throttled publisher is intended for a single use")
-    val wrapped: ThrottledPublisher.ThrottledSubscriber[T] = ThrottledPublisher.ThrottledSubscriber[T](s, self)
+    val wrapped: ThrottledPublisher.ThrottledSubscriber[T] = newThrottledSubscriber(s)
     singleSubscription = Option(wrapped)
     underlying.subscribe(wrapped)
   }
@@ -48,7 +52,7 @@ class ThrottledPublisher[T](underlying: Publisher[T]) extends Publisher[T] with 
 
 object ThrottledPublisher {
 
-  private case class ThrottledSubscriber[T](underlying: Subscriber[_ >: T], publisher: ThrottledPublisher[T])
+  class ThrottledSubscriber[T](underlying: Subscriber[_ >: T], publisher: ThrottledPublisher[T])
       extends Subscriber[T]
       with Subscription
       with StrictLogging {
@@ -98,7 +102,7 @@ object ThrottledPublisher {
       throttledRequest(userRequested.addAndGet(n), throttledRequested.get)
     }
 
-    private def throttledRequest(userN: Long, throttleN: Long): Long = {
+    protected def throttledRequest(userN: Long, throttleN: Long): Long = {
       val canTake = userN.min(throttleN).max(0)
 
       logger.debug(s"throttledRequest($userN, $throttleN) --> $canTake")

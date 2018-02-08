@@ -1,10 +1,12 @@
 package agora.rest.stream
 
-import agora.flow.BaseSubscriber
+import agora.flow.{AsConsumerQueue, BasePublisher, BaseSubscriber}
 import agora.rest.ServerConfig
+import agora.rest.client.StreamSubscriberWebsocketClient
 import io.circe.Json
 
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
 import scala.io.StdIn
 
 object StreamRoutesClientMain {
@@ -31,10 +33,19 @@ object StreamRoutesClientMain {
       }
     }
     PRNT.request(1)
-    client.subscriptions.createSubscriber(name, PRNT)
 
-    println("Hit summat to stop")
-    StdIn.readLine()
+    val socketClientFuture                                                            = client.subscriptions.createSubscriber(name, PRNT)
+    val socket: StreamSubscriberWebsocketClient[AsConsumerQueue.QueueArgs, PRNT.type] = Await.result(socketClientFuture, 10.seconds)
+
+    val PUB: BasePublisher[String] = BasePublisher[String](20)
+
+    val x = client.publishers.create[String, BasePublisher[String]](name, PUB)
+
+    var line = StdIn.readLine("CHAT:")
+    while (line != "quit") {
+      PUB.publish(line)
+      line = StdIn.readLine("CHAT:")
+    }
     println("stopping...")
 
     println("done")

@@ -7,10 +7,11 @@ val defaultScalaVersion = scalaTwelve
 crossScalaVersions := Seq(scalaEleven, scalaTwelve)
 organization := s"com.github.${username}"
 scalaVersion := defaultScalaVersion
+resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
 enablePlugins(GitVersioning)
 autoAPIMappings := true
 exportJars := false
-
+javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-XX:MaxMetaspaceSize=1g")
 git.useGitDescribe := false
 
 git.gitTagToVersionNumber := { tag: String =>

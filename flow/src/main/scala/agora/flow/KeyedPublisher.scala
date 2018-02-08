@@ -30,7 +30,7 @@ trait KeyedPublisher[T] extends Publisher[T] with StrictLogging {
     * @return true if the subscriber
     */
   def containsSubscriber(s: Subscriber[_ >: T]): Boolean = {
-    subscriptionsById.mapValues(_.subscriber).exists(_ == s)
+    subscriptionsById.values.exists(_.subscriber == s)
   }
 
   /** create a new queue for a subscription
@@ -49,7 +49,7 @@ trait KeyedPublisher[T] extends Publisher[T] with StrictLogging {
   protected def newSubscription(s: Subscriber[_ >: T]): KeyedPublisherSubscription[SubscriberKey, T] = {
     val queue = s match {
       case hasQ: HasConsumerQueue[T] => hasQ.consumerQueue
-      case _                         => newDefaultSubscriberQueue()
+      case _ => newDefaultSubscriberQueue()
     }
 
     val id: SubscriberKey = s match {
@@ -134,24 +134,24 @@ trait KeyedPublisher[T] extends Publisher[T] with StrictLogging {
 
 object KeyedPublisher extends StrictLogging {
 
-  type Aux[K, T] = KeyedPublisher[T] { type SubscriberKey = K }
+  type Aux[K, T] = KeyedPublisher[T] with PublisherSnapshotSupport[K] {type SubscriberKey = K}
 
-  class KeyedPublisherSubscription[SubscriberKey, T](publisherName: String,
+  class KeyedPublisherSubscription[SubscriberKey, T](override val name: String,
                                                      val id: SubscriberKey,
                                                      val publisher: Aux[SubscriberKey, T],
                                                      val subscriber: Subscriber[_ >: T],
                                                      queue: ConsumerQueue[T])
-      extends Subscription {
+    extends Subscription with HasName {
 
     private val totalRequested = new AtomicLong(0)
-    private val totalReceived  = new AtomicLong(0)
-    private val totalPushed    = new AtomicLong(0)
+    private val totalReceived = new AtomicLong(0)
+    private val totalPushed = new AtomicLong(0)
 
     def snapshot(): SubscriberSnapshot = {
-      SubscriberSnapshot(totalRequested.get, totalPushed.get, totalReceived.get, requested, queue.buffered(), queue.limit())
+      SubscriberSnapshot(name, totalRequested.get, totalPushed.get, totalReceived.get, requested, queue.buffered(), queue.limit())
     }
 
-    override def toString = s"subscription $id to $publisherName"
+    override def toString = s"subscription $id to $name"
 
     override def cancel(): Unit = {
       logger.debug(s"$this cancelling subscription")

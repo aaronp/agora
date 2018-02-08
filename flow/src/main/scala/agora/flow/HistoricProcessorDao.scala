@@ -13,6 +13,8 @@ trait HistoricProcessorDao[T] {
   def writeDown(index: Long, value: T): Unit
 
   def at(index: Long): Future[T]
+
+  def maxIndex: Option[Long]
 }
 
 object HistoricProcessorDao extends StrictLogging {
@@ -24,7 +26,7 @@ object HistoricProcessorDao extends StrictLogging {
     Future.failed(new InvalidIndexException(idx))
   }
 
-  def inDir[T: ToBytes: FromBytes](dir: Path, keepMost: Int = 0)(implicit ec: ExecutionContext) = {
+  def inDir[T: ToBytes : FromBytes](dir: Path, keepMost: Int = 0)(implicit ec: ExecutionContext) = {
     new FileBasedHistoricProcessorDao[T](dir, ToBytes.instance[T], FromBytes.instance[T], keepMost)
   }
 
@@ -34,7 +36,12 @@ object HistoricProcessorDao extends StrictLogging {
     */
   def apply[T](keepMost: Int = 0)(implicit ec: ExecutionContext) = new HistoricProcessorDao[T] {
     override val executionContext: ExecutionContext = ec
-    private var elements                            = Map[Long, T]()
+    private var elements = Map[Long, T]()
+
+    override def maxIndex: Option[Long] = elements.keySet match {
+      case set if set.isEmpty => None
+      case set => Option(set.max)
+    }
 
     override def at(index: Long) = {
       elements.get(index).fold(invalidIndex[T](index)) { value =>
@@ -52,13 +59,20 @@ object HistoricProcessorDao extends StrictLogging {
   }
 
   case class FileBasedHistoricProcessorDao[T](dir: Path, toBytes: ToBytes[T], fromBytes: FromBytes[T], keepMost: Int)(
-      implicit val executionContext: ExecutionContext)
-      extends HistoricProcessorDao[T]
+    implicit val executionContext: ExecutionContext)
+    extends HistoricProcessorDao[T]
       with LazyLogging {
 
     import agora.io.implicits._
 
+    @volatile private var max = -1L
+
+    override def maxIndex: Option[Long] = {
+      Option(max).filter(_ >= 0)
+    }
+
     override def writeDown(index: Long, value: T): Unit = {
+      max = max.max(index)
       dir.resolve(index.toString).bytes = toBytes.bytes(value)
       if (keepMost != 0) {
         val indexToDelete = index - keepMost

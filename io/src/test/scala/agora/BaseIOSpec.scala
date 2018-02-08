@@ -48,10 +48,7 @@ abstract class BaseIOSpec extends WordSpec with Matchers with ScalaFutures with 
 
 object BaseIOSpec extends LowPriorityIOImplicits {
 
-  private val dirCounter = new AtomicLong(System.currentTimeMillis())
-
   def nextTestDir(name: String) = {
-//    s"target/test/${name}-${dirCounter.incrementAndGet()}".asPath
     s"target/test/${name}-${UUID.randomUUID()}".asPath
   }
 

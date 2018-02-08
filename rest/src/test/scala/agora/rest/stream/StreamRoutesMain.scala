@@ -8,6 +8,12 @@ import scala.io.StdIn
 object StreamRoutesMain {
 
   def main(a: Array[String]): Unit = {
+    val serverConfig = ServerConfig("host=localhost", "port=7777", "akka.http.client.idle-timeout=9min")
+    val f = StreamRoutes.start(serverConfig)
+    StdIn.readLine("push owt to stop\n")
+    println("done")
+  }
+  def main2(a: Array[String]): Unit = {
 
     val serverConfig = ServerConfig("host=localhost", "port=7777", "akka.http.client.idle-timeout=9min")
     import serverConfig.serverImplicits._
