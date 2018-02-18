@@ -34,8 +34,7 @@ object HistoricProcessor extends StrictLogging {
 
   def apply[T]()(implicit ec: ExecutionContext): Instance[T] = apply(HistoricProcessorDao[T](), true)
 
-  def apply[T](dao: HistoricProcessorDao[T],
-               propagateSubscriberRequestsToOurSubscription: Boolean = true) = {
+  def apply[T](dao: HistoricProcessorDao[T], propagateSubscriberRequestsToOurSubscription: Boolean = true) = {
     implicit val ec = dao.executionContext
     new Instance[T](dao, propagateSubscriberRequestsToOurSubscription, new AtomicLong(-1))
   }
@@ -43,9 +42,8 @@ object HistoricProcessor extends StrictLogging {
   private[flow] def computeNumberToTake(lastReceivedIndex: Long, latest: Long, maxIndex: Long): Long = {
     val nrToTake = {
       val maxAvailable = maxIndex.min(latest)
-      val nr = (maxAvailable - lastReceivedIndex).max(0)
-      logger.trace(
-        s"""
+      val nr           = (maxAvailable - lastReceivedIndex).max(0)
+      logger.trace(s"""
            |Will try to pull $nr :
            |              last received index : $lastReceivedIndex
            |  max index of published elements : $latest
@@ -91,7 +89,7 @@ object HistoricProcessor extends StrictLogging {
   }
 
   class Instance[T](val dao: HistoricProcessorDao[T], val propagateSubscriberRequestsToOurSubscription: Boolean, currentIndexCounter: AtomicLong)
-    extends HistoricProcessor[T]
+      extends HistoricProcessor[T]
       with PublisherSnapshotSupport[Int] {
 
     def remove(value: HistoricSubscription[T]) = {
@@ -100,7 +98,6 @@ object HistoricProcessor extends StrictLogging {
         subscribers = subscribers.diff(List(this))
       }
     }
-
 
     def this(dao: HistoricProcessorDao[T], propagateSubscriberRequestsToOurSubscription: Boolean = true, currentIndexCounter: Long = -1L) = {
       this(dao, propagateSubscriberRequestsToOurSubscription, new AtomicLong(currentIndexCounter))
@@ -112,9 +109,9 @@ object HistoricProcessor extends StrictLogging {
     }
 
     private val initialIndex: Long = currentIndexCounter.get()
-    private var subscribers = List[HistoricSubscription[T]]()
-    private var subscriptionOpt = Option.empty[Subscription]
-    private val maxRequest = new MaxRequest()
+    private var subscribers        = List[HistoricSubscription[T]]()
+    private var subscriptionOpt    = Option.empty[Subscription]
+    private val maxRequest         = new MaxRequest()
 
     protected def subscriberList = subscribers
 
@@ -159,7 +156,7 @@ object HistoricProcessor extends StrictLogging {
       val hs = SubscribersLock.synchronized {
         // we start off not having requested anything, so start 1 BEFORE the index
         val lastRequestedIndex = index - 1
-        val s = newSubscriber(lastRequestedIndex, subscriber)
+        val s                  = newSubscriber(lastRequestedIndex, subscriber)
         subscribers = s :: subscribers
         s
       }
@@ -213,7 +210,7 @@ object HistoricProcessor extends StrictLogging {
     }
 
     private val iWasCreatedFrom = Thread.currentThread().getStackTrace.take(10).mkString("\n\t")
-    private var createdFrom = ""
+    private var createdFrom     = ""
 
     override def onSubscribe(s: Subscription): Unit = {
       def err = {
@@ -227,31 +224,30 @@ object HistoricProcessor extends StrictLogging {
       // trigger any requests from our subscribers
       maxRequest.get() match {
         case n if n > 0 => s.request(n)
-        case _ =>
+        case _          =>
       }
     }
   }
 
-  class HistoricSubscription[T](publisher : Instance[T],
-                                deadIndex : Long,
-                                initialRequestedIndex: Long,
-                                val subscriber: Subscriber[_ >: T]) extends Subscription with HasName {
-    private[flow] val nextIndexToRequest = new AtomicLong(initialRequestedIndex)
+  class HistoricSubscription[T](publisher: Instance[T], deadIndex: Long, initialRequestedIndex: Long, val subscriber: Subscriber[_ >: T])
+      extends Subscription
+      with HasName {
+    private[flow] val nextIndexToRequest        = new AtomicLong(initialRequestedIndex)
     private[flow] val lastRequestedIndexCounter = new AtomicLong(initialRequestedIndex)
 
     def lastRequestedIndex() = lastRequestedIndexCounter.get()
 
     private val totalRequested = new AtomicLong(0)
-    private val totalPushed = new AtomicInteger(0)
+    private val totalPushed    = new AtomicInteger(0)
 
     def name = subscriber match {
       case hn: HasName => hn.name
-      case _ => toString
+      case _           => toString
     }
 
     def snapshot(): SubscriberSnapshot = {
       val lastRequested = lastRequestedIndexCounter.get
-      val next = nextIndexToRequest.get
+      val next          = nextIndexToRequest.get
       SubscriberSnapshot(name, totalRequested.get, totalPushed.get, lastRequested.toInt, next - lastRequested, 0, ConsumerQueue.Unbounded)
     }
 
@@ -264,7 +260,6 @@ object HistoricProcessor extends StrictLogging {
     def complete() = {
       Try(subscriber.onComplete())
     }
-
 
     override def cancel(): Unit = {
       if (nextIndexToRequest.getAndSet(deadIndex) != deadIndex) {
@@ -279,7 +274,7 @@ object HistoricProcessor extends StrictLogging {
     protected def pullNext(remainingToTake: Long): Unit = {
 
       if (remainingToTake > 0) {
-        val idx = lastRequestedIndexCounter.incrementAndGet()
+        val idx         = lastRequestedIndexCounter.incrementAndGet()
         implicit val ec = publisher.dao.executionContext
 
         val future = publisher.dao.at(idx)
@@ -296,7 +291,7 @@ object HistoricProcessor extends StrictLogging {
     }
 
     private def pull(maxIndex: Long): Unit = {
-      val idx = lastRequestedIndexCounter.get()
+      val idx      = lastRequestedIndexCounter.get()
       val nrToTake = computeNumberToTake(idx, publisher.currentIndex(), maxIndex)
 
       pullNext(nrToTake)
@@ -306,7 +301,7 @@ object HistoricProcessor extends StrictLogging {
 
     override def request(n: Long): Unit = request(n, publisher.propagateSubscriberRequestsToOurSubscription)
 
-    def request(n: Long, propagateSubscriberRequest : Boolean): Unit = {
+    def request(n: Long, propagateSubscriberRequest: Boolean): Unit = {
       totalRequested.addAndGet(n)
 
       val maxIndex = nextIndexToRequest.addAndGet(n)
@@ -321,19 +316,20 @@ object HistoricProcessor extends StrictLogging {
     }
   }
 
-
   /**
     * A conflating processor
     *
     * @param initialValue
     * @tparam T
     */
-  class SemigroupHistoricProcessor[T: Semigroup](val initialValue: Option[T], val propagateSubscriberRequestsToOurSubscription: Boolean) extends HistoricProcessor[T] with PublisherSnapshotSupport[Int] {
+  class SemigroupHistoricProcessor[T: Semigroup](val initialValue: Option[T], val propagateSubscriberRequestsToOurSubscription: Boolean)
+      extends HistoricProcessor[T]
+      with PublisherSnapshotSupport[Int] {
 
     private object SubscriberListLock
 
     private var subscriptionOpt = Option.empty[Subscription]
-    private var subscribers = List[SubscriptionImpl]()
+    private var subscribers     = List[SubscriptionImpl]()
     private var pendingTakeNext = 0
 
     private object ProcessorCacheLock
@@ -360,14 +356,16 @@ object HistoricProcessor extends StrictLogging {
       }
     }
 
-    class SubscriptionImpl(val subscriber: Subscriber[_ >: T], queue: ConflatingQueue[T], nextIndexToRequest: AtomicLong = new AtomicLong(-1)) extends Subscription with HasName {
-      private val totalPushed = new AtomicInteger(0)
+    class SubscriptionImpl(val subscriber: Subscriber[_ >: T], queue: ConflatingQueue[T], nextIndexToRequest: AtomicLong = new AtomicLong(-1))
+        extends Subscription
+        with HasName {
+      private val totalPushed    = new AtomicInteger(0)
       private val totalRequested = new AtomicLong(0)
 
       override def name: String = {
         subscriber match {
           case hn: HasName => hn.name
-          case _ => toString
+          case _           => toString
         }
       }
 
@@ -384,7 +382,6 @@ object HistoricProcessor extends StrictLogging {
         cancel()
         subscriber.onComplete()
       }
-
 
       override def cancel(): Unit = {
         SubscriberListLock.synchronized {
@@ -410,9 +407,8 @@ object HistoricProcessor extends StrictLogging {
       }
     }
 
-
     override def subscribeFrom(index: Long, subscriber: Subscriber[_ >: T]): Unit = {
-      val queue = ConsumerQueue[T](processorCache)
+      val queue           = ConsumerQueue[T](processorCache)
       val newSubscription = new SubscriptionImpl(subscriber, queue)
       SubscriberListLock.synchronized {
         subscribers = newSubscription :: subscribers
@@ -459,14 +455,14 @@ object HistoricProcessor extends StrictLogging {
       // trigger any requests from our subscribers
       maxRequested.get() match {
         case n if n > 0 => s.request(n)
-        case _ =>
+        case _          =>
       }
     }
 
     @deprecated("delete me")
     def request(n: Int) = {
       subscriptionOpt match {
-        case None => pendingTakeNext = pendingTakeNext + n
+        case None    => pendingTakeNext = pendingTakeNext + n
         case Some(s) => s.request(n)
       }
     }

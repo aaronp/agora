@@ -18,8 +18,9 @@ import scala.concurrent.{ExecutionContext, Future}
   * @param subscriber the subscriber to connect to the data coming from the websocket
   * @tparam S
   */
-class StreamSubscriberWebsocketClient[NewQ[_], S <: Subscriber[Json]](val subscriber: S, newQueueArgs: NewQ[Json])(implicit ec : ExecutionContext)
-  extends HasPublisher[Json] with  StrictLogging { self =>
+class StreamSubscriberWebsocketClient[NewQ[_], S <: Subscriber[Json]](val subscriber: S, newQueueArgs: NewQ[Json])(implicit ec: ExecutionContext)
+    extends HasPublisher[Json]
+    with StrictLogging { self =>
 
   val dataSubscriber: SocketPipeline.DataSubscriber[Json] = SocketPipeline.DataSubscriber[Json]()
   dataSubscriber.republishingDataConsumer.subscribe(subscriber)
@@ -33,9 +34,9 @@ class StreamSubscriberWebsocketClient[NewQ[_], S <: Subscriber[Json]](val subscr
 
 object StreamSubscriberWebsocketClient extends StrictLogging {
   def openConnection[NewQ[_], S <: Subscriber[Json]](address: String, subscriber: S, newQueueArgs: NewQ[Json])(
-    implicit httpExp: HttpExt,
-    mat: Materializer,
-    asQ: AsConsumerQueue[NewQ]): Future[StreamSubscriberWebsocketClient[NewQ, S]] = {
+      implicit httpExp: HttpExt,
+      mat: Materializer,
+      asQ: AsConsumerQueue[NewQ]): Future[StreamSubscriberWebsocketClient[NewQ, S]] = {
     import mat.executionContext
 
     val client = new StreamSubscriberWebsocketClient(subscriber, newQueueArgs)

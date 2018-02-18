@@ -42,8 +42,7 @@ class KeyedPublisherTest extends BaseFlowSpec {
       s2.request(123)
       Pub.subscribe(s2)
       Pub.anonymousSnapshot shouldBe
-        Map("0" -> SubscriberSnapshot("", 0, 1, 0, 0, 1, Unbounded),
-            "1" -> SubscriberSnapshot("", 123, 0, 0, 123, 0, DiscardLimit(7)))
+        Map("0" -> SubscriberSnapshot("", 0, 1, 0, 0, 1, Unbounded), "1" -> SubscriberSnapshot("", 123, 0, 0, 123, 0, DiscardLimit(7)))
 
       // s1 and s2 will see these, but s1 will conflate them into a single element
       Pub.publish("second")
@@ -56,10 +55,10 @@ class KeyedPublisherTest extends BaseFlowSpec {
       Pub.subscribe(s3)
       s3.request(4)
       Pub.anonymousSnapshot shouldBe Map(
-          "0" -> SubscriberSnapshot("", 0, 3, 0, 0, 1, Unbounded),
-          "1" -> SubscriberSnapshot("", 123, 2, 2, 121, 0, DiscardLimit(7)),
-          "2" -> SubscriberSnapshot("", 4, 0, 0, 4, 0, HardLimit(9))
-        )
+        "0" -> SubscriberSnapshot("", 0, 3, 0, 0, 1, Unbounded),
+        "1" -> SubscriberSnapshot("", 123, 2, 2, 121, 0, DiscardLimit(7)),
+        "2" -> SubscriberSnapshot("", 4, 0, 0, 4, 0, HardLimit(9))
+      )
     }
   }
 }

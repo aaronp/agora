@@ -22,11 +22,13 @@ import scala.concurrent.{ExecutionContext, Future}
   * sent to this StreamPublisherWebsocketClient which will then in turn pull from the 'localPublisher'
   *
   */
-class StreamPublisherWebsocketClient[E: Encoder, P <: Publisher[E]](override val underlyingPublisher: P, bufferCapacity: Int = 50)(implicit ec: ExecutionContext)
-  extends HasPublisher[E] with StrictLogging {
+class StreamPublisherWebsocketClient[E: Encoder, P <: Publisher[E]](override val underlyingPublisher: P, bufferCapacity: Int = 50)(
+    implicit ec: ExecutionContext)
+    extends HasPublisher[E]
+    with StrictLogging {
 
   val pipeline = SocketPipeline.DataPublisher[E](underlyingPublisher)
-  def flow = pipeline.flow
+  def flow     = pipeline.flow
 }
 
 object StreamPublisherWebsocketClient extends StrictLogging {
@@ -35,7 +37,7 @@ object StreamPublisherWebsocketClient extends StrictLogging {
                                                                                           mat: Materializer): Future[StreamPublisherWebsocketClient[E, T]] = {
     import mat.executionContext
 
-    val client = new StreamPublisherWebsocketClient[E, T](publisher)
+    val client          = new StreamPublisherWebsocketClient[E, T](publisher)
     val (respFuture, _) = httpExp.singleWebSocketRequest(WebSocketRequest(address), client.flow)
     respFuture.map { upgradeResp =>
       val status = upgradeResp.response.status

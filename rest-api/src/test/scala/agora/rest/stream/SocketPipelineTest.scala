@@ -72,7 +72,7 @@ class SocketPipelineTest extends BaseSpec with GivenWhenThen with Eventually {
     "publish TakeNext messages when the local subscriber requests more work" in {
       Given("A local subscriber")
       val localSubscriber = new ListSubscriber[String]
-      val pipeline = SocketPipeline.DataSubscriber[String](HistoricProcessorDao[String]())
+      val pipeline        = SocketPipeline.DataSubscriber[String](HistoricProcessorDao[String]())
       pipeline.republishingDataConsumer.subscribe(localSubscriber)
 
       // listen to the client messages produced from the pipeline
@@ -95,7 +95,7 @@ class SocketPipelineTest extends BaseSpec with GivenWhenThen with Eventually {
     "publish Cancel messages when the local subscriber cancels" in {
       Given("A local subscriber")
       val localSubscriber = new ListSubscriber[String]
-      val pipeline = SocketPipeline.DataSubscriber[String]()
+      val pipeline        = SocketPipeline.DataSubscriber[String]()
       pipeline.republishingDataConsumer.subscribe(localSubscriber)
 
       // listen to the client messages produced from the pipeline
@@ -131,7 +131,7 @@ class SocketPipelineTest extends BaseSpec with GivenWhenThen with Eventually {
 
       Given("A SocketPipeline wrapping a local publisher")
       val localPublisher = new TestPublisher[String]
-      val pipeline = SocketPipeline.DataPublisher(localPublisher)
+      val pipeline       = SocketPipeline.DataPublisher(localPublisher)
       localPublisher.requests shouldBe Nil
 
       When("A subscriber requests from the flowProcessor")
@@ -147,7 +147,6 @@ class SocketPipelineTest extends BaseSpec with GivenWhenThen with Eventually {
       val controlMessagePublisher = HistoricProcessor[ClientSubscriptionMessage]()
       controlMessagePublisher.subscribe(pipeline.controlMessageProcessor)
       controlMessagePublisher.onNext(TakeNext(4))
-
 
       Then("N should be requested from the local publisher")
       eventually {
@@ -166,7 +165,7 @@ class SocketPipelineTest extends BaseSpec with GivenWhenThen with Eventually {
 
   class TestPublisher[T] extends Publisher[T] with Subscription {
     var subscriber: Subscriber[_ >: T] = null
-    var requests: List[Long] = Nil
+    var requests: List[Long]           = Nil
 
     override def subscribe(s: Subscriber[_ >: T]): Unit = {
       subscriber = s

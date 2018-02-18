@@ -14,14 +14,9 @@ import org.reactivestreams.{Publisher, Subscriber, Subscription}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.{BeforeAndAfterEach, GivenWhenThen}
 
-class StreamRoutesIntegrationTest extends BaseSpec
-  with FailFastCirceSupport
-  with BeforeAndAfterEach
-  with Eventually
-  with GivenWhenThen
-  with HasMaterializer {
+class StreamRoutesIntegrationTest extends BaseSpec with FailFastCirceSupport with BeforeAndAfterEach with Eventually with GivenWhenThen with HasMaterializer {
 
-  var serverConfig: ServerConfig = null
+  var serverConfig: ServerConfig                                 = null
   var runningService: RunningService[ServerConfig, StreamRoutes] = null
 
   implicit def asRichDataUploadSnapshot(snapshot: DataUploadSnapshot) = new {
@@ -64,9 +59,8 @@ class StreamRoutesIntegrationTest extends BaseSpec
       client.publishers.create[String, LocalPublisher.type](name, LocalPublisher).futureValue
 
       When("local subscriber connects via the server (but does not yet request any elements)")
-      val localSubscriber = new ListSubscriber[Json]()
+      val localSubscriber  = new ListSubscriber[Json]()
       val subscriberClient = client.subscriptions.createSubscriber(name, localSubscriber).futureValue
-
 
       Then("Nothing should be requested from the publisher, nor received from the subscriber")
       LocalPublisher.requestCalls shouldBe Nil
@@ -93,7 +87,7 @@ class StreamRoutesIntegrationTest extends BaseSpec
 
     "publisher only request more elements when an explicit takeNext is sent" in {
       val client = StreamRoutesClient(serverConfig.clientConfig)
-      val name = "publisherTakeNext" + System.currentTimeMillis()
+      val name   = "publisherTakeNext" + System.currentTimeMillis()
 
       // 1) create a publisher to publish data
       client.publishers.list().futureValue shouldBe empty
@@ -108,20 +102,20 @@ class StreamRoutesIntegrationTest extends BaseSpec
 
     "pull data based on consumers" in {
       val client = StreamRoutesClient(serverConfig.clientConfig)
-      val name = "pullTest" + System.currentTimeMillis()
+      val name   = "pullTest" + System.currentTimeMillis()
       client.subscriptions.list().futureValue shouldBe empty
       currentState.subscriberKeys() shouldBe empty
       currentState.uploadKeys() shouldBe empty
 
       // 1) create a subscriber -- someone to listen to the data we're going to publish against some named topic 'name'
-      val streamSubscriber = client.subscriptions.createSubscriber(name, new ListSubscriber[Json]).futureValue
+      val streamSubscriber   = client.subscriptions.createSubscriber(name, new ListSubscriber[Json]).futureValue
       val initialSubscribers = client.subscriptions.list().futureValue
       initialSubscribers shouldBe Set(name)
       currentState.subscriberKeys() shouldBe Set(name)
       currentState.uploadKeys() shouldBe empty
       streamSubscriber.subscriber.isSubscribed() shouldBe true
 
-      def anonymousSnapshots(pubSnap : PublisherSnapshot[_]) = {
+      def anonymousSnapshots(pubSnap: PublisherSnapshot[_]) = {
         pubSnap.subscribers.mapValues(_.copy(name = ""))
       }
 
@@ -129,7 +123,6 @@ class StreamRoutesIntegrationTest extends BaseSpec
       // message to its corresponding DataConsumerFlow handler
       {
         streamSubscriber.subscriber.request(8)
-
 
       }
 
@@ -190,8 +183,8 @@ class StreamRoutesIntegrationTest extends BaseSpec
 
       // 1) create a subscriber -- someone to listen to the data we're going to publish against some named topic 'name'
       val firstListener: ListSubscriber[Json] = new ListSubscriber[Json]
-      val subscriber = client.subscriptions.createSubscriber(name, firstListener).futureValue
-      val initialSubscribers = client.subscriptions.list().futureValue
+      val subscriber                          = client.subscriptions.createSubscriber(name, firstListener).futureValue
+      val initialSubscribers                  = client.subscriptions.list().futureValue
       firstListener.isSubscribed() shouldBe true
       initialSubscribers shouldBe Set(name)
 
@@ -219,8 +212,8 @@ class StreamRoutesIntegrationTest extends BaseSpec
 
       // 1) create a subscriber -- someone to listen to the data we're going to publish against some named topic 'name'
       val firstListener: ListSubscriber[Json] = new ListSubscriber[Json]
-      val subscriber = client.subscriptions.createSubscriber(name, firstListener).futureValue
-      val initialSubscribers = client.subscriptions.list().futureValue
+      val subscriber                          = client.subscriptions.createSubscriber(name, firstListener).futureValue
+      val initialSubscribers                  = client.subscriptions.list().futureValue
       firstListener.isSubscribed() shouldBe true
       initialSubscribers shouldBe Set(name)
 
@@ -264,8 +257,8 @@ class StreamRoutesIntegrationTest extends BaseSpec
   }
 
   trait SimpleStringPublisher extends Publisher[String] with Subscription {
-    @volatile var cancelCalls = 0
-    @volatile var requestCalls = List[Long]()
+    @volatile var cancelCalls                         = 0
+    @volatile var requestCalls                        = List[Long]()
     @volatile var subscriber: Subscriber[_ >: String] = null
 
     override def subscribe(s: Subscriber[_ >: String]): Unit = {
@@ -281,7 +274,6 @@ class StreamRoutesIntegrationTest extends BaseSpec
       requestCalls = n :: requestCalls
     }
   }
-
 
   import concurrent.duration._
 

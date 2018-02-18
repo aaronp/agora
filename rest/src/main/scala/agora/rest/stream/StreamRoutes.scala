@@ -66,7 +66,7 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
         import AsConsumerQueue._
 
         val args: QueueArgs[Json] = {
-          val maxCapacity: Option[Int] = maxCapacityOpt.map(_.toInt)
+          val maxCapacity: Option[Int]             = maxCapacityOpt.map(_.toInt)
           val discardOverCapacity: Option[Boolean] = discardOpt.map(_.toBoolean)
           QueueArgs[Json](maxCapacity, discardOverCapacity)(JsonSemigroup)
         }
@@ -77,18 +77,12 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
           val subscriberFlowOpt = Lock.synchronized {
 
             // TODO - use a specific dao execution context
-            //            import materializer.executionContext
-            //            val dao = HistoricProcessorDao[Json](args.maxCapacity.getOrElse(100))
-            //
-            //            val publishDataToConsumer = {
-            //
-            //            }
             state.newSimpleSubscriber(name)
           }
 
           subscriberFlowOpt match {
             case Some(subscriberFlow) => handleWebSocketMessages(subscriberFlow)
-            case None => reject(ValidationRejection(s"No publisher exists with name '$name'", None))
+            case None                 => reject(ValidationRejection(s"No publisher exists with name '$name'", None))
           }
 
         }
@@ -160,7 +154,7 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
       parameter('maxCapacity.?, 'discardOverCapacity.?) { (maxCapacityOpt, discardOverCapacityOpt) =>
         implicit val jsonSemi = JsonSemigroup
         val newQueue: QueueArgs[Json] = {
-          val maxCapacity = maxCapacityOpt.map(_.toInt)
+          val maxCapacity         = maxCapacityOpt.map(_.toInt)
           val discardOverCapacity = discardOverCapacityOpt.map(_.toBoolean)
           QueueArgs[Json](maxCapacity, discardOverCapacity)
         }
@@ -175,32 +169,8 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
                 import materializer.executionContext
 
                 val dao = HistoricProcessorDao[Json](newQueue.maxCapacity.getOrElse(100))
-                //                val republisher: HistoricProcessor[Json] = HistoricProcessor(dao)
-                //                val republisher = HistoricProcessor[Json](dao)
 
-//                val republisher = new HistoricProcessor.Instance[Json](dao) {
-//                  self =>
-//
-//                  override def requestFromSubscription(n: Long) = {
-//                    super.requestFromSubscription(n)
-//                  }
-//
-//                  override protected def newSubscriber(lastRequestedIdx: Long, subscriber: Subscriber[_ >: Json]) = {
-//                    new HistoricSubscription[Json](self, -1, lastRequestedIdx, subscriber) { me =>
-//                      override val toString = s"$name  Republisher"
-//
-//                      override def request(n: Long): Unit = {
-//                        println(s"$name publisher requesting $n")
-////                        chicenAndEggPublisher.takeNext(n.toInt)
-//                        super.request(n)
-//                      }
-//                    }
-//                  }
-//                }
-
-//                val sp: SocketPipeline.DataPublisher[Json] = SocketPipeline.DataPublisher(republisher)
                 val sp: SocketPipeline.DataSubscriber[Json] = SocketPipeline.DataSubscriber(dao)
-//                chicenAndEggPublisher = sp
                 Option(state.newUploadEntrypoint(name, sp))
               case Some(_) => None
             }

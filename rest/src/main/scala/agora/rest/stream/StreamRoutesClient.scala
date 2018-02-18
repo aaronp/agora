@@ -103,7 +103,9 @@ case class StreamRoutesClient(clientConf: ClientConfig = ClientConfig.load()) ex
 
     def list(): Future[Set[String]] = listVerb("publish")
 
-    def create[E: Encoder](name: String, dao: HistoricProcessorDao[E] = HistoricProcessorDao(20)(ExecutionContext.global)): Future[StreamPublisherWebsocketClient[E, HistoricProcessor[E]]] = {
+    def create[E: Encoder](
+        name: String,
+        dao: HistoricProcessorDao[E] = HistoricProcessorDao(20)(ExecutionContext.global)): Future[StreamPublisherWebsocketClient[E, HistoricProcessor[E]]] = {
       create[E, HistoricProcessor[E]](name, HistoricProcessor[E](dao))
     }
 

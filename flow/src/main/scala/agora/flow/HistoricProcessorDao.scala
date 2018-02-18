@@ -26,7 +26,7 @@ object HistoricProcessorDao extends StrictLogging {
     Future.failed(new InvalidIndexException(idx))
   }
 
-  def inDir[T: ToBytes : FromBytes](dir: Path, keepMost: Int = 0)(implicit ec: ExecutionContext) = {
+  def inDir[T: ToBytes: FromBytes](dir: Path, keepMost: Int = 0)(implicit ec: ExecutionContext) = {
     new FileBasedHistoricProcessorDao[T](dir, ToBytes.instance[T], FromBytes.instance[T], keepMost)
   }
 
@@ -36,11 +36,11 @@ object HistoricProcessorDao extends StrictLogging {
     */
   def apply[T](keepMost: Int = 0)(implicit ec: ExecutionContext) = new HistoricProcessorDao[T] {
     override val executionContext: ExecutionContext = ec
-    private var elements = Map[Long, T]()
+    private var elements                            = Map[Long, T]()
 
     override def maxIndex: Option[Long] = elements.keySet match {
       case set if set.isEmpty => None
-      case set => Option(set.max)
+      case set                => Option(set.max)
     }
 
     override def at(index: Long) = {
@@ -59,8 +59,8 @@ object HistoricProcessorDao extends StrictLogging {
   }
 
   case class FileBasedHistoricProcessorDao[T](dir: Path, toBytes: ToBytes[T], fromBytes: FromBytes[T], keepMost: Int)(
-    implicit val executionContext: ExecutionContext)
-    extends HistoricProcessorDao[T]
+      implicit val executionContext: ExecutionContext)
+      extends HistoricProcessorDao[T]
       with LazyLogging {
 
     import agora.io.implicits._

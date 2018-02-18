@@ -1,6 +1,5 @@
 package agora.rest.stream
 
-import agora.flow.HistoricProcessor.HistoricSubscription
 import agora.flow._
 import agora.rest.exchange.ClientSubscriptionMessage
 import akka.NotUsed
@@ -13,7 +12,6 @@ import io.circe.{Decoder, Encoder}
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
 import scala.concurrent.ExecutionContext
-
 
 object SocketPipeline extends StrictLogging {
 
@@ -32,27 +30,20 @@ object SocketPipeline extends StrictLogging {
   }
 
   class NamedDataSubscriber[FromRemote: Decoder](override val name: String, dao: HistoricProcessorDao[FromRemote])(implicit ec: ExecutionContext)
-    extends DataSubscriber[FromRemote](dao) with HasName
+    extends DataSubscriber[FromRemote](dao)
+      with HasName
 
   /**
     * Publishes ClientSubscriptionMessage and consumes Json (decoded into FromRemote]
     */
   class DataSubscriber[FromRemote: Decoder](dao: HistoricProcessorDao[FromRemote])(implicit ec: ExecutionContext) {
 
-
     def takeNext(n: Int) = controlMessagePublisher.onNext(TakeNext(n))
 
     def cancel() = controlMessagePublisher.onNext(Cancel)
 
-
     // send control messages up to remote. akka io can request/pull as fast as it likes
-    private[stream] val controlMessagePublisher = new HistoricProcessor.Instance[ClientSubscriptionMessage](HistoricProcessorDao[ClientSubscriptionMessage]()) {
-
-      override protected def newSubscriber(lastRequestedIdx: Long, subscriber: Subscriber[_ >: ClientSubscriptionMessage]) = {
-        println("created subscription")
-        super.newSubscriber(lastRequestedIdx, subscriber)
-      }
-    }
+    private[stream] val controlMessagePublisher = HistoricProcessor[ClientSubscriptionMessage]()
 
     /**
       * The republishingDataConsumer listens to incoming data, and so can be subscribed to observe the incoming data.
@@ -67,14 +58,7 @@ object SocketPipeline extends StrictLogging {
       */
     val republishingDataConsumer = new HistoricProcessor.Instance[FromRemote](dao) {
       override protected def onRequest(n: Long) = {
-        println(s"someone's requesting $n")
         controlMessagePublisher.onNext(TakeNext(n))
-      }
-
-      override def onSubscriberRequestingUpTo(sub: HistoricSubscription[FromRemote], potentialNewMaxIndex: Long, n: Long) = {
-        println(s"$sub is $potentialNewMaxIndex, requesting $n")
-        super.onSubscriberRequestingUpTo(sub, potentialNewMaxIndex, n)
-
       }
 
       override def cancel() = {
@@ -88,7 +72,6 @@ object SocketPipeline extends StrictLogging {
       */
     lazy val flow: Flow[Message, Message, NotUsed] = {
       val flowMessageSource: Source[Message, NotUsed] = Source.fromPublisher(controlMessagePublisher).map { value =>
-        println(s"Client sending $value")
         TextMessage(value.asJson.noSpaces)
       }
 
@@ -108,7 +91,8 @@ object SocketPipeline extends StrictLogging {
   }
 
   class NamedDataPublisher[ToRemote: Encoder](override val name: String, publisher: Publisher[ToRemote])(implicit ec: ExecutionContext)
-    extends DataPublisher(publisher) with HasName
+    extends DataPublisher(publisher)
+      with HasName
 
   /**
     * Publishes json messages and consumes ClientSubscriptionMessage
@@ -153,7 +137,6 @@ object SocketPipeline extends StrictLogging {
 
       val buffersSubscriptionToTheLocalProcessor: Subscription = p.processorSubscription().get
 
-
       buffersSubscriptionToTheLocalProcessor -> p
     }
 
@@ -162,50 +145,21 @@ object SocketPipeline extends StrictLogging {
       * a buffer used to throttle the requests.
       */
     private[stream] val flowProcessor = {
-      val flowDao = HistoricProcessorDao[ToRemote](20)
-      val p = new HistoricProcessor.Instance[ToRemote](flowDao) {
-//        override def onSubscriberRequestingUpTo(sub: HistoricSubscription[ToRemote], potentialNewMaxIndex: Long, n: Long) = {
-//          println(s"flowProcessor's ${sub.name} needs index $potentialNewMaxIndex when requesting $n")
-//          super.onSubscriberRequestingUpTo(sub, potentialNewMaxIndex, n)
-//        }
-//
-//        override protected def onRequest(n: Long) = {
-//          println(s"flowProcessor flow asking for $n")
-//          super.onRequest(n)
-//        }
-
-      }
+      val p = HistoricProcessor[ToRemote]()
       buffer.subscribe(p)
       p
     }
 
     // listen to control messages coming from remote
     private[stream] val controlMessageProcessor = {
-      import HistoricProcessor._
 
-      val p = new Instance[ClientSubscriptionMessage](HistoricProcessorDao()) {
-
-//        override protected def onRequest(n: Long) = {
-//          println(s"controlMessageProcessor subscription onRequest=$n")
-//          super.onRequest(n)
-//        }
-//
-//        override def onSubscriberRequestingUpTo(sub: HistoricSubscription[ClientSubscriptionMessage], potentialNewMaxIndex: Long, n: Long) = {
-//          println(s"controlMessageProcessor subscription $sub message requesting idx $potentialNewMaxIndex, n=$n")
-//          super.onSubscriberRequestingUpTo(sub, potentialNewMaxIndex, n)
-//
-//        }
-      }
+      val p = HistoricProcessor[ClientSubscriptionMessage]()
 
       val actionFromControl: BaseSubscriber[ClientSubscriptionMessage] = BaseSubscriber(10) {
         case (sub, Cancel) =>
-          println(s"\tcontrolMessageProcessor action is cancelling")
           buffersSubscriptionToLocalProcessor.cancel
           sub.cancel()
         case (sub, TakeNext(n)) =>
-          println(s"\tcontrolMessageProcessor action is requesting $n")
-          //          bufferSubscription.request(n, true)
-//          val bps = bufferSubscription.publisherSubscription.get
           buffersSubscriptionToLocalProcessor.request(n)
           sub.request(1)
       }

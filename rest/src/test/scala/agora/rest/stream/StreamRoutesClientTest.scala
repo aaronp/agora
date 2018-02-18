@@ -16,7 +16,7 @@ class StreamRoutesClientTest extends BaseSpec with ScalaFutures with Eventually 
     "be able to connect a subscriber to an existing publisher" in {
 
       // start a server which will host registered publishers/subscribers
-      val server: RunningService[ServerConfig, StreamRoutes] = null // StreamRoutes.start().futureValue
+      val server: RunningService[ServerConfig, StreamRoutes] = null //StreamRoutes.start().futureValue
 
       val serverConf = if (server == null) ServerConfig(ConfigFactory.load("agora-defaults.conf")) else server.conf
       // connect a client to the server
@@ -24,8 +24,8 @@ class StreamRoutesClientTest extends BaseSpec with ScalaFutures with Eventually 
 
       try {
         // use the client to create a publisher (or could wrap an existing publisher)
-        val dao : HistoricProcessorDao[String] = HistoricProcessorDao[String]()(ExecutionContext.global)
-        val publisher = client.publishers.create[String]("example", dao).futureValue
+        val dao: HistoricProcessorDao[String] = HistoricProcessorDao[String]()(ExecutionContext.global)
+        val publisher                         = client.publishers.create[String]("example", dao).futureValue
 
         // use the client to create a listener which can republish the data locally (or could wrap an existing subscriber)
         val localListener = client.subscriptions.createSubscriber("example").futureValue
@@ -40,7 +40,6 @@ class StreamRoutesClientTest extends BaseSpec with ScalaFutures with Eventually 
         localListener.dataSubscriber.takeNext(2)
 
         publisher.underlyingPublisher.onNext("Anyone there?")
-
 
         eventually {
           list.received() shouldBe List("Hello World")

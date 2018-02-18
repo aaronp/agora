@@ -52,10 +52,7 @@ class ThrottledPublisher[T](underlying: Publisher[T]) extends Publisher[T] with 
 
 object ThrottledPublisher {
 
-  class ThrottledSubscriber[T](underlying: Subscriber[_ >: T], publisher: ThrottledPublisher[T])
-      extends Subscriber[T]
-      with Subscription
-      with StrictLogging {
+  class ThrottledSubscriber[T](underlying: Subscriber[_ >: T], publisher: ThrottledPublisher[T]) extends Subscriber[T] with Subscription with StrictLogging {
     private var subscriptionOpt    = Option.empty[Subscription]
     private val userRequested      = new AtomicLong(0)
     private val throttledRequested = new AtomicLong(0)
