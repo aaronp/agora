@@ -173,14 +173,20 @@ class HistoricProcessorTest extends BaseIOSpec with Eventually {
       processor.latestIndex shouldBe None
 
       processor.onNext("first value")
-      processor.latestIndex shouldBe Option(0)
+      eventually {
+        processor.latestIndex shouldBe Option(0)
+      }
 
       processor.onNext("second value")
-      processor.latestIndex shouldBe Option(1)
+      eventually {
+        processor.latestIndex shouldBe Option(1)
+      }
 
       processor.onNext("third value")
       processor.firstIndex shouldBe 0
-      processor.latestIndex shouldBe Option(2)
+      eventually {
+        processor.latestIndex shouldBe Option(2)
+      }
 
       val subscriber = new ListSubscriber[String]
       processor.subscribe(subscriber)

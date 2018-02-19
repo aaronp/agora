@@ -23,14 +23,17 @@ object Dependencies {
   )
 
   val akkaCirce = "de.heikoseeberger" %% "akka-http-circe" % "1.19.0"
-  val circe = List("core", "generic", "parser", "optics", "java8").map(name => "io.circe" %% s"circe-$name" % "0.9.0")
+  val circe = List("core", "generic", "parser", "optics", "java8").map(name => "io.circe" %% s"circe-$name" % "0.9.1")
 
   val akkaHttp = List("", "-core").map { suffix =>
     "com.typesafe.akka" %% s"akka-http$suffix" % "10.0.10"
   } :+ akkaCirce :+ ("com.typesafe.akka" %% "akka-http-testkit" % "10.0.10" % "test")
 
   val pprint = "com.lihaoyi" %% "pprint" % "0.5.2"
-  val streamsTck = "org.reactivestreams" % "reactive-streams-tck" % "1.0.2" % "test"
+  val streamsTck = List(
+    "org.reactivestreams" % "reactive-streams-tck" % "1.0.2" % "test",
+    "org.reactivestreams" % "reactive-streams-tck-flow" % "1.0.2" % "test")
+
   val swagger = "com.github.swagger-akka-http" %% "swagger-akka-http" % "0.11.0"
   val cors = "ch.megard" %% "akka-http-cors" % "0.2.2"
   val cats = "org.typelevel" %% "cats-core" % "1.0.1"
@@ -41,7 +44,7 @@ object Dependencies {
   val Config: List[ModuleID] = config :: testDependencies
   val IO: List[ModuleID] = logging ::: testDependencies
   val Api: List[ModuleID] = reactiveStreams :: logging ::: testDependencies ::: circe
-  val Rest: List[ModuleID] = Api ::: akkaHttp ::: cucumber ::: List(streamsTck, pprint, swagger, cors)
+  val Rest: List[ModuleID] = Api ::: akkaHttp ::: cucumber ::: List(pprint, swagger, cors) ::: streamsTck
   val RestApi: List[ModuleID] = Api ::: akkaHttp
-  val Flow: List[ModuleID] = streamsTck :: reactiveStreams :: cats :: logging ::: testDependencies
+  val Flow: List[ModuleID] = reactiveStreams :: cats :: logging ::: testDependencies ::: streamsTck
 }

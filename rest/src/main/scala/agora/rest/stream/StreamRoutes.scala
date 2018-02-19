@@ -170,8 +170,7 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
 
                 val dao = HistoricProcessorDao[Json](newQueue.maxCapacity.getOrElse(100))
 
-                val sp: SocketPipeline.DataSubscriber[Json] = SocketPipeline.DataSubscriber(dao)
-                Option(state.newUploadEntrypoint(name, sp))
+                Option(state.newUploadEntrypoint(name, dao))
               case Some(_) => None
             }
           }

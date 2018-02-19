@@ -10,7 +10,7 @@ import scala.concurrent.{ExecutionContext, Future}
 trait HistoricProcessorDao[T] {
   def executionContext: ExecutionContext
 
-  def writeDown(index: Long, value: T): Unit
+  def writeDown(index: Long, value: T): Future[Boolean]
 
   def at(index: Long): Future[T]
 
@@ -18,6 +18,16 @@ trait HistoricProcessorDao[T] {
 }
 
 object HistoricProcessorDao extends StrictLogging {
+
+  class Delegate[T](underlying: HistoricProcessorDao[T]) extends HistoricProcessorDao[T] {
+    override def executionContext: ExecutionContext = underlying.executionContext
+
+    override def writeDown(index: Long, value: T) = underlying.writeDown(index, value)
+
+    override def at(index: Long): Future[T] = underlying.at(index)
+
+    override def maxIndex: Option[Long] = underlying.maxIndex
+  }
 
   case class InvalidIndexException(requestedIndex: Long) extends Exception(s"Invalid index $requestedIndex")
 
@@ -49,11 +59,14 @@ object HistoricProcessorDao extends StrictLogging {
       }
     }
 
-    override def writeDown(index: Long, value: T): Unit = {
-      elements = elements.updated(index, value)
-      if (keepMost != 0) {
-        val removeIndex = index - keepMost
-        elements = elements - removeIndex
+    override def writeDown(index: Long, value: T) = {
+      Future.successful {
+        elements = elements.updated(index, value)
+        if (keepMost != 0) {
+          val removeIndex = index - keepMost
+          elements = elements - removeIndex
+        }
+        true
       }
     }
   }
@@ -65,20 +78,28 @@ object HistoricProcessorDao extends StrictLogging {
 
     import agora.io.implicits._
 
+    private object MaxLock
+
     @volatile private var max = -1L
 
     override def maxIndex: Option[Long] = {
       Option(max).filter(_ >= 0)
     }
 
-    override def writeDown(index: Long, value: T): Unit = {
-      max = max.max(index)
-      dir.resolve(index.toString).bytes = toBytes.bytes(value)
-      if (keepMost != 0) {
-        val indexToDelete = index - keepMost
-        if (dir.resolve(indexToDelete.toString).isFile) {
-          dir.resolve(indexToDelete.toString).delete(false)
+    override def writeDown(index: Long, value: T) = {
+      Future {
+
+        MaxLock.synchronized {
+          max = max.max(index)
         }
+        dir.resolve(index.toString).bytes = toBytes.bytes(value)
+        if (keepMost != 0) {
+          val indexToDelete = index - keepMost
+          if (dir.resolve(indexToDelete.toString).isFile) {
+            dir.resolve(indexToDelete.toString).delete(false)
+          }
+        }
+        true
       }
     }
 

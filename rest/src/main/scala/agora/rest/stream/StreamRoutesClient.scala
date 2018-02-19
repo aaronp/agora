@@ -137,4 +137,5 @@ case class StreamRoutesClient(clientConf: ClientConfig = ClientConfig.load()) ex
   }
 
   override def close(): Unit = clientConf.close()
+  def stop(): Future[Unit]   = clientConf.stop()
 }

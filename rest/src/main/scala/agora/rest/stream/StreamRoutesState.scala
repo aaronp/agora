@@ -1,5 +1,6 @@
 package agora.rest.stream
 
+import agora.flow.HistoricProcessorDao
 import akka.NotUsed
 import akka.http.scaladsl.model.ws.Message
 import akka.stream.Materializer
@@ -34,7 +35,7 @@ private[stream] case class StreamRoutesState(initialUploadEntrypointByName: Map[
       // TODO - use a different exec context for DAOs
       import mat.executionContext
 
-      val dataSubscriber = SocketPipeline.DataPublisher[Json](dataUploadFlow.republishingDataConsumer)
+      val dataSubscriber = SocketPipeline.DataPublisher[Json](name, dataUploadFlow.republishingDataConsumer)
 
       val newList: List[SocketPipeline.DataPublisher[Json]] = dataSubscriber :: simpleSubscriberByName.getOrElse(name, Nil)
       simpleSubscriberByName = simpleSubscriberByName.updated(name, newList)
@@ -49,8 +50,8 @@ private[stream] case class StreamRoutesState(initialUploadEntrypointByName: Map[
   }
 
   def snapshot(name: String): Json = {
-    val publisherJson = getUploadEntrypoint(name).fold(Json.Null) { publisher: SocketPipeline.DataSubscriber[Json] =>
-//      publisher.snapshot().asJson
+    val publisherJson = getUploadEntrypoint(name).fold(Json.Null) { subscriber: SocketPipeline.DataSubscriber[Json] =>
+      subscriber.snapshot().asJson
       Json.Null
     }
 
@@ -61,31 +62,36 @@ private[stream] case class StreamRoutesState(initialUploadEntrypointByName: Map[
     }
   }
 
-  def newUploadEntrypoint(name: String, dataUpload: SocketPipeline.DataSubscriber[Json])(implicit mat: Materializer): Flow[Message, Message, NotUsed] = {
+  def newUploadEntrypoint(name: String, dao: HistoricProcessorDao[Json])(implicit mat: Materializer): Flow[Message, Message, NotUsed] = {
+
+    import mat.executionContext
+    val dataUpload: SocketPipeline.DataSubscriber[Json] = SocketPipeline.DataSubscriber(name, dao)
+
     getUploadEntrypoint(name).foreach { old =>
+      logger.info(s"Cancelling existing publisher '$name' as a new one is being created")
       old.cancel()
     }
 
     // TODO - in order to support subscriptions before there are publishers, we'd have to add a level of indirection,
     // an intermediate publisher to create the flow
 
-        simpleSubscriberByName.get(name) match {
-          case None =>
-            logger.debug(s"No subscribers found pending for '${name}'")
-          case Some(pendingSubscribers) =>
-            logger.debug(s"Adding ${pendingSubscribers.size} subscribers to '${name}'")
-            pendingSubscribers.foreach { subscriber =>
-              //          val contains = dataUpload.republishingSubscriber.containsSubscriber(subscriber.underlyingRepublisher)
-              //          if (!contains) {
-              //            the problem here is that pending 'takeNext' control messages aren't sent down as we
-              //            publish them to nobody   ... the upload 'republishingSubscriber' doesn't
-
-              dataUpload.localPublisher.subscribe(subscriber.republishingDataConsumer)
-              //          } else {
-              //            logger.debug(s"'${dataUpload.name}' Already contained $subscriber")
-              //          }
-            }
-        }
+    //        simpleSubscriberByName.get(name) match {
+    //          case None =>
+    //            logger.debug(s"No subscribers found pending for '${name}'")
+    //          case Some(pendingSubscribers) =>
+    //            logger.debug(s"Adding ${pendingSubscribers.size} subscribers to '${name}'")
+    //            pendingSubscribers.foreach { subscriber =>
+    //              //          val contains = dataUpload.republishingSubscriber.containsSubscriber(subscriber.underlyingRepublisher)
+    //              //          if (!contains) {
+    //              //            the problem here is that pending 'takeNext' control messages aren't sent down as we
+    //              //            publish them to nobody   ... the upload 'republishingSubscriber' doesn't
+    //
+    //              dataUpload.localPublisher.subscribe(subscriber.republishingDataConsumer)
+    //              //          } else {
+    //              //            logger.debug(s"'${dataUpload.name}' Already contained $subscriber")
+    //              //          }
+    //            }
+    //        }
 
     uploadEntrypointByName = uploadEntrypointByName.updated(name, dataUpload)
     dataUpload.flow

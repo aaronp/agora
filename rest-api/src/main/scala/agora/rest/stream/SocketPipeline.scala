@@ -1,6 +1,6 @@
 package agora.rest.stream
 
-import agora.flow._
+import agora.flow.{HasName, _}
 import agora.rest.exchange.ClientSubscriptionMessage
 import akka.NotUsed
 import akka.http.scaladsl.model.ws.{Message, TextMessage}
@@ -30,13 +30,12 @@ object SocketPipeline extends StrictLogging {
   }
 
   class NamedDataSubscriber[FromRemote: Decoder](override val name: String, dao: HistoricProcessorDao[FromRemote])(implicit ec: ExecutionContext)
-    extends DataSubscriber[FromRemote](dao)
-      with HasName
+      extends DataSubscriber[FromRemote](dao)
 
   /**
     * Publishes ClientSubscriptionMessage and consumes Json (decoded into FromRemote]
     */
-  class DataSubscriber[FromRemote: Decoder](dao: HistoricProcessorDao[FromRemote])(implicit ec: ExecutionContext) {
+  class DataSubscriber[FromRemote: Decoder](dao: HistoricProcessorDao[FromRemote])(implicit ec: ExecutionContext) extends HasName {
 
     def takeNext(n: Int) = controlMessagePublisher.onNext(TakeNext(n))
 
@@ -57,6 +56,10 @@ object SocketPipeline extends StrictLogging {
       *
       */
     val republishingDataConsumer = new HistoricProcessor.Instance[FromRemote](dao) {
+      override def onNext(value: FromRemote): Unit = {
+        logger.debug(s"Republishing $name\n${snapshot()} >>>>\n$value\n<<<<\n")
+        super.onNext(value)
+      }
       override protected def onRequest(n: Long) = {
         controlMessagePublisher.onNext(TakeNext(n))
       }
@@ -67,6 +70,13 @@ object SocketPipeline extends StrictLogging {
       }
     }
 
+    def snapshot() = republishingDataConsumer.snapshot()
+
+    override def name: String = {
+      val underlyingName = republishingDataConsumer.snapshot().toString
+      s"DataSubscriber[$hashCode] for $underlyingName"
+    }
+
     /**
       * This flow can be used to connect to a websocket
       */
@@ -75,7 +85,7 @@ object SocketPipeline extends StrictLogging {
         TextMessage(value.asJson.noSpaces)
       }
 
-      val kitchen: Sink[Message, NotUsed] = Sink.fromSubscriber(republishingDataConsumer).contramap(unmarshal[FromRemote](republishingDataConsumer))
+      val kitchen: Sink[Message, NotUsed] = Sink.fromSubscriber(republishingDataConsumer).contramap(unmarshal[FromRemote](name, republishingDataConsumer))
       Flow.fromSinkAndSource(kitchen, flowMessageSource)
     }
   }
@@ -91,8 +101,7 @@ object SocketPipeline extends StrictLogging {
   }
 
   class NamedDataPublisher[ToRemote: Encoder](override val name: String, publisher: Publisher[ToRemote])(implicit ec: ExecutionContext)
-    extends DataPublisher(publisher)
-      with HasName
+      extends DataPublisher(publisher)
 
   /**
     * Publishes json messages and consumes ClientSubscriptionMessage
@@ -106,12 +115,12 @@ object SocketPipeline extends StrictLogging {
     * There won't be any data in the buffer though as it won't pull from the localPublisher until an explicit
     * request comes in via the controlMessageProcessor
     */
-  class DataPublisher[ToRemote: Encoder](val localPublisher: Publisher[ToRemote])(implicit ec: ExecutionContext) {
+  class DataPublisher[ToRemote: Encoder](val localPublisher: Publisher[ToRemote])(implicit ec: ExecutionContext) extends HasName {
 
     def snapshot(): Option[PublisherSnapshot[Int]] = {
       localPublisher match {
         case s: PublisherSnapshotSupport[Int] => Option(s.snapshot())
-        case _ => None
+        case _                                => None
       }
     }
 
@@ -190,19 +199,27 @@ object SocketPipeline extends StrictLogging {
        * These are the messages we'll receive from the server -- and as WE'RE publishing data to it, the server
        * will be sending 'TakeNext' or 'Cancel' messages.
        */
-      val kitchen: Sink[Message, NotUsed] = Sink.fromSubscriber(controlMessageProcessor).contramap(unmarshal[ClientSubscriptionMessage](buffer))
+      val kitchen: Sink[Message, NotUsed] = Sink.fromSubscriber(controlMessageProcessor).contramap(unmarshal[ClientSubscriptionMessage](name, buffer))
 
       Flow.fromSinkAndSource(kitchen, flowMessageSource)
     }
+
+    override def name: String = {
+      val underlyingName = localPublisher match {
+        case hn: HasName => hn.name
+        case other       => other.toString
+      }
+      s"DataPublisher[$hashCode] for $underlyingName"
+    }
   }
 
-  private def unmarshal[T: Decoder](buffer: Subscriber[_])(msg: Message): T = {
+  private def unmarshal[T: Decoder](name: String, buffer: Subscriber[_])(msg: Message): T = {
     msg match {
       case TextMessage.Strict(jsonText) =>
-        logger.info(s"\tClient publisher received: $jsonText")
+        logger.debug(s"\t$name received: $jsonText")
         parse(jsonText) match {
           case Left(err) =>
-            val wrapped = new Exception(s"couldn't parse ${jsonText} : $err")
+            val wrapped = new Exception(s"$name couldn't parse ${jsonText} : $err")
             buffer.onError(wrapped)
             throw wrapped
           case Right(json) =>
@@ -214,7 +231,7 @@ object SocketPipeline extends StrictLogging {
             }
         }
       case other =>
-        val err = new Exception(s"Expected a strict message but got " + other)
+        val err = new Exception(s"$name: Expected a strict message but got " + other)
         buffer.onError(err)
         throw err
     }

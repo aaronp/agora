@@ -1,6 +1,7 @@
 package agora.flow
 
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
+import java.util.concurrent.locks.ReentrantReadWriteLock
 
 import agora.flow.ConsumerQueue.ConflatingQueue
 import cats.kernel.Semigroup
@@ -88,9 +89,11 @@ object HistoricProcessor extends StrictLogging {
 
   }
 
-  class Instance[T](val dao: HistoricProcessorDao[T], val propagateSubscriberRequestsToOurSubscription: Boolean, currentIndexCounter: AtomicLong)
+  class Instance[T](val dao: HistoricProcessorDao[T], val propagateSubscriberRequestsToOurSubscription: Boolean, nextIndexCounter: AtomicLong)
       extends HistoricProcessor[T]
       with PublisherSnapshotSupport[Int] {
+
+    private implicit val ec = dao.executionContext
 
     def remove(value: HistoricSubscription[T]) = {
 
@@ -108,11 +111,13 @@ object HistoricProcessor extends StrictLogging {
       PublisherSnapshot(map.mapValues(_.snapshot()))
     }
 
-    private val initialIndex: Long = currentIndexCounter.get()
-    private var subscribers        = List[HistoricSubscription[T]]()
-    private var subscriptionOpt    = Option.empty[Subscription]
-    private val maxRequest         = new MaxRequest()
+    private val initialIndex: Long  = nextIndexCounter.get()
+    private var maxWrittenIndex     = initialIndex
+    private val MaxWrittenIndexLock = new ReentrantReadWriteLock()
+    private var subscribers         = List[HistoricSubscription[T]]()
+    private var subscriptionOpt     = Option.empty[Subscription]
 
+    private val maxRequest       = new MaxRequest()
     protected def subscriberList = subscribers
 
     def processorSubscription(): Option[Subscription] = subscriptionOpt
@@ -169,7 +174,14 @@ object HistoricProcessor extends StrictLogging {
       }
     }
 
-    private[flow] def currentIndex() = currentIndexCounter.get()
+    private[flow] def currentIndex() = {
+      MaxWrittenIndexLock.readLock().lock()
+      try {
+        maxWrittenIndex
+      } finally {
+        MaxWrittenIndexLock.readLock().unlock()
+      }
+    }
 
     override def latestIndex: Option[Long] = Option(currentIndex()).filterNot(_ == initialIndex)
 
@@ -177,9 +189,22 @@ object HistoricProcessor extends StrictLogging {
 
     override def onNext(value: T): Unit = {
       logger.info(s"\t\tON NEXT $value")
-      val newIndex = currentIndexCounter.incrementAndGet()
-      dao.writeDown(newIndex, value)
-      foreachSubscriber(_.onNewIndex(newIndex))
+      val newIndex    = nextIndexCounter.incrementAndGet()
+      val writeFuture = dao.writeDown(newIndex, value)
+
+      // TODO - here we could exercise a write through policy
+      writeFuture.onComplete {
+        case Success(_) =>
+          MaxWrittenIndexLock.writeLock().lock()
+          try {
+            maxWrittenIndex = maxWrittenIndex.max(newIndex)
+          } finally {
+            MaxWrittenIndexLock.writeLock().unlock()
+          }
+          foreachSubscriber(_.onNewIndex(newIndex))
+        case Failure(err) =>
+          logger.error(s"Error writing $value at index $newIndex", err)
+      }
     }
 
     private def foreachSubscriber(f: HistoricSubscription[T] => Unit) = {

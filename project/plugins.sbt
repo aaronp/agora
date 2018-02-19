@@ -1,4 +1,3 @@
-//https://github.com/sbt/sbt-assembly
 addSbtPlugin("com.waioeka.sbt"  % "cucumber-plugin"      % "0.1.7")
 addSbtPlugin("com.eed3si9n"     % "sbt-assembly"         % "0.14.5")
 addSbtPlugin("com.eed3si9n"     % "sbt-buildinfo"        % "0.7.0")

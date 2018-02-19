@@ -11,6 +11,7 @@ import akka.http.scaladsl.model.Uri
 import com.typesafe.config.{Config, ConfigException, ConfigFactory}
 import io.circe.{Decoder, Json}
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Properties
 
@@ -112,7 +113,7 @@ class ClientConfig(config: Config) extends AutoCloseable {
 
   override def close(): Unit = stop()
 
-  def stop() = cachedClients.stop()
+  def stop(): Future[Unit] = cachedClients.stop()
 }
 
 object ClientConfig {
