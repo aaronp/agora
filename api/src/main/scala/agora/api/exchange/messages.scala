@@ -196,8 +196,8 @@ object SubmitJob {
 
     override def apply(c: HCursor): Result[SubmitJob] = {
       for {
-        job     <- c.downField("job").as[Json]
-        details <- c.downField("submissionDetails").as[SubmissionDetails]
+        job     <- c.downField("job").as[Json].right
+        details <- c.downField("submissionDetails").as[SubmissionDetails].right
       } yield {
         SubmitJob(details, job)
       }

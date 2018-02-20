@@ -82,9 +82,9 @@ object WorkMatcher {
       }
 
       for {
-        pred    <- c.downField("criteria").as[JPredicate]
-        bucket  <- bucketOpt
-        updates <- updatesOpt
+        pred    <- c.downField("criteria").as[JPredicate].right
+        bucket  <- bucketOpt.right
+        updates <- updatesOpt.right
       } yield {
         WorkMatcher(pred, bucket, updates)
       }
