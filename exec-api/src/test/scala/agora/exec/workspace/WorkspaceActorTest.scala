@@ -19,7 +19,7 @@ class WorkspaceActorTest extends BaseSpec with HasMaterializer with BeforeAndAft
   logger.trace("leave this line in -- Trying to get away w/ not having a SubstituteLoggerFactory impl when using LoggingOps")
 
   "WorkspaceActor.logger" should {
-    "be able to be seen via LoggingOps" in {
+    "be able to be seen via LoggingOps" ignore {
       var bufferedAppender: BufferedAppender = null
       LoggingOps.withLogs("agora.exec.workspace.WorkspaceActor$", "trace") {
         case Some(appender) =>
