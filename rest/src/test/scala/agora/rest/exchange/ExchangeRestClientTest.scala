@@ -13,13 +13,13 @@ class ExchangeRestClientTest extends ExchangeSpec with BeforeAndAfter {
 
   var runningServer: RunningExchange = null
 
-  var config = ExchangeServerConfig()
+  var config: ExchangeServerConfig = null
 
   var client: ExchangeRestClient = null
 
   before {
-    config = ExchangeServerConfig()
-    runningServer = Await.result(config.start(), 5.seconds)
+    config = ExchangeServerConfig("port=6666")
+    runningServer = Await.result(config.start(), testTimeout)
   }
 
   after {

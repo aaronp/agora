@@ -188,7 +188,7 @@ object HistoricProcessor extends StrictLogging {
     override val firstIndex = initialIndex + 1
 
     override def onNext(value: T): Unit = {
-      logger.info(s"\t\tON NEXT $value")
+      logger.debug(s"onNext($value)")
       val newIndex    = nextIndexCounter.incrementAndGet()
       val writeFuture = dao.writeDown(newIndex, value)
 

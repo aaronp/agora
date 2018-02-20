@@ -35,6 +35,10 @@ val Flow     = config("flow")
 val IO       = config("io")
 val Config   = config("config")
 
+//enablePlugins(GhpagesPlugin)
+
+enablePlugins(SiteScaladocPlugin)
+
 lazy val scaladocSiteProjects =
   List((api, Api), (rest, Rest), (restApi, RestApi), (exec, Exec), (execApi, ExecApi), (execTest, ExecTest), (io, IO), (configProject, Config), (flow, Flow))
 

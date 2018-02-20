@@ -87,7 +87,7 @@ object HistoricProcessorDao extends StrictLogging {
     }
 
     override def writeDown(index: Long, value: T) = {
-      Future {
+      Future.successful {
 
         MaxLock.synchronized {
           max = max.max(index)

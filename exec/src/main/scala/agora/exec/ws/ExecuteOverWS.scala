@@ -46,8 +46,8 @@ object ExecuteOverWS extends LazyLogging {
               * val socket = websocket()
               * socket.onopen = { (event: Event) =>
               *   socket.send(jobId)
-              * }
-              * */
+              * }}}
+              */
             jobId <- inputMessage.textStream.runWith(Sink.head)
 
             /**
