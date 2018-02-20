@@ -128,6 +128,7 @@ val commonSettings: Seq[Def.Setting[_]] = Seq(
   //version := parentProject.settings.ver.value,
   organization := s"com.github.${username}",
   scalaVersion := defaultScalaVersion,
+  resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
   autoAPIMappings := true,
   exportJars := false,
   crossScalaVersions := Seq(scalaEleven, scalaTwelve),
