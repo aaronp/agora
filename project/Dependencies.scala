@@ -10,7 +10,8 @@ object Dependencies {
 
   val cucumber = {
     List(
-      "io.cucumber" %% "cucumber-scala" % "2.0.0-SNAPSHOT" % "test",
+//      "io.cucumber" %% "cucumber-scala" % "2.0.0-SNAPSHOT" % "test",
+      "io.cucumber" %% "cucumber-scala" % "2.0.0" % "test",
       "io.cucumber" % "cucumber-junit" % "2.0.0" % "test"
     )
   }
