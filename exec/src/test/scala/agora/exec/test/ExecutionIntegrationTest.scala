@@ -23,21 +23,25 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
   // an attempt to choose a port based on the scala version as a little guard against running multiple scala version tests concurrently
   val FirstPort = {
     val digits = (Properties.versionString + "1111").filter(_.isDigit)
-    val p = digits.take(4).toInt % 1000
+    val p      = digits.take(4).toInt % 1000
     7000 + p
   }
   val SecondPort = FirstPort + 1000
 
   // just request 1 work item at a time in order to support the 'different servers' test
-  var conf: ExecConfig = null
+  var conf: ExecConfig                                    = null
   var server: RunningService[ExecConfig, ExecutionRoutes] = null
-  var client: RemoteRunner = null
+  var client: RemoteRunner                                = null
 
   "RemoteRunner" should {
     "execute requests on different servers" in {
       withDir { dir =>
         val anotherConf: ExecConfig =
-          ExecConfig(s"port=$SecondPort", s"exchange.port=$FirstPort", s"uploads.dir=${dir.toAbsolutePath.toString}", "initialRequest=1", "includeExchangeRoutes=false")
+          ExecConfig(s"port=$SecondPort",
+                     s"exchange.port=$FirstPort",
+                     s"uploads.dir=${dir.toAbsolutePath.toString}",
+                     "initialRequest=1",
+                     "includeExchangeRoutes=false")
         anotherConf.initialRequest shouldBe 1
 
         val anotherServerConnectedToServer1Exchange = anotherConf.start().futureValue
@@ -86,7 +90,6 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
 
   def doVerifyConcurrentServices(anotherConf: ExecConfig, suffix: String) = {
 
-
     val clientObserver: TestObserver = new TestObserver
     conf.exchangeConfig.connectObserver(clientObserver).futureValue
 
@@ -96,7 +99,6 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
       sow.stateOfTheWorld
     }
     initialSow.subscriptions.size shouldBe 2
-
 
     // verify we have 2 subscriptions
     def subscriptionsByServerPort() = {
@@ -136,15 +138,13 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
       job1.jobSubmitted.submissionDetails.awaitMatch shouldBe true
     }
 
-
     // 2) execute req 2. Note we use the same exchange client for both requests ... one will be routed to our first
     // worker, the second request to the other (anotherServer...)
     val selectionFuture2 =
-    client.run(
-      RunProcess("cat", "file2.txt")
-        .withWorkspace(workspace2)
-        .withDependencies(Set("file2.txt"), testTimeout))
-
+      client.run(
+        RunProcess("cat", "file2.txt")
+          .withWorkspace(workspace2)
+          .withDependencies(Set("file2.txt"), testTimeout))
 
     withClue("both jobs should've been received") {
       eventually {
@@ -155,14 +155,13 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
 
     withClue("both jobs should've been matched") {
       eventually {
-        val List(job2, job1) = clientObserver.matches()
+        val List(job2, job1)      = clientObserver.matches()
         val Seq(workerCandidate1) = job1.selection
         workerCandidate1.remaining shouldBe 0
         val Seq(workerCandidate2) = job2.selection
         workerCandidate2.remaining shouldBe 0
 
-        Set(workerCandidate1.subscription.details.location.port,
-          workerCandidate2.subscription.details.location.port) shouldBe Set(SecondPort, FirstPort)
+        Set(workerCandidate1.subscription.details.location.port, workerCandidate2.subscription.details.location.port) shouldBe Set(SecondPort, FirstPort)
       }
     }
 
@@ -172,9 +171,6 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
     def sep(tri: Int, c: Char) = (c.toString * 60) + s"  $tri  " + (c.toString * 60)
 
     val tries = new AtomicInteger(0)
-    withClue(s"We should see both jobs submitted") {
-
-    }
     withClue(s"At this point both jobs should've been picked up and the subscriptions drained: $clientObserver") {
       val attempt = tries.incrementAndGet()
       println(s"\n${sep(attempt, 'v')}\n\n$clientObserver\n${sep(attempt, '^')}")
@@ -190,7 +186,7 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
     val directClient1 = conf.executionClient()
     val directClient2 = anotherConf.executionClient()
     val (firstClient, theOtherClient) = portWhichFirstJobTakenByService match {
-      case FirstPort => directClient1 -> directClient2
+      case FirstPort  => directClient1 -> directClient2
       case SecondPort => directClient2 -> directClient1
     }
     val file1 = Upload.forText("file1.txt", "I'm file one")

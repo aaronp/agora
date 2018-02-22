@@ -6,6 +6,8 @@ import agora.api.exchange.Candidate
   * An [[ExchangeObserver]] which just writes down the events as they come through
   */
 class TestObserver extends ExchangeObserver {
+
+
   var events = List[ExchangeNotificationMessage]()
 
   def eventsInTheOrderTheyWereReceived = events.reverse
@@ -49,6 +51,12 @@ class TestObserver extends ExchangeObserver {
     }
   }
 
+  def matches() = {
+    events.collect {
+      case msg: OnMatch => msg
+    }
+  }
+
   /** @return the most recent [[OnSubscriptionUpdated]]
     */
   def lastUpdated(): Option[OnSubscriptionUpdated] = {
@@ -69,6 +77,11 @@ class TestObserver extends ExchangeObserver {
     */
   def lastSubmitted(): Option[OnJobSubmitted] = {
     events.collectFirst {
+      case msg: OnJobSubmitted => msg
+    }
+  }
+  def jobSubmissions() =  {
+    events.collect {
       case msg: OnJobSubmitted => msg
     }
   }
