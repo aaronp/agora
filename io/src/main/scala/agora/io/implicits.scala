@@ -24,16 +24,14 @@ trait LowPriorityIOImplicits {
 
   implicit class RichPath(val path: Path) {
 
+    def defaultWriteOpts: Set[OpenOption] = LowPriorityIOImplicits.DefaultWriteOps
+
     /** @return the path rendered as a tree
       */
     def renderTree(): String                        = PathTreeNode(path, None).asTree().mkString(Platform.EOL)
     def renderTree(filter: Path => Boolean): String = PathTreeNode(path, Option(filter)).asTree().mkString(Platform.EOL)
 
     import scala.collection.JavaConverters._
-
-    def defaultWriteOpts: Set[OpenOption] = {
-      Set(StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)
-    }
 
     /** @return how many parents this path has
       */
@@ -251,4 +249,11 @@ trait LowPriorityIOImplicits {
     }
   }
 
+}
+
+object LowPriorityIOImplicits {
+
+  val DefaultWriteOps: Set[OpenOption] = {
+    Set(StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)
+  }
 }

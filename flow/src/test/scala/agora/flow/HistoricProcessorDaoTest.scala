@@ -25,10 +25,10 @@ class HistoricProcessorDaoTest extends BaseFlowSpec {
 
         dao.at(12).futureValue shouldBe "twelve"
         dao.at(11).futureValue shouldBe "eleven"
-        val invalid = intercept[InvalidIndexException] {
+        val InvalidIndexException(idx, _) = intercept[InvalidIndexException] {
           Await.result(dao.at(10), testTimeout)
         }
-        invalid shouldBe new InvalidIndexException(10)
+        idx shouldBe 10
       }
     }
   }

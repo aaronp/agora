@@ -2,8 +2,7 @@ package agora.rest.stream
 
 import agora.api.json.JsonSemigroup
 import agora.flow.AsConsumerQueue.QueueArgs
-import agora.flow.HistoricProcessor.HistoricSubscription
-import agora.flow.{AsConsumerQueue, HistoricProcessor, HistoricProcessorDao}
+import agora.flow.{AsConsumerQueue, HistoricProcessorDao}
 import agora.rest.ui.UIRoutes
 import agora.rest.{RunningService, ServerConfig}
 import akka.NotUsed
@@ -17,7 +16,6 @@ import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.Json
 import io.circe.syntax._
-import org.reactivestreams.Subscriber
 
 /**
   * A PoC set of routes for creating publishers/subscribers over web sockets
@@ -101,7 +99,9 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
               complete(NotFound, s"Couldn't find $name, available subscribers are: ${keys}")
             case Some(found: Seq[SocketPipeline.DataSubscriber[Json]]) =>
               logger.debug(s"$name subscriber taking $takeNextInt")
-              found.foreach(_.takeNext(takeNextInt))
+              found.foreach { x: SocketPipeline.DataPublisher[Json] =>
+                x.takeNext(takeNextInt)
+              }
               complete(found.size.asJson)
           }
         }

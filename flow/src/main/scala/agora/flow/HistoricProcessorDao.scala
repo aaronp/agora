@@ -1,7 +1,8 @@
 package agora.flow
 
-import java.nio.file.Path
+import java.nio.file.{Path, StandardOpenOption}
 
+import agora.io.LowPriorityIOImplicits
 import agora.io.dao.{FromBytes, ToBytes}
 import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
 
@@ -29,14 +30,9 @@ object HistoricProcessorDao extends StrictLogging {
     override def maxIndex: Option[Long] = underlying.maxIndex
   }
 
-  case class InvalidIndexException(requestedIndex: Long) extends Exception(s"Invalid index $requestedIndex")
+  case class InvalidIndexException(requestedIndex: Long, msg: String) extends Exception(msg)
 
-  private def invalidIndex[T](idx: Long): Future[T] = {
-    logger.error(s"Invalid index $idx")
-    Future.failed(new InvalidIndexException(idx))
-  }
-
-  def inDir[T: ToBytes: FromBytes](dir: Path, keepMost: Int = 0)(implicit ec: ExecutionContext) = {
+  def inDir[T: ToBytes : FromBytes](dir: Path, keepMost: Int = 0)(implicit ec: ExecutionContext) = {
     new FileBasedHistoricProcessorDao[T](dir, ToBytes.instance[T], FromBytes.instance[T], keepMost)
   }
 
@@ -46,25 +42,42 @@ object HistoricProcessorDao extends StrictLogging {
     */
   def apply[T](keepMost: Int = 0)(implicit ec: ExecutionContext) = new HistoricProcessorDao[T] {
     override val executionContext: ExecutionContext = ec
-    private var elements                            = Map[Long, T]()
+    private var elements = Map[Long, T]()
 
-    override def maxIndex: Option[Long] = elements.keySet match {
-      case set if set.isEmpty => None
-      case set                => Option(set.max)
+    private object ElementsLock
+
+    override def maxIndex: Option[Long] = ElementsLock.synchronized {
+      elements.keySet match {
+        case set if set.isEmpty => None
+        case set => Option(set.max)
+      }
     }
 
     override def at(index: Long) = {
-      elements.get(index).fold(invalidIndex[T](index)) { value =>
+
+      def badIndex = {
+        val msg = s"Invalid index $index. Keeping $keepMost, max index is ${elements.keySet.toList.sorted.headOption}"
+        logger.error(msg)
+        Future.failed[T](new InvalidIndexException(index, msg))
+      }
+
+      val opt = ElementsLock.synchronized {
+        elements.get(index)
+      }
+      opt.fold(badIndex) { value =>
         Future.successful(value)
       }
     }
 
     override def writeDown(index: Long, value: T) = {
       Future.successful {
-        elements = elements.updated(index, value)
-        if (keepMost != 0) {
-          val removeIndex = index - keepMost
-          elements = elements - removeIndex
+        ElementsLock.synchronized {
+          elements = elements.updated(index, value)
+          if (keepMost != 0) {
+            val removeIndex = index - keepMost
+            logger.debug(s"Removing $removeIndex")
+            elements = elements - removeIndex
+          }
         }
         true
       }
@@ -72,8 +85,8 @@ object HistoricProcessorDao extends StrictLogging {
   }
 
   case class FileBasedHistoricProcessorDao[T](dir: Path, toBytes: ToBytes[T], fromBytes: FromBytes[T], keepMost: Int)(
-      implicit val executionContext: ExecutionContext)
-      extends HistoricProcessorDao[T]
+    implicit val executionContext: ExecutionContext)
+    extends HistoricProcessorDao[T]
       with LazyLogging {
 
     import agora.io.implicits._
@@ -92,7 +105,9 @@ object HistoricProcessorDao extends StrictLogging {
         MaxLock.synchronized {
           max = max.max(index)
         }
-        dir.resolve(index.toString).bytes = toBytes.bytes(value)
+        val file = dir.resolve(index.toString).createIfNotExists()
+
+        file.setBytes(toBytes.bytes(value), LowPriorityIOImplicits.DefaultWriteOps + StandardOpenOption.DSYNC)
         if (keepMost != 0) {
           val indexToDelete = index - keepMost
           if (dir.resolve(indexToDelete.toString).isFile) {
@@ -108,7 +123,10 @@ object HistoricProcessorDao extends StrictLogging {
       if (file.isFile) {
         Future.fromTry(fromBytes.read(file.bytes))
       } else {
-        invalidIndex[T](index)
+        val maxIdx = MaxLock.synchronized { max }
+        val msg = s"Invalid index $index as $file doesn't exist. Max index written is $maxIdx"
+        logger.error(msg)
+        Future.failed[T](new InvalidIndexException(index, msg))
       }
     }
   }

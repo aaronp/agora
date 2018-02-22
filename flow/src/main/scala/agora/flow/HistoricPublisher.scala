@@ -8,7 +8,7 @@ import cats.kernel.Semigroup
 import com.typesafe.scalalogging.StrictLogging
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -93,6 +93,10 @@ object HistoricProcessor extends StrictLogging {
       extends HistoricProcessor[T]
       with PublisherSnapshotSupport[Int] {
 
+    def valueAt(idx: Long): Future[T] = {
+      dao.at(idx)
+    }
+
     private implicit val ec = dao.executionContext
 
     def remove(value: HistoricSubscription[T]) = {
@@ -117,7 +121,8 @@ object HistoricProcessor extends StrictLogging {
     private var subscribers         = List[HistoricSubscription[T]]()
     private var subscriptionOpt     = Option.empty[Subscription]
 
-    private val maxRequest       = new MaxRequest()
+    private val maxRequest = new MaxRequest()
+
     protected def subscriberList = subscribers
 
     def processorSubscription(): Option[Subscription] = subscriptionOpt
@@ -198,6 +203,7 @@ object HistoricProcessor extends StrictLogging {
           MaxWrittenIndexLock.writeLock().lock()
           try {
             maxWrittenIndex = maxWrittenIndex.max(newIndex)
+            logger.info(s"Just wrote $newIndex, max index is $maxWrittenIndex")
           } finally {
             MaxWrittenIndexLock.writeLock().unlock()
           }
@@ -208,11 +214,12 @@ object HistoricProcessor extends StrictLogging {
     }
 
     private def foreachSubscriber(f: HistoricSubscription[T] => Unit) = {
-      subscribers.size match {
-        case 0 =>
-        case 1 => subscribers.foreach(f)
-        case _ => subscribers.par.foreach(f)
-      }
+      //      subscribers.size match {
+      //        case 0 =>
+      //        case 1 => subscribers.foreach(f)
+      //        case _ => case _ => subscribers.par.foreach(f)
+      //      }
+      subscribers.foreach(f)
     }
 
     override def onError(t: Throwable): Unit = {
@@ -302,11 +309,12 @@ object HistoricProcessor extends StrictLogging {
         val idx         = lastRequestedIndexCounter.incrementAndGet()
         implicit val ec = publisher.dao.executionContext
 
-        val future = publisher.dao.at(idx)
+        val future = publisher.valueAt(idx)
         future.onComplete {
           case Failure(err) =>
             cancel()
-            subscriber.onError(err)
+            val badIndex = new Exception(s"Couldn't pull $idx", err)
+            subscriber.onError(badIndex)
           case Success(elm) =>
             totalPushed.incrementAndGet()
             notifySubscriber(elm)
