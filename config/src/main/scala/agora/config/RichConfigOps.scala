@@ -158,7 +158,7 @@ trait RichConfigOps extends RichConfig.LowPriorityImplicits {
     *
     * @param pathFilter
     */
-  def summary(pathFilter: String => Boolean = _ => true) = {
+  def summary(pathFilter: String => Boolean = _ => true): List[StringEntry] = {
     collectAsStrings.collect {
       case (key, stringValue) if pathFilter(key) =>
         val value  = config.getValue(key)

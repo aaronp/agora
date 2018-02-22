@@ -8,6 +8,8 @@ import akka.stream.Materializer
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.generic.auto._
 
+import scala.concurrent.Future
+
 /**
   * An facade for ProcessRunner which will submit [[RunProcess]] jobs
   * via an exchange. The runner may specify matching criteria such as the existence of
@@ -43,7 +45,7 @@ class RemoteRunner(val exchange: Exchange, val defaultDetails: SubmissionDetails
 
   def submissionDetailsForJob(job: RunProcess) = defaultDetails
 
-  override def run(proc: RunProcess) = {
+  override def run(proc: RunProcess): Future[RunProcessResult] = {
     val submissionDetails = submissionDetailsForJob(proc)
     implicit val details  = RemoteRunner.prepare(proc, submissionDetails)
     exchange.enqueue(proc)
