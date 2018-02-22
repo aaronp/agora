@@ -16,33 +16,33 @@ import scala.concurrent.ExecutionContext
 object SocketPipeline extends StrictLogging {
 
   object DataSubscriber {
-    def apply[FromRemote: Decoder](name: String, dao: HistoricProcessorDao[FromRemote])(implicit ec: ExecutionContext) = {
+    def apply[FromRemote: Decoder](name: String, dao: DurableProcessorDao[FromRemote])(implicit ec: ExecutionContext) = {
       new NamedDataSubscriber[FromRemote](name, dao)
     }
 
-    def apply[FromRemote: Decoder](dao: HistoricProcessorDao[FromRemote])(implicit ec: ExecutionContext) = {
+    def apply[FromRemote: Decoder](dao: DurableProcessorDao[FromRemote])(implicit ec: ExecutionContext) = {
       new DataSubscriber[FromRemote](dao)
     }
 
     def apply[FromRemote: Decoder]()(implicit ec: ExecutionContext): DataSubscriber[FromRemote] = {
-      apply[FromRemote](HistoricProcessorDao[FromRemote]())
+      apply[FromRemote](DurableProcessorDao[FromRemote]())
     }
   }
 
-  class NamedDataSubscriber[FromRemote: Decoder](override val name: String, dao: HistoricProcessorDao[FromRemote])(implicit ec: ExecutionContext)
+  class NamedDataSubscriber[FromRemote: Decoder](override val name: String, dao: DurableProcessorDao[FromRemote])(implicit ec: ExecutionContext)
       extends DataSubscriber[FromRemote](dao)
 
   /**
     * Publishes ClientSubscriptionMessage and consumes Json (decoded into FromRemote]
     */
-  class DataSubscriber[FromRemote: Decoder](dao: HistoricProcessorDao[FromRemote])(implicit ec: ExecutionContext) extends HasName {
+  class DataSubscriber[FromRemote: Decoder](dao: DurableProcessorDao[FromRemote])(implicit ec: ExecutionContext) extends HasName {
 
     def takeNext(n: Int) = controlMessagePublisher.onNext(TakeNext(n))
 
     def cancel() = controlMessagePublisher.onNext(Cancel)
 
     // send control messages up to remote. akka io can request/pull as fast as it likes
-    private[stream] val controlMessagePublisher = HistoricProcessor[ClientSubscriptionMessage]()
+    private[stream] val controlMessagePublisher = DurableProcessor[ClientSubscriptionMessage]()
 
     /**
       * The republishingDataConsumer listens to incoming data, and so can be subscribed to observe the incoming data.
@@ -55,7 +55,7 @@ object SocketPipeline extends StrictLogging {
       * listener of some sort.
       *
       */
-    val republishingDataConsumer = new HistoricProcessor.Instance[FromRemote](dao) {
+    val republishingDataConsumer = new DurableProcessor.Instance[FromRemote](dao) {
       override def onNext(value: FromRemote): Unit = {
         logger.debug(s"Republishing $name\n${snapshot()} >>>>\n$value\n<<<<\n")
         super.onNext(value)
@@ -133,11 +133,11 @@ object SocketPipeline extends StrictLogging {
       * but the buffer will only pull from the localPublisher (and thus republish to the flowProcessor) when
       * explicitly asked to from the [[ClientSubscriptionMessage]]s we're receiving from the remote server
       */
-    private[stream] val (buffersSubscriptionToLocalProcessor: Subscription, buffer: HistoricProcessor.Instance[ToRemote]) = {
-      val dao = HistoricProcessorDao[ToRemote](20)
+    private[stream] val (buffersSubscriptionToLocalProcessor: Subscription, buffer: DurableProcessor.Instance[ToRemote]) = {
+      val dao = DurableProcessorDao[ToRemote](20)
 
       // don't automatically pull from the local producer, but rather only when explicitly requested
-      val p = new HistoricProcessor.Instance(dao, propagateSubscriberRequestsToOurSubscription = false) with HasName {
+      val p = new DurableProcessor.Instance(dao, propagateSubscriberRequestsToOurSubscription = false) with HasName {
         override def name = s"buffer w/ ${snapshot()}"
       }
 
@@ -154,7 +154,7 @@ object SocketPipeline extends StrictLogging {
       * a buffer used to throttle the requests.
       */
     private[stream] val flowProcessor = {
-      val p = HistoricProcessor[ToRemote]()
+      val p = DurableProcessor[ToRemote]()
       buffer.subscribe(p)
       p
     }
@@ -162,7 +162,7 @@ object SocketPipeline extends StrictLogging {
     // listen to control messages coming from remote
     private[stream] val controlMessageProcessor = {
 
-      val p = HistoricProcessor[ClientSubscriptionMessage]()
+      val p = DurableProcessor[ClientSubscriptionMessage]()
 
       val actionFromControl: BaseSubscriber[ClientSubscriptionMessage] = BaseSubscriber(10) {
         case (sub, Cancel) =>

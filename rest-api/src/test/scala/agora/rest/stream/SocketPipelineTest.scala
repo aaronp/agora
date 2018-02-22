@@ -1,7 +1,7 @@
 package agora.rest.stream
 
 import agora.BaseSpec
-import agora.flow.{HistoricProcessor, HistoricProcessorDao, ListSubscriber}
+import agora.flow.{DurableProcessor, DurableProcessorDao, ListSubscriber}
 import agora.rest.exchange.ClientSubscriptionMessage
 import io.circe.Json
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
@@ -24,7 +24,7 @@ class SocketPipelineTest extends BaseSpec with GivenWhenThen with Eventually {
       controlMsgObserver.request(10)
 
       When("A the remote subscriber subscribes to some upload publisher")
-      val clientUpload = HistoricProcessor[Json]()
+      val clientUpload = DurableProcessor[Json]()
       clientUpload.subscribe(pipeline.republishingDataConsumer)
 
       Then("no control messages should be sent as nothing is pulling from the republishing processor")
@@ -72,7 +72,7 @@ class SocketPipelineTest extends BaseSpec with GivenWhenThen with Eventually {
     "publish TakeNext messages when the local subscriber requests more work" in {
       Given("A local subscriber")
       val localSubscriber = new ListSubscriber[String]
-      val pipeline        = SocketPipeline.DataSubscriber[String](HistoricProcessorDao[String]())
+      val pipeline        = SocketPipeline.DataSubscriber[String](DurableProcessorDao[String]())
       pipeline.republishingDataConsumer.subscribe(localSubscriber)
 
       // listen to the client messages produced from the pipeline
@@ -81,7 +81,7 @@ class SocketPipelineTest extends BaseSpec with GivenWhenThen with Eventually {
       controlMsgSubscriber.request(3)
 
       When("the local subscriber is subscribed")
-      val source = HistoricProcessor[String]()
+      val source = DurableProcessor[String]()
       source.subscribe(pipeline.republishingDataConsumer)
 
       And("The local subscriber requests some elements")
@@ -104,7 +104,7 @@ class SocketPipelineTest extends BaseSpec with GivenWhenThen with Eventually {
       controlMsgSubscriber.request(3)
 
       When("the local subscriber is subscribed")
-      val source = HistoricProcessor[String]()
+      val source = DurableProcessor[String]()
       source.subscribe(pipeline.republishingDataConsumer)
 
       And("The local subscriber cancels")
@@ -144,7 +144,7 @@ class SocketPipelineTest extends BaseSpec with GivenWhenThen with Eventually {
       localPublisher.requests shouldBe Nil
 
       When("An explicit TakeNext message is received for N")
-      val controlMessagePublisher = HistoricProcessor[ClientSubscriptionMessage]()
+      val controlMessagePublisher = DurableProcessor[ClientSubscriptionMessage]()
       controlMessagePublisher.subscribe(pipeline.controlMessageProcessor)
       controlMessagePublisher.onNext(TakeNext(4))
 

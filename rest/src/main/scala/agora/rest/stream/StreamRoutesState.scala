@@ -1,6 +1,6 @@
 package agora.rest.stream
 
-import agora.flow.HistoricProcessorDao
+import agora.flow.DurableProcessorDao
 import akka.NotUsed
 import akka.http.scaladsl.model.ws.Message
 import akka.stream.Materializer
@@ -62,7 +62,7 @@ private[stream] case class StreamRoutesState(initialUploadEntrypointByName: Map[
     }
   }
 
-  def newUploadEntrypoint(name: String, dao: HistoricProcessorDao[Json])(implicit mat: Materializer): Flow[Message, Message, NotUsed] = {
+  def newUploadEntrypoint(name: String, dao: DurableProcessorDao[Json])(implicit mat: Materializer): Flow[Message, Message, NotUsed] = {
 
     import mat.executionContext
     val dataUpload: SocketPipeline.DataSubscriber[Json] = SocketPipeline.DataSubscriber(name, dao)

@@ -2,7 +2,7 @@ package agora.rest.stream
 
 import agora.api.json.JsonSemigroup
 import agora.flow.AsConsumerQueue.QueueArgs
-import agora.flow.{AsConsumerQueue, HistoricProcessorDao}
+import agora.flow.{AsConsumerQueue, DurableProcessorDao}
 import agora.rest.ui.UIRoutes
 import agora.rest.{RunningService, ServerConfig}
 import akka.NotUsed
@@ -168,7 +168,7 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
                 // TODO - use a consistent/specific processor day, configurable max capacity default
                 import materializer.executionContext
 
-                val dao = HistoricProcessorDao[Json](newQueue.maxCapacity.getOrElse(100))
+                val dao = DurableProcessorDao[Json](newQueue.maxCapacity.getOrElse(100))
 
                 Option(state.newUploadEntrypoint(name, dao))
               case Some(_) => None

@@ -1,7 +1,7 @@
 package agora.flow
 
 import agora.BaseIOSpec
-import agora.flow.HistoricProcessor.HistoricSubscription
+import agora.flow.DurableProcessor.DurableSubscription
 import cats.instances.int._
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 import org.scalatest.concurrent.Eventually
@@ -9,7 +9,7 @@ import org.scalatest.concurrent.Eventually
 import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.Implicits._
 
-class HistoricProcessorTest extends BaseIOSpec with Eventually {
+class DurableProcessorTest extends BaseIOSpec with Eventually {
 
   implicit def asRichListSubscriber[T](subscriber: ListSubscriber[T]) = new {
     def verifyReceived(expected: String*) = {
@@ -19,14 +19,14 @@ class HistoricProcessorTest extends BaseIOSpec with Eventually {
     }
   }
 
-  "HistoricProcessor semigroup" should {
+  "DurableProcessor semigroup" should {
     "request when subscribed if it has subscribers who requested data" in {
       object Pub extends TestPub
-      val processorUnderTest = HistoricProcessor.conflate[Int]()
+      val processorUnderTest = DurableProcessor.conflate[Int]()
       Pub.verifyRequestsPropagated(processorUnderTest)
     }
     "notify new subscribers of previous values" in {
-      val processor = HistoricProcessor.conflate[Int](Option(7))
+      val processor = DurableProcessor.conflate[Int](Option(7))
 
       processor.onNext(1)
 
@@ -58,14 +58,14 @@ class HistoricProcessorTest extends BaseIOSpec with Eventually {
     "pull from its publisher when its subscribers pull" in {
       object Pub extends TestPub
       import cats.instances.int._
-      val processorUnderTest = HistoricProcessor.conflate[Int]()
+      val processorUnderTest = DurableProcessor.conflate[Int]()
       Pub.verifySubscriber(processorUnderTest)
     }
   }
-  "HistoricProcessor as subscriber" should {
+  "DurableProcessor as subscriber" should {
 
     "publish to subscribers" in {
-      val controlMessagePublisher = HistoricProcessor[String]()
+      val controlMessagePublisher = DurableProcessor[String]()
       val listener                = new ListSubscriber[String]
       var inlineSubscriberMsg     = ""
       val listener2 = BaseSubscriber[String](1) {
@@ -85,19 +85,19 @@ class HistoricProcessorTest extends BaseIOSpec with Eventually {
     }
     "request when subscribed if it has subscribers who requested data" in {
       object Pub extends TestPub
-      val processorUnderTest = HistoricProcessor[Int]()
+      val processorUnderTest = DurableProcessor[Int]()
       Pub.verifyRequestsPropagated(processorUnderTest)
     }
     "pull from its publisher when its subscribers pull" in {
       object Pub extends TestPub
-      val processorUnderTest = HistoricProcessor[Int]()
+      val processorUnderTest = DurableProcessor[Int]()
       Pub.verifySubscriber(processorUnderTest)
       processorUnderTest.processorSubscription().size shouldBe 1
     }
   }
-  "HistoricProcessor.subscribeFrom" should {
+  "DurableProcessor.subscribeFrom" should {
     "request data before values are pushed" in {
-      val processor = HistoricProcessor[String]()
+      val processor = DurableProcessor[String]()
 
       val subscriber = new ListSubscriber[String]
       processor.subscribe(subscriber)
@@ -108,7 +108,7 @@ class HistoricProcessorTest extends BaseIOSpec with Eventually {
       only.currentlyRequested shouldBe 7
     }
     "Allow subscriptions to receive already published values" in {
-      val processor = HistoricProcessor[String]()
+      val processor = DurableProcessor[String]()
       processor.firstIndex shouldBe 0
       processor.latestIndex shouldBe None
 
@@ -129,10 +129,10 @@ class HistoricProcessorTest extends BaseIOSpec with Eventually {
       startAtTwo.verifyReceived("b")
     }
   }
-  "HistoricProcessor.subscribe" should {
+  "DurableProcessor.subscribe" should {
 
     "support multiple subscriptions" in {
-      val processor = HistoricProcessor[String]()
+      val processor = DurableProcessor[String]()
 
       val firstSubscriber = new ListSubscriber[String]
       firstSubscriber.request(2)
@@ -168,7 +168,7 @@ class HistoricProcessorTest extends BaseIOSpec with Eventually {
 
     }
     "Allow subscriptions to receive already published values" in {
-      val processor = HistoricProcessor[String]()
+      val processor = DurableProcessor[String]()
       processor.firstIndex shouldBe 0
       processor.latestIndex shouldBe None
 
@@ -191,8 +191,8 @@ class HistoricProcessorTest extends BaseIOSpec with Eventually {
       val subscriber = new ListSubscriber[String]
       processor.subscribe(subscriber)
       subscriber.isSubscribed() shouldBe true
-      val subscription = subscriber.subscription().asInstanceOf[HistoricSubscription[_]]
-      subscription.lastRequestedIndexCounter.get shouldBe -1
+      val subscription = subscriber.subscription().asInstanceOf[DurableSubscription[_]]
+      subscription.lastRequestedIndex() shouldBe -1
       subscription.nextIndexToRequest.get shouldBe -1
 
       subscriber.received() shouldBe empty

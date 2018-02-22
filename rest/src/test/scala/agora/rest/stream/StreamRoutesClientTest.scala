@@ -1,7 +1,7 @@
 package agora.rest.stream
 
 import agora.BaseSpec
-import agora.flow.{HistoricProcessor, HistoricProcessorDao, ListSubscriber}
+import agora.flow.{DurableProcessor, DurableProcessorDao, ListSubscriber}
 import agora.rest.client.StreamPublisherWebsocketClient
 import agora.rest.{RunningService, ServerConfig}
 import com.typesafe.config.ConfigFactory
@@ -25,11 +25,11 @@ class StreamRoutesClientTest extends BaseSpec with ScalaFutures with Eventually 
 
       try {
         // use the client to create a publisher (or could wrap an existing publisher)
-        val dao: HistoricProcessorDao[String]                                            = HistoricProcessorDao[String]()(ExecutionContext.global)
-        val publisher: StreamPublisherWebsocketClient[String, HistoricProcessor[String]] = client.publishers.create[String]("example", dao).futureValue
+        val dao: DurableProcessorDao[String]                                            = DurableProcessorDao[String]()
+        val publisher: StreamPublisherWebsocketClient[String, DurableProcessor[String]] = client.publishers.create[String]("example", dao).futureValue
 
         // use the client to create a listener which can republish the data locally (or could wrap an existing subscriber)
-        val ffs           = HistoricProcessor[Json]()
+        val ffs           = DurableProcessor[Json]()
         val localListener = client.subscriptions.createSubscriber("example", ffs).futureValue
         localListener.subscriber.processorSubscription().get.request(1)
 
