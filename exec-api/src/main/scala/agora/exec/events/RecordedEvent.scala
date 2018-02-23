@@ -8,7 +8,6 @@ import agora.api.`match`.MatchDetails
 import agora.api.time.{now, _}
 import agora.exec.model.RunProcess
 import agora.io.dao.HasId
-import com.typesafe.config.Config
 import io.circe.Json
 
 import scala.util.Try

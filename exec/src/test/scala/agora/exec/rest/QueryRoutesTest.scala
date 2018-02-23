@@ -19,7 +19,7 @@ class QueryRoutesTest extends BaseRoutesSpec with Eventually with FailFastCirceS
       val job = ReceivedJob(id, None, RunProcess(id), time)
       queryRoutes.monitor.accept(job)
       eventually {
-        queryRoutes.monitor.query(FindJob(id)).futureValue.job.map(_.id).toList should contain(id)
+        queryRoutes.monitor.query(FindJob(id)).futureValue.received.map(_.id).toList should contain(id)
       }
       job
     }

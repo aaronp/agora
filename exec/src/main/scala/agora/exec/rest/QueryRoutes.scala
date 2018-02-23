@@ -8,7 +8,7 @@ import akka.http.scaladsl.marshalling.ToEntityMarshaller
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{Route, StandardRoute}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
-import io.circe.generic.auto._
+//import io.circe.generic.auto._
 import io.swagger.annotations._
 
 import scala.concurrent.Future
@@ -52,7 +52,7 @@ case class QueryRoutes(monitor: SystemEventMonitor) extends RouteSubscriptionSup
   def queryReceived = {
     (get & path("rest" / "query" / "received")) {
       parameter('from, 'to.?, 'verbose.?, 'filter.?) {
-        withRangeAndFilter[ReceivedBetweenResponse] {
+        withRangeAndFilter[EventQueryResponse] {
           case (from, to, _, filter) => monitor.query(ReceivedBetween(from, to, filter))
         }
       }
@@ -88,7 +88,7 @@ case class QueryRoutes(monitor: SystemEventMonitor) extends RouteSubscriptionSup
   def queryStarted = {
     (get & path("rest" / "query" / "started")) {
       parameter('from, 'to.?, 'verbose.?, 'filter.?) {
-        withRangeAndFilter {
+        withRangeAndFilter[EventQueryResponse] {
           case (from, to, verbose, filter) => monitor.query(StartedBetween(from, to, verbose, filter))
         }
       }
@@ -124,7 +124,7 @@ case class QueryRoutes(monitor: SystemEventMonitor) extends RouteSubscriptionSup
   def queryCompleted = {
     (get & path("rest" / "query" / "completed")) {
       parameter('from, 'to.?, 'verbose.?, 'filter.?) {
-        withRangeAndFilter {
+        withRangeAndFilter[EventQueryResponse] {
           case (from, to, verbose, filter) => monitor.query(CompletedBetween(from, to, verbose, filter))
         }
       }
@@ -160,7 +160,7 @@ case class QueryRoutes(monitor: SystemEventMonitor) extends RouteSubscriptionSup
   def queryRunning = {
     (get & path("rest" / "query" / "running")) {
       parameter('from, 'to.?, 'verbose.?, 'filter.?) {
-        withRangeAndFilter {
+        withRangeAndFilter[EventQueryResponse] {
           case (from, to, verbose, filter) => monitor.query(NotFinishedBetween(from, to, verbose, filter))
         }
       }
@@ -199,7 +199,7 @@ case class QueryRoutes(monitor: SystemEventMonitor) extends RouteSubscriptionSup
   def queryBlocked = {
     (get & path("rest" / "query" / "blocked")) {
       parameter('from, 'to.?, 'verbose.?, 'filter.?) {
-        withRangeAndFilter {
+        withRangeAndFilter[EventQueryResponse] {
           case (from, to, _, filter) =>
             monitor.query(NotStartedBetween(from, to, filter))
         }
@@ -225,7 +225,7 @@ case class QueryRoutes(monitor: SystemEventMonitor) extends RouteSubscriptionSup
   def querySystem = {
     (get & path("rest" / "query" / "system")) {
       parameter('from, 'to.?, 'verbose.?, 'filter.?) {
-        withRangeAndFilter {
+        withRangeAndFilter[EventQueryResponse] {
           case (from, to, _, _) =>
             monitor.query(StartTimesBetween(from, to))
         }
@@ -251,9 +251,10 @@ case class QueryRoutes(monitor: SystemEventMonitor) extends RouteSubscriptionSup
     (get & path("rest" / "query" / "first")) {
       parameter('event) { eventName =>
         complete {
-          val eventOpt         = FindFirst.values.find(_.eventName.equalsIgnoreCase(eventName))
-          val event: FindFirst = eventOpt.getOrElse(sys.error(s"Invalid event '$eventName'. Expected one of ${FindFirst.validValues.mkString("[", ",", "]")}"))
-          monitor.query(event)
+          val eventOpt                           = FindFirst.values.find(_.eventName.equalsIgnoreCase(eventName))
+          val event: FindFirst                   = eventOpt.getOrElse(sys.error(s"Invalid event '$eventName'. Expected one of ${FindFirst.validValues.mkString("[", ",", "]")}"))
+          val future: Future[EventQueryResponse] = monitor.query(event)
+          future
         }
       }
     }

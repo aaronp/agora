@@ -1,7 +1,7 @@
 package agora.io
 
 import java.util.UUID
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 
 /**
   * Provides a means to encode a long into a shorter string of characters (alphanumeric by default,
@@ -16,9 +16,9 @@ object AlphaCounter {
     * @param chars the character set from which to pull unique id characters
     * @return an iterator which produces sequential unique ids
     */
-  def from(seed: Int = 0, chars: IndexedSeq[Char] = DefaultChars): BufferedIterator[String] = {
+  def from(seed: Long = 0, chars: IndexedSeq[Char] = DefaultChars): BufferedIterator[String] = {
     new BufferedIterator[String] {
-      private val counter = new AtomicInteger(seed)
+      private val counter = new AtomicLong(seed)
 
       override def head = apply(counter.get, chars)
 
@@ -32,7 +32,7 @@ object AlphaCounter {
 
   private val maxCharCache = collection.mutable.HashMap[Int, Int]()
 
-  def apply(baseTenNumber: Int, chars: IndexedSeq[Char] = DefaultChars): String = {
+  def apply(baseTenNumber: Long, chars: IndexedSeq[Char] = DefaultChars): String = {
 
     val isPositive = baseTenNumber >= 0
     val (input, isMinValue) = if (isPositive) {
@@ -63,7 +63,7 @@ object AlphaCounter {
   /**
     * @return the first exponent of 'chars' to use to produce a number larger than the user's input
     */
-  private def initialPower(baseTenNumber: Int, base: Int): Int = {
+  private def initialPower(baseTenNumber: Long, base: Int): Int = {
     val window = Iterator.from(0).sliding(2, 1).map(_.toList)
     val powers = window.map {
       case (List(a, pow)) => (a, pow, Math.pow(base, pow))
@@ -78,14 +78,15 @@ object AlphaCounter {
   }
 
   @annotation.tailrec
-  private def next(chars: IndexedSeq[Char], input: Int, pow: Int, base: Int, builder: Seq[Char]): Seq[Char] = {
-    val (remaining, appended) = if (input == 0) {
-      0 -> (chars(0) +: builder)
+  private def next(chars: IndexedSeq[Char], input: Long, pow: Int, base: Int, builder: Seq[Char]): Seq[Char] = {
+    val (remaining: Long, appended: Seq[Char]) = if (input == 0) {
+      0L -> (chars(0) +: builder)
     } else {
-      val divisor   = Math.pow(base, pow).toInt
-      val charIndex = input / divisor
+      val divisor   = Math.pow(base, pow).toLong
+      val charIndex = (input / divisor).toInt
       (input % divisor) -> (chars(charIndex) +: builder)
     }
+
     if (pow == 0) {
       appended
     } else {

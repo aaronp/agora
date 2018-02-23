@@ -4,7 +4,7 @@ import java.io._
 import java.nio.charset.{Charset, StandardCharsets}
 import java.nio.file._
 import java.nio.file.attribute.{BasicFileAttributes, FileAttribute, FileTime, PosixFilePermission}
-import java.time.{LocalDateTime, ZoneId}
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.function.BiPredicate
 import java.util.stream
@@ -28,7 +28,8 @@ trait LowPriorityIOImplicits {
 
     /** @return the path rendered as a tree
       */
-    def renderTree(): String                        = PathTreeNode(path, None).asTree().mkString(Platform.EOL)
+    def renderTree(): String = PathTreeNode(path, None).asTree().mkString(Platform.EOL)
+
     def renderTree(filter: Path => Boolean): String = PathTreeNode(path, Option(filter)).asTree().mkString(Platform.EOL)
 
     import scala.collection.JavaConverters._
@@ -53,6 +54,7 @@ trait LowPriorityIOImplicits {
 
     /**
       * Creates a symbolic link to the link from the path
+      *
       * @param link the symbolic link to create
       * @return the link
       */
@@ -62,6 +64,7 @@ trait LowPriorityIOImplicits {
       }
       Files.createSymbolicLink(link.toAbsolutePath, path.toAbsolutePath, atts: _*)
     }
+
     def createHardLinkFrom(link: Path) = {
       if (link.parent.exists(!_.exists())) {
         link.mkParentDirs()
@@ -247,6 +250,10 @@ trait LowPriorityIOImplicits {
       }
       path
     }
+
+    def moveTo(dest: Path, options: CopyOption*) = {
+      java.nio.file.Files.move(path, dest, options: _*)
+    }
   }
 
 }
@@ -254,6 +261,6 @@ trait LowPriorityIOImplicits {
 object LowPriorityIOImplicits {
 
   val DefaultWriteOps: Set[OpenOption] = {
-    Set(StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)
+    Set(StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.DSYNC)
   }
 }

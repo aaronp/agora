@@ -1,6 +1,6 @@
 package agora.api.time
 
-import java.time.{LocalDate, LocalDateTime, LocalTime}
+import java.time.{LocalDate, LocalDateTime, LocalTime, ZoneOffset}
 
 import agora.BaseSpec
 
@@ -49,34 +49,34 @@ class TimeCoordsTest extends BaseSpec {
   "TimeCoords.unapply" should {
     "match now" in {
       val TimeCoords(forTime) = "now"
-      val date                = forTime(LocalDateTime.of(1977, 1, 1, 0, 0, 0))
+      val date                = forTime(LocalDateTime.of(1977, 1, 1, 0, 0, 0).atZone(ZoneOffset.UTC))
       date shouldBe date
     }
     "return a time for the input date for 01:02:03" in {
       val TimeCoords(forTime) = "01:02:03"
 
-      val date = forTime(LocalDateTime.of(1977, 1, 1, 0, 0, 0))
+      val date = forTime(LocalDateTime.of(1977, 1, 1, 0, 0, 0).atZone(ZoneOffset.UTC))
 
-      date shouldBe LocalDateTime.of(1977, 1, 1, 1, 2, 3)
+      date.toLocalDateTime shouldBe LocalDateTime.of(1977, 1, 1, 1, 2, 3)
     }
 
-    val scenarios: List[(String, (LocalDateTime) => LocalDateTime)] = List(
-      ("1 days ago", (_: LocalDateTime).minusDays(1)),
-      ("3 days ago", (_: LocalDateTime).minusDays(3)),
-      ("3 Days Ago", (_: LocalDateTime).minusDays(3)),
-      ("1 fortnight Ago", (_: LocalDateTime).minusDays(14)),
-      ("1 week Ago", (_: LocalDateTime).minusDays(7)),
-      ("1 hour ago", (_: LocalDateTime).minusHours(1)),
-      ("2 Hours ago", (_: LocalDateTime).minusHours(2)),
-      ("1 minute ago", (_: LocalDateTime).minusMinutes(1)),
-      ("2 minutes ago", (_: LocalDateTime).minusMinutes(2)),
-      ("2 seconds ago", (_: LocalDateTime).minusSeconds(2)),
-      ("2 milliseconds ago", (_: LocalDateTime).minusNanos(2 * 1000000)),
-      ("1 millisecond ago", (_: LocalDateTime).minusNanos(1000000)),
-      ("1 milli ago", (_: LocalDateTime).minusNanos(1000000)),
-      ("1 month ago", (_: LocalDateTime).minusMonths(1)),
-      ("2 months ago", (_: LocalDateTime).minusMonths(2)),
-      ("1 year ago", (_: LocalDateTime).minusYears(1))
+    val scenarios: List[(String, (Timestamp) => Timestamp)] = List(
+      ("1 days ago", (_: Timestamp).minusDays(1)),
+      ("3 days ago", (_: Timestamp).minusDays(3)),
+      ("3 Days Ago", (_: Timestamp).minusDays(3)),
+      ("1 fortnight Ago", (_: Timestamp).minusDays(14)),
+      ("1 week Ago", (_: Timestamp).minusDays(7)),
+      ("1 hour ago", (_: Timestamp).minusHours(1)),
+      ("2 Hours ago", (_: Timestamp).minusHours(2)),
+      ("1 minute ago", (_: Timestamp).minusMinutes(1)),
+      ("2 minutes ago", (_: Timestamp).minusMinutes(2)),
+      ("2 seconds ago", (_: Timestamp).minusSeconds(2)),
+      ("2 milliseconds ago", (_: Timestamp).minusNanos(2 * 1000000)),
+      ("1 millisecond ago", (_: Timestamp).minusNanos(1000000)),
+      ("1 milli ago", (_: Timestamp).minusNanos(1000000)),
+      ("1 month ago", (_: Timestamp).minusMonths(1)),
+      ("2 months ago", (_: Timestamp).minusMonths(2)),
+      ("1 year ago", (_: Timestamp).minusYears(1))
     )
 
     scenarios.foreach {
@@ -84,7 +84,7 @@ class TimeCoordsTest extends BaseSpec {
         s"parse $text" in {
           text match {
             case TimeCoords(f) =>
-              val point = LocalDateTime.of(1977, 1, 1, 1, 2, 3)
+              val point = LocalDateTime.of(1977, 1, 1, 1, 2, 3).atZone(ZoneOffset.UTC)
               f(point) shouldBe adjust(point)
           }
         }
@@ -109,15 +109,15 @@ class TimeCoordsTest extends BaseSpec {
     }
     "match '2011-12-03T10:15:30'" in {
       val TimeCoords.FixedDateTime(dateTime) = "2011-12-03T10:15:30"
-      dateTime shouldBe LocalDateTime.of(2011, 12, 3, 10, 15, 30)
+      dateTime.toLocalDateTime shouldBe LocalDateTime.of(2011, 12, 3, 10, 15, 30)
     }
     "match '2011-12-03T10:15:30+01:00'" in {
       val TimeCoords.FixedDateTime(dateTime) = "2011-12-03T10:15:30+01:00"
-      dateTime shouldBe LocalDateTime.of(2011, 12, 3, 10, 15, 30)
+      dateTime.toLocalDateTime shouldBe LocalDateTime.of(2011, 12, 3, 10, 15, 30)
     }
     "match '2011-12-03T10:15:30Z'" in {
       val TimeCoords.FixedDateTime(dateTime) = "2011-12-03T10:15:30Z"
-      dateTime shouldBe LocalDateTime.of(2011, 12, 3, 10, 15, 30)
+      dateTime.toLocalDateTime shouldBe LocalDateTime.of(2011, 12, 3, 10, 15, 30)
     }
 
   }

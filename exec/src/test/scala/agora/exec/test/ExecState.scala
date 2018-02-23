@@ -3,7 +3,7 @@ package agora.exec.test
 import java.io.Closeable
 
 import agora.BaseSpec
-import agora.exec.ExecConfig
+import agora.exec.{ExecBoot, ExecConfig}
 import agora.exec.client.RemoteRunner
 import agora.exec.model.{RunProcess, RunProcessResult, StreamingResult}
 import agora.exec.rest.ExecutionRoutes
@@ -15,7 +15,7 @@ import scala.concurrent.Future
 
 object ExecState {
 
-  type Service = RunningService[ExecConfig, ExecutionRoutes]
+  type Service = RunningService[ExecConfig, ExecBoot]
 }
 
 case class ExecState(serviceByName: Map[String, ExecState.Service] = Map.empty,

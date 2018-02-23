@@ -24,10 +24,10 @@ trait SystemEventMonitor {
   /**
     * Query the system events
     *
-    * @param query the query criteria
+    * @param eventQuery the query criteria
     * @return a query response specific to the query
     */
-  def query(query: EventQuery): Future[query.Response]
+  def query(eventQuery: EventQuery): Future[eventQuery.Response]
 }
 
 object SystemEventMonitor {

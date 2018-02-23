@@ -1,8 +1,6 @@
 package agora.api.json
 
-import java.time.LocalDateTime
-
-import agora.api.time.{DateTimeResolver, TimeCoords}
+import agora.api.time.{DateTimeResolver, TimeCoords, Timestamp}
 import io.circe.Decoder.Result
 import io.circe.generic.auto._
 import io.circe.syntax._
@@ -242,7 +240,7 @@ case class After(after: String) extends TimePredicate(after, _ isAfter _) with J
   override def json: Json = this.asJson
 }
 
-abstract class TimePredicate(time: String, compare: (LocalDateTime, LocalDateTime) => Boolean) {
+abstract class TimePredicate(time: String, compare: (Timestamp, Timestamp) => Boolean) {
   private val adjust: DateTimeResolver = time match {
     case TimeCoords(f) => f
     case other         => sys.error(s"'$time' couldn't be parsed as a date-time adjustment: $other")
@@ -251,9 +249,9 @@ abstract class TimePredicate(time: String, compare: (LocalDateTime, LocalDateTim
   def matches(json: Json) = {
     json.asString.exists {
       case TimeCoords(valueAdjust) =>
-        val now       = TimeCoords.nowUTC()
-        val jsonTime  = valueAdjust(now)
-        val reference = adjust(now)
+        val now: Timestamp = TimeCoords.nowUTC()
+        val jsonTime       = valueAdjust(now)
+        val reference      = adjust(now)
         compare(jsonTime, reference)
       case _ => false
     }

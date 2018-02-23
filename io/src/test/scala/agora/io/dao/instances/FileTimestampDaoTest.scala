@@ -16,7 +16,7 @@ class FileTimestampDaoTest extends BaseIOSpec {
 
         val dao = FileTimestampDao[String](dir)
         dao.firstId shouldBe None
-        val timestamp = LocalDateTime.now(ZoneOffset.UTC)
+        val timestamp = LocalDateTime.now(ZoneOffset.UTC).atZone(ZoneOffset.UTC)
 
         // call the method under test
         val test = dao.save("test", timestamp)

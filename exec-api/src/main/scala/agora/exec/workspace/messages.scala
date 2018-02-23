@@ -34,6 +34,11 @@ private[workspace] final case class Close(override val workspaceId: WorkspaceId,
                                           result: Promise[Boolean])
     extends WorkspaceMsg
 
+/** The 'workDirResult' will be completed when the workspace is ready
+  *
+  * @param dependencies the file dependencies to wait for
+  * @param workDirResult to be completed w/ the directory of the workspace when the dependencies are all there
+  */
 private[workspace] final case class AwaitUploads(dependencies: UploadDependencies, workDirResult: Promise[Path]) extends WorkspaceMsg {
   override def workspaceId = dependencies.workspace
 }

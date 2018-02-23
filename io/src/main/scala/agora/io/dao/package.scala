@@ -1,6 +1,6 @@
 package agora.io
 
-import java.time.{LocalDateTime, ZoneOffset}
+import java.time.{LocalDateTime, ZonedDateTime}
 
 /**
   * Contains some traits for writing data.
@@ -26,7 +26,8 @@ import java.time.{LocalDateTime, ZoneOffset}
   */
 package object dao {
 
-  type Timestamp = LocalDateTime
-  implicit val ordering = Ordering.by[Timestamp, Long](_.toEpochSecond(ZoneOffset.UTC))
+  type LocalTimestamp = LocalDateTime
+  type Timestamp      = ZonedDateTime
+  implicit val ordering = Ordering.by[Timestamp, Long](_.toEpochSecond)
 
 }

@@ -1,6 +1,6 @@
 package agora.io.dao
 
-import java.time.{Duration, LocalDate, LocalDateTime}
+import java.time.{Duration, LocalDate, ZoneOffset}
 
 /**
   * A time range, inclusive
@@ -13,6 +13,9 @@ case class TimeRange(from: Timestamp, to: Timestamp) {
 
   def diffInNanos        = asDuration.toNanos
   def diffInMillis: Long = diffInNanos / 1000000
+
+  def localFrom = from.toLocalDateTime
+  def localTo   = to.toLocalDateTime
 
   require(!to.isBefore(from), s"Invalid range $from - $to")
 
@@ -27,7 +30,7 @@ case class TimeRange(from: Timestamp, to: Timestamp) {
   def completelyContainsDateHourAndMinute(date: LocalDate, hour: Int, minute: Int) = {
     val dateTimeInQuestion = date.atTime(hour, minute, 0, 0)
 
-    !from.isAfter(dateTimeInQuestion) && !to.isBefore(dateTimeInQuestion.plusMinutes(1))
+    !localFrom.isAfter(dateTimeInQuestion) && !localTo.isBefore(dateTimeInQuestion.plusMinutes(1))
   }
 
   /** The time range completely contains the date/hr if the 'from' date is before the
@@ -39,8 +42,7 @@ case class TimeRange(from: Timestamp, to: Timestamp) {
     */
   def completelyContainsDateAndHour(date: LocalDate, hour: Int): Boolean = {
     val dateTimeInQuestion = date.atTime(hour, 0, 0, 0)
-
-    !from.isAfter(dateTimeInQuestion) && !to.isBefore(dateTimeInQuestion.plusHours(1))
+    !localFrom.isAfter(dateTimeInQuestion) && !localTo.isBefore(dateTimeInQuestion.plusHours(1))
   }
 
   /**
@@ -57,4 +59,10 @@ case class TimeRange(from: Timestamp, to: Timestamp) {
     !date.isBefore(from.toLocalDate) && !date.isAfter(to.toLocalDate)
   }
 
+}
+
+object TimeRange {
+  def apply(from: LocalTimestamp, to: LocalTimestamp): TimeRange = {
+    new TimeRange(from.atZone(ZoneOffset.UTC), to.atZone(ZoneOffset.UTC))
+  }
 }

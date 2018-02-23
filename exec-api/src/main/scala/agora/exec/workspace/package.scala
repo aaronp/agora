@@ -19,7 +19,7 @@ package object workspace {
     */
   def allFilesAreOlderThanTime(directory: Path, timestamp: Timestamp): Boolean = {
     import agora.io.implicits._
-    val epoch = timestamp.toEpochSecond(ZoneOffset.UTC) * 1000
+    val epoch = timestamp.toEpochSecond * 1000
     val files = directory.nestedFiles()
     if (!files.hasNext) {
       true

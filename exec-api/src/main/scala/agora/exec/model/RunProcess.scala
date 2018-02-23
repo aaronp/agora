@@ -76,14 +76,17 @@ case class RunProcess(command: List[String],
 
   def withEnv(key: String, value: String) = copy(env = env.updated(key, value))
 
-  def withStreamingSettings(settings: StreamingSettings): RunProcess = withOutput(output.withSettings(settings))
+  def withStreamingSettings(settings: StreamingSettings): RunProcess = withStreaming(Option(settings))
 
-  def withoutStreaming(): RunProcess = withOutput(output.copy(streaming = None))
+  def withoutStreaming(): RunProcess = withStreaming(None)
+
+  def withStreaming(streaming: Option[StreamingSettings]): RunProcess = withOutput(output.withSettings(streaming))
 
   def withOutput(newOutput: OutputSettings): RunProcess = copy(output = newOutput)
 
   def withOutputLogging(outputLogging: Option[String]): RunProcess = withOutput(output.copy(logOutput = outputLogging))
-  def withOutputLogging(outputLogging: String): RunProcess         = withOutputLogging(Option(outputLogging))
+
+  def withOutputLogging(outputLogging: String): RunProcess = withOutputLogging(Option(outputLogging))
 
   def withCaching(cache: Boolean): RunProcess = withOutput(output.copy(canCache = cache))
 

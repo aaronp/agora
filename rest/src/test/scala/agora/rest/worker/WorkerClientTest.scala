@@ -12,7 +12,6 @@ class WorkerClientTest extends BaseRoutesSpec {
       val health = workerClient.health.futureValue
       health.objectPendingFinalizationCount should be >= 0
       health.system.availableProcessors should be > 0
-      println(health.system)
     }
   }
 

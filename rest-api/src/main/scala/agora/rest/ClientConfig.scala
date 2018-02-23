@@ -78,8 +78,9 @@ class ClientConfig(config: Config) extends AutoCloseable {
 
   def restClient: RestClient = clientFor(location)
 
-  protected def retryClient(loc: HostLocation = location): RetryClient = {
-    RetryClient(clientFailover.strategy)(() => newRestClient(loc))
+  protected def retryClient(loc: HostLocation = location) = {
+    val rc = RetryClient(clientFailover.strategy)(() => newRestClient(loc))
+    UniqueRequestIdRestClient(rc)
   }
 
   private def newRestClient(inputLoc: HostLocation, name: String = nextActorSystemName()): RestClient = {

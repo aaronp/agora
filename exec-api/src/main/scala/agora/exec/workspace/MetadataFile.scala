@@ -25,6 +25,7 @@ import scala.util.Try
   */
 object MetadataFile extends StrictLogging {
   private val MetadataSuffix: String = ".metadata"
+  private val UploadSuffix: String   = ".partialupload"
 
   private val MetadataPattern = "\\.(.*)\\.metadata".r
 
@@ -92,6 +93,21 @@ object MetadataFile extends StrictLogging {
     } else {
       uploadFile.parent.map { parentDir =>
         parentDir.resolve(s".${uploadFile.fileName}$MetadataSuffix")
+      }
+    }
+  }
+
+  /** @param uploadFile the target file to check
+    * @return the metadata file for the given file
+    */
+  def newPartialUploadFileForUpload(uploadFile: Path): Option[Path] = {
+    uploadFile.parent.flatMap { parentDir =>
+      val candidate = parentDir.resolve(s".${uploadFile.fileName}$UploadSuffix")
+      if (candidate.exists()) {
+        def numberedFile(n: Int) = parentDir.resolve(s".${uploadFile.fileName}$UploadSuffix.$n")
+        Iterator.from(1, 1).take(50).map(numberedFile).find(!_.exists())
+      } else {
+        Option(candidate)
       }
     }
   }

@@ -1,7 +1,7 @@
 package agora.io.dao
 
 import java.nio.file.Path
-import java.time.{LocalDateTime, ZoneOffset}
+import java.time.{LocalDateTime, ZoneOffset, ZonedDateTime}
 
 import agora.io.dao.instances.FileTimestampDao
 
@@ -59,11 +59,11 @@ object TimestampDao {
     new FileTimestampDao(dir)
   }
 
-  def now(zone: ZoneOffset = ZoneOffset.UTC) = LocalDateTime.now(zone)
+  def now(zone: ZoneOffset = ZoneOffset.UTC) = ZonedDateTime.now(zone)
   def fromEpochNanos(epochNanos: Long, zone: ZoneOffset = ZoneOffset.UTC): Timestamp = {
     val second = epochNanos / 1000000
     val nanos  = (epochNanos % 1000000).toInt
-    LocalDateTime.ofEpochSecond(second, nanos, zone)
+    LocalDateTime.ofEpochSecond(second, nanos, zone).atZone(zone)
   }
 
 }

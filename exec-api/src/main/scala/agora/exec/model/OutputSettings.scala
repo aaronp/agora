@@ -58,5 +58,7 @@ case class OutputSettings(streaming: Option[StreamingSettings] = Option(Streamin
                           httpResponsePreparedTimeoutInMillis: Long = 5000) {
   def withSettings(settings: StreamingSettings): OutputSettings = copy(streaming = Option(settings))
 
+  def withSettings(settingsOpt: Option[StreamingSettings]): OutputSettings = copy(streaming = settingsOpt)
+
   def httpResponsePreparedTimeout: FiniteDuration = httpResponsePreparedTimeoutInMillis.millis
 }

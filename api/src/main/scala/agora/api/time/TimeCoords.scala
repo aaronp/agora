@@ -1,7 +1,8 @@
 package agora.api.time
 
 import java.time.format.DateTimeFormatter
-import java.time.{LocalDate, LocalDateTime, LocalTime}
+import java.time.temporal.TemporalAccessor
+import java.time._
 
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Success, Try}
@@ -11,7 +12,7 @@ import scala.util.{Success, Try}
   */
 object TimeCoords {
 
-  def nowUTC() = now()
+  def nowUTC(): Timestamp = now()
 
   /**
     * Parses the text as a function from the given time to another [[Timestamp]]
@@ -22,8 +23,8 @@ object TimeCoords {
   def unapply(text: String): Option[Timestamp => Timestamp] = {
     text match {
       case FixedDateTime(time)        => Option((_: Timestamp) => time)
-      case FixedTime(time)            => Option((input: Timestamp) => time.atDate(input.toLocalDate))
-      case FixedDate(date)            => Option((input: Timestamp) => date.atTime(input.toLocalTime))
+      case FixedTime(time)            => Option((input: Timestamp) => input.`with`(time))
+      case FixedDate(date)            => Option((input: Timestamp) => input.`with`(date))
       case VariableTimeAgo(resolver)  => Option(resolver)
       case TimeAgo(duration)          => Option((_: Timestamp).minusNanos(duration.toNanos))
       case "now"                      => Option((date: Timestamp) => date)
@@ -41,18 +42,27 @@ object TimeCoords {
     * @see https://docs.oracle.com/javase/8/docs/api/java/time/format/DateTimeFormatter.html
     */
   object FixedDateTime {
-    val formats = List(
+    val formats: List[DateTimeFormatter] = List(
       DateTimeFormatter.ISO_LOCAL_DATE_TIME,
       DateTimeFormatter.ISO_OFFSET_DATE_TIME,
       DateTimeFormatter.ISO_INSTANT
     )
 
+    def format(instant: ZonedDateTime): String = {
+      DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(instant)
+    }
+
     def unapply(text: String): Option[Timestamp] = {
-      val results = formats.iterator.map { formatter =>
+      val results: Iterator[Try[TemporalAccessor]] = formats.iterator.map { formatter =>
         Try(formatter.parse(text))
       }
       results.collectFirst {
-        case Success(result) => LocalDateTime.from(result)
+        case Success(result) =>
+          try {
+            ZonedDateTime.from(result)
+          } catch {
+            case _: DateTimeException => LocalDateTime.from(result).atZone(ZoneOffset.UTC)
+          }
       }
     }
   }
@@ -94,10 +104,10 @@ object TimeCoords {
   object VariableTimeAgo {
     private val SomeTimeAgo = """(\d+)\s+([a-z]+?)s?\s+ago\s*""".r
 
-    def unapply(text: String): Option[LocalDateTime => LocalDateTime] = {
+    def unapply(text: String): Option[Timestamp => Timestamp] = {
       text.toLowerCase match {
-        case SomeTimeAgo(n, "year")  => Option((_: LocalDateTime).minusYears(n.toLong))
-        case SomeTimeAgo(n, "month") => Option((_: LocalDateTime).minusMonths(n.toLong))
+        case SomeTimeAgo(n, "year")  => Option((_: Timestamp).minusYears(n.toLong))
+        case SomeTimeAgo(n, "month") => Option((_: Timestamp).minusMonths(n.toLong))
         case _                       => None
       }
     }

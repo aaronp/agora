@@ -1,7 +1,7 @@
 package agora.exec.workspace
 
 import java.nio.file.StandardOpenOption._
-import java.nio.file.{OpenOption, Path}
+import java.nio.file.{OpenOption, Path, StandardCopyOption}
 
 import agora.exec.model.Upload
 import agora.io.LowPriorityIOImplicits
@@ -24,8 +24,6 @@ trait UploadDao {
     * @return
     */
   def writeDownUpload(upload: Upload, options: Set[OpenOption] = UploadDao.DefaultWriteOptions)(implicit mat: Materializer): Future[(Long, Path)]
-
-  def writeDown(inputFiles: List[Upload], options: Set[OpenOption] = UploadDao.DefaultWriteOptions)(implicit mat: Materializer): Future[List[(Long, Path)]]
 }
 
 object UploadDao {
@@ -41,40 +39,31 @@ object UploadDao {
 
     def writeDownUpload(upload: Upload, options: Set[OpenOption])(implicit mat: Materializer): Future[(Long, Path)] = {
       import mat._
-      val Upload(name, src, _) = upload
-      val dest = if (name.asPath.isAbsolute) {
-        name.asPath
+      val Upload(targetFileName, src, _) = upload
+
+      val targetFilePath = if (targetFileName.asPath.isAbsolute) {
+        targetFileName.asPath
       } else {
-        dir.resolve(name)
+        dir.resolve(targetFileName)
       }
 
-      if (!dest.exists()) {
-        val writeFut: Future[IOResult] = src.runWith(FileIO.toPath(dest, options))
-        writeFut.onComplete {
-          case res => logger.debug(s"Writing to $dest completed w/ $res")
-        }
-        writeFut.map { ioResult: IOResult =>
-          (ioResult.count, dest)
-        }
-      } else {
-        Future.successful(dest.size -> dest)
+      MetadataFile.newPartialUploadFileForUpload(targetFilePath) match {
+        case None => Future.failed(new Exception(s"Couldn't create an upload file for $targetFileName under $dir"))
+        case Some(tmpUploadDest) =>
+          val writeFut: Future[IOResult] = src.runWith(FileIO.toPath(tmpUploadDest, options))
+
+          writeFut.map { ioResult: IOResult =>
+            logger.debug(s"Moving $tmpUploadDest to $targetFilePath")
+            val size = ioResult.count
+
+            tmpUploadDest.moveTo(targetFilePath, StandardCopyOption.ATOMIC_MOVE)
+            val pear = (size, targetFilePath)
+            logger.debug(s"Write future $targetFilePath mapped to $pear")
+            pear
+          }
       }
     }
 
-    def writeDown(inputFiles: List[Upload], options: Set[OpenOption] = UploadDao.DefaultWriteOptions)(
-        implicit mat: Materializer): Future[List[(Long, Path)]] = {
-      import mat._
-
-      val futures = inputFiles.map {
-        case upload @ Upload(name, src, _) =>
-          writeDownUpload(upload, options)
-      }
-      if (futures.isEmpty) {
-        Future.successful(Nil)
-      } else {
-        Future.sequence(futures)
-      }
-    }
   }
 
 }

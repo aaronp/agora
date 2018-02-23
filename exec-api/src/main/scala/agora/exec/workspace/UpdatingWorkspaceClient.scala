@@ -15,7 +15,8 @@ import scala.collection.GenTraversableOnce
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
-  * A workspace client which will append/remove workspaces from the given subscription.
+  * A workspace client which will append/remove workspaces from the given subscription based on the workspace
+  * calls .
   *
   * This is meant to work along side [[agora.exec.client.RemoteRunner]] which may specify match criteria based
   * on a workspace.

@@ -1,7 +1,7 @@
 package agora.io.dao
 
 import java.nio.file.Path
-import java.time.LocalDateTime
+import java.time.{LocalDateTime, ZoneId}
 
 import agora.BaseIOSpec
 
@@ -9,7 +9,7 @@ class TimestampDaoTest extends BaseIOSpec {
 
   import TimestampDaoTest._
 
-  val Jan2 = LocalDateTime.of(2000, 1, 20, 3, 40, 50, 6789)
+  val Jan2 = LocalDateTime.of(2000, 1, 20, 3, 40, 50, 6789).atZone(ZoneId.systemDefault())
 
   case class Expect(time: Timestamp, from: Timestamp, to: Timestamp, findMe: Boolean) {
     def dao(dir: Path) = TimestampDao[Value](dir)(persist, valueFromBytes, ValueId)
@@ -139,15 +139,15 @@ class TimestampDaoTest extends BaseIOSpec {
 
             e.dao(dir).find(from, to).toList should contain(value)
 
-            e.dao(dir).first shouldBe Option(time)
-            e.dao(dir).last shouldBe Option(time)
+            e.dao(dir).first.map(_.toLocalDateTime()) shouldBe Option(time.toLocalDateTime)
+            e.dao(dir).last.map(_.toLocalDateTime()) shouldBe Option(time.toLocalDateTime)
 
             // save another slightly later
             val nextValue = Value("second", s"entry for $time")
             e.dao(dir).save(nextValue, time.plusNanos(1))
 
-            e.dao(dir).first shouldBe Option(time)
-            e.dao(dir).last shouldBe Option(time.plusNanos(1))
+            e.dao(dir).first.map(_.toLocalDateTime()) shouldBe Option(time.toLocalDateTime)
+            e.dao(dir).last.map(_.toLocalDateTime()) shouldBe Option(time.plusNanos(1).toLocalDateTime)
           }
         }
       case e @ Expect(time, from, to, false) =>

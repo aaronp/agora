@@ -96,16 +96,16 @@ class WorkspaceActorTest extends BaseSpec with HasMaterializer with BeforeAndAft
       }
     }
   }
-  "WorkspaceActor.closeWorkspace" should {
+  "WorkspaceClient.closeWorkspace" should {
     "remove files older than the ifNotModifiedSince time" in {
       withDir { dir =>
         val before = agora.api.time.now()
 
         val testFile = dir.resolve("file").text = "hi"
-        WorkspaceActor.closeWorkspace(dir, Option(before.minusSeconds(2)), true, Set.empty) shouldBe false
+        WorkspaceClient.closeWorkspace(dir, Option(before.minusSeconds(2)), true, Set.empty) shouldBe false
         dir.nestedFiles().toList should contain only (testFile)
 
-        WorkspaceActor.closeWorkspace(dir, Option(before.plusSeconds(2)), true, Set.empty) shouldBe true
+        WorkspaceClient.closeWorkspace(dir, Option(before.plusSeconds(2)), true, Set.empty) shouldBe true
         dir.nestedFiles().toList shouldBe empty
       }
     }
@@ -114,10 +114,10 @@ class WorkspaceActorTest extends BaseSpec with HasMaterializer with BeforeAndAft
         val before = agora.api.time.now()
 
         val testFile = dir.resolve("file").text = "hi"
-        WorkspaceActor.closeWorkspace(dir, None, failPendingDependencies = false, Set(awaitUploads(dir.fileName))) shouldBe false
+        WorkspaceClient.closeWorkspace(dir, None, failPendingDependencies = false, Set(awaitUploads(dir.fileName))) shouldBe false
         dir.nestedFiles().toList should contain only (testFile)
 
-        WorkspaceActor.closeWorkspace(dir, Option(before.plusSeconds(2)), failPendingDependencies = true, Set(awaitUploads(dir.fileName))) shouldBe true
+        WorkspaceClient.closeWorkspace(dir, Option(before.plusSeconds(2)), failPendingDependencies = true, Set(awaitUploads(dir.fileName))) shouldBe true
         dir.nestedFiles().toList shouldBe empty
       }
     }
@@ -132,7 +132,7 @@ class WorkspaceActorTest extends BaseSpec with HasMaterializer with BeforeAndAft
         val dependencyFuture = dependency.workDirResult.future
 
         // now close it
-        WorkspaceActor.closeWorkspace(dir, Option(before.plusSeconds(2)), failPendingDependencies = true, Set(dependency)) shouldBe true
+        WorkspaceClient.closeWorkspace(dir, Option(before.plusSeconds(2)), failPendingDependencies = true, Set(dependency)) shouldBe true
         dir.nestedFiles().toList shouldBe empty
 
         // this future should fail, as we closed the workspace

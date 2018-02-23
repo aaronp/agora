@@ -119,7 +119,7 @@ object SingleSubscriptionExchangePublisher {
       var i = totalRequested
 
       def retVal = {
-        logger.debug(s"Drained ${totalRequested - i} of $totalRequested events")
+        logger.debug(s"Drained ${totalRequested - i} of $totalRequested requested events")
         i
       }
 

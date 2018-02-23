@@ -1,7 +1,7 @@
 package agora.exec
 
 import agora.api.exchange.{Exchange, ServerSideExchange}
-import agora.exec.events.{DeleteBefore, Housekeeping, StartedSystem}
+import agora.exec.events.{DeleteBefore, Housekeeping, StartedSystem, SystemEventMonitor}
 import agora.exec.rest.{ExecutionRoutes, ExecutionWorkflow, QueryRoutes, UploadRoutes}
 import agora.exec.workspace.{UpdatingWorkspaceClient, WorkspaceClient}
 import agora.health.HealthUpdate
@@ -56,13 +56,13 @@ case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes
 
   /** @return a future of the ExecutionRoutes once the exec subscription completes
     */
-  lazy val executionRoutes = {
+  lazy val executionRoutes: ExecutionRoutes = {
     new ExecutionRoutes(conf, exchange, workflow)
   }
 
   def uploadRoutes(workspace: WorkspaceClient = workspaceClient) = UploadRoutes(workspace)
 
-  lazy val eventMonitor = {
+  lazy val eventMonitor: SystemEventMonitor = {
     val monitor = conf.eventMonitor
 
     val windowInNanos = conf.housekeeping.removeEventsOlderThan.toNanos
@@ -95,28 +95,31 @@ case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes
 
   }
 
+  lazy val updatingClient: UpdatingWorkspaceClient = {
+    import conf.serverImplicits._
+    UpdatingWorkspaceClient(workspaceClient, exchange)
+  }
+  lazy val uploadRoutes: UploadRoutes = UploadRoutes(updatingClient)
+
   /**
     * Starts the REST service and subscribes to/requests work
     *
     * It creates two subscriptions -- one for just running and executing, and another for executing and jobs
     * which just return the exit code.
     */
-  def start(): Future[RunningService[ExecConfig, ExecutionRoutes]] = {
-    import conf.serverImplicits._
+  def start(): Future[RunningService[ExecConfig, ExecBoot]] = {
 
     logger.info(s"Starting Execution Server in ${conf.location}")
 
-    val updatingClient = UpdatingWorkspaceClient(conf.workspaceClient, exchange)
-    val uploadRoutes   = UploadRoutes(updatingClient)
-
-    val startFuture =
-      RunningService.start[ExecConfig, ExecutionRoutes](conf, restRoutes(uploadRoutes), executionRoutes)
+    val startFuture = RunningService.start[ExecConfig, ExecBoot](conf, restRoutes(uploadRoutes), this)
 
     import agora.api.config.JsonConfig.implicits._
+    import conf.serverImplicits._
+
     eventMonitor.accept(StartedSystem(conf.config.configAsJson))
 
     for {
-      rs: RunningService[ExecConfig, ExecutionRoutes] <- startFuture
+      rs <- startFuture
 
       resolvedLocation = conf.hostResolver.resolveHostname(rs.localAddress)
 

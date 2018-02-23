@@ -10,11 +10,13 @@ import com.typesafe.scalalogging.StrictLogging
 
 import scala.compat.Platform
 import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 /**
   * A [[RestClient]] based on akka [[Http]]
+  *
   * @param location
   * @param system
   * @param materializer
@@ -40,26 +42,13 @@ class AkkaClient(val location: HostLocation, system: ActorSystem, override impli
   }
 
   def send(request: HttpRequest): Future[HttpResponse] = {
-    logger.trace(s"Sending ${request.method.name} ==> $hostPort${request.uri}")
-    val started = Platform.currentTime
-    val future = try {
+    logger.warn(s"Sending ${request.method.name} ==> $hostPort${request.uri}")
+    try {
       Source.single(request).via(remoteServiceConnectionFlow).runWith(Sink.head)
     } catch {
       case NonFatal(e) =>
         Future.failed(e)
     }
-
-    def took = s"${Platform.currentTime - started}ms"
-
-    future.onComplete {
-      case Success(resp) if resp.status.intValue() == 200 =>
-        logger.debug(s"${request.method.name()} $hostPort${request.uri} took ${took}")
-      case Success(resp) =>
-        logger.debug(s"${request.method.name()} $hostPort${request.uri} took ${took} (status ${resp.status})")
-      case Failure(err) =>
-        logger.error(s"${request.method.name()} $hostPort${request.uri} took ${took} and threw ${err}")
-    }
-    future
   }
 
   private val http = Http()(system)

@@ -4,6 +4,12 @@ import agora.exec.events.SystemEventMonitor
 import agora.rest.AkkaImplicits
 import com.typesafe.config.Config
 
+/**
+  * Set up in exec.conf
+  *
+  * @param config
+  * @param akkaImplicits
+  */
 case class EventMonitorConfig(config: Config)(implicit akkaImplicits: AkkaImplicits) {
 
   def eventMonitor: SystemEventMonitor = defaultEventMonitor

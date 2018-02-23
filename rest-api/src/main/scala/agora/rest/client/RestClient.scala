@@ -53,6 +53,10 @@ trait RestClient extends Closeable {
 
 object RestClient {
 
+  /** @param location the remote host to connect to
+    * @param mkSystem instead of pass-by-value or lazy value, we explicitly make this a create action so a closing the client will also close the materializer used
+    * @return
+    */
   def apply(location: HostLocation, mkSystem: () => ActorMaterializer): RestClient = {
     // we do this here to be sure the akka client owns the produced actor system and can thus also
     // shut it down
@@ -67,7 +71,8 @@ object RestClient {
     implicit class RichHttpResponse(val resp: HttpResponse) extends AnyVal {
       def justThrow[T]: HandlerError => Future[T] = (e: HandlerError) => throw e._3
 
-      def as[T: Decoder: ClassTag](onErr: HandlerError => Future[_ <: T] = justThrow[T])(implicit ec: ExecutionContext, mat: Materializer): Future[_ <: T] = {
+      def as[T: Decoder: ClassTag](onErr: HandlerError => Future[_ <: T] = justThrow[T])(implicit mat: Materializer): Future[_ <: T] = {
+        import mat.executionContext
 
         def decode(jsonString: String) = {
           import io.circe.parser._

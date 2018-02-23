@@ -5,8 +5,8 @@ import java.util.concurrent.TimeUnit
 import agora.api.exchange.WorkSubscription
 import agora.api.worker.HostLocation
 import agora.config.configForArgs
-import agora.exec.client.{ExecutionClient, ProcessRunner, RemoteRunner}
-import agora.exec.events.HousekeepingConfig
+import agora.exec.client.{ExecutionClient, ProcessRunner, QueryClient, RemoteRunner}
+import agora.exec.events.{HousekeepingConfig, SystemEventMonitor}
 import agora.exec.rest.{ExecutionRoutes, QueryRoutes, UploadRoutes}
 import agora.exec.workspace.WorkspaceClient
 import agora.rest.RunningService
@@ -43,7 +43,7 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) with ExecA
     *
     * @return a Future of a [[RunningService]]
     */
-  def start(): Future[RunningService[ExecConfig, ExecutionRoutes]] = ExecBoot(this).start()
+  def start(): Future[RunningService[ExecConfig, ExecBoot]] = ExecBoot(this).start()
 
   def execSubscriptions(resolvedLocation: HostLocation): SubscriptionGroup = {
     import scala.collection.JavaConverters._
@@ -99,12 +99,15 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) with ExecA
     ProcessRunner(exchangeClient, clientConfig.submissionDetails, this)
   }
 
-  /**
-    * @return a client directly to the worker
+  /** @return a client directly to the [[ExecutionRoutes]]
     */
   def executionClient(): ExecutionClient = {
     ExecutionClient(clientConfig.restClient, defaultFrameLength)
   }
+
+  /** @return a client for the [[QueryRoutes]]
+    */
+  def queryClient(): QueryClient = QueryClient(clientConfig.restClient)
 
   def workspaceClient: WorkspaceClient = defaultWorkspaceClient
 
@@ -114,9 +117,9 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) with ExecA
 
   def eventMonitorConfig: EventMonitorConfig = defaultEventMonitor
 
-  def eventMonitor = eventMonitorConfig.eventMonitor
+  def eventMonitor: SystemEventMonitor = eventMonitorConfig.eventMonitor
 
-  def enableCache = execConfig.getBoolean("enableCache")
+  def enableCache: Boolean = execConfig.getBoolean("enableCache")
 
   def housekeeping = HousekeepingConfig(execConfig.getConfig("housekeeping"))
 

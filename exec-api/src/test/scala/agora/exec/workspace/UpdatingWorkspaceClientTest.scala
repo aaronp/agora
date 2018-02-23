@@ -40,14 +40,14 @@ class UpdatingWorkspaceClientTest extends BaseSpec {
   }
 
   case class TestScenario(dir: Path) {
-    val exchange         = Exchange.instance()
-    val original         = WorkSubscription.localhost(4444).withSubscriptionKey("test key")
-    val subsdcriptionAck = exchange.subscribe(original).futureValue
+    val exchange        = Exchange.instance()
+    val original        = WorkSubscription.localhost(4444).withSubscriptionKey("test key")
+    val subscriptionAck = exchange.subscribe(original).futureValue
 
     def verifyAppendSecondWorkspace(existingDetails: WorkerDetails, firstName: String, secondName: String) = {
 
       // let's go one more -- add a second workspace to the subscription
-      val secondUpdate = appendWorkspaceToSubscription(exchange, subsdcriptionAck.id, secondName).futureValue
+      val secondUpdate = appendWorkspaceToSubscription(exchange, subscriptionAck.id, secondName).futureValue
       secondUpdate.oldDetails shouldBe Some(existingDetails)
 
       val Some(newDetails) = secondUpdate.newDetails
@@ -60,8 +60,8 @@ class UpdatingWorkspaceClientTest extends BaseSpec {
     def verifyAppendFirstWorkspace(workspaceName: String) = {
 
       // call the method under test -- add a json entry of 'workspaces : [ workspaceName ]'
-      val updateAck = appendWorkspaceToSubscription(exchange, subsdcriptionAck.id, workspaceName).futureValue
-      updateAck.id shouldBe subsdcriptionAck.id
+      val updateAck = appendWorkspaceToSubscription(exchange, subscriptionAck.id, workspaceName).futureValue
+      updateAck.id shouldBe subscriptionAck.id
       updateAck.oldDetails shouldBe Some(original.details)
 
       val Some(newDetails) = updateAck.newDetails
@@ -75,8 +75,8 @@ class UpdatingWorkspaceClientTest extends BaseSpec {
     def verifyRemoveWorkspace(existingDetails: WorkerDetails, workspaceNameToRemove: String) = {
 
       // call the method under test -- remove a json entry of 'workspaces : [ workspaceName ]'
-      val updateAck = removeWorkspaceFromSubscription(exchange, subsdcriptionAck.id, workspaceNameToRemove).futureValue
-      updateAck.id shouldBe subsdcriptionAck.id
+      val updateAck = removeWorkspaceFromSubscription(exchange, subscriptionAck.id, workspaceNameToRemove).futureValue
+      updateAck.id shouldBe subscriptionAck.id
       updateAck.oldDetails shouldBe Some(existingDetails)
 
       val Some(newDetails) = updateAck.newDetails

@@ -1,15 +1,11 @@
 package agora.exec.rest
 
-import java.nio.file.Path
-
-import agora.api.exchange.Exchange
-import agora.api.worker.{SubscriptionKey, WorkerDetails}
 import agora.exec.workspace.{WorkspaceClient, WorkspaceId}
 import akka.http.scaladsl.model.Multipart
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.stream.Materializer
-import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.scaladsl.Sink
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.generic.auto._
@@ -19,9 +15,7 @@ import scala.concurrent.Future
 
 @Api(value = "Workspace", produces = "application/json")
 @javax.ws.rs.Path("/")
-class UploadRoutes(initialWorkspaces: WorkspaceClient) extends FailFastCirceSupport with StrictLogging {
-
-  @volatile private var workspaces = initialWorkspaces
+class UploadRoutes(val workspaces: WorkspaceClient) extends FailFastCirceSupport with StrictLogging {
 
   def routes = uploadRoute ~ deleteWorkspace
 

@@ -7,7 +7,6 @@ import agora.api.exchange.Candidate
   */
 class TestObserver extends ExchangeObserver {
 
-
   var events = List[ExchangeNotificationMessage]()
 
   def eventsInTheOrderTheyWereReceived = events.reverse
@@ -80,7 +79,7 @@ class TestObserver extends ExchangeObserver {
       case msg: OnJobSubmitted => msg
     }
   }
-  def jobSubmissions() =  {
+  def jobSubmissions() = {
     events.collect {
       case msg: OnJobSubmitted => msg
     }

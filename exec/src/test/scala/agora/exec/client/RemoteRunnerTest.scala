@@ -2,19 +2,17 @@ package agora.exec.client
 
 import java.util.UUID
 
-import agora.{BaseIOSpec, BaseSpec}
-import agora.api.exchange.{AsClient, JobPredicate, SubmissionDetails, WorkSubscription}
-import agora.exec.ExecConfig
-import agora.exec.model.{RunProcess, RunProcessResult}
-import agora.exec.rest.ExecutionRoutes
+import agora.exec.model.RunProcess
+import agora.exec.{ExecBoot, ExecConfig}
 import agora.rest.RunningService
+import agora.{BaseIOSpec, BaseSpec}
 
 import scala.util.Properties
 
 class RemoteRunnerTest extends BaseSpec with ProcessRunnerTCK {
 
-  var runningWorker: RunningService[ExecConfig, ExecutionRoutes] = null
-  var remoteRunner: ProcessRunner                                = null
+  var runningWorker: RunningService[ExecConfig, ExecBoot] = null
+  var remoteRunner: ProcessRunner                         = null
 
   def runner: ProcessRunner = remoteRunner
 

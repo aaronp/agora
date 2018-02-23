@@ -2,7 +2,7 @@ package agora.io.dao
 package instances
 
 import java.nio.file.Path
-import java.time.LocalDate
+import java.time.{LocalDate, ZoneId, ZoneOffset}
 
 import agora.io.implicits._
 
@@ -52,7 +52,8 @@ case class FileTimestampDao[T](rootDir: Path)(implicit saveValue: Persist[T], fr
     minuteDir.resolve(fileName)
   }
 
-  private def resolveDir(timestamp: Timestamp): Path = {
+  private def resolveDir(referenceTimestamp: Timestamp): Path = {
+    val timestamp = referenceTimestamp.withZoneSameLocal(ZoneId.of("UTC"))
     dateRootDir
       .resolve(dateDir(timestamp))
       .resolve(timestamp.getHour.toString)
@@ -79,7 +80,7 @@ case class FileTimestampDao[T](rootDir: Path)(implicit saveValue: Persist[T], fr
 
   private def firstEntry = dateDirs.sorted.flatMap(_.first).headOption
 
-  override def first = firstEntry.map(_.timestamp)
+  override def first: Option[Timestamp] = firstEntry.map(_.timestamp)
 
   def firstId = firstEntry.map(_.id)
 
@@ -230,7 +231,7 @@ object FileTimestampDao {
     def files: Array[StampedFile] = {
       minuteDir.children.collect {
         case SavedFile(second, nano, id, file) =>
-          val timestamp = date.atTime(hour, minute, second, nano)
+          val timestamp = date.atTime(hour, minute, second, nano).atZone(ZoneOffset.UTC)
           StampedFile(timestamp, id, file)
       }
     }
@@ -250,7 +251,7 @@ object FileTimestampDao {
               hourDir @ IntDir(hour)     <- minuteDir.parent
               DateDir(dateDir)           <- hourDir.parent
             } yield {
-              val timestamp = dateDir.date.atTime(hour, minute, second, nano)
+              val timestamp = dateDir.date.atTime(hour, minute, second, nano).atZone(ZoneOffset.UTC)
               StampedFile(timestamp, id, file)
             }
           case _ => None
