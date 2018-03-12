@@ -112,8 +112,8 @@ object WorkspaceClient extends StrictLogging {
     */
   def apply(uploadDir: Path, sys: ActorSystem, bytesReadyPollFrequency: FiniteDuration): ActorClient = {
     val endpointActorProps = props(uploadDir, sys, bytesReadyPollFrequency)
-    val actor = sys.actorOf(endpointActorProps)
-    val execCtxt = sys.dispatchers.lookup(WorkspaceDispatcherName)
+    val actor              = sys.actorOf(endpointActorProps)
+    val execCtxt           = sys.dispatchers.lookup(WorkspaceDispatcherName)
     new ActorClient(actor)(execCtxt)
   }
 

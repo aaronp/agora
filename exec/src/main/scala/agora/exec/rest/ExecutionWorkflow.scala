@@ -420,7 +420,7 @@ case object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
             logger.error(s"Job '$jobId' is already running !")
           } else {
             processById = processById.updated(jobId, process)
-            logger.warn(s"Job '$jobId' started, now tracking ${processById.size} running jobs")
+            logger.info(s"Job '$jobId' started, now tracking ${processById.size} running jobs")
           }
         }
       }
@@ -509,16 +509,12 @@ case object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
   def streamBytes(bytes: Source[ByteString, Any], runProc: RunProcess, matchDetails: Option[MatchDetails], request: HttpRequest)(
       implicit ec: ExecutionContext): Future[HttpResponse] = {
 
-    logger.warn(s"Streaming bytes for >${runProc.commandString}<")
+    logger.debug(s"Streaming bytes for >${runProc.commandString}<")
     // TODO - extract from request header
     val outputContentType: ContentType = `text/plain(UTF-8)`
 
     val chunked: HttpEntity.Chunked  = HttpEntity(outputContentType, bytes)
     val future: Future[HttpResponse] = Marshal(chunked).toResponseFor(request)
-
-    future.onComplete { res: Try[HttpResponse] =>
-      logger.error(s"STREAM COMPLETE /w ${res}")
-    }
 
     future.recover {
       case pr: ProcessException =>
@@ -544,7 +540,6 @@ case object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
 
         streamBytes(bytes, runProcess, processLogger.matchDetails, httpRequest)
       case None =>
-        logger.warn(s"FlatMapping file result future for >${runProcess.commandString}<")
         processLogger.fileResultFuture.flatMap { resp =>
           Marshal(resp).toResponseFor(httpRequest)
         }
