@@ -9,4 +9,5 @@
     <root level="warn">
         <appender-ref ref="STDOUT"/>
     </root>
+    <logger name="agora.exec.workspace" level="warn" />
 </configuration>

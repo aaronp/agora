@@ -35,8 +35,13 @@ val Flow     = config("flow")
 val IO       = config("io")
 val Config   = config("config")
 
-//enablePlugins(GhpagesPlugin)
+// see https://github.com/sbt/sbt-ghpages
+// this exposes the 'ghpagesPushSite' task
+enablePlugins(GhpagesPlugin)
+git.remoteRepo := s"git@github.com:$username/$repo.git"
+ghpagesNoJekyll := true
 
+enablePlugins(PamfletPlugin)
 enablePlugins(SiteScaladocPlugin)
 
 lazy val scaladocSiteProjects =
@@ -62,7 +67,7 @@ lazy val agora = (project in file("."))
   .aggregate(io, configProject, api, restApi, rest, execApi, exec, execTest, flow)
   .settings(
     sourceDirectory in Pamflet := sourceDirectory.value / "site",
-    siteSubdirName in ScalaUnidoc := "api-all/latest",
+    siteSubdirName in ScalaUnidoc := "api/latest",
     addMappingsToSiteDir(mappings in (ScalaUnidoc, packageDoc), siteSubdirName in ScalaUnidoc)
     //,gitRemoteRepo := "git@github.com:aaronp/agora.git"
   )
@@ -75,7 +80,7 @@ def additionalScalcSettings = List(
   "-encoding",
   "utf-8", // Specify character encoding used by source files.
   "-unchecked",
-//  "-explaintypes", // Explain type errors in more detail.
+  //  "-explaintypes", // Explain type errors in more detail.
   "-unchecked", // Enable additional warnings where generated code depends on assumptions.
   "-Xcheckinit", // Wrap field accessors to throw an exception on uninitialized access.
   "-Xfatal-warnings", // Fail the compilation if there are any warnings.
@@ -102,7 +107,7 @@ def additionalScalcSettings = List(
   "-Ywarn-infer-any", // Warn when a type argument is inferred to be `Any`.
   "-Ywarn-nullary-override", // Warn when non-nullary `def f()' overrides nullary `def f'.
   "-Ywarn-nullary-unit",     // Warn when nullary methods return Unit.
-//  "-Ywarn-numeric-widen", // Warn when numerics are widened.
+  //  "-Ywarn-numeric-widen", // Warn when numerics are widened.
   "-Ywarn-value-discard" // Warn when non-Unit expression results are unused.
 )
 
@@ -213,6 +218,9 @@ lazy val execApi = project
   .in(file("exec-api"))
   .dependsOn(restApi % "compile->compile;test->test")
   .settings(commonSettings: _*)
+  .enablePlugins(SiteScaladocPlugin)
+  .enablePlugins(PamfletPlugin)
+  .enablePlugins(ScalaUnidocPlugin)
   .settings(libraryDependencies ++= Dependencies.RestApi)
 
 lazy val execTest = project
@@ -227,7 +235,11 @@ pomIncludeRepository := (_ => false)
 
 // To sync with Maven central, you need to supply the following information:
 pomExtra in Global := {
-  <url>https://github.com/{username}/{}</url>
+  <url>https://github.com/
+    {username}
+    /
+    {}
+  </url>
     <licenses>
       <license>
         <name>Apache 2</name>
@@ -236,9 +248,15 @@ pomExtra in Global := {
     </licenses>
     <developers>
       <developer>
-        <id>{username}</id>
+        <id>
+          {username}
+        </id>
         <name>Aaron Pritzlaff</name>
-        <url>https://github.com/{username}/{repo}</url>
+        <url>https://github.com/
+          {username}
+          /
+          {repo}
+        </url>
       </developer>
     </developers>
 }

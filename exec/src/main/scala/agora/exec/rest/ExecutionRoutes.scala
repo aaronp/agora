@@ -76,6 +76,7 @@ case class ExecutionRoutes(
           import ctxt.executionContext
           takeNextOnComplete(exchange) {
             complete {
+              logger.warn(s"${execConfig.location.asHostPort} (POST) Handling ${inputProcess.commandString}")
               executeHandler.onExecutionRequest(ctxt.request, inputProcess)
             }
           }
@@ -165,6 +166,8 @@ case class ExecutionRoutes(
 
                   withUseCache
                 }
+
+                logger.warn(s"${execConfig.location.asHostPort} (GET) Handling ${inputProcess.commandString}")
                 executeHandler.onExecutionRequest(ctxt.request, inputProcess)
               }
             }

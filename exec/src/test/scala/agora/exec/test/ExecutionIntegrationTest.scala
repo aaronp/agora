@@ -190,7 +190,6 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
       val a = jobOnePending.details.get.job
     }
 
-
     withClue("Both exec jobs should be awaiting their dependencies") {
       eventually {
         awaitCalls1().foreach { calls =>

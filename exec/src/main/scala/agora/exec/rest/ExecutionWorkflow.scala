@@ -10,6 +10,7 @@ import agora.exec.events.{CompletedJob, ReceivedJob, StartedJob, SystemEventMoni
 import agora.exec.log.{IterableLogger, ProcessLoggers}
 import agora.exec.model._
 import agora.exec.workspace.WorkspaceClient
+import agora.io.Sources
 import agora.rest.MatchDetailsExtractor
 import akka.NotUsed
 import akka.http.scaladsl.marshalling.Marshal
@@ -25,7 +26,7 @@ import io.circe.generic.auto._
 
 import scala.compat.Platform
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.sys.process.{Process, ProcessLogger}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
@@ -64,7 +65,7 @@ trait ExecutionWorkflow {
   def resolveUserRequest(inputProcess: RunProcess): RunProcess = inputProcess
 }
 
-object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
+case object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
 
   /**
     * A workflow which will check .cache directories in the request's workspace
@@ -179,9 +180,15 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
 
     override def onCancelJob(jobId: JobId, waitFor: FiniteDuration)(implicit ec: ExecutionContext) = {
 
-      val responseOpt: Option[Try[Process]] = ProcessLock.synchronized {
-        processById.get(jobId).map { process =>
-          processById = processById - jobId
+      val responseOpt: Option[Try[Process]] = {
+        val procOpt = ProcessLock.synchronized {
+          processById.get(jobId).map { process =>
+            processById = processById - jobId
+            process
+          }
+        }
+
+        procOpt.map { process =>
           logger.info(s"Cancelling $jobId, there are ${processById.size} jobs running")
           Try {
             // we want to always invoke destroy on the scala process, as it will also destroy other resources
@@ -248,7 +255,7 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
       /** 1) Add any system (configuration) wide environment properties to the input request */
       val runProcess: RunProcess = {
         val withEnv = resolveUserRequest(inputProcess)
-        logger.trace(s"""Added input process env 
+        logger.trace(s"""Added input process env
              |${inputProcess.env}
              |to default env 
              |${defaultEnv}
@@ -272,13 +279,13 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
       /** 3) let the monitor know we've accepted a job */
       eventMonitor.accept(ReceivedJob(jobId, detailsOpt, inputProcess))
 
-      /** 4) obtain a workspace in which to run the job
-        * this may eventually time-out based on the workspaces configuration
-        */
-      import akka.http.scaladsl.util.FastFuture._
-      val future: Future[HttpResponse] = workspaces.awaitWorkspace(runProcess.dependencies).fast.flatMap { workingDir: Path =>
+      val httpPromise = Promise[HttpResponse]()
+
+      def continueWithWorkspace(workspaceDir: Path) = {
+        logger.debug(s"Workspace '${runProcess.dependencies.workspace}' completed for ${runProcess.dependencies.dependsOnFiles} w/ $workspaceDir")
+
         eventMonitor.accept(StartedJob(jobId))
-        val httpFuture: Future[HttpResponse] = onJob(httpRequest, workingDir, jobId, detailsOpt, runProcess)
+        val httpFuture: Future[HttpResponse] = onJob(httpRequest, workspaceDir, jobId, detailsOpt, runProcess)
 
         /** See https://github.com/aaronp/agora/issues/2
           *
@@ -287,13 +294,58 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
           *
           * Taking this blocking awaitWorkspace out here will fail the ExecutionWorkflowTest
           */
-        logger.trace(s"Waiting for ${runProcess.httpResponsePreparedTimeout} for job '${jobId}'s http response to be prepared")
-        val prepareResponse: HttpResponse = Await.result(httpFuture, runProcess.httpResponsePreparedTimeout)
-        logger.trace(s"Job '${jobId}'s http response ready w/ ${prepareResponse.status}")
+        //          logger.trace(s"Waiting for ${runProcess.httpResponsePreparedTimeout} for job '${jobId}'s http response to be prepared")
+        //          val prepareResponse: HttpResponse = Await.result(httpFuture, runProcess.httpResponsePreparedTimeout)
+        //          logger.trace(s"Job '${jobId}'s http response ready w/ ${prepareResponse.status}")
 
-        httpFuture
+        httpPromise.tryCompleteWith(httpFuture)
+
       }
-      future
+
+      /** 4) obtain a workspace in which to run the job
+        * this may eventually time-out based on the workspaces configuration
+        */
+      val workspaceFuture: Future[Path] = workspaces.awaitWorkspace(runProcess.dependencies)
+
+      val futId = System.identityHashCode(workspaceFuture)
+      logger.warn(
+        s"Workspace '${runProcess.dependencies.workspace}' (futId $futId) created for cmd >${runProcess.commandString}< w/ ${runProcess.dependencies.dependsOnFiles}")
+
+      workspaceFuture.onComplete { workspaceTry: Try[Path] =>
+        workspaceTry match {
+          case Success(workspaceDir) =>
+            continueWithWorkspace(workspaceDir)
+          case Failure(err) =>
+            val completed = httpPromise.tryFailure(err)
+            logger.error(
+              s"Workspace '${runProcess.dependencies.workspace}' future $workspaceFuture failed for ${runProcess.dependencies.dependsOnFiles} w/ $err, completedPromise=$completed")
+        }
+
+      }
+
+      //      val future: Future[HttpResponse] = workspaceFuture.flatMap { workingDir: Path =>
+      //
+      //        logger.info(s"Job $jobId has working dir $workingDir ready w/ ${runProcess.dependencies}")
+      //
+      //        eventMonitor.accept(StartedJob(jobId))
+      //        val httpFuture: Future[HttpResponse] = onJob(httpRequest, workingDir, jobId, detailsOpt, runProcess)
+      //
+      //        /** See https://github.com/aaronp/agora/issues/2
+      //          *
+      //          * TODO - work out what the chuff is going on. We seem to need this workspace thread to block until the HttpResponse
+      //          * is **prepared** ... not completed, but at least created.
+      //          *
+      //          * Taking this blocking awaitWorkspace out here will fail the ExecutionWorkflowTest
+      //          */
+      //        logger.trace(s"Waiting for ${runProcess.httpResponsePreparedTimeout} for job '${jobId}'s http response to be prepared")
+      //        val prepareResponse: HttpResponse = Await.result(httpFuture, runProcess.httpResponsePreparedTimeout)
+      //        logger.trace(s"Job '${jobId}'s http response ready w/ ${prepareResponse.status}")
+      //
+      //        httpFuture
+      //      }
+      //      future
+
+      httpPromise.future
     }
 
     /**
@@ -355,7 +407,10 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
       }
 
       val localRunner = LocalRunner(workDir = Option(workingDir))
-      val processTry  = localRunner.startProcess(runProcess, processLogger)
+      logger.warn(s"STARTING '$jobId' >${runProcess.commandString}<")
+
+      val processTry = localRunner.startProcess(runProcess, processLogger)
+      logger.warn(s"STARTED '$jobId' >${runProcess.commandString}< w/ $processTry")
       processTry.toOption.foreach { process =>
         ProcessLock.synchronized {
 
@@ -365,7 +420,7 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
             logger.error(s"Job '$jobId' is already running !")
           } else {
             processById = processById.updated(jobId, process)
-            logger.debug(s"Job '$jobId' started, now tracking ${processById.size} running jobs")
+            logger.warn(s"Job '$jobId' started, now tracking ${processById.size} running jobs")
           }
         }
       }
@@ -454,14 +509,20 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
   def streamBytes(bytes: Source[ByteString, Any], runProc: RunProcess, matchDetails: Option[MatchDetails], request: HttpRequest)(
       implicit ec: ExecutionContext): Future[HttpResponse] = {
 
+    logger.warn(s"Streaming bytes for >${runProc.commandString}<")
     // TODO - extract from request header
     val outputContentType: ContentType = `text/plain(UTF-8)`
 
     val chunked: HttpEntity.Chunked  = HttpEntity(outputContentType, bytes)
     val future: Future[HttpResponse] = Marshal(chunked).toResponseFor(request)
 
+    future.onComplete { res: Try[HttpResponse] =>
+      logger.error(s"STREAM COMPLETE /w ${res}")
+    }
+
     future.recover {
       case pr: ProcessException =>
+        logger.error(s"creating error response for ${pr.error}")
         asErrorResponse(pr)
       case NonFatal(other) =>
         logger.error(s"translating error $other as a process exception")
@@ -477,12 +538,13 @@ object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
         // we should check/challenge that
         val bytes: Source[ByteString, NotUsed] = {
           def run: Iterator[String] = processLogger.iterator
-
           Source.fromIterator(() => run).map(line => ByteString(s"$line\n"))
+
         }
 
         streamBytes(bytes, runProcess, processLogger.matchDetails, httpRequest)
       case None =>
+        logger.warn(s"FlatMapping file result future for >${runProcess.commandString}<")
         processLogger.fileResultFuture.flatMap { resp =>
           Marshal(resp).toResponseFor(httpRequest)
         }

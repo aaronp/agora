@@ -67,24 +67,29 @@ case class WorkspaceDirectory(workspaceDirectory: Path) extends StrictLogging {
     *
     * @param msg
     */
-  def onUpload(msg: UploadFile)(implicit mat: Materializer): Future[(Long, Path)] = {
+  def onUpload(msg: UploadFile)(callbackWtf: Try[(Long, Path)] => Unit)(implicit mat: Materializer): Future[(Long, Path)] = {
     import mat._
     val UploadFile(id, file, src, _) = msg
 
-    import akka.http.scaladsl.util.FastFuture._
     logger.info(s"Uploading ${file} to $id")
     val tri: Try[UploadDao.FileUploadDao] = Try(UploadDao(workspaceDirectory.mkDirs()))
-    val savedFileFuture: Future[(Long, Path)] = Future.fromTry(tri).fast.flatMap { dao =>
-      dao.writeDownUpload(Upload(file, src))
+    //    val savedFileFuture: Future[(Long, Path)] = Future.fromTry(tri).fast.flatMap { dao =>
+    //      dao.writeDownUpload(Upload(file, src))
+    //    }
+    val savedFileFuture: Future[(Long, Path)] = tri match {
+      case Success(dao) => dao.writeDownUpload(Upload(file, src))
+      case Failure(err) => Future.failed(err)
     }
     savedFileFuture.onComplete {
-      case Success((size, uploadPath)) =>
-        MetadataFile.createMetadataFileFor(uploadPath)
+      case tri @ Success((size, uploadPath)) =>
+        val mdFile = MetadataFile.createMetadataFileFor(uploadPath)
         require(uploadPath.size == size, s"${uploadPath.fileName}.size didn't match write count: ${uploadPath.size} bytes != ${size} bytes written")
-        logger.debug(s"Upload to ${workspaceDirectory}/$file completed w/ ${size}bytes to $uploadPath")
+        logger.warn(s"-UPLOAD- to ${workspaceDirectory.toAbsolutePath}/$file completed w/ ${size} bytes to $uploadPath, metadata file : $mdFile")
 
-      case Failure(error) =>
-        logger.error(s"Upload errored to ${workspaceDirectory}/$file, and $file isn't ready in ${show}. Error: $error")
+        callbackWtf(tri)
+      case tri @ Failure(error) =>
+        logger.warn(s"-UPLOAD- errored to ${workspaceDirectory}/$file, and $file isn't ready in ${show}. Error: $error")
+        callbackWtf(tri)
 
     }
 

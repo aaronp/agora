@@ -41,7 +41,7 @@ class WorkspaceDirectoryTest extends BaseSpec with HasMaterializer {
         val wd = WorkspaceDirectory(dir)
 
         // call the method under test
-        val future       = wd.onUpload(UploadFile(dir.fileName, "some.name", Source.single(content), Promise()))
+        val future       = wd.onUpload(UploadFile(dir.fileName, "some.name", Source.single(content), Promise()))(_ => {})
         val (size, path) = future.futureValue
         size shouldBe content.size
         path.fileName shouldBe "some.name"

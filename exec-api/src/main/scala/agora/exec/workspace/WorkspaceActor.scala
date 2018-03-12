@@ -2,13 +2,13 @@ package agora.exec.workspace
 
 import java.nio.file.Path
 
-import agora.api.time.Timestamp
 import agora.io.BaseActor
 import agora.io.implicits._
-import akka.actor.{ActorRef, Cancellable, PoisonPill}
+import akka.actor.PoisonPill
 import akka.stream.ActorMaterializer
 import com.typesafe.scalalogging.{Logger, StrictLogging}
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
@@ -21,19 +21,13 @@ import scala.util.{Failure, Success, Try}
   */
 private[workspace] class WorkspaceActor(val id: WorkspaceId, potentiallyNotExistentDir: Path, bytesReadyPollFrequency: FiniteDuration) extends BaseActor {
 
-  override protected val logger: Logger = {
-    val lgr = WorkspaceActor.logger
-    require(lgr != null)
-    lgr
-  }
-
   override def receive: Receive = handler(WorkspaceActorState(Set.empty, None))
 
   implicit def sys = context.system
 
   implicit lazy val materializer = ActorMaterializer()
 
-  implicit def ctxt = context.dispatcher
+  implicit def ctxt = materializer.executionContext
 
   def createdWorkspaceDir: Path = potentiallyNotExistentDir.mkDirs()
 
@@ -45,17 +39,28 @@ private[workspace] class WorkspaceActor(val id: WorkspaceId, potentiallyNotExist
     * A triggered check cancels the 'nextCheck'
     *
     */
-  private def triggerUploadCheck(state: WorkspaceActorState) = {
+  private def onTriggerUploadCheck(inputState: WorkspaceActorState) = {
 
-    state.nextCheck.foreach(_.cancel())
+    inputState.nextCheck.foreach(_.cancel())
 
-    if (state.pendingRequests.nonEmpty) {
-      logger.debug(s"Upload check triggered - trying to run ${state.pendingRequests.size} pending files for workspace $id")
-      state.pendingRequests.foreach(self ! _)
+    val updatedState = if (inputState.pendingRequests.nonEmpty) {
+      logger.debug(s"Upload check triggered - trying to run ${inputState.pendingRequests.size} pending files for workspace $id")
+      inputState.pendingRequests.foldLeft(inputState) {
+        case (nextState, awaitMsg) =>
+          val dependencyCheck: DependencyCheck = workspaceDirectory.dependencyStates(awaitMsg.dependencies.dependsOnFiles)
+
+          if (dependencyCheck.canRun(awaitMsg.dependencies.awaitFlushedOutput)) {
+            notifyWorkspaceReady(awaitMsg)
+            nextState.remove(awaitMsg)
+          } else {
+            nextState
+          }
+      }
     } else {
       logger.debug(s"Upload check triggered, but no files to check for workspace $id")
+      inputState
     }
-    context.become(handler(state.copy(nextCheck = None)))
+    context.become(handler(updatedState.copy(nextCheck = None)))
   }
 
   def scheduleLater(delay: FiniteDuration, message: Any) = {
@@ -81,29 +86,44 @@ private[workspace] class WorkspaceActor(val id: WorkspaceId, potentiallyNotExist
     * @param msg the file to upload
     */
   def onUpload(msg: UploadFile): Unit = {
-    val savedFileFuture = workspaceDirectory.onUpload(msg)
+    workspaceDirectory.onUpload(msg) { res =>
+      logger.debug(s"Workspace $id upload $msg completed w/ $res, triggering check")
 
-    savedFileFuture.onComplete {
-      case _ =>
-        self ! TriggerUploadCheck(id)
+      val before = msg.result.toString
+      val ok     = msg.result.tryComplete(res)
+
+      logger.debug(s"Workspace Competing: result future w/ $ok, msg.result changed from $before to ${msg.result}")
+
+      self ! TriggerUploadCheck(id)
     }
 
-    msg.result.tryCompleteWith(savedFileFuture)
   }
 
   def handler(state: WorkspaceActorState): Receive = {
-    case msg: WorkspaceMsg => onWorkspaceMsg(msg, state)
-    case AwaitUploadsTimeout(msg @ AwaitUploads(dependencies, promise)) =>
-      val status: DependencyCheck = workspaceDirectory.dependencyStates(dependencies.dependsOnFiles)
-      if (status.canRun(dependencies.awaitFlushedOutput)) {
-        logger.error(s"Workspace timed-out after ${dependencies.timeout} but can actually run w/ ${status}")
-        notifyWorkspaceReady(msg)
-      } else {
-        logger.error(s"Workspace timed-out after ${dependencies.timeout} w/ ${status}")
-        val err = WorkspaceDependencyTimeoutException(dependencies, status.dependencyStates)
-        promise.tryComplete(Failure(err))
-      }
-      context.become(handler(state.remove(msg)))
+    logger.trace(s"Workspace $id in state ==> $state")
+
+    val r: Receive = {
+      case msg: WorkspaceMsg =>
+        logger.trace(s"Workspace $id on $msg")
+        onWorkspaceMsg(msg, state)
+      case AwaitUploadsTimeout(msg @ AwaitUploads(dependencies, promise)) =>
+        logger.warn(s"Workspace $id on Timeout: $msg")
+        val status: DependencyCheck = workspaceDirectory.dependencyStates(dependencies.dependsOnFiles)
+        if (status.canRun(dependencies.awaitFlushedOutput)) {
+          logger.error(s"Workspace timed-out after ${dependencies.timeout} but can actually run w/ ${status}")
+          notifyWorkspaceReady(msg)
+        } else {
+          logger.error(s"Workspace $id timed-out after ${dependencies.timeout} w/ ${status}")
+          val err = WorkspaceDependencyTimeoutException(dependencies, status.dependencyStates)
+          promise.tryComplete(Failure(err))
+        }
+        context.become(handler(state.remove(msg)))
+      case other =>
+        logger.error(s"Workspace $id DOESN'T KNOW HOW TO HANDLE $other")
+        scala.sys.error(s"Workspace $id DOESN'T KNOW HOW TO HANDLE $other")
+    }
+
+    r
   }
 
   /**
@@ -115,7 +135,7 @@ private[workspace] class WorkspaceActor(val id: WorkspaceId, potentiallyNotExist
     * The workspace client is event-driven, triggered by files being uploaded or jobs completing. That said, jobs
     * are run out-of-process, and so the extra file-size check is a belt-and-braces check that all output is flushed.
     *
-    * For this function to be called, we've alread determined that 'canRun' is false for the given dependencies.
+    * For this function to be called, we've already determined that 'canRun' is false for the given dependencies.
     *
     * @param msg
     * @param state
@@ -153,33 +173,33 @@ private[workspace] class WorkspaceActor(val id: WorkspaceId, potentiallyNotExist
   def onWorkspaceMsg(msg: WorkspaceMsg, state: WorkspaceActorState) = {
     import state._
 
-    logger.trace(s"Handling workspace '$id' w/ ${pendingRequests.size} pending requests")
+    logger.trace(s"Workspace '$id' on $msg\n\tw/ ${pendingRequests.size} pending requests")
 
     // handler
     msg match {
-      case TriggerUploadCheck(_) =>
-        triggerUploadCheck(state)
+      case TriggerUploadCheck(_) => onTriggerUploadCheck(state)
       case MarkAsComplete(_, fileSizeByFileName) =>
         markAsComplete(fileSizeByFileName)
 
         if (fileSizeByFileName.nonEmpty) {
-          triggerUploadCheck(state)
+          onTriggerUploadCheck(state)
         }
-      case msg @ AwaitUploads(UploadDependencies(_, dependsOnFiles, _, awaitFlushedOutput), _) =>
+      case msg @ AwaitUploads(UploadDependencies(_, dependsOnFiles, _, awaitFlushedOutput), promise) =>
+        logger.debug(s"Workspace '$id' waiting on ${dependsOnFiles} w/ future: ${promise.future}")
         val dependencyCheck: DependencyCheck = workspaceDirectory.dependencyStates(dependsOnFiles)
 
         if (dependencyCheck.canRun(awaitFlushedOutput)) {
           notifyWorkspaceReady(msg)
           context.become(handler(state.remove(msg)))
         } else {
-          logger.debug(dependencyCheck.dependencyStates.mkString("Having to await uploads due to ", "\n", ""))
+          logger.debug(dependencyCheck.dependencyStates.mkString(s"WORKSPACE $id Having to await uploads due to ", "\n", ""))
 
           onAwaitUploadsWhenFileIsNotAvailable(msg, dependencyCheck, state)
         }
       case msg @ UploadFile(_, _, _, _) => onUpload(msg)
       case closeMsg @ Close(_, ifNotModifiedSince, failPendingDependencies, promise) =>
         logger.info(s"Closing w/ $closeMsg")
-        val ok = WorkspaceActor.closeWorkspace(potentiallyNotExistentDir, ifNotModifiedSince, failPendingDependencies, pendingRequests)
+        val ok = WorkspaceClient.closeWorkspace(potentiallyNotExistentDir, ifNotModifiedSince, failPendingDependencies, pendingRequests)
         promise.tryComplete(Success(ok))
         if (ok) {
           context.parent ! WorkspaceEndpointActor.RemoveWorkspace(id)
@@ -190,10 +210,19 @@ private[workspace] class WorkspaceActor(val id: WorkspaceId, potentiallyNotExist
     }
   }
 
-  def notifyWorkspaceReady(schedule: AwaitUploads) = {
+  def notifyWorkspaceReady(awaitUpload: AwaitUploads) = {
+    val futId = System.identityHashCode(awaitUpload.workDirResult.future)
     logger.debug(
-      s"Notifying that ${schedule.dependencies.dependsOnFiles.mkString("[", ",", "]")} are ready in workspace ${id} under $potentiallyNotExistentDir")
-    schedule.workDirResult.tryComplete(Try(createdWorkspaceDir))
+      s"Notifying that ${awaitUpload.dependencies.dependsOnFiles.mkString("[", ",", "]")} futId ($futId) are ready in workspace ${id} under $potentiallyNotExistentDir")
+
+    val ok = awaitUpload.workDirResult.tryComplete(Try(createdWorkspaceDir))
+    if (ok) {
+      logger.info(s"Notified workspace '${id}' futId ($futId) files ${awaitUpload.dependencies.dependsOnFiles
+        .mkString("[", ",", "]")} ready under $createdWorkspaceDir w/ ${createdWorkspaceDir.children.map(_.fileName).mkString(",")}")
+    } else {
+      logger.error(s"Could NOT Notify workspace '${id}' futId ($futId) files ${awaitUpload.dependencies.dependsOnFiles
+        .mkString("[", ",", "]")} ready under $createdWorkspaceDir w/ ${createdWorkspaceDir.children.map(_.fileName).mkString(",")}")
+    }
   }
 
 }
@@ -202,44 +231,4 @@ object WorkspaceActor extends StrictLogging {
 
   def actorLogger: Logger = logger
 
-  /**
-    * The logic for deleting a workspace
-    *
-    * @param potentiallyNotExistentDir the directory to potentially remove
-    * @param ifNotModifiedSince        if specified, only remove if the most-recent file in the
-    *                                  directory is older than this timestamp
-    * @param failPendingDependencies   if true, any pending dependencies will be failed. If false, the
-    *                                  workspace will NOT be closed (deleted) if there are any depdendencies
-    * @param pendingRequests           the pendingRequests waiting for files in this potentiallyNotExistentDir
-    * @return a flag indicating whether the delete was successful
-    */
-  def closeWorkspace[AwaitUploads](potentiallyNotExistentDir: Path,
-                                   ifNotModifiedSince: Option[Timestamp],
-                                   failPendingDependencies: Boolean,
-                                   pendingRequests: Set[AwaitUploads]): Boolean = {
-    def workspaceId: WorkspaceId = potentiallyNotExistentDir.fileName
-
-    val pendingOk = pendingRequests.isEmpty || failPendingDependencies
-
-    val lastUsedOk = ifNotModifiedSince.fold(true) { timestamp =>
-      allFilesAreOlderThanTime(potentiallyNotExistentDir, timestamp)
-    }
-
-    val canRemove = pendingOk && lastUsedOk
-
-    /**
-      * We're closing the workspace, potentially w/ jobs pending
-      */
-    if (pendingRequests.nonEmpty && failPendingDependencies) {
-      logger.warn(s"Closing workspace $workspaceId with ${pendingRequests.size} pending files")
-      val workspaceClosed = new IllegalStateException(s"Workspace '$workspaceId' has been closed")
-      pendingRequests.foreach {
-        case AwaitUploads(_, promise) => promise.failure(workspaceClosed)
-      }
-    }
-
-    val ok: Try[Boolean] =
-      Try(canRemove && potentiallyNotExistentDir.exists()).map(_ && Try(potentiallyNotExistentDir.delete()).isSuccess)
-    ok == Success(true)
-  }
 }
