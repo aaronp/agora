@@ -2,7 +2,7 @@ package agora.exec.rest
 
 import agora.api.json.AgoraJsonImplicits
 import agora.api.time.{TimeCoords, Timestamp}
-import agora.exec.events._
+import agora.exec.events.{EventQueryResponse, _}
 import agora.rest.worker.RouteSubscriptionSupport
 import akka.http.scaladsl.marshalling.ToEntityMarshaller
 import akka.http.scaladsl.server.Directives._
@@ -273,7 +273,10 @@ case class QueryRoutes(monitor: SystemEventMonitor) extends RouteSubscriptionSup
   def getJob = {
     (get & path("rest" / "query" / "job" / Segment)) { jobId =>
       complete {
-        monitor.query(FindJob(jobId))
+        // we have a marshaller for the base trait EventQueryResponse, not the specific FindJobResponse sub-class,
+        // hence the need to explicitly type the future here
+        val eventQueryResponseFuture: Future[EventQueryResponse] = monitor.query(FindJob(jobId))
+        eventQueryResponseFuture
       }
     }
   }

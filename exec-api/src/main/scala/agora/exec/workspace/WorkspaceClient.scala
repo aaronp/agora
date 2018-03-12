@@ -6,7 +6,7 @@ import agora.api.time.Timestamp
 import agora.exec.model.Upload
 import agora.exec.workspace.WorkspaceActor.logger
 import agora.io.dao.Timestamp
-import akka.actor.{ActorRef, ActorRefFactory, Props}
+import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, Props}
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import com.typesafe.scalalogging.StrictLogging
@@ -98,17 +98,23 @@ trait WorkspaceClient {
 
 object WorkspaceClient extends StrictLogging {
 
+  val WorkspaceDispatcherName = "exec.dispatchers.io-dispatcher"
+
+  def props(uploadDir: Path, sys: ActorRefFactory, bytesReadyPollFrequency: FiniteDuration) = {
+    Props(new WorkspaceEndpointActor(uploadDir, bytesReadyPollFrequency)).withDispatcher(WorkspaceDispatcherName)
+  }
+
   /**
-    *
     * @param uploadDir
     * @param sys
     * @param bytesReadyPollFrequency the time to wait before the expected file size matches the metadata file
     * @return an asynchronous, actor-based client
     */
-  def apply(uploadDir: Path, sys: ActorRefFactory, bytesReadyPollFrequency: FiniteDuration) = {
-    val actor = sys.actorOf(Props(new WorkspaceEndpointActor(uploadDir, bytesReadyPollFrequency)))
-    import sys.dispatcher
-    new ActorClient(actor)
+  def apply(uploadDir: Path, sys: ActorSystem, bytesReadyPollFrequency: FiniteDuration): ActorClient = {
+    val endpointActorProps = props(uploadDir, sys, bytesReadyPollFrequency)
+    val actor = sys.actorOf(endpointActorProps)
+    val execCtxt = sys.dispatchers.lookup(WorkspaceDispatcherName)
+    new ActorClient(actor)(execCtxt)
   }
 
   class ActorClient(val endpointActor: ActorRef)(implicit ec: ExecutionContext) extends WorkspaceClient with StrictLogging {
