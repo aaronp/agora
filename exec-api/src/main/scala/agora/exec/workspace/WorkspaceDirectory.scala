@@ -84,11 +84,11 @@ case class WorkspaceDirectory(workspaceDirectory: Path) extends StrictLogging {
       case tri @ Success((size, uploadPath)) =>
         val mdFile = MetadataFile.createMetadataFileFor(uploadPath)
         require(uploadPath.size == size, s"${uploadPath.fileName}.size didn't match write count: ${uploadPath.size} bytes != ${size} bytes written")
-        logger.warn(s"-UPLOAD- to ${workspaceDirectory.toAbsolutePath}/$file completed w/ ${size} bytes to $uploadPath, metadata file : $mdFile")
+        logger.debug(s"-UPLOAD- to ${workspaceDirectory.toAbsolutePath}/$file completed w/ ${size} bytes to $uploadPath, metadata file : $mdFile")
 
         callbackWtf(tri)
       case tri @ Failure(error) =>
-        logger.warn(s"-UPLOAD- errored to ${workspaceDirectory}/$file, and $file isn't ready in ${show}. Error: $error")
+        logger.debug(s"-UPLOAD- errored to ${workspaceDirectory}/$file, and $file isn't ready in ${show}. Error: $error")
         callbackWtf(tri)
 
     }

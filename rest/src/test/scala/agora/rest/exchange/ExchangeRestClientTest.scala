@@ -28,11 +28,13 @@ class ExchangeRestClientTest extends ExchangeSpec with BeforeAndAfter {
     if (client != null) {
       client.stop().futureValue
     }
+    config.stop().futureValue
+
   }
 
   override def newExchange(observer: ExchangeObserver): Exchange = {
     client = config.client
-    config.connectObserver(observer)
+    config.connectObserver(observer)(config.serverImplicits)
     client
   }
 

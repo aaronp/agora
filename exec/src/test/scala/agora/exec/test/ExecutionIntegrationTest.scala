@@ -12,7 +12,7 @@ import agora.exec.model._
 import agora.exec.workspace.{UploadDependencies, WorkspaceClient, WorkspaceClientDelegate, WorkspaceId}
 import agora.exec.{ExecBoot, ExecConfig}
 import agora.rest.client.{AkkaClient, RestClient, RetryClient}
-import agora.rest.{HasMaterializer, RunningService}
+import agora.rest.{AkkaImplicits, HasMaterializer, RunningService}
 import agora.{BaseIOSpec, BaseSpec}
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
@@ -23,17 +23,22 @@ import org.scalatest.concurrent.Eventually
 import scala.concurrent.Future
 import scala.util.Properties
 
-class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventually with BeforeAndAfterEach with StrictLogging with QueryClientScenarios {
+class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventually with BeforeAndAfterEach with StrictLogging { //with QueryClientScenarios {
 
   import ExecutionIntegrationTest._
 
   // just request 1 work item at a time in order to support the 'different servers' test
-  var conf: ExecConfig                              = null
-  var anotherConf: ExecConfig                       = null
-  var server: RunningService[ExecConfig, ExecBoot]  = null
+  var conf: ExecConfig = null
+  var anotherConf: ExecConfig = null
+  var server: RunningService[ExecConfig, ExecBoot] = null
   var server2: RunningService[ExecConfig, ExecBoot] = null
-  var client: RemoteRunner                          = null
-  val started                                       = now()
+  var client: RemoteRunner = null
+  val started = now()
+
+  var directClient1: ExecutionClient = null
+  var directClient2: ExecutionClient = null
+
+  var clientObserverSystem: AkkaImplicits = null
 
   "RemoteRunner" should {
     "execute requests on different servers" in {
@@ -59,23 +64,20 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
   def verifyConcurrentServices(suffix: String) = {
 
     val clientObserver: TestObserver = new TestObserver
-    conf.exchangeConfig.connectObserver(clientObserver).futureValue
+
+    conf.exchangeConfig.connectObserver(clientObserver)(clientObserverSystem).futureValue
 
     // 0) verify basic connectivity of both servers
-    val directClient1: ExecutionClient = conf.executionClient()
-    val directClient2: ExecutionClient = anotherConf.executionClient()
-
-    //
     {
 
       val directRes1: RunProcessResult = directClient1.run(RunProcess("echo", "directClient1").useCachedValueWhenAvailable(false)).futureValue
-      val StreamingResult(out1)        = directRes1
+      val StreamingResult(out1) = directRes1
       out1.mkString("") shouldBe "directClient1"
 
       awaitCalls1().foreach(_.size shouldBe 1)
       awaitCalls2().foreach(_.size shouldBe 0)
 
-      val directRes2            = directClient2.run(RunProcess("echo", "directClient2").useCachedValueWhenAvailable(false)).futureValue
+      val directRes2 = directClient2.run(RunProcess("echo", "directClient2").useCachedValueWhenAvailable(false)).futureValue
       val StreamingResult(out2) = directRes2
       out2.mkString("") shouldBe "directClient2"
 
@@ -97,7 +99,7 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
 
     // 1) execute req 1
     val beforeJobOne = now()
-    val workspace1   = "workspaceOne" + suffix
+    val workspace1 = "workspaceOne" + suffix
     val selectionFuture1 =
       client.run(
         RunProcess("cat", "file1.txt")
@@ -138,7 +140,7 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
     // worker, the second request to the other (anotherServer...)
 
     val beforeJobTwo = now()
-    val workspace2   = "workspaceTwo" + suffix
+    val workspace2 = "workspaceTwo" + suffix
     val selectionFuture2: Future[RunProcessResult] =
       client.run(
         RunProcess("cat", "file2.txt")
@@ -158,7 +160,7 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
     withClue("both jobs should've been matched") {
       eventually {
         val List(onMatch2: OnMatch, onMatch1: OnMatch) = clientObserver.matches()
-        val Seq(workerCandidate1)                      = onMatch1.selection
+        val Seq(workerCandidate1) = onMatch1.selection
         workerCandidate1.remaining shouldBe 0
         val Seq(workerCandidate2) = onMatch2.selection
         workerCandidate2.remaining shouldBe 0
@@ -216,7 +218,7 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
 
     // 3) upload file1.txt dependency by targeting the worker directly to ensure 'resultFuture1' can now complete
     val (firstClient, theOtherClient) = portWhichFirstJobTakenByService match {
-      case FirstPort  => directClient1 -> directClient2
+      case FirstPort => directClient1 -> directClient2
       case SecondPort => directClient2 -> directClient1
     }
     val file1 = Upload.forText("file1.txt", "I'm file one")
@@ -294,11 +296,25 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
     serverSideWorkspaces2.foreach(_.clear())
   }
 
+
+  def threadNames(): Set[String] = {
+    AkkaImplicits.allThreads().map { t =>
+      s"${t.getName} (daemon=${t.isDaemon}, alive=${t.isAlive})"
+    }
+  }
+
+  var initialThreads: Set[String] = threadNames()
+  var beforeThreads: Set[String] = Set()
+
+
   override def beforeAll(): Unit = {
     super.beforeAll()
+    beforeThreads = threadNames()
 
     anotherConf = ExecutionIntegrationTest.anotherConfig
     conf = ExecutionIntegrationTest.firstConfig
+
+    clientObserverSystem = conf.clientConfig.newSystem("test-observer")
 
     anotherConf.initialRequest shouldBe 1
 
@@ -306,22 +322,52 @@ class ExecutionIntegrationTest extends BaseSpec with HasMaterializer with Eventu
     server2 = anotherConf.start().futureValue
 
     client = conf.remoteRunner()
+
+    directClient1 = conf.executionClient()
+    directClient2 = anotherConf.executionClient()
   }
 
   override def afterAll(): Unit = {
     super.afterAll()
+
     conf.stop().futureValue
     anotherConf.stop().futureValue
-    client.close()
     if (server != null) {
       server.stop().futureValue
     }
     if (server2 != null) {
       server2.stop().futureValue
     }
+    clientObserverSystem.stop().futureValue
+    client.close()
+    directClient1.stop().futureValue
+    directClient2.stop().futureValue
     server = null
     server2 = null
     client = null
+    directClient1 = null
+    directClient2 = null
+    clientObserverSystem = null
+
+    val afterThreads = threadNames()
+    val remaining = afterThreads -- beforeThreads
+
+    def fmt(name: String, threads: Set[String]) = {
+      threads.toList.sorted.mkString(s"\n\t$name\n\t", "\n\t", "\n\t")
+    }
+
+    val msg =
+      s"""
+         |${fmt("Remaining Threads", remaining)}
+         |
+        |${fmt("Initial Threads", initialThreads)}
+         |
+        |${fmt("Before Threads", beforeThreads)}
+         |
+        |${fmt("After Threads", afterThreads)}
+      """.stripMargin
+    println(msg)
+
   }
 
   def locationForClient(client: RestClient) = {
@@ -343,12 +389,12 @@ object ExecutionIntegrationTest {
   // an attempt to choose a port based on the scala version as a little guard against running multiple scala version tests concurrently
   val FirstPort = {
     val digits = (Properties.versionString + "1111").filter(_.isDigit)
-    val p      = digits.take(4).toInt % 1000
+    val p = digits.take(4).toInt % 1000
     7000 + p
   }
   val SecondPort = FirstPort + 1000
 
-  lazy val dirName  = BaseIOSpec.nextTestDir("ExecutionIntegrationTest")
+  lazy val dirName = BaseIOSpec.nextTestDir("ExecutionIntegrationTest")
   lazy val dir2Name = BaseIOSpec.nextTestDir("ExecutionIntegrationTest")
 
   def firstConfig = {

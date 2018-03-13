@@ -2,13 +2,11 @@ package agora.rest.client
 
 import java.io.Closeable
 
-import akka.http.scaladsl.coding.{Deflate, Gzip, NoCoding}
-import akka.http.scaladsl.model.headers.HttpEncodings
-import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
-import akka.stream.{ActorMaterializer, Materializer}
-import io.circe.Decoder
 import agora.api.worker.HostLocation
-import akka.actor.Terminated
+import agora.rest.AkkaImplicits
+import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
+import akka.stream.Materializer
+import io.circe.Decoder
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.ClassTag
@@ -57,11 +55,11 @@ object RestClient {
     * @param mkSystem instead of pass-by-value or lazy value, we explicitly make this a create action so a closing the client will also close the materializer used
     * @return
     */
-  def apply(location: HostLocation, mkSystem: () => ActorMaterializer): RestClient = {
+  def apply(location: HostLocation, mkSystem: () => AkkaImplicits): RestClient = {
     // we do this here to be sure the akka client owns the produced actor system and can thus also
     // shut it down
     val am = mkSystem()
-    new AkkaClient(location, am.system, am)
+    new AkkaClient(location, am)
   }
 
   object implicits {

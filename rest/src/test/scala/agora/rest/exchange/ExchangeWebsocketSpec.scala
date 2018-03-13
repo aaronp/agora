@@ -11,6 +11,8 @@ import scala.collection.immutable
 trait ExchangeWebsocketSpec extends Eventually {
   self: BaseIntegrationTest =>
 
+  implicit def akkaImplicits = exchangeConfig.serverImplicits
+
   "Exchange observers over a web socket" should {
     "be able to observe state-of-the-world messages" in {
       val obs1 = new TestObserver
@@ -56,7 +58,7 @@ trait ExchangeWebsocketSpec extends Eventually {
     }
     "be able to observe job submitted events" in {
       val obs          = new TestObserver
-      val subscription = exchangeConfig.connectObserver(obs).futureValue
+      val subscription = exchangeConfig.connectObserver(obs)(exchangeConfig.serverImplicits).futureValue
 
       // trigger some jobs to observe -- our observer should see it
       val expected: immutable.Seq[SubmitJob] = (0 to 3).map { i =>

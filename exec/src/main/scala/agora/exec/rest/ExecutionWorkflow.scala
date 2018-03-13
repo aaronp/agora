@@ -10,7 +10,6 @@ import agora.exec.events.{CompletedJob, ReceivedJob, StartedJob, SystemEventMoni
 import agora.exec.log.{IterableLogger, ProcessLoggers}
 import agora.exec.model._
 import agora.exec.workspace.WorkspaceClient
-import agora.io.Sources
 import agora.rest.MatchDetailsExtractor
 import akka.NotUsed
 import akka.http.scaladsl.marshalling.Marshal
@@ -277,14 +276,16 @@ case object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
       val jobId                            = detailsOpt.map(_.jobId).getOrElse(agora.api.nextJobId())
 
       /** 3) let the monitor know we've accepted a job */
-      eventMonitor.accept(ReceivedJob(jobId, detailsOpt, inputProcess))
+      val receivedEvent = ReceivedJob(jobId, detailsOpt, inputProcess)
+      eventMonitor.accept(receivedEvent)
 
       val httpPromise = Promise[HttpResponse]()
 
       def continueWithWorkspace(workspaceDir: Path) = {
         logger.debug(s"Workspace '${runProcess.dependencies.workspace}' completed for ${runProcess.dependencies.dependsOnFiles} w/ $workspaceDir")
 
-        eventMonitor.accept(StartedJob(jobId))
+        val startedEvent = StartedJob(jobId)
+        eventMonitor.accept(startedEvent)
         val httpFuture: Future[HttpResponse] = onJob(httpRequest, workspaceDir, jobId, detailsOpt, runProcess)
 
         /** See https://github.com/aaronp/agora/issues/2
@@ -407,10 +408,10 @@ case object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
       }
 
       val localRunner = LocalRunner(workDir = Option(workingDir))
-      logger.warn(s"STARTING '$jobId' >${runProcess.commandString}<")
+      val processTry  = localRunner.startProcess(runProcess, processLogger)
 
-      val processTry = localRunner.startProcess(runProcess, processLogger)
-      logger.warn(s"STARTED '$jobId' >${runProcess.commandString}< w/ $processTry")
+      logger.info(s"Started '$jobId' >${runProcess.commandString}< w/ $processTry")
+
       processTry.toOption.foreach { process =>
         ProcessLock.synchronized {
 

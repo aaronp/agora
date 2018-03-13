@@ -76,6 +76,7 @@ class RetryClient(mkClient: () => RestClient, onError: RetryStrategy) extends Re
     val ff = Future.fromTry(tryFuture).fast
     ff.flatMap(identity)
   }
+
 }
 
 object RetryClient {

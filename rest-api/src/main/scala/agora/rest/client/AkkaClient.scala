@@ -1,6 +1,7 @@
 package agora.rest.client
 
 import agora.api.worker.HostLocation
+import agora.rest.AkkaImplicits
 import akka.actor.{ActorSystem, Terminated}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
@@ -18,10 +19,13 @@ import scala.util.{Failure, Success}
   * A [[RestClient]] based on akka [[Http]]
   *
   * @param location
-  * @param system
-  * @param materializer
+  * @param akkaSystem
   */
-class AkkaClient(val location: HostLocation, system: ActorSystem, override implicit val materializer: Materializer) extends RestClient with StrictLogging {
+class AkkaClient(val location: HostLocation, akkaSystem: AkkaImplicits) extends RestClient with StrictLogging {
+
+  private implicit def system: ActorSystem = akkaSystem.system
+  override implicit def materializer: Materializer = akkaSystem.materializer
+  private def http = akkaSystem.http
 
   private val hostPort = location.asURL
 
@@ -51,12 +55,8 @@ class AkkaClient(val location: HostLocation, system: ActorSystem, override impli
     }
   }
 
-  private val http = Http()(system)
-
-  override def close(): Unit = stop()
-
   override def stop(): Future[Terminated] = {
     logger.info(s"Closing client to http://${location.host}:${location.port}")
-    system.terminate()
+    akkaSystem.stop()
   }
 }

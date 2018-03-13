@@ -88,7 +88,7 @@ class ClientConfig(config: Config) extends AutoCloseable {
       case "0.0.0.0" => inputLoc.copy(host = "localhost")
       case _         => inputLoc
     }
-    RestClient(loc, () => newSystem(name).materializer)
+    RestClient(loc, () => newSystem(name))
   }
 
   def newSystem(name: String = nextActorSystemName()) = new AkkaImplicits(name, config)

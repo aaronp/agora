@@ -6,6 +6,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 /**
   * Keeps track of [[RestClient]]s by their [[HostLocation]], which are created by the provided 'create' factory method
+  *
   * @param create
   */
 case class CachedClient(create: HostLocation => RestClient) extends AutoCloseable {
@@ -34,10 +35,14 @@ case class CachedClient(create: HostLocation => RestClient) extends AutoCloseabl
 
   override def close(): Unit = stop()
 
-  def stop(): Future[Unit] = Lock.synchronized {
-    val futures = byLocation.values.map(_.stop)
-    byLocation = Map.empty
+  def stop(): Future[Unit] = {
+    val allFutures = Lock.synchronized {
+      val futures = byLocation.values.map(_.stop)
+      byLocation = Map.empty
+      futures
+    }
+
     import ExecutionContext.Implicits.global
-    Future.sequence(futures).map(_ => Unit)
+    Future.sequence(allFutures).map(_ => Unit)
   }
 }

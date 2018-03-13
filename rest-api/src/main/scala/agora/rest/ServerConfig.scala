@@ -109,7 +109,7 @@ class ServerConfig(val config: Config) extends RichConfigOps with AutoCloseable 
 
   @volatile private[this] var serverImplicitsCreated = false
 
-  lazy val serverImplicits = {
+  lazy val serverImplicits: AkkaImplicits = {
     serverImplicitsCreated = true
     newSystem(s"${actorSystemName}-server")
   }
