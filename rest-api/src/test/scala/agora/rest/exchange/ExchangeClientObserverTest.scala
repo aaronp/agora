@@ -1,18 +1,18 @@
 package agora.rest.exchange
 
-import agora.BaseSpec
+import agora.BaseRestApiSpec
 import agora.api.exchange.observer.ExchangeObserver
 import agora.rest.HasMaterializer
 import akka.http.scaladsl.model.ws.TextMessage
 import io.circe.parser._
 import org.scalatest.concurrent.Eventually
 
-class ExchangeClientObserverTest extends BaseSpec with HasMaterializer with Eventually {
+class ExchangeClientObserverTest extends BaseRestApiSpec with HasMaterializer with Eventually {
 
   "ExchangeClientObserver.ClientFlow.clientPublisher" should {
     "sent messages from the client publisher through the clientControlMessageSource" in {
-      val localObserver: ExchangeObserver = ExchangeObserver()
-      val clientFlow                      = new ExchangeClientObserver.ClientFlow(localObserver)
+      val localObserver: ExchangeObserver               = ExchangeObserver()
+      val clientFlow: ExchangeClientObserver.ClientFlow = new ExchangeClientObserver.ClientFlow(localObserver)
 
       // track the messages which appear from the clientPublisher here:
       var msgList = List[ClientSubscriptionMessage]()
@@ -30,7 +30,6 @@ class ExchangeClientObserverTest extends BaseSpec with HasMaterializer with Even
       eventually {
         msgList should contain inOrderOnly (ClientSubscriptionMessage.takeNext(1), ClientSubscriptionMessage.takeNext(2), ClientSubscriptionMessage.cancel)
       }
-
     }
   }
 }

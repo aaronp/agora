@@ -1,8 +1,8 @@
 package agora.exec.events
 
 import agora.api.JobId
-import agora.api.time.TimeCoords.FixedDateTime.format
-import agora.api.time.Timestamp
+import agora.time.TimeCoords.FixedDateTime.format
+import agora.time.Timestamp
 import akka.http.scaladsl.client.RequestBuilding
 import akka.http.scaladsl.model.Uri.Query
 import akka.http.scaladsl.model.{HttpRequest, Uri}

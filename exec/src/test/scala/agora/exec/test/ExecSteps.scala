@@ -60,7 +60,7 @@ class ExecSteps extends ScalaDsl with EN with Matchers with TestData with ScalaF
   }
 
   /**
-    * TODO - extend BaseSpec
+    * TODO - extend BaseExecSpec
     */
   implicit def testTimeout: FiniteDuration = 4.seconds
 

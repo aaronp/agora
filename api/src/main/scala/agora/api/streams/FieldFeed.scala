@@ -1,6 +1,6 @@
 package agora.api.streams
 
-import agora.api.json.{TypeNode, TypesByPath, newTypesByPath}
+import agora.json.{TypeNode, TypesByPath, newTypesByPath}
 import agora.flow.{AccumulatingSubscriber, AsConsumerQueue, BaseProcessor}
 import io.circe.Json
 

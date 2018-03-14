@@ -2,9 +2,9 @@ package agora.api.data
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import agora.BaseSpec
+import agora.BaseApiSpec
 
-class LazyTest extends BaseSpec {
+class LazyTest extends BaseApiSpec {
   "Lazy.close" should {
 
     "not propagate exceptions thrown when closing" in {

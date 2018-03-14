@@ -1,10 +1,10 @@
 package agora.exec.events
 
-import agora.BaseSpec
+import agora.BaseExecApiSpec
 import agora.exec.model.RunProcess
 import agora.rest.HasMaterializer
 
-class SystemEventMonitorTest extends BaseSpec with HasMaterializer {
+class SystemEventMonitorTest extends BaseExecApiSpec with HasMaterializer {
 
   "SystemEventMonitor.query(FindJob)" should {
     "return received jobs" in {

@@ -40,7 +40,7 @@ class ExecutionRoutesTest extends BaseRoutesSpec with CommonRequestBuilding {
     }
     "execute non-streaming commands" in {
       withDir { dir =>
-        val workspaces = WorkspaceClient(dir, system, 100.millis)
+        val workspaces = WorkspaceClient(dir, system, 100.millis, WorkspaceClient.defaultAttributes)
 
         val execConfig = ExecConfig()
         val workflow   = ExecutionWorkflow(execConfig.defaultEnv, workspaces, execConfig.eventMonitor)

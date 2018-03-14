@@ -1,6 +1,6 @@
 package agora.io.dao
 
-import java.time.{LocalDate, ZoneOffset}
+import java.time.LocalDate
 
 import agora.BaseIOSpec
 

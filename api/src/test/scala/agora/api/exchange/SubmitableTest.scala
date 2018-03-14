@@ -2,7 +2,7 @@ package agora.api.exchange
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import agora.BaseSpec
+import agora.BaseApiSpec
 import agora.api.Implicits._
 import agora.api.worker.HostLocation
 import io.circe.generic.auto._
@@ -11,7 +11,7 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.Future
 
-class SubmitableTest extends BaseSpec {
+class SubmitableTest extends BaseApiSpec {
 
   import SubmitableTest._
 

@@ -2,14 +2,14 @@ package miniraft.state
 
 import java.util.UUID
 
-import agora.BaseSpec
+import agora.BaseRestSpec
 import agora.rest.test.TestTimer
 import miniraft._
 import org.scalatest.concurrent.Eventually
 
 import scala.reflect.ClassTag
 
-class RaftNodeLogicTest extends BaseSpec with Eventually {
+class RaftNodeLogicTest extends BaseRestSpec with Eventually {
 
   "RaftNodeLogic onElectionTimeout / onVoteRequest" should {
     "elect a node" in {

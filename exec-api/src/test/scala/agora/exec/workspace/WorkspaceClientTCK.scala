@@ -3,7 +3,7 @@ package agora.exec.workspace
 import java.nio.file.Path
 import java.util.UUID
 
-import agora.BaseSpec
+import agora.BaseExecApiSpec
 import agora.exec.model.Upload
 import agora.rest.HasMaterializer
 import akka.actor.PoisonPill
@@ -13,7 +13,7 @@ import akka.util.ByteString
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
-trait WorkspaceClientTCK extends BaseSpec with HasMaterializer {
+trait WorkspaceClientTCK extends BaseExecApiSpec with HasMaterializer {
 
   def withWorkspaceClient[T](testWithClient: (WorkspaceClient, Path) => T): T
 //  = {
@@ -46,7 +46,7 @@ trait WorkspaceClientTCK extends BaseSpec with HasMaterializer {
       withWorkspaceClient { (client, _) =>
         client.list().futureValue shouldBe empty
 
-        val before = agora.api.time.now()
+        val before = agora.time.now()
         client.upload("x", Upload.forText("file", "content")).futureValue._2.exists() shouldBe true
         client.upload("y", Upload.forText("file", "content")).futureValue._2.exists() shouldBe true
 
@@ -58,7 +58,7 @@ trait WorkspaceClientTCK extends BaseSpec with HasMaterializer {
       withWorkspaceClient { (client, _) =>
         client.list().futureValue shouldBe empty
 
-        val before = agora.api.time.now()
+        val before = agora.time.now()
         client.upload("x", Upload.forText("file", "content")).futureValue._2.exists() shouldBe true
         client.upload("y", Upload.forText("file", "content")).futureValue._2.exists() shouldBe true
 
@@ -71,7 +71,7 @@ trait WorkspaceClientTCK extends BaseSpec with HasMaterializer {
       withWorkspaceClient { (client, containerDir) =>
         client.list().futureValue shouldBe empty
 
-        val before = agora.api.time.now()
+        val before = agora.time.now()
         client.upload("x", Upload.forText("file", "content")).futureValue._2.exists() shouldBe true
 
         client
@@ -105,7 +105,7 @@ trait WorkspaceClientTCK extends BaseSpec with HasMaterializer {
     "reevaluate a workspace" in {
       withWorkspaceClient { (client, containerDir) =>
         val workspace = UUID.randomUUID().toString
-        val started   = agora.api.time.now()
+        val started   = agora.time.now()
         val awaitFuture: Future[Path] =
           client.awaitWorkspace(workspace, Set("some.file"), testTimeout.toMillis)
 
@@ -117,7 +117,7 @@ trait WorkspaceClientTCK extends BaseSpec with HasMaterializer {
         val done = awaitFuture.isCompleted
         val errorMessage = if (done) {
           val path      = awaitFuture.futureValue
-          val errorTime = agora.api.time.now()
+          val errorTime = agora.time.now()
 
           s""" Awaiting on $workspace under $containerDir has already completed
              | We stated at
@@ -160,7 +160,7 @@ trait WorkspaceClientTCK extends BaseSpec with HasMaterializer {
   "WorkspaceClient.close" should {
     "not close workspaces when ifNotModifiedSince is specified and the workspaces has been modified since" in {
       withWorkspaceClient { (client, _) =>
-        val before = agora.api.time.now().minusSeconds(1)
+        val before = agora.time.now().minusSeconds(1)
         client.upload("hi", Upload.forText("x", "y")).futureValue
         client.upload("hi", Upload.forText("second", "one")).futureValue
 

@@ -14,6 +14,7 @@ import scala.util.{Failure, Success}
 
 class AkkaImplicits private (actorSystemPrefix: String, actorConfig: Config) extends AutoCloseable with StrictLogging {
   val actorSystemName = AkkaImplicits.uniqueName(actorSystemPrefix)
+
   logger.debug(s"Creating actor system $actorSystemName")
   @volatile private var terminated = false
 
@@ -66,7 +67,7 @@ class AkkaImplicits private (actorSystemPrefix: String, actorConfig: Config) ext
 
 object AkkaImplicits {
 
-  private val uniqueInstanceCounter = new AtomicInteger(0)
+  private val uniqueInstanceCounter                 = new AtomicInteger(0)
   private def uniqueName(actorSystemPrefix: String) = s"$actorSystemPrefix${uniqueInstanceCounter.incrementAndGet()}"
 
   private def remove(implicits: AkkaImplicits) = {
@@ -86,12 +87,6 @@ object AkkaImplicits {
       instances = inst :: instances
     }
     inst
-  }
-
-  private val ThreadTarget = {
-    val tgt = classOf[Thread].getDeclaredField("target")
-    tgt.setAccessible(true)
-    tgt
   }
 
   def allThreads() = {

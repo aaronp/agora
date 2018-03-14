@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import agora.api.JobId
 import agora.api.`match`.MatchDetails
-import agora.api.time.{now, _}
+import agora.time.{now, _}
 import agora.exec.model.RunProcess
 import agora.io.dao.HasId
 import io.circe.Json

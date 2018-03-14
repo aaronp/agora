@@ -1,6 +1,6 @@
 package miniraft.state
 
-import agora.BaseSpec
+import agora.BaseRestSpec
 import agora.api.worker.HostLocation
 import agora.rest.RunningService
 import miniraft.state.rest.{LeaderClient, NodeStateSummary}
@@ -11,16 +11,12 @@ import scala.concurrent.{Await, Future}
 object RaftSystemTest {
 
   case class RunningNode(service: RunningService[RaftConfig, RaftSystem[String]]) {
+    def stop(): Future[Any] = {
+      service.stop()
+    }
+
     val leader: LeaderClient[String] = service.conf.leaderClient[String]
     val support                      = service.conf.supportClient[String]
-
-    service.onShutdown {
-      import concurrent.duration._
-      val fut1 = service.conf.clientConfig.cachedClients.stop()
-      val fut2 = service.conf.serverImplicits.stop()
-      Await.result(fut1, 4.seconds)
-      Await.result(fut2, 4.seconds)
-    }
 
     def about: Future[String] = {
 
@@ -51,7 +47,7 @@ object RaftSystemTest {
   }
 }
 
-class RaftSystemTest extends BaseSpec with Eventually {
+class RaftSystemTest extends BaseRestSpec with Eventually {
 
   import RaftSystemTest._
 
@@ -72,12 +68,14 @@ class RaftSystemTest extends BaseSpec with Eventually {
           }
         }
       } finally {
-        clusterNodes.foreach(_.service.stop())
+        val futures = clusterNodes.map(_.stop())
+        import scala.concurrent.ExecutionContext.Implicits.global
+        Future.sequence(futures).futureValue
       }
     }
   }
 
-  def startLocalNodes(ports: Set[Int]) = {
+  def startLocalNodes(ports: Set[Int]): List[RunningNode] = {
 
     val nodes = ports.map { port =>
       HostLocation("localhost", port)

@@ -1,7 +1,7 @@
 package agora.api.worker
 
 import agora.api.User
-import agora.api.json.{JsonAppendable, JsonDelta, _}
+import agora.json.{JsonAppendable, JsonDelta, _}
 import io.circe.Decoder.Result
 import io.circe._
 import io.circe.optics.JsonPath

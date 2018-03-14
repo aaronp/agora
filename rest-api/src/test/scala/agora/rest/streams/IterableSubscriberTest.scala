@@ -1,6 +1,6 @@
 package agora.rest.streams
 
-import agora.BaseSpec
+import agora.BaseRestApiSpec
 import agora.io.IterableSubscriber
 import agora.rest.HasMaterializer
 import akka.stream.scaladsl.Source
@@ -10,7 +10,7 @@ import org.reactivestreams.Subscription
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-class IterableSubscriberTest extends BaseSpec with HasMaterializer {
+class IterableSubscriberTest extends BaseRestApiSpec with HasMaterializer {
 
   class TestSubscription extends Subscription {
     var requested = List[Long]()

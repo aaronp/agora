@@ -1,6 +1,6 @@
 package agora.api.exchange.bucket
 
-import agora.api.json.JPath
+import agora.json.JPath
 import io.circe.Json
 
 /**

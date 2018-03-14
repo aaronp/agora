@@ -2,16 +2,17 @@ package agora.flow
 
 import java.nio.file.{Path, StandardOpenOption}
 
-import agora.io.LowPriorityIOImplicits
-import agora.io.dao.{FromBytes, ToBytes}
+import agora.io.{FromBytes, LowPriorityIOImplicits, ToBytes}
 import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
 
-import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}
 
+/**
+  * Represents the means to write down them messages (of type T) which are flowing through a [[DurableProcessor]]
+  * @tparam T
+  */
 trait DurableProcessorDao[T] {
-//  def executionContext: ExecutionContext
 
   /**
     * Note - 'writeDown' will be called from the same thread w/ sequential indices.
@@ -29,16 +30,19 @@ trait DurableProcessorDao[T] {
     */
   def writeDown(index: Long, value: T): Boolean
 
-//  def at(index: Long): Future[T]
+  /** @param index the index from which to read
+    * @return the value at a particular index (which may not exist or suffer some IO error)
+    */
   def at(index: Long): Try[T]
 
+  /** @return the maximum written index (or none if there are none)
+    */
   def maxIndex: Option[Long]
 }
 
 object DurableProcessorDao extends StrictLogging {
 
   class Delegate[T](underlying: DurableProcessorDao[T]) extends DurableProcessorDao[T] {
-//    override def executionContext: ExecutionContext = underlying.executionContext
 
     override def writeDown(index: Long, value: T) = underlying.writeDown(index, value)
 

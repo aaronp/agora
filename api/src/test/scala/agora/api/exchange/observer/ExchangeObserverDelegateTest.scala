@@ -1,12 +1,12 @@
 package agora.api.exchange.observer
 
-import agora.BaseSpec
+import agora.BaseApiSpec
 import agora.api.exchange.SubmitJob
 import agora.api.Implicits._
 
-class ExchangeObserverDelegateTest extends BaseSpec {
+class ExchangeObserverDelegateTest extends BaseApiSpec {
 
-  val someTime = agora.api.time.now()
+  val someTime = agora.time.now()
 
   "ExchangeObserverDelegate.onceWhen" should {
     "remove the observer after one event" in {

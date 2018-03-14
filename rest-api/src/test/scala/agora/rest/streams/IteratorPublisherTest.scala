@@ -2,14 +2,14 @@ package agora.rest.streams
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import agora.BaseSpec
+import agora.BaseRestApiSpec
 import agora.io.{IterableSubscriber, IteratorPublisher}
 
 import concurrent.Future
 import concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits._
 
-class IteratorPublisherTest extends BaseSpec {
+class IteratorPublisherTest extends BaseRestApiSpec {
 
   "IteratorPublisher" should {
     "publish the elements in an iterator" in {

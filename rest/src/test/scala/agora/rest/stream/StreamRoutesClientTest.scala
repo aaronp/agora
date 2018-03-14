@@ -1,24 +1,24 @@
 package agora.rest.stream
 
-import agora.BaseSpec
+import agora.BaseRestSpec
 import agora.flow.{DurableProcessor, DurableProcessorDao, ListSubscriber}
 import agora.rest.client.StreamPublisherWebsocketClient
-import agora.rest.{RunningService, ServerConfig}
+import agora.rest.{AkkaImplicits, RunningService, ServerConfig}
 import com.typesafe.config.ConfigFactory
 import io.circe.Json
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 import scala.util.Try
 
-class StreamRoutesClientTest extends BaseSpec with ScalaFutures with Eventually {
+class StreamRoutesClientTest extends BaseRestSpec with ScalaFutures with Eventually {
   "StreamRoutesClient" should {
     "be able to connect a subscriber to an existing publisher" in {
 
       // start a server which will host registered publishers/subscribers
       val server: RunningService[ServerConfig, StreamRoutes] = StreamRoutes.start().futureValue
 
-      val serverConf = if (server == null) ServerConfig(ConfigFactory.load("agora-defaults.conf")) else server.conf
+      val serverConf: ServerConfig = if (server == null) ServerConfig(ConfigFactory.load("agora-defaults.conf")) else server.conf
       // connect a client to the server
       import serverConf.serverImplicits._
       val client: StreamRoutesClient = StreamRoutesClient(serverConf.clientConfig)
@@ -48,7 +48,8 @@ class StreamRoutesClientTest extends BaseSpec with ScalaFutures with Eventually 
         }
       } finally {
         Try(server.stop().futureValue)
-        client.close()
+        client.stop().futureValue
+        serverConf.stop().futureValue
       }
     }
   }

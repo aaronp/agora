@@ -2,11 +2,11 @@ package agora.rest
 
 import java.time.LocalDateTime
 
-import agora.BaseSpec
+import agora.BaseRestApiSpec
 import agora.api.`match`.MatchDetails
 import akka.http.scaladsl.model.HttpRequest
 
-class MatchDetailsExtractorTest extends BaseSpec {
+class MatchDetailsExtractorTest extends BaseRestApiSpec {
 
   "MatchDetailsExtractor.headersFor and unapply" should {
     "extract match details from request headers" in {

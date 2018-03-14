@@ -1,12 +1,12 @@
 package agora.api.io
 
 import _root_.io.circe.optics.JsonPath
-import agora.BaseSpec
-import agora.api.json.{And, JPredicate, Or}
+import agora.BaseRestSpec
+import agora.json.{And, JPredicate, Or}
 import agora.rest.worker.WorkerConfig
 import com.typesafe.config.ConfigFactory
 
-class WorkerConfigTest extends BaseSpec {
+class WorkerConfigTest extends BaseRestSpec {
   "WorkerConfig(args)" should {
     "produce a worker config from user args" in {
       val wc: WorkerConfig = WorkerConfig("subscription.details.path=foo", "port=1122", "exchange.port=567")

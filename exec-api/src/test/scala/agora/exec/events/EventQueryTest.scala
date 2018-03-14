@@ -1,10 +1,10 @@
 package agora.exec.events
 
-import agora.BaseSpec
-import agora.api.time._
+import agora.BaseExecApiSpec
+import agora.time._
 import io.circe.syntax._
 
-class EventQueryTest extends BaseSpec {
+class EventQueryTest extends BaseExecApiSpec {
 
   "EventQuery" should {
 

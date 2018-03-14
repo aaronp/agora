@@ -3,7 +3,7 @@ package agora.rest
 import java.util.concurrent.atomic.AtomicInteger
 
 import agora.api.exchange.{SelectionMode, SubmissionDetails, WorkMatcher}
-import agora.api.json.JPredicate
+import agora.json.JPredicate
 import agora.api.worker.HostLocation
 import agora.rest.client._
 import agora.rest.worker.SubscriptionConfig
@@ -95,9 +95,9 @@ class ClientConfig(config: Config) extends AutoCloseable {
 
   object clientFailover {
 
-    val strategyConfig = config.getConfig("clientFailover")
+    val strategyConfig: Config = config.getConfig("clientFailover")
 
-    def strategy = {
+    def strategy: RetryStrategy = {
       strategyConfig.getString("strategy") match {
         case "limiting" =>
           val nTimes = strategyConfig.getInt("nTimes")
@@ -107,9 +107,13 @@ class ClientConfig(config: Config) extends AutoCloseable {
         case "throttled" =>
           val delay = strategyConfig.getDuration("throttle-delay").toMillis.millis
           RetryStrategy.throttle(delay)
-        case other => sys.error(s"Unknown strategy failover strategy '$other'")
+        case other => strategyForName(other, strategyConfig)
       }
     }
+  }
+
+  protected def strategyForName(strategy: String, strategyConfig: Config) = {
+    sys.error(s"Unknown strategy failover strategy '$strategy'")
   }
 
   override def close(): Unit = stop()

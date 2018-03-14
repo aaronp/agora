@@ -1,6 +1,6 @@
 package agora.rest.stream
 
-import agora.BaseSpec
+import agora.BaseRestApiSpec
 import agora.flow.{DurableProcessor, DurableProcessorDao, ListSubscriber}
 import agora.rest.exchange.ClientSubscriptionMessage
 import io.circe.Json
@@ -10,7 +10,7 @@ import org.scalatest.concurrent.Eventually
 
 import _root_.scala.concurrent.ExecutionContext.Implicits._
 
-class SocketPipelineTest extends BaseSpec with GivenWhenThen with Eventually {
+class SocketPipelineTest extends BaseRestApiSpec with GivenWhenThen with Eventually {
 
   "Socket.DataSubscriber" should {
 

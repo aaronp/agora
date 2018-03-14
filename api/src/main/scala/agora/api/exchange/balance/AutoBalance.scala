@@ -1,6 +1,6 @@
 package agora.api.exchange.balance
 
-import agora.api.json.JPredicate
+import agora.json.JPredicate
 
 /**
   * Contains functions to support auto-balancing subscriptions.

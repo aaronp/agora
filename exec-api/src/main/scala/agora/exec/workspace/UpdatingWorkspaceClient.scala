@@ -3,7 +3,7 @@ package agora.exec.workspace
 import java.nio.file.Path
 
 import agora.api.exchange.{Exchange, UpdateSubscription, UpdateSubscriptionAck}
-import agora.api.json.{JPath, JsonDelta}
+import agora.json.{JPath, JsonDelta}
 import agora.api.worker.SubscriptionKey
 import agora.exec.WorkspacesKey
 import agora.io.dao.Timestamp

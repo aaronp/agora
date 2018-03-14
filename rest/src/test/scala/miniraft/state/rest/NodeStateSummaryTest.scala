@@ -1,6 +1,6 @@
 package miniraft.state.rest
 
-import agora.BaseSpec
+import agora.BaseRestSpec
 import io.circe.parser._
 import io.circe.syntax._
 import agora.rest.test.BufferedTransport
@@ -9,7 +9,7 @@ import miniraft.state.rest.NodeStateSummary.LeaderSnapshot
 
 import scala.concurrent.ExecutionContext
 
-class NodeStateSummaryTest extends BaseSpec {
+class NodeStateSummaryTest extends BaseRestSpec {
 
   "NodeStateSummary json encoding" should {
     "marshal/unmarshal a follower node" in {

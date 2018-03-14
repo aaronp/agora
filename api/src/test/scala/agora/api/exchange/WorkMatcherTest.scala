@@ -1,13 +1,13 @@
 package agora.api.exchange
 
-import agora.BaseSpec
+import agora.BaseApiSpec
 import agora.api.Implicits._
 import agora.api.exchange.bucket.{BucketKey, JobBucket, WorkerMatchBucket}
-import agora.api.json.{JExpression, JFilter, JPart, JPath, MatchAll, MatchNone}
+import agora.json.{JExpression, JFilter, JPart, JPath, MatchAll, MatchNone}
 import io.circe.Json
 import io.circe.syntax._
 
-class WorkMatcherTest extends BaseSpec {
+class WorkMatcherTest extends BaseApiSpec {
 
   "WorkMatcher.decoder" should {
     "decode matchers with buckest and onMatchUpdates" in {

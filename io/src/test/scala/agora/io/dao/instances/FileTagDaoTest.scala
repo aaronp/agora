@@ -1,7 +1,8 @@
 package agora.io.dao.instances
 
 import agora.BaseIOSpec
-import agora.io.dao.{FromBytes, Persist}
+import agora.io.FromBytes
+import agora.io.dao.Persist
 
 class FileTagDaoTest extends BaseIOSpec {
   "FileTagDao.setTag" should {

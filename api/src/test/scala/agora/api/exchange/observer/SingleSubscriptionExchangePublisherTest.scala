@@ -1,11 +1,11 @@
 package agora.api.exchange.observer
 
-import agora.BaseSpec
+import agora.BaseApiSpec
 import agora.api.Implicits._
 import agora.api.exchange.QueueStateResponse
 import org.reactivestreams.{Subscriber, Subscription}
 
-class SingleSubscriptionExchangePublisherTest extends BaseSpec {
+class SingleSubscriptionExchangePublisherTest extends BaseApiSpec {
   "SingleSubscriptionExchangePublisher" should {
     "publish events to subscribers" in {
       val publisher = SingleSubscriptionExchangePublisher(ExchangeObserverDelegate())
@@ -30,7 +30,7 @@ class SingleSubscriptionExchangePublisherTest extends BaseSpec {
       }
       publisher.subscribe(subscriber)
 
-      val job = OnJobSubmitted(agora.api.time.now(), "hi".asJob)
+      val job = OnJobSubmitted(agora.time.now(), "hi".asJob)
       publisher.onJobSubmitted(job)
       subscriber.events.head shouldBe (job)
       subscriber.events.tail.head should matchPattern {

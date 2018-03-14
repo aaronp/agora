@@ -1,6 +1,6 @@
 package agora.api.exchange.dsl
 
-import agora.BaseSpec
+import agora.BaseApiSpec
 import agora.api.exchange._
 import org.scalatest.concurrent.Eventually
 import agora.api.Implicits._
@@ -10,7 +10,7 @@ import io.circe.generic.auto._
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
 
-class JobSyntaxTest extends BaseSpec with Eventually {
+class JobSyntaxTest extends BaseApiSpec with Eventually {
 
   implicit val excecCtxt = scala.concurrent.ExecutionContext.fromExecutorService(daemonicExecutor)
 

@@ -2,14 +2,14 @@ package agora.exec.rest
 
 import java.nio.file.Path
 
-import agora.BaseSpec
+import agora.BaseExecSpec
 import agora.exec.model._
 import agora.rest.HasMaterializer
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 
 import scala.concurrent.Future
 
-class CachedOutputTest extends BaseSpec with HasMaterializer {
+class CachedOutputTest extends BaseExecSpec with HasMaterializer {
 
   def asFileResult(cachedResponseOpt: Option[Future[HttpResponse]]): FileResult = {
     cachedResponseOpt.isDefined shouldBe true

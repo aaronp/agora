@@ -1,9 +1,9 @@
 package agora.api.exchange.observer
 
-import agora.BaseSpec
+import agora.BaseApiSpec
 import agora.api.Implicits._
 import agora.api.exchange._
-
+import agora.time.now
 import scala.language.reflectiveCalls
 
 /**
@@ -11,7 +11,7 @@ import scala.language.reflectiveCalls
   * the area they're interested in, such as delegating to other observers or connecting
   * over a websocket
   */
-class ExchangeObserverTest extends BaseSpec {
+class ExchangeObserverTest extends BaseApiSpec {
 
   "ExchangeObserver.onMatch" should {
     "notify the observer when a match is made" in {
@@ -121,7 +121,7 @@ class ExchangeObserverTest extends BaseSpec {
       observer.events shouldBe empty
     }
     "be notified when a subscription is updated" in {
-      val before   = agora.api.time.now()
+      val before   = now()
       val observer = new TestObserver
       val exchange = Exchange(observer)
       val ack      = exchange.subscribe(WorkSubscription.localhost(1234)).futureValue
@@ -130,8 +130,8 @@ class ExchangeObserverTest extends BaseSpec {
       // call the method under test to trigger an update
       val updateReply = exchange.updateSubscriptionDetails(update).futureValue
 
-      val after                                                         = agora.api.time.now()
-      val Some(OnSubscriptionUpdated(time, delta, Candidate(id, x, y))) = observer.lastUpdated()
+      val after                                                        = now()
+      val Some(OnSubscriptionUpdated(time, delta, Candidate(_, _, _))) = observer.lastUpdated()
       withClue(s"$before <= ${time} <= $after") {
         time.isBefore(before) shouldBe false
         time.isAfter(after) shouldBe false

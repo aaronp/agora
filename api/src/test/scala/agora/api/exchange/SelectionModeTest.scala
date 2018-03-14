@@ -1,12 +1,12 @@
 package agora.api.exchange
 
-import agora.BaseSpec
+import agora.BaseApiSpec
 import agora.api.Implicits._
-import agora.api.json.{JPart, JPath}
+import agora.json.{JPart, JPath}
 import agora.api.nextSubscriptionKey
 import agora.api.worker.WorkerDetails
 
-class SelectionModeTest extends BaseSpec {
+class SelectionModeTest extends BaseApiSpec {
 
   import SelectionModeTest._
   import io.circe.generic.auto._

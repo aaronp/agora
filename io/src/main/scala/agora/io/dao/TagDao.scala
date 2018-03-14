@@ -2,6 +2,8 @@ package agora.io.dao
 
 import java.nio.file.Path
 
+import agora.io.FromBytes
+
 /**
   * Represents the ability to tag data with key/values
   *

@@ -4,12 +4,13 @@ import java.util.UUID
 
 import agora.exec.model.RunProcess
 import agora.exec.{ExecBoot, ExecConfig}
-import agora.rest.RunningService
-import agora.{BaseIOSpec, BaseSpec}
+import agora.rest.{AkkaImplicits, RunningService}
+import agora.{BaseIOSpec, BaseExecSpec}
 
+import scala.concurrent.Future
 import scala.util.Properties
 
-class RemoteRunnerTest extends BaseSpec with ProcessRunnerTCK {
+class RemoteRunnerTest extends BaseExecSpec with ProcessRunnerTCK {
 
   var runningWorker: RunningService[ExecConfig, ExecBoot] = null
   var remoteRunner: ProcessRunner                         = null

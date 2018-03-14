@@ -1,8 +1,8 @@
 package agora.api.health
 
-import agora.BaseSpec
+import agora.BaseApiSpec
 
-class MemoryDtoTest extends BaseSpec {
+class MemoryDtoTest extends BaseApiSpec {
 
   def emptyDto = MemoryDto(0, 0, 0, 0, 0)
 

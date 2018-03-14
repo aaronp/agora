@@ -1,13 +1,13 @@
 package agora.rest
 
-import agora.BaseSpec
+import agora.BaseRestApiSpec
 import agora.api.exchange.{SelectionFirst, SelectionMode, SubmissionDetails, WorkMatcher}
-import agora.api.json.{MatchAll, MatchNone}
+import agora.json.{MatchAll, MatchNone}
 import io.circe.optics.JsonPath
 
 import scala.util.Properties
 
-class ClientConfigTest extends BaseSpec {
+class ClientConfigTest extends BaseRestApiSpec {
   "ClientConfig.load" should {
     "parse its config" in {
       val conf = ClientConfig.load()

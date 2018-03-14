@@ -2,6 +2,7 @@ package agora.io.dao
 
 import agora.io.dao.instances.FileTagDao
 import agora.BaseIOSpec
+import agora.io.FromBytes
 
 import scala.util.Try
 

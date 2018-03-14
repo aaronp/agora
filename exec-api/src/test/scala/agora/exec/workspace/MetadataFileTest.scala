@@ -2,9 +2,9 @@ package agora.exec.workspace
 
 import java.nio.file.Path
 
-import agora.BaseSpec
+import agora.BaseExecApiSpec
 
-class MetadataFileTest extends BaseSpec {
+class MetadataFileTest extends BaseExecApiSpec {
   "MetadataFile.isMetadataFile" should {
     List(
       ".some.file.metadata"         -> true,

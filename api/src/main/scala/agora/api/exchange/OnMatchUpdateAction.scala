@@ -1,6 +1,6 @@
 package agora.api.exchange
 
-import agora.api.json.{JExpression, JPath}
+import agora.json.{JExpression, JPath}
 import cats.syntax.either._
 import io.circe.Decoder.Result
 import io.circe.syntax._
@@ -10,8 +10,8 @@ import io.circe.{Decoder, Encoder, HCursor, Json}
   * Represents an update which should be made to the [[agora.api.worker.WorkerDetails]] when a job is matched against
   * a [[WorkSubscription]].
   *
-  * Each matched worker will have its json update with the result of the [[agora.api.json.JExpression]] at
-  * the given [[agora.api.json.JPath]]
+  * Each matched worker will have its json update with the result of the [[agora.json.JExpression]] at
+  * the given [[agora.json.JPath]]
   */
 sealed trait OnMatchUpdateAction {
   def update(subscription: WorkSubscription): WorkSubscription
@@ -46,7 +46,7 @@ case class OnMatchAppend(value: JExpression, appendTo: JPath) extends OnMatchUpd
       val updatedOpt = jsonToAppendOpt.map { value =>
         val jsonToMerge = JPath.selectJson(appendTo.path, value)
 
-        details.copy(aboutMe = agora.api.json.deepMergeWithArrayConcat(details.aboutMe, jsonToMerge))
+        details.copy(aboutMe = agora.json.deepMergeWithArrayConcat(details.aboutMe, jsonToMerge))
       }
       updatedOpt.getOrElse(details)
     }

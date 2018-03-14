@@ -2,8 +2,8 @@ package agora.api.exchange.observer
 
 import agora.api.JobId
 import agora.api.exchange._
-import agora.api.json.JsonDelta
-import agora.api.time.now
+import agora.json.JsonDelta
+import agora.time.now
 import agora.api.worker.SubscriptionKey
 
 /**

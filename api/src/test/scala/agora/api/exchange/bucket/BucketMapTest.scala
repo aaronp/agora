@@ -1,10 +1,10 @@
 package agora.api.exchange.bucket
 
-import agora.BaseSpec
-import agora.api.json.JPath
+import agora.BaseApiSpec
+import agora.json.JPath
 import io.circe.Json
 
-class BucketMapTest extends BaseSpec {
+class BucketMapTest extends BaseApiSpec {
 
   "BucketMap.update" should {
 

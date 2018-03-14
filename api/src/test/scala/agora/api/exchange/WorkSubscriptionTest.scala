@@ -1,11 +1,11 @@
 package agora.api.exchange
 
-import agora.BaseSpec
+import agora.BaseApiSpec
 import agora.api.worker.HostLocation
 
 import scala.language.reflectiveCalls
 
-class WorkSubscriptionTest extends BaseSpec {
+class WorkSubscriptionTest extends BaseApiSpec {
 
   "WorkSubscription.withPath" should {
     "use the given path" in {

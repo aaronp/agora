@@ -1,15 +1,15 @@
 package agora.api.exchange.observer
 
-import agora.BaseSpec
+import agora.BaseApiSpec
 import agora.api.exchange.{Candidate, PendingSubscription, QueueStateResponse, WorkSubscription}
-import agora.api.json.JsonDelta
+import agora.json.JsonDelta
 import io.circe.parser.decode
 import io.circe.syntax._
+import agora.time.now
 
-class ExchangeNotificationMessageTest extends BaseSpec {
+class ExchangeNotificationMessageTest extends BaseApiSpec {
 
   import agora.api.Implicits._
-  import agora.api.time._
 
   val candidate = Candidate("foo", WorkSubscription.localhost(8888), 0)
   val list = List[ExchangeNotificationMessage](

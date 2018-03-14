@@ -1,16 +1,16 @@
 package agora.api.exchange.instances
 
-import agora.BaseSpec
+import agora.BaseApiSpec
 import agora.api.Implicits._
 import agora.api.exchange._
 import agora.api.exchange.observer._
-import agora.api.json.JPath
+import agora.json.JPath
 import io.circe.Json
 import io.circe.optics.JsonPath
 
 import scala.util.Success
 
-class ExchangeInstanceTest extends BaseSpec {
+class ExchangeInstanceTest extends BaseApiSpec {
 
   "ExchangeState onMatchAction" should {
     "Update matched work subscriptions with the onMatchUpdaterAction specified by the submitted job" in {

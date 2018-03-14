@@ -1,12 +1,12 @@
 package agora.exec.log
 
-import agora.BaseSpec
+import agora.BaseExecApiSpec
 import agora.exec.model.{ProcessError, RunProcess, StreamingSettings}
 
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.Future
 
-class ProcessLoggersTest extends BaseSpec {
+class ProcessLoggersTest extends BaseExecApiSpec {
 
   "ProcessLoggers" should {
     "return an empty iterator if completed before any output is sent" in {

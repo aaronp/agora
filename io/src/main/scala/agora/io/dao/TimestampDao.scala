@@ -3,6 +3,7 @@ package agora.io.dao
 import java.nio.file.Path
 import java.time.{LocalDateTime, ZoneOffset, ZonedDateTime}
 
+import agora.io.FromBytes
 import agora.io.dao.instances.FileTimestampDao
 
 /**

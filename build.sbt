@@ -171,6 +171,13 @@ lazy val flow = project
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.Flow)
 
+lazy val json = project
+  .in(file("json"))
+//  .dependsOn(configProject % "test->compile")
+  .settings(name := s"${repo}-json")
+  .settings(commonSettings: _*)
+  .settings(libraryDependencies ++= Dependencies.Json)
+
 lazy val io = project
   .in(file("io"))
   .settings(name := s"${repo}-io")
@@ -181,6 +188,7 @@ lazy val api = project
   .in(file("api"))
   .dependsOn(io % "compile->compile;test->test", configProject % "compile->compile;test->test")
   .dependsOn(flow % "compile->compile;test->test", configProject % "compile->compile;test->test")
+  .dependsOn(json % "compile->compile;test->test", configProject % "compile->compile;test->test")
   .settings(name := s"${repo}-api")
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.Api)

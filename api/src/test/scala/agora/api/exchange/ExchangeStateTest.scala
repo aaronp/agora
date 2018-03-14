@@ -1,18 +1,17 @@
 package agora.api.exchange
 
-import agora.BaseSpec
+import agora.BaseApiSpec
 import agora.api.Implicits._
 import agora.api.exchange.bucket.{BucketKey, BucketValueKey}
 import agora.api.exchange.instances.ExchangeState
 import agora.api.exchange.observer.{ExchangeObserver, OnMatch, TestObserver}
-import agora.api.json.{JPath, JPredicate, MatchNone}
 import agora.api.worker.{HostLocation, SubscriptionKey, WorkerDetails}
+import agora.json.{JPath, JPredicate, MatchNone}
 import io.circe.Json
-import io.circe.optics.JsonPath
 
 import scala.util.Success
 
-class ExchangeStateTest extends BaseSpec {
+class ExchangeStateTest extends BaseApiSpec {
 
   implicit class RichPath(p: JPath) {
     def asKey(optional: Boolean = false) = BucketKey(p, optional)
@@ -425,6 +424,6 @@ class ExchangeStateTest extends BaseSpec {
 
   def mkSubscription() = WorkSubscription.forDetails(mkDetails())
 
-  val mehTime = agora.api.time.now()
+  val mehTime = agora.time.now()
 
 }

@@ -1,9 +1,9 @@
 package agora.exec.client
 
-import agora.BaseSpec
+import agora.BaseExecSpec
 import org.scalatest.FunSuite
 
-class UploadClientTest extends BaseSpec {
+class UploadClientTest extends BaseExecSpec {
   "UploadClient.upload" should {
     "upload files to UploadRoutes" in {}
   }

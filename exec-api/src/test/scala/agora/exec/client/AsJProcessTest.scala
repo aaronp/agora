@@ -1,13 +1,13 @@
 package agora.exec.client
 
-import agora.BaseSpec
+import agora.BaseExecApiSpec
 import agora.exec.log.IterableLogger
 import agora.exec.model.RunProcess
 
 import scala.sys.process
 import scala.concurrent.ExecutionContext.Implicits._
 
-class AsJProcessTest extends BaseSpec {
+class AsJProcessTest extends BaseExecApiSpec {
 
   "AsJProcess.unapply" should {
     "be able to extract a jprocess from a scala one" in {

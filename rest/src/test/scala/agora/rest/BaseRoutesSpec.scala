@@ -1,6 +1,6 @@
 package agora.rest
 
-import agora.BaseSpec
+import agora.BaseRestApiSpec
 import agora.rest.client.RestClient
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.http.scaladsl.server.Route
@@ -10,7 +10,7 @@ import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 
 import scala.concurrent.Future
 
-abstract class BaseRoutesSpec extends BaseSpec with ScalatestRouteTest with FailFastCirceSupport {
+abstract class BaseRoutesSpec extends BaseRestApiSpec with ScalatestRouteTest with FailFastCirceSupport {
 
   def testMaterializer = materializer
 
@@ -27,6 +27,7 @@ abstract class BaseRoutesSpec extends BaseSpec with ScalatestRouteTest with Fail
   }
 
   override def afterAll(): Unit = {
+    system.terminate().futureValue
     super.afterAll()
     cleanUp()
   }

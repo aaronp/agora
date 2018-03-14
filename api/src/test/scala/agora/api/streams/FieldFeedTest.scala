@@ -1,11 +1,11 @@
 package agora.api.streams
 
-import agora.BaseSpec
-import agora.api.json.{JType, TypesByPath}
+import agora.BaseApiSpec
+import agora.json.{JType, TypesByPath}
 import agora.flow.{AsConsumerQueue, BaseProcessor, BaseSubscriber}
 import io.circe.Json
 
-class FieldFeedTest extends BaseSpec {
+class FieldFeedTest extends BaseApiSpec {
   "FieldFeed" should {
     "notify of new paths" in {
       import AsConsumerQueue._

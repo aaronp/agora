@@ -2,7 +2,7 @@ package agora.exec.test
 
 import java.io.Closeable
 
-import agora.BaseSpec
+import agora.BaseExecSpec
 import agora.exec.{ExecBoot, ExecConfig}
 import agora.exec.client.RemoteRunner
 import agora.exec.model.{RunProcess, RunProcessResult, StreamingResult}
@@ -21,7 +21,7 @@ object ExecState {
 case class ExecState(serviceByName: Map[String, ExecState.Service] = Map.empty,
                      clientsByName: Map[String, (ExecConfig, RemoteRunner)] = Map.empty,
                      resultsByClient: Map[String, Future[RunProcessResult]] = Map.empty)
-    extends BaseSpec
+    extends BaseExecSpec
     with Eventually {
 
   def executeRunProcess(clientName: String, jobId: String, proc: RunProcess): ExecState = {

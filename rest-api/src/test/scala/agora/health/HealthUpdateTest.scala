@@ -1,12 +1,12 @@
 package agora.health
 
-import agora.BaseSpec
+import agora.BaseRestApiSpec
 import agora.api.exchange._
 import agora.api.health.HealthDto
 import agora.rest.HasMaterializer
 import io.circe.optics.JsonPath
 
-class HealthUpdateTest extends BaseSpec with HasMaterializer {
+class HealthUpdateTest extends BaseRestApiSpec with HasMaterializer {
 
   "HealthUpdate" should {
     "periodically update the health data" in {

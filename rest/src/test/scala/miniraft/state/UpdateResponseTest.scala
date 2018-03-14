@@ -1,11 +1,11 @@
 package miniraft.state
 
-import agora.BaseSpec
+import agora.BaseRestSpec
 import miniraft.{AppendEntriesResponse, UpdateResponse}
 
 import scala.concurrent.Promise
 
-class UpdateResponseTest extends BaseSpec {
+class UpdateResponseTest extends BaseRestSpec {
 
   import scala.concurrent.ExecutionContext.Implicits._
 

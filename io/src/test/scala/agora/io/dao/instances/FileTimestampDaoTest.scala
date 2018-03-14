@@ -3,7 +3,8 @@ package agora.io.dao.instances
 import java.time.{LocalDateTime, ZoneOffset}
 
 import agora.BaseIOSpec
-import agora.io.dao.{FromBytes, HasId, Persist}
+import agora.io.FromBytes
+import agora.io.dao.{HasId, Persist}
 
 class FileTimestampDaoTest extends BaseIOSpec {
 

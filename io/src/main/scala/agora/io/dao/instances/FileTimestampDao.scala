@@ -4,6 +4,7 @@ package instances
 import java.nio.file.Path
 import java.time.{LocalDate, ZoneId, ZoneOffset}
 
+import agora.io.FromBytes
 import agora.io.implicits._
 
 import scala.util.Try

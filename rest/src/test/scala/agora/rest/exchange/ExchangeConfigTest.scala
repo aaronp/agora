@@ -1,8 +1,8 @@
 package agora.rest.exchange
 
-import agora.BaseSpec
+import agora.BaseRestSpec
 
-class ExchangeConfigTest extends BaseSpec {
+class ExchangeConfigTest extends BaseRestSpec {
 
   "ExchangeConfig()" should {
     "reflect the server host in the client host" in {

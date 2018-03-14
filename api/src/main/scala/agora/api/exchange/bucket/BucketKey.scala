@@ -1,5 +1,5 @@
 package agora.api.exchange.bucket
 
-import agora.api.json.JPath
+import agora.json.JPath
 
 case class BucketKey(index: JPath, optional: Boolean)

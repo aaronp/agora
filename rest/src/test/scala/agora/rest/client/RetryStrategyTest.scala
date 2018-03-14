@@ -2,13 +2,13 @@ package agora.rest.client
 
 import java.time.LocalDateTime
 
-import agora.BaseSpec
+import agora.BaseRestSpec
 import akka.http.scaladsl.client.RequestBuilding
 import agora.rest.client.RetryStrategy.CountingStrategy
 
 import scala.concurrent.duration.{FiniteDuration, _}
 
-class RetryStrategyTest extends BaseSpec with RequestBuilding {
+class RetryStrategyTest extends BaseRestSpec with RequestBuilding {
 
   import Crashes._
 

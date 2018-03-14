@@ -3,11 +3,11 @@ package agora.exec.rest
 import _root_.io.circe.generic.auto._
 import _root_.io.swagger.annotations._
 import agora.api.exchange.Exchange
-import agora.api.time.TimeCoords
 import agora.exec.ExecConfig
 import agora.exec.model._
 import agora.exec.workspace.UploadDependencies
 import agora.rest.worker.RouteSubscriptionSupport
+import agora.time.TimeCoords
 import akka.http.scaladsl.server.Directives.{entity, path, _}
 import akka.http.scaladsl.server.Route
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport

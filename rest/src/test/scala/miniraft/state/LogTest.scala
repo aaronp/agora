@@ -1,9 +1,9 @@
 package miniraft.state
 
-import agora.BaseSpec
+import agora.BaseRestSpec
 import org.scalatest.BeforeAndAfterAll
 
-class LogTest extends BaseSpec with BeforeAndAfterAll {
+class LogTest extends BaseRestSpec with BeforeAndAfterAll {
   "Log(dir)" should {
     "have an initial term of 0 and no entries" in withDir { dir =>
       val log = Log[String](dir)(_ => ???)

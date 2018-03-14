@@ -1,9 +1,9 @@
 package miniraft.state.rest
 
-import agora.BaseSpec
+import agora.BaseRestSpec
 import org.scalatest.FunSuite
 
-class LoggingEndpointTest extends BaseSpec {
+class LoggingEndpointTest extends BaseRestSpec {
 
   "LoggingEndpoint.removeFilesWithAnIntegerPrefixPriorToN" should {
     "delete indexed files which begin with '<id>-' where <id> is less than the provided integer" in {

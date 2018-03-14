@@ -1,13 +1,13 @@
 package agora.exec.log
 
-import agora.BaseSpec
+import agora.BaseExecApiSpec
 
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.Future
 import language.implicitConversions
 import language.reflectiveCalls
 
-class LimitLoggerTest extends BaseSpec {
+class LimitLoggerTest extends BaseExecApiSpec {
 
   // could potentially block the test indefinitely,so do this in (and out) of a future
   implicit def testLogger(sl: StreamLogger) = new {

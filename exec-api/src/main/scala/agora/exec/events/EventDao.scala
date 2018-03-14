@@ -3,10 +3,12 @@ package agora.exec.events
 import java.nio.file.Path
 
 import agora.api.JobId
-import agora.api.json.AgoraJsonImplicits
-import agora.api.time._
+import agora.api.json.JsonApiImplicits
+import agora.json.AgoraJsonImplicits
+import agora.time._
+import agora.io.{FromBytes, ToBytes}
 import agora.io.dao.instances.{FileIdDao, FileTimestampDao}
-import agora.io.dao.{FromBytes, HasId, IdDao, Persist, TimestampDao, ToBytes}
+import agora.io.dao.{HasId, IdDao, Persist, TimestampDao}
 import com.typesafe.scalalogging.StrictLogging
 import io.circe.generic.auto._
 
@@ -19,12 +21,12 @@ import scala.util.Try
   * We want to write down [[ReceivedJob]]s to disk and link to them from other events
   *
   */
-case class EventDao(rootDir: Path) extends SystemEventMonitor with AgoraJsonImplicits with StrictLogging {
+case class EventDao(rootDir: Path) extends SystemEventMonitor with JsonApiImplicits with AgoraJsonImplicits with StrictLogging {
 
   /**
     * The implicit resolution here is circle (w/ java8.time) to expose
     * an Encoder[ReceivedJob], then the [[AgoraJsonImplicits]] to get a
-    * [[agora.io.dao.ToBytes[ReceivedJob]] from the encoder, and finally
+    * [[ToBytes[ReceivedJob]] from the encoder, and finally
     * the persist which can use the 'ToBytes' to squirt the bytes into the file.
     */
   private def writer: Persist.WriterInstance[ReceivedJob] = Persist.writer[ReceivedJob]

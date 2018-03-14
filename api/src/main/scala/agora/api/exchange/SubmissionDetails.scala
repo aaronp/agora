@@ -2,7 +2,7 @@ package agora.api.exchange
 
 import agora.api.User
 import agora.api.exchange.bucket.{BucketKey, JobBucket, WorkerMatchBucket}
-import agora.api.json.{JExpression, JPath, JPredicate, JsonAppendable}
+import agora.json.{JExpression, JPath, JPredicate, JsonAppendable}
 import io.circe._
 import io.circe.optics.JsonPath
 

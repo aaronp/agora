@@ -1,15 +1,15 @@
 package agora.exec.events
 
-import agora.BaseSpec
+import agora.BaseExecApiSpec
 import agora.api.`match`.MatchDetails
-import agora.api.time.now
+import agora.time.now
 import agora.exec.model.RunProcess
 import io.circe.Decoder.Result
 import io.circe.syntax._
 
 import scala.util.Try
 
-class EventQueryResponseTest extends BaseSpec {
+class EventQueryResponseTest extends BaseExecApiSpec {
 
   "EventQueryResponse" should {
 

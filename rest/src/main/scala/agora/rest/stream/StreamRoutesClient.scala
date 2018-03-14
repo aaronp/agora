@@ -1,6 +1,6 @@
 package agora.rest.stream
 
-import agora.api.json.JsonSemigroup
+import agora.json.JsonSemigroup
 import agora.flow.AsConsumerQueue._
 import agora.flow._
 import agora.rest.client.{RestClient, StreamPublisherWebsocketClient, StreamSubscriberWebsocketClient}

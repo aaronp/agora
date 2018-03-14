@@ -2,7 +2,8 @@ package agora.io.dao.instances
 
 import java.nio.file.Path
 
-import agora.io.dao.{FromBytes, IdDao, Persist}
+import agora.io.FromBytes
+import agora.io.dao.{IdDao, Persist}
 import agora.io.implicits._
 
 class FileIdDao[T: Persist: FromBytes](dir: Path) extends IdDao[String, T] {

@@ -45,7 +45,7 @@ import concurrent.duration._
   *                                    isn't, then a unique output file name is chosen.
   * @param stdErrFileName              an option filename to save the output file to. If 'canCache' is set and the 'stdErrFileName'
   *                                    isn't, then a unique output file name is chosen.
-  * @param logOutput                   if set, the value will be interepretted as a log level (e.g. trace, debug, info, etc)
+  * @param logOutput                   if set, the value will be interpretted as a log level (e.g. trace, debug, info, etc)
   * @param canCache                    toggle ability to cache as detailed above
   * @param useCachedValueWhenAvailable use the cached value when available
   */

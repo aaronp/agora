@@ -1,6 +1,6 @@
 package agora.exec
 
-import agora.BaseSpec
+import agora.BaseExecSpec
 import agora.api.exchange.{Exchange, JobPredicate}
 import agora.api.worker.HostLocation
 import agora.exec.client.RemoteRunner
@@ -10,7 +10,7 @@ import com.typesafe.config.ConfigFactory
 import scala.concurrent.duration._
 import scala.util.Properties
 
-class ExecConfigTest extends BaseSpec {
+class ExecConfigTest extends BaseExecSpec {
 
   "ExecConfig()" should {
     "resolve" in {

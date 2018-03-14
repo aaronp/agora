@@ -1,11 +1,11 @@
 package agora.rest.worker
 
-import agora.BaseSpec
-import agora.api.json.{JPredicate, JPath, MatchAll, MatchNone}
+import agora.BaseRestApiSpec
+import agora.json.{JPredicate, JPath, MatchAll, MatchNone}
 import agora.api.worker.HostLocation
 import com.typesafe.config.ConfigFactory
 
-class SubscriptionConfigTest extends BaseSpec {
+class SubscriptionConfigTest extends BaseRestApiSpec {
 
   "SubscriptionConfig.apply" should {
     "parse complex match criteria" in {

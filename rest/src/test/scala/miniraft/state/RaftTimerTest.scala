@@ -1,12 +1,12 @@
 package miniraft.state
 
-import agora.BaseSpec
+import agora.BaseRestSpec
 import agora.rest.HasMaterializer
 import org.scalatest.concurrent.Eventually
 
 import scala.util.{Failure, Success}
 
-class RaftTimerTest extends BaseSpec with HasMaterializer with Eventually {
+class RaftTimerTest extends BaseRestSpec with HasMaterializer with Eventually {
 
   import concurrent.duration._
 

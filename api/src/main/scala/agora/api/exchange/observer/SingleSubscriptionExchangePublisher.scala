@@ -46,7 +46,7 @@ class SingleSubscriptionExchangePublisher private (observers: ExchangeObserverDe
     subscriber.onSubscribe(subscription)
 
     // we're a little naughty and send a message before an initial request
-    subscription.onEvent(OnStateOfTheWorld(agora.api.time.now(), initialStateOfTheWorld))
+    subscription.onEvent(OnStateOfTheWorld(agora.time.now(), initialStateOfTheWorld))
 
     // let's not hold on to this data forever and always ... it was just needed here when the initial subscription was made
     initialStateOfTheWorld = null

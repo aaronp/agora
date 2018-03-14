@@ -1,6 +1,6 @@
 package agora.api.exchange
 
-import agora.api.json.{JExpression, JPath}
+import agora.json.{JExpression, JPath}
 import io.circe.Json
 
 trait HasWorkMatcher {

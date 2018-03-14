@@ -1,8 +1,15 @@
 package agora.io.dao
 
 import java.nio.file.Path
+
+import agora.io.ToBytes
 import agora.io.implicits._
 
+/**
+  * A means of writing some data to a path
+  *
+  * @tparam T the type of the thing to write
+  */
 trait Persist[T] {
 
   /**
@@ -33,9 +40,11 @@ object Persist {
       file.bytes = toBytes.bytes(value)
     }
   }
+
   case class Linker[T](linkToThisFile: Path) extends Persist[T] {
     override def write(file: Path, value: T): Unit = {
       linkToThisFile.createSymbolicLinkFrom(file)
     }
   }
+
 }

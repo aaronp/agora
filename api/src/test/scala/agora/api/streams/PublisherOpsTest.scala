@@ -1,19 +1,19 @@
 package agora.api.streams
 
-import agora.BaseSpec
+import agora.BaseApiSpec
 import agora.flow.{BaseProcessor, ListSubscriber}
 import cats.syntax.option._
 import io.circe.Json
 import io.circe.generic.auto._
 import io.circe.syntax._
 
-class PublisherOpsTest extends BaseSpec {
+class PublisherOpsTest extends BaseApiSpec {
 
   import PublisherOps.implicits._
   import PublisherOpsTest._
   import agora.api.data.implicits._
 
-  implicit val jsonDelta = agora.api.json.JsonDiffAsDeltas
+  implicit val jsonDelta = agora.json.JsonDiffAsDeltas
 
   "PublisherOps.onDelta" should {
     "notify the listener only when values change" in {

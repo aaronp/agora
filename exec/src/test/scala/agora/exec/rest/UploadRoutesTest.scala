@@ -7,13 +7,14 @@ import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.server.Route
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
-import concurrent.duration._
+
+import scala.concurrent.duration._
 
 class UploadRoutesTest extends BaseRoutesSpec {
   "UploadRoutes" should {
     "accept uploads from the upload client" in {
       withDir { dir =>
-        val workspaceClient = WorkspaceClient(dir, system, 100.millis)
+        val workspaceClient = WorkspaceClient(dir, system, 100.millis, WorkspaceClient.defaultAttributes)
 
         // we're really testing the route and the client to the route in tandem
         val routesUnderTest: Route = UploadRoutes(workspaceClient).uploadRoute

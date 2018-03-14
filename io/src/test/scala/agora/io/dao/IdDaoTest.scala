@@ -1,6 +1,7 @@
 package agora.io.dao
 
 import agora.BaseIOSpec
+import agora.io.FromBytes
 
 import scala.collection.mutable.ListBuffer
 

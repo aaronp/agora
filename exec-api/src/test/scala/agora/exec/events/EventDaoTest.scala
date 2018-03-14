@@ -1,11 +1,11 @@
 package agora.exec.events
 
-import agora.BaseSpec
+import agora.BaseExecApiSpec
 import agora.exec.model.RunProcess
 
 import scala.util.Success
 
-class EventDaoTest extends BaseSpec {
+class EventDaoTest extends BaseExecApiSpec {
 
   "EventDao.receivedDao" should {
     "be able to retrieve received job" in {

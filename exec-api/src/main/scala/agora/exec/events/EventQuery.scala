@@ -1,8 +1,8 @@
 package agora.exec.events
 
 import agora.api.JobId
-import agora.api.json.AgoraJsonImplicits
-import agora.api.time.Timestamp
+import agora.json.AgoraJsonImplicits
+import agora.time.Timestamp
 import io.circe.Decoder.Result
 import io.circe._
 import io.circe.syntax._

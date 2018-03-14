@@ -2,7 +2,7 @@ package agora.exec.workspace
 
 import java.nio.file.Path
 
-import agora.api.time.Timestamp
+import agora.time.Timestamp
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 

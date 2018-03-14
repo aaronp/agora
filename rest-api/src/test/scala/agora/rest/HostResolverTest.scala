@@ -3,13 +3,13 @@ package agora.rest
 import java.net.InetSocketAddress
 import java.util.UUID
 
-import agora.BaseSpec
+import agora.BaseRestApiSpec
 import agora.api.worker.HostLocation
 import com.typesafe.scalalogging.StrictLogging
 
 import scala.sys.SystemProperties
 
-class HostResolverTest extends BaseSpec with StrictLogging {
+class HostResolverTest extends BaseRestApiSpec with StrictLogging {
   "HostResolver" should {
     "resolve 'from-prop-x" in {
       val props = (new SystemProperties)

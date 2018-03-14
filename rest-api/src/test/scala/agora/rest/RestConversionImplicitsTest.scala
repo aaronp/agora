@@ -1,6 +1,6 @@
 package agora.rest
 
-import agora.BaseSpec
+import agora.BaseRestApiSpec
 import agora.api.exchange.{AsClient, SubmitJob}
 import agora.rest.RestConversionImplicits.ClientConfigOps
 import akka.http.scaladsl.marshalling.ToEntityMarshaller
@@ -13,7 +13,7 @@ import io.circe.Json
   * The tests in this class are really just assertions that they compile w/o error -- that the given
   * [[AsClient]] instances can be found in implicit scope
   */
-class RestConversionImplicitsTest extends BaseSpec with RestConversionImplicits with HasMaterializer {
+class RestConversionImplicitsTest extends BaseRestApiSpec with RestConversionImplicits with HasMaterializer {
 
   import RestConversionImplicitsTest._
 

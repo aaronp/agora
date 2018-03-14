@@ -1,9 +1,10 @@
 package agora.exec.rest
 
-import agora.api.json.AgoraJsonImplicits
-import agora.api.time.{TimeCoords, Timestamp}
+import agora.json.AgoraJsonImplicits
+import agora.time.Timestamp
 import agora.exec.events.{EventQueryResponse, _}
 import agora.rest.worker.RouteSubscriptionSupport
+import agora.time.TimeCoords
 import akka.http.scaladsl.marshalling.ToEntityMarshaller
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{Route, StandardRoute}
@@ -288,7 +289,7 @@ case class QueryRoutes(monitor: SystemEventMonitor) extends RouteSubscriptionSup
       val jobFilter = JobFilter(filterOpt.map(_.trim).getOrElse(""))
       opt.getOrElse("now") match {
         case TimeCoords(getTo) =>
-          val now  = agora.api.time.now()
+          val now  = agora.time.now()
           val from = getFrom(now)
           val to   = getTo(now)
           complete {

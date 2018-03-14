@@ -1,6 +1,6 @@
 package agora.api.exchange
 
-import agora.api.json.JPredicate
+import agora.json.JPredicate
 import com.typesafe.scalalogging.StrictLogging
 import io.circe.Json
 

@@ -1,9 +1,9 @@
 package agora.rest.exchange
 
-import agora.BaseSpec
+import agora.BaseRestApiSpec
 import io.circe.syntax._
 
-class ClientSubscriptionMessageTest extends BaseSpec {
+class ClientSubscriptionMessageTest extends BaseRestApiSpec {
   "ClientSubscriptionMessage.unapply" should {
     "not deserialize invalid json" in {
       ClientSubscriptionMessage.unapply("invalid") shouldBe None

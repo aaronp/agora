@@ -1,6 +1,6 @@
 package agora.exec.client
 
-import agora.BaseSpec
+import agora.BaseExecApiSpec
 import agora.exec.log.IterableLogger
 import agora.exec.model.{RunProcess, StreamingResult}
 import agora.rest.HasMaterializer
@@ -9,7 +9,7 @@ import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import scala.collection.mutable.ListBuffer
 import scala.sys.process.ProcessLogger
 
-class LocalRunnerTest extends BaseSpec with ProcessRunnerTCK with BeforeAndAfter with BeforeAndAfterAll with HasMaterializer {
+class LocalRunnerTest extends BaseExecApiSpec with ProcessRunnerTCK with BeforeAndAfter with BeforeAndAfterAll with HasMaterializer {
 
   "LocalRunner.run" should {
     "replace environment variables in the command argument" in {

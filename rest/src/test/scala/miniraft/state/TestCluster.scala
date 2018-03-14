@@ -2,7 +2,7 @@ package miniraft.state
 
 import java.nio.file.Path
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRefFactory, ActorSystem}
 import agora.rest.test.{BufferedTransport, TestTimer}
 import miniraft.state.Log.Formatter
 import miniraft.state.RaftNode.async
@@ -12,9 +12,6 @@ import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 
 object TestCluster {
-
-  implicit val system = ActorSystem("test-cluster")
-  implicit val ec     = system.dispatcher
 
   case class TestClusterNode[T](logic: RaftNodeLogic[T], asyncNode: async.RaftNodeActorClient[T], protocol: BufferedTransport) {
 
@@ -42,7 +39,8 @@ object TestCluster {
 
     import agora.io.implicits._
     def of[T: ClassTag](firstNode: String, theRest: String*)(applyToStateMachine: (NodeId, LogEntry[T]) => Unit)(
-        implicit fmt: Formatter[T, Array[Byte]]): Map[NodeId, async.RaftNodeActorClient[T]] = {
+        implicit fmt: Formatter[T, Array[Byte]],
+        factory: ActorRefFactory): Map[NodeId, async.RaftNodeActorClient[T]] = {
       instance(theRest.toSet + firstNode) { id =>
         val nodeDir = dir.resolve(s"node-$id").mkDirs()
 
@@ -51,7 +49,8 @@ object TestCluster {
     }
   }
 
-  def instance[T: ClassTag](ids: Set[NodeId])(newPersistentState: NodeId => PersistentState[T])(implicit fmt: Formatter[T, Array[Byte]]) = {
+  def instance[T: ClassTag](ids: Set[NodeId])(newPersistentState: NodeId => PersistentState[T])(implicit fmt: Formatter[T, Array[Byte]],
+                                                                                                factory: ActorRefFactory) = {
 
     val nodesAndProtocols = ids.map { (id: String) =>
       val logic = RaftNodeLogic[T](id, newPersistentState(id))
@@ -68,18 +67,18 @@ object TestCluster {
     testNodeById
   }
 
-  def nodeForLogic[T: ClassTag](logic: RaftNodeLogic[T], protocol: BufferedTransport) = {
+  def nodeForLogic[T: ClassTag](logic: RaftNodeLogic[T], protocol: BufferedTransport)(implicit factory: ActorRefFactory) = {
     val endpoint: async.RaftNodeActorClient[T] = RaftNode[T](logic, protocol)
     TestClusterNode(logic, endpoint, protocol)
   }
 
-  def newNode[T: ClassTag](id: NodeId, protocol: BufferedTransport)(newPersistentState: NodeId => PersistentState[T])(
-      implicit fmt: Formatter[T, Array[Byte]]) = {
+  def newNode[T: ClassTag](id: NodeId, protocol: BufferedTransport)(newPersistentState: NodeId => PersistentState[T])(implicit fmt: Formatter[T, Array[Byte]],
+                                                                                                                      factory: ActorRefFactory) = {
     val logic = RaftNodeLogic[T](id, newPersistentState(id))
     nodeForLogic(logic, protocol)
   }
 
-  def nodeForState[T: ClassTag](nodeId: NodeId, initialState: RaftState[T], protocol: BufferedTransport) = {
+  def nodeForState[T: ClassTag](nodeId: NodeId, initialState: RaftState[T], protocol: BufferedTransport)(implicit factory: ActorRefFactory) = {
     val logic = RaftNodeLogic(nodeId, initialState)
     nodeForLogic(logic, protocol)
   }

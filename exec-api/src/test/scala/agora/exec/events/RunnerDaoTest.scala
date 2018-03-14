@@ -1,8 +1,8 @@
 package agora.exec.events
 
-import agora.BaseSpec
+import agora.BaseExecApiSpec
 
-class RunnerDaoTest extends BaseSpec {
+class RunnerDaoTest extends BaseExecApiSpec {
 
   "RunnerDao" should {
     "write down requests started" in {}

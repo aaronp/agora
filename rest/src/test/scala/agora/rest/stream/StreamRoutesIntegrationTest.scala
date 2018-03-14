@@ -2,7 +2,7 @@ package agora.rest.stream
 
 import java.util.UUID
 
-import agora.BaseSpec
+import agora.BaseRestSpec
 import agora.flow.{PublisherSnapshot, _}
 import agora.rest.client.StreamPublisherWebsocketClient
 import agora.rest.stream.SocketPipeline._
@@ -15,7 +15,13 @@ import org.scalatest.{BeforeAndAfterEach, GivenWhenThen}
 
 import scala.concurrent.ExecutionContext
 
-class StreamRoutesIntegrationTest extends BaseSpec with FailFastCirceSupport with BeforeAndAfterEach with Eventually with GivenWhenThen with HasMaterializer {
+class StreamRoutesIntegrationTest
+    extends BaseRestSpec
+    with FailFastCirceSupport
+    with BeforeAndAfterEach
+    with Eventually
+    with GivenWhenThen
+    with HasMaterializer {
 
   import StreamRoutesIntegrationTest._
 
@@ -271,8 +277,8 @@ class StreamRoutesIntegrationTest extends BaseSpec with FailFastCirceSupport wit
   }
 
   override def afterEach(): Unit = {
-    super.afterEach()
     stopAll()
+    super.afterEach()
   }
 
   def startAll() = {
@@ -290,11 +296,10 @@ class StreamRoutesIntegrationTest extends BaseSpec with FailFastCirceSupport wit
     client.stop().futureValue
   }
 
-  //  trait SimpleStringPublisher extends StreamRoutesIntegrationTest.SimpleStringPublisher
-
-  import concurrent.duration._
-
-  override implicit def testTimeout: FiniteDuration = 10.seconds
+  override def afterAll() = {
+    stopAll()
+    super.afterAll()
+  }
 }
 
 object StreamRoutesIntegrationTest {

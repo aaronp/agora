@@ -2,6 +2,7 @@ package agora.io.dao
 
 import java.nio.file.Path
 
+import agora.io.FromBytes
 import agora.io.dao.instances.FileIdDao
 
 /** An interface representing a key/value store

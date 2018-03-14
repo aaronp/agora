@@ -1,12 +1,12 @@
 package agora.api.exchange
 
-import agora.BaseSpec
+import agora.BaseApiSpec
 import agora.api.Implicits._
 import io.circe.syntax._
 
 import scala.language.reflectiveCalls
 
-class SubmitJobTest extends BaseSpec {
+class SubmitJobTest extends BaseApiSpec {
 
   "SubmitJob.json" should {
     "marshal w/ custom worker buckets" in {

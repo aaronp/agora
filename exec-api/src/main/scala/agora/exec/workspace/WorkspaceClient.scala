@@ -1,10 +1,9 @@
 package agora.exec.workspace
 
 import java.nio.file.Path
+import java.nio.file.attribute.{FileAttribute, PosixFilePermissions}
 
-import agora.api.time.Timestamp
 import agora.exec.model.Upload
-import agora.exec.workspace.WorkspaceActor.logger
 import agora.io.dao.Timestamp
 import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, PoisonPill, Props}
 import akka.stream.scaladsl.Source
@@ -60,8 +59,8 @@ trait WorkspaceClient extends AutoCloseable {
     *
     * For implementations, invoking this function should also trigger a call to 'triggerUploadCheck'
     *
-    * @param workspaceId the workspace under which the files should exist
-    * @param fileSizeByFileWritten       the files to mark as complete
+    * @param workspaceId           the workspace under which the files should exist
+    * @param fileSizeByFileWritten the files to mark as complete
     */
   def markComplete(workspaceId: WorkspaceId, fileSizeByFileWritten: Map[String, Long]): Unit
 
@@ -100,8 +99,15 @@ object WorkspaceClient extends StrictLogging {
 
   val WorkspaceDispatcherName = "exec.dispatchers.io-dispatcher"
 
-  def props(uploadDir: Path, sys: ActorRefFactory, bytesReadyPollFrequency: FiniteDuration) = {
-    Props(new WorkspaceEndpointActor(uploadDir, bytesReadyPollFrequency)).withDispatcher(WorkspaceDispatcherName)
+  def workspaceDirAttributes(posixAtts: String = "rwxrwx---") = {
+    val perms = PosixFilePermissions.fromString(posixAtts)
+    PosixFilePermissions.asFileAttribute(perms)
+  }
+
+  val defaultAttributes: Set[FileAttribute[_]] = Set(workspaceDirAttributes())
+
+  def props(uploadDir: Path, sys: ActorRefFactory, bytesReadyPollFrequency: FiniteDuration, workspaceAttributes: Set[FileAttribute[_]]) = {
+    Props(new WorkspaceEndpointActor(uploadDir, bytesReadyPollFrequency, workspaceAttributes)).withDispatcher(WorkspaceDispatcherName)
   }
 
   /**
@@ -110,8 +116,8 @@ object WorkspaceClient extends StrictLogging {
     * @param bytesReadyPollFrequency the time to wait before the expected file size matches the metadata file
     * @return an asynchronous, actor-based client
     */
-  def apply(uploadDir: Path, sys: ActorSystem, bytesReadyPollFrequency: FiniteDuration): ActorClient = {
-    val endpointActorProps = props(uploadDir, sys, bytesReadyPollFrequency)
+  def apply(uploadDir: Path, sys: ActorSystem, bytesReadyPollFrequency: FiniteDuration, workspaceAttributes: Set[FileAttribute[_]]): ActorClient = {
+    val endpointActorProps = props(uploadDir, sys, bytesReadyPollFrequency, workspaceAttributes)
     val actor              = sys.actorOf(endpointActorProps)
     val execCtxt           = sys.dispatchers.lookup(WorkspaceDispatcherName)
     new ActorClient(actor)(execCtxt)

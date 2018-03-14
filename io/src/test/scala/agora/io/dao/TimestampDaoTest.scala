@@ -4,6 +4,7 @@ import java.nio.file.Path
 import java.time.{LocalDateTime, ZoneId}
 
 import agora.BaseIOSpec
+import agora.io.{FromBytes, ToBytes}
 
 class TimestampDaoTest extends BaseIOSpec {
 

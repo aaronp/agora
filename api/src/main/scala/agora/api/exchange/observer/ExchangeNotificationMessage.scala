@@ -2,8 +2,8 @@ package agora.api.exchange.observer
 
 import agora.api.JobId
 import agora.api.exchange.{Candidate, QueueStateResponse, SubmitJob}
-import agora.api.json.JsonDelta
-import agora.api.time.Timestamp
+import agora.json.JsonDelta
+import agora.time.Timestamp
 import agora.api.worker.{CandidateSelection, SubscriptionKey}
 import io.circe._
 import io.circe.generic.auto._

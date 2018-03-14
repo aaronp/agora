@@ -3,7 +3,7 @@ package agora.api.exchange
 import agora.BaseIOSpec
 import agora.api.Implicits
 import agora.api.exchange.observer.{ExchangeObserver, ExchangeObserverDelegate, OnMatch}
-import agora.api.json.JPredicate
+import agora.json.JPredicate
 import agora.api.worker.{HostLocation, WorkerDetails, WorkerRedirectCoords}
 import io.circe.generic.auto._
 import org.scalatest.concurrent.Eventually
@@ -15,7 +15,7 @@ import scala.language.{postfixOps, reflectiveCalls}
 
 trait ExchangeSpec extends BaseIOSpec with Eventually with Implicits {
 
-  val someTime = agora.api.time.fromEpochNanos(0)
+  val someTime = agora.time.fromEpochNanos(0)
 
   implicit def executionContext: ExecutionContext = ExecutionContext.Implicits.global
 

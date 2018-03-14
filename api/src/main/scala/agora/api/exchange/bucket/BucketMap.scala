@@ -1,7 +1,7 @@
 package agora.api.exchange.bucket
 
 import agora.api.exchange.{Requested, WorkSubscription}
-import agora.api.json.JPath
+import agora.json.JPath
 import agora.api.worker.SubscriptionKey
 import com.typesafe.scalalogging.StrictLogging
 import io.circe.Json

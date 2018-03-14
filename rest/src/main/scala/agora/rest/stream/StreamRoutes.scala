@@ -1,6 +1,6 @@
 package agora.rest.stream
 
-import agora.api.json.JsonSemigroup
+import agora.json.JsonSemigroup
 import agora.flow.AsConsumerQueue.QueueArgs
 import agora.flow.{AsConsumerQueue, DurableProcessorDao}
 import agora.rest.ui.UIRoutes
@@ -97,7 +97,7 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
             case None =>
               val keys = state.subscriberKeys.mkString(",")
               complete(NotFound, s"Couldn't find $name, available subscribers are: ${keys}")
-            case Some(found: Seq[SocketPipeline.DataSubscriber[Json]]) =>
+            case Some(found) =>
               logger.debug(s"$name subscriber taking $takeNextInt")
               found.foreach { x: SocketPipeline.DataPublisher[Json] =>
                 x.takeNext(takeNextInt)
@@ -117,7 +117,7 @@ class StreamRoutes extends StrictLogging with FailFastCirceSupport {
             case None =>
               val keys = state.subscriberKeys.mkString(",")
               complete(NotFound, s"Couldn't find $name, available subscribers are: ${keys}")
-            case Some(sp: SocketPipeline.DataPublisher[Json]) =>
+            case Some(sp) =>
               logger.debug(s"$name publisher cancelling")
 
               complete(sp.cancel().asJson)

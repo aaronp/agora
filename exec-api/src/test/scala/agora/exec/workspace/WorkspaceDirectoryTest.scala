@@ -2,7 +2,7 @@ package agora.exec.workspace
 
 import java.nio.file.FileSystemException
 
-import agora.BaseSpec
+import agora.BaseExecApiSpec
 import agora.rest.HasMaterializer
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
@@ -10,7 +10,7 @@ import akka.util.ByteString
 import scala.concurrent.{Await, Promise}
 import scala.util.Try
 
-class WorkspaceDirectoryTest extends BaseSpec with HasMaterializer {
+class WorkspaceDirectoryTest extends BaseExecApiSpec with HasMaterializer {
   "WorkspaceDirectory.onUpload" should {
     "use a different temporary upload file if some already exist" in {
       withDir { dir =>

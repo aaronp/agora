@@ -1,6 +1,7 @@
 package agora.exec.workspace
 
 import java.nio.file.Path
+import java.nio.file.attribute.FileAttribute
 
 import agora.io.BaseActor
 import agora.io.implicits._
@@ -8,7 +9,6 @@ import akka.actor.PoisonPill
 import akka.stream.ActorMaterializer
 import com.typesafe.scalalogging.{Logger, StrictLogging}
 
-import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
@@ -18,8 +18,13 @@ import scala.util.{Failure, Success, Try}
   * @param id                        the workspace id
   * @param potentiallyNotExistentDir the directory to use for this session, which initially may not exist
   * @param bytesReadyPollFrequency   when file dependencies are ready, but the expected size does not match (e.g. the file has not been flushed)
+  * @param workspaceAttributes       the file permissions used to create new workspace directories
   */
-private[workspace] class WorkspaceActor(val id: WorkspaceId, potentiallyNotExistentDir: Path, bytesReadyPollFrequency: FiniteDuration) extends BaseActor {
+private[workspace] class WorkspaceActor(val id: WorkspaceId,
+                                        potentiallyNotExistentDir: Path,
+                                        bytesReadyPollFrequency: FiniteDuration,
+                                        workspaceAttributes: Set[FileAttribute[_]])
+    extends BaseActor {
 
   override def receive: Receive = handler(WorkspaceActorState(Set.empty, None))
 
@@ -29,7 +34,16 @@ private[workspace] class WorkspaceActor(val id: WorkspaceId, potentiallyNotExist
 
   implicit def ctxt = materializer.executionContext
 
-  def createdWorkspaceDir: Path = potentiallyNotExistentDir.mkDirs()
+  lazy val createdWorkspaceDir: Path = {
+    val dir      = potentiallyNotExistentDir.mkDirs(workspaceAttributes)
+    val deadline = bytesReadyPollFrequency.fromNow
+    while (!dir.isDir && !deadline.isOverdue()) {
+      val waitTime = deadline.timeLeft.toMillis.max(10) / 2
+      logger.error(s"s${dir} isn't a dir, waiting $waitTime for $id")
+      Thread.sleep(waitTime)
+    }
+    dir
+  }
 
   def workspaceDirectory = WorkspaceDirectory(potentiallyNotExistentDir)
 

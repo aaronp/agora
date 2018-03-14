@@ -1,8 +1,8 @@
 package miniraft.state
 
-import agora.BaseSpec
+import agora.BaseRestSpec
 
-class MajorityTest extends BaseSpec {
+class MajorityTest extends BaseRestSpec {
 
   "isMajority" should {
     val values: List[(Int, Int, Boolean)] = List(

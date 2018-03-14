@@ -1,11 +1,11 @@
 package agora.exec.log
 
-import agora.BaseSpec
+import agora.BaseExecApiSpec
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits._
 
-class SplitLoggerTest extends BaseSpec {
+class SplitLoggerTest extends BaseExecApiSpec {
 
   // could potentially block the test indefinitely,so do this in (and out) of a future
   implicit def testLogger(sl: StreamLogger) = new {

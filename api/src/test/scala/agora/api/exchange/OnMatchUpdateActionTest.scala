@@ -1,12 +1,12 @@
 package agora.api.exchange
 
-import agora.BaseSpec
+import agora.BaseApiSpec
 import io.circe.Json
 import io.circe.syntax._
 import agora.api.Implicits._
-import agora.api.json.JPath
+import agora.json.JPath
 
-class OnMatchUpdateActionTest extends BaseSpec {
+class OnMatchUpdateActionTest extends BaseApiSpec {
   "OnMatchUpdateAction" should {
     List[OnMatchUpdateAction](
       OnMatchUpdateAction.appendAction(Json.fromInt(6).asExpression, JPath("path", "to", "value")),

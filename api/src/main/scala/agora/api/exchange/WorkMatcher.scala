@@ -3,7 +3,7 @@ package agora.api.exchange
 import agora.api.Implicits._
 import agora.api.config.JsonConfig
 import agora.api.exchange.bucket.{JobBucket, WorkerMatchBucket}
-import agora.api.json.JPredicate
+import agora.json.JPredicate
 import agora.config.implicits._
 import com.typesafe.config.Config
 import io.circe.Decoder.Result
@@ -16,15 +16,15 @@ import io.circe.parser._
   *
   * Both the 'criteria' and 'workerBucket' are concerned with matching a ob again
   *
-  * @param criteria      the match criteria to evaluate against each worker's [[agora.api.worker.WorkerDetails]]
-  * @param workerBucket  a performance measure - a means to group work submissions into 'buckets' based on data obtained
-  *                      by some [[agora.api.json.JPath]]s so that we only need to evaluate eligible buckets instead of
-  *                      *all* work subscriptions. This is mostly useful for when we have a large number of subscriptions.
-  *                      Instead of O(n) performance by evaluating _all_ subscribers to see if they match, only subscribers
-  *                      which are grouped into the specified bucket are considered.
-  *                      Buckets are created when a job is received which specifies a 'workerBucket'. Both existing workers
-  *                      and newly workers will then be evaluated by the JPaths specified by the bucket and grouped by
-  *                      their values.
+  * @param criteria     the match criteria to evaluate against each worker's [[agora.api.worker.WorkerDetails]]
+  * @param workerBucket a performance measure - a means to group work submissions into 'buckets' based on data obtained
+  *                     by some [[agora.json.JPath]]s so that we only need to evaluate eligible buckets instead of
+  *                     *all* work subscriptions. This is mostly useful for when we have a large number of subscriptions.
+  *                     Instead of O(n) performance by evaluating _all_ subscribers to see if they match, only subscribers
+  *                     which are grouped into the specified bucket are considered.
+  *                     Buckets are created when a job is received which specifies a 'workerBucket'. Both existing workers
+  *                     and newly workers will then be evaluated by the JPaths specified by the bucket and grouped by
+  *                     their values.
   * @param onMatchUpdate update actions used to update the [[agora.api.worker.WorkerDetails]] of matched workers.
   *                      Useful for e.g. creating sticky sessions or anytime when you want to ensure certain matched
   *                      criteria always gets routed to a single worker.

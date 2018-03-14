@@ -112,7 +112,9 @@ class ExecConfig(execConfig: Config) extends WorkerConfig(execConfig) with ExecA
   def workspaceClient: WorkspaceClient = defaultWorkspaceClient
 
   private lazy val defaultWorkspaceClient: WorkspaceClient = {
-    WorkspaceClient(uploadsDir, serverImplicits.system, workspacesConfig.getDuration("bytesReadyPollFrequency").toMillis.millis)
+    val pollFreq               = workspacesConfig.getDuration("bytesReadyPollFrequency").toMillis.millis
+    val workspaceDirProperties = WorkspaceClient.workspaceDirAttributes(workspacesConfig.getString("workspaceDirAttributes"))
+    WorkspaceClient(uploadsDir, serverImplicits.system, pollFreq, Set(workspaceDirProperties))
   }
 
   def eventMonitorConfig: EventMonitorConfig = defaultEventMonitor

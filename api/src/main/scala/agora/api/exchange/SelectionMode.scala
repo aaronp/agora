@@ -1,7 +1,7 @@
 package agora.api.exchange
 
 import agora.api.SubscriptionKey
-import agora.api.json.JPath
+import agora.json.JPath
 import io.circe.Decoder.Result
 import io.circe._
 

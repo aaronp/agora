@@ -1,13 +1,13 @@
 package agora.exec.client
 
-import agora.BaseSpec
+import agora.BaseExecApiSpec
 import agora.exec.model.{ProcessException, RunProcess, StreamingResult, StreamingSettings}
 import agora.rest.test.TestUtils._
 
 /**
   * Any runner should adhere to these tests
   */
-trait ProcessRunnerTCK { self: BaseSpec =>
+trait ProcessRunnerTCK { self: BaseExecApiSpec =>
 
   def runner: ProcessRunner
 

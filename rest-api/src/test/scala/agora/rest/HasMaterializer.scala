@@ -1,5 +1,6 @@
 package agora.rest
 
+import agora.api.data.Lazy
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
@@ -8,30 +9,26 @@ import org.scalatest.concurrent.ScalaFutures
 
 import scala.concurrent.ExecutionContext
 
-trait HasMaterializer extends BeforeAndAfterAll with ScalaFutures { this: org.scalatest.BeforeAndAfterAll with org.scalatest.Suite =>
+trait HasMaterializer extends BeforeAndAfterAll with ScalaFutures {
+  this: org.scalatest.BeforeAndAfterAll with org.scalatest.Suite =>
 
   implicit def execContext: ExecutionContext = materializer.executionContext
 
-  private var systemCreated       = false
-  private var materializerCreated = false
-
-  implicit lazy val system: ActorSystem = {
-    systemCreated = true
+  val lazySystem = Lazy {
     ActorSystem(getClass.getSimpleName.filter(_.isLetter), HasMaterializer.systemConf).ensuring(_.settings.Daemonicity)
   }
 
-  implicit lazy val materializer: ActorMaterializer = {
-    materializerCreated = true
+  implicit def system = lazySystem.value
+
+  val lazyMaterializer = Lazy {
     ActorMaterializer()(system)
   }
 
-  override protected def afterAll(): Unit = {
-    if (materializerCreated) {
-      materializer.shutdown()
-    }
-    if (systemCreated) {
-      system.terminate().futureValue
-    }
+  implicit def materializer: ActorMaterializer = lazyMaterializer.value
+
+  override def afterAll(): Unit = {
+    lazyMaterializer.foreach(_.shutdown())
+    lazySystem.foreach(_.terminate().futureValue)
     super.afterAll()
   }
 
@@ -39,5 +36,5 @@ trait HasMaterializer extends BeforeAndAfterAll with ScalaFutures { this: org.sc
 
 object HasMaterializer {
 
-  lazy val systemConf = ConfigFactory.load("test-system")
+  lazy val systemConf = ConfigFactory.load("test-system").ensuring(!_.isEmpty, "couldn't load 'test-system'")
 }

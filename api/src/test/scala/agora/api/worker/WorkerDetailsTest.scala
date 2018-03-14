@@ -1,11 +1,11 @@
 package agora.api.worker
 
-import agora.BaseSpec
-import agora.api.json.JsonDelta
+import agora.BaseApiSpec
+import agora.json.JsonDelta
 import io.circe.Json
 import io.circe.optics.JsonPath
 
-class WorkerDetailsTest extends BaseSpec {
+class WorkerDetailsTest extends BaseApiSpec {
 
   import WorkerDetailsTest._
   import io.circe.generic.auto._

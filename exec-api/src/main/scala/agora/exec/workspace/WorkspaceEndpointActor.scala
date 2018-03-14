@@ -1,6 +1,7 @@
 package agora.exec.workspace
 
 import java.nio.file.Path
+import java.nio.file.attribute.FileAttribute
 import java.time.ZoneOffset
 
 import agora.io.BaseActor
@@ -13,9 +14,13 @@ import scala.util.{Success, Try}
 /**
   * The entry point to the dependency system -- creates and destroys [[WorkspaceActor]]s to handle requests
   *
-  * @param uploadDir
+  * @param uploadDir the containing directory under which all workspaces will be written
+  * @param bytesReadyPollFrequency when file dependencies are ready, but the expected size does not match (e.g. the file has not been flushed)
+  * @param workspaceAttributes the file permissions used to create new workspace directories
+  *
   */
-private[workspace] class WorkspaceEndpointActor(uploadDir: Path, bytesReadyPollFrequency: FiniteDuration) extends BaseActor {
+private[workspace] class WorkspaceEndpointActor(uploadDir: Path, bytesReadyPollFrequency: FiniteDuration, workspaceAttributes: Set[FileAttribute[_]])
+    extends BaseActor {
 
   override def receive: Receive = handle(Map.empty)
 
@@ -28,7 +33,7 @@ private[workspace] class WorkspaceEndpointActor(uploadDir: Path, bytesReadyPollF
         case None =>
           val workspaceDir = uploadDir.resolve(id)
           logger.debug(s"Creating new workspace '$id' under '$workspaceDir'")
-          val newHandler = context.actorOf(Props(new WorkspaceActor(id, workspaceDir, bytesReadyPollFrequency)))
+          val newHandler = context.actorOf(Props(new WorkspaceActor(id, workspaceDir, bytesReadyPollFrequency, workspaceAttributes)))
           context.become(handle(workspaceById.updated(id, newHandler)))
           newHandler
       }

@@ -4,11 +4,11 @@ import java.util.concurrent.locks.ReentrantLock
 
 import _root_.io.circe.syntax._
 import _root_.io.circe.{Encoder, Json}
-import agora.api.json.{JPath, JsonDiff, JsonDiffAsDataDiff, TypesByPath, TypesByPathSemigroup}
+import agora.json.{JPath, JsonDiff, JsonDiffAsDataDiff, TypesByPath, TypesByPathSemigroup}
 import agora.api.streams.JsonFeedDsl.{IndexSubscriber, JsonDeltaSubscriber, JsonFieldSubscriber}
 import agora.api.streams.PublisherOps.implicits._
 import agora.flow._
-import agora.io.core.{DataDiff, IsEmpty}
+import agora.core.{DataDiff, IsEmpty}
 import cats.Semigroup
 import org.reactivestreams.Publisher
 
@@ -112,7 +112,7 @@ class JsonFeedDsl(override protected val underlyingPublisher: Publisher[Json]) e
       override def newDefaultSubscriberQueue(): ConsumerQueue[JsonDiff] = mkQueue()
     }
 
-    implicit val diffEmpty: IsEmpty[JsonDiff] = agora.api.json.JsonDiffIsEmpty
+    implicit val diffEmpty: IsEmpty[JsonDiff] = agora.json.JsonDiffIsEmpty
     underlyingPublisher.subscribeToDeltas(DownstreamPublisher)
     DownstreamPublisher
   }

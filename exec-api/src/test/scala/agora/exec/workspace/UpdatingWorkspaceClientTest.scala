@@ -2,13 +2,13 @@ package agora.exec.workspace
 
 import java.nio.file.Path
 
-import agora.BaseSpec
+import agora.BaseExecApiSpec
 import agora.api.exchange.{Exchange, WorkSubscription}
 import agora.api.worker.WorkerDetails
 import io.circe.Json
 import io.circe.optics.JsonPath
 
-class UpdatingWorkspaceClientTest extends BaseSpec {
+class UpdatingWorkspaceClientTest extends BaseExecApiSpec {
 
   import UpdatingWorkspaceClient._
 

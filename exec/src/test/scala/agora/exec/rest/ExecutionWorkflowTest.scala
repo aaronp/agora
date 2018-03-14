@@ -3,7 +3,7 @@ package agora.exec.rest
 import java.nio.file.Path
 import java.util.UUID
 
-import agora.BaseSpec
+import agora.BaseExecSpec
 import agora.api.`match`.MatchDetails
 import agora.exec.client.ExecutionClient
 import agora.exec.events.{ReceivedJob, SystemEventMonitor}
@@ -20,7 +20,7 @@ import org.scalatest.concurrent.Eventually
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-class ExecutionWorkflowTest extends BaseSpec with FailFastCirceSupport with HasMaterializer with Eventually with CommonRequestBuilding {
+class ExecutionWorkflowTest extends BaseExecSpec with FailFastCirceSupport with HasMaterializer with Eventually with CommonRequestBuilding {
 
   implicit def richPath(file: Path) = new {
     def trimmedText = file.text.lines.mkString("")
@@ -44,7 +44,7 @@ class ExecutionWorkflowTest extends BaseSpec with FailFastCirceSupport with HasM
   def withWorkspaceClient[T](testWithClient: (WorkspaceClient, Path) => T): T = {
 
     withDir { containerDir =>
-      val client = WorkspaceClient(containerDir, system, 100.millis)
+      val client = WorkspaceClient(containerDir, system, 100.millis, WorkspaceClient.defaultAttributes)
       val result = testWithClient(client, containerDir)
       client.endpointActor ! PoisonPill
       result
@@ -202,6 +202,7 @@ class ExecutionWorkflowTest extends BaseSpec with FailFastCirceSupport with HasM
             .withCaching(false)
             .useCachedValueWhenAvailable(false)
             .withStreamingSettings(StreamingSettings())
+            .withOutputLogging("debug")
         }
 
         val md               = MatchDetails.empty.copy(jobId = "foo")
@@ -210,16 +211,10 @@ class ExecutionWorkflowTest extends BaseSpec with FailFastCirceSupport with HasM
         // start the job ...
         val jobFuture: Future[HttpResponse] = workflow.onExecutionRequest(requestWithJobId, runProcess)
 
-        @volatile var outputIterator: Iterator[String] = Iterator.empty
-        withClue("We have to start streaming the job output to ensure we don't have a start/cancel race condition") {
+        val outputIterator: Iterator[String] = withClue("We have to start streaming the job output to ensure we don't have a start/cancel race condition") {
           // ... and ensure it's running as to start streaming the results..
-          val gotOutputFuture: Future[String] = jobFuture.map { resp =>
-            val iter: Iterator[String] = IterableSubscriber.iterate(resp.entity.dataBytes, 1000)
-            outputIterator = iter
-            iter.next
-          }
-
-          gotOutputFuture.futureValue shouldBe "y"
+          val resp = jobFuture.futureValue
+          IterableSubscriber.iterate(resp.entity.dataBytes, 1000)
         }
 
         // the job is now running, so we call the method under test
@@ -229,6 +224,8 @@ class ExecutionWorkflowTest extends BaseSpec with FailFastCirceSupport with HasM
           ExecutionClient.parseCancelResponse(cancelResp).futureValue
         }
         cancelled shouldBe Option(true)
+
+        outputIterator.take(3).mkString("") shouldBe "yyy"
 
         val cancelled2 = ExecutionClient.parseCancelResponse(workflow.onCancelJob("foo").futureValue).futureValue
         cancelled2 shouldBe None

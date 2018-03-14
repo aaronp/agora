@@ -1,10 +1,10 @@
 package agora.rest
 
-import agora.BaseSpec
+import agora.BaseRestApiSpec
 import agora.io.BaseActor
 import akka.actor.Props
 
-class AkkaImplicitsTest extends BaseSpec {
+class AkkaImplicitsTest extends BaseRestApiSpec {
 
   def threads() = AkkaImplicits.allThreads()
 

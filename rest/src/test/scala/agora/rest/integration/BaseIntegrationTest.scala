@@ -2,7 +2,7 @@ package agora.rest.integration
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import agora.BaseSpec
+import agora.BaseRestSpec
 import agora.rest.HasMaterializer
 import agora.rest.exchange.{ExchangeRestClient, ExchangeServerConfig}
 import agora.rest.worker.WorkerConfig
@@ -10,7 +10,7 @@ import agora.rest.worker.WorkerConfig.RunningWorker
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import org.scalatest.BeforeAndAfterEach
 
-abstract class BaseIntegrationTest extends BaseSpec with FailFastCirceSupport with BeforeAndAfterEach with HasMaterializer {
+abstract class BaseIntegrationTest extends BaseRestSpec with FailFastCirceSupport with BeforeAndAfterEach with HasMaterializer {
 
   import BaseIntegrationTest._
 

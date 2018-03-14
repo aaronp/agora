@@ -32,10 +32,10 @@ import io.circe.syntax._
   * (1) indexing based on json paths and providing subscriptions for each of the indexed values (and queries of those values)
   * (2) conflating
   * (3) persistent/historic (keeping a numbered subscription and allowing subscriptions from arbitrary points) a la Kafka
-  * (4) tracking available paths (via [[agora.api.json.TypeNode]])
+  * (4) tracking available paths (via [[agora.json.TypeNode]])
   * (5) providing deltas
   * (6) coalescing multiple publishers into a single publisher
-  * (7) providing calculated values based on [[agora.api.json.JExpression]]s
+  * (7) providing calculated values based on [[agora.json.JExpression]]s
   * (8) .... ?
   *
   * ultimately the above will be able to support the goal of having a tabular view so we can have a dynamic viewport based on some

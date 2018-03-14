@@ -12,8 +12,8 @@ import scala.reflect.ClassTag
   * We start here at some 'T' --> Json
   *
   * It doesn't strictly need to be json (that just happens to be the first supported, easiest),
-  * but would work for any other target type with the right type-classes (e.g. [[agora.io.core.FieldSelector]],
-  * [[agora.io.core.IsEmpty]], [[agora.io.core.DataDiff]].
+  * but would work for any other target type with the right type-classes (e.g. [[agora.core.FieldSelector]],
+  * [[agora.core.IsEmpty]], [[agora.core.DataDiff]].
   *
   * @param underlyingProcessor
   * @tparam T

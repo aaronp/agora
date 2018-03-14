@@ -2,13 +2,13 @@ package agora.exec.events
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import agora.BaseSpec
+import agora.BaseExecApiSpec
 import agora.rest.HasMaterializer
 import org.scalatest.concurrent.Eventually
 
 import scala.concurrent.duration._
 
-class HouseKeepingTest extends BaseSpec with HasMaterializer with Eventually {
+class HouseKeepingTest extends BaseExecApiSpec with HasMaterializer with Eventually {
   "Housekeeping.every(...)" should {
     "housekeep every (...)" in {
       val counter1                   = new AtomicInteger(0)

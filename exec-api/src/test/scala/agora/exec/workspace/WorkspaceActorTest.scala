@@ -2,7 +2,7 @@ package agora.exec.workspace
 
 import java.nio.file.Path
 
-import agora.BaseSpec
+import agora.BaseExecApiSpec
 import agora.rest.HasMaterializer
 import agora.rest.logging.{BufferedAppender, LoggingOps}
 import akka.actor.Props
@@ -14,7 +14,7 @@ import scala.concurrent.Promise
 import scala.concurrent.duration._
 import scala.util.{Failure, Try}
 
-class WorkspaceActorTest extends BaseSpec with HasMaterializer with BeforeAndAfterAll with StrictLogging {
+class WorkspaceActorTest extends BaseExecApiSpec with HasMaterializer with BeforeAndAfterAll with StrictLogging {
 
   logger.trace("leave this line in -- Trying to get away w/ not having a SubstituteLoggerFactory impl when using LoggingOps")
 
@@ -70,7 +70,7 @@ class WorkspaceActorTest extends BaseSpec with HasMaterializer with BeforeAndAft
           // poll again, until eventually timing out according to the AwaitWorkspace request)
           //
           val bytesReadyPollFrequency = 150.millis
-          val workspaceActor          = system.actorOf(Props(new WorkspaceActor(workspaceId, workspaceDir, bytesReadyPollFrequency)))
+          val workspaceActor          = system.actorOf(Props(new WorkspaceActor(workspaceId, workspaceDir, bytesReadyPollFrequency, WorkspaceClient.defaultAttributes)))
 
           //
           // 4) call the method under test - and wait for 1 minute until the size works
@@ -99,7 +99,7 @@ class WorkspaceActorTest extends BaseSpec with HasMaterializer with BeforeAndAft
   "WorkspaceClient.closeWorkspace" should {
     "remove files older than the ifNotModifiedSince time" in {
       withDir { dir =>
-        val before = agora.api.time.now()
+        val before = agora.time.now()
 
         val testFile = dir.resolve("file").text = "hi"
         WorkspaceClient.closeWorkspace(dir, Option(before.minusSeconds(2)), true, Set.empty) shouldBe false
@@ -111,7 +111,7 @@ class WorkspaceActorTest extends BaseSpec with HasMaterializer with BeforeAndAft
     }
     "remove files if failPendingDependencies is specified when there are no dependencies" in {
       withDir { dir =>
-        val before = agora.api.time.now()
+        val before = agora.time.now()
 
         val testFile = dir.resolve("file").text = "hi"
         WorkspaceClient.closeWorkspace(dir, None, failPendingDependencies = false, Set(awaitUploads(dir.fileName))) shouldBe false
@@ -124,7 +124,7 @@ class WorkspaceActorTest extends BaseSpec with HasMaterializer with BeforeAndAft
     "fail pending workspaces if told to close when they are pending" in {
       withDir { dir =>
         // create a file in our 'workspace' dir
-        val before   = agora.api.time.now()
+        val before   = agora.time.now()
         val testFile = dir.resolve("file").text = "hi"
 
         // create a dependency to 'wait' on the workspace

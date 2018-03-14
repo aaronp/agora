@@ -3,6 +3,7 @@ package instances
 
 import java.nio.file.Path
 
+import agora.io.FromBytes
 import agora.io.implicits._
 
 import scala.util.Try

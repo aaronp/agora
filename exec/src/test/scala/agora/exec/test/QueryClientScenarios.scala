@@ -2,7 +2,7 @@ package agora.exec.test
 
 import java.time.ZoneOffset
 
-import agora.api.time.{Timestamp, now}
+import agora.time.{Timestamp, now}
 import agora.exec.events._
 
 import scala.util.Success

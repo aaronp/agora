@@ -2,7 +2,6 @@ package agora
 
 import java.nio.file.Path
 import java.util.UUID
-import java.util.concurrent.atomic.AtomicLong
 
 import agora.io.LowPriorityIOImplicits
 import org.scalatest.concurrent.ScalaFutures

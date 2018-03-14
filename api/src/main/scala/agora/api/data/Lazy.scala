@@ -18,6 +18,20 @@ class Lazy[T](mkValue: => T) extends AutoCloseable with LazyLogging {
     mkValue
   }
 
+  def foreach(f: T => Unit) = {
+    if (_created) {
+      Option(f(value))
+    }
+  }
+
+  def fold[A](f: T => A): Option[A] = {
+    if (_created) {
+      Option(f(value))
+    } else {
+      None
+    }
+  }
+
   def created() = _created
 
   override def close(): Unit = if (created()) {

@@ -1,8 +1,8 @@
 package agora.io
 
-import agora.BaseSpec
+import agora.BaseRestSpec
 
-class RichPathTest extends BaseSpec with LowPriorityIOImplicits {
+class RichPathTest extends BaseRestSpec with LowPriorityIOImplicits {
 
   "foo.createdString" should {
     "return the created file date as a string" in {

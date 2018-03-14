@@ -3,8 +3,8 @@ package agora.api.exchange.instances
 import agora.api.exchange._
 import agora.api.exchange.bucket.{BucketMap, BucketPathKey, WorkerMatchBucket}
 import agora.api.exchange.observer.{ExchangeObserver, OnMatch}
-import agora.api.json.JsonDelta
-import agora.api.time.Timestamp
+import agora.json.JsonDelta
+import agora.time.Timestamp
 import agora.api.worker._
 import agora.api.{JobId, nextJobId, nextSubscriptionKey}
 import com.typesafe.scalalogging.StrictLogging
@@ -157,7 +157,7 @@ case class ExchangeState(observer: ExchangeObserver = ExchangeObserver(),
     * matches then all of its constituent parts would as well.
     *
     */
-  def matches(matchTime: Timestamp = agora.api.time.now())(implicit matcher: JobPredicate): (List[OnMatch], ExchangeState) = {
+  def matches(matchTime: Timestamp = agora.time.now())(implicit matcher: JobPredicate): (List[OnMatch], ExchangeState) = {
 
     logger.trace(s"Checking for matches between ${jobsById.size} jobs and ${subscriptionsById.size} subscriptions")
 

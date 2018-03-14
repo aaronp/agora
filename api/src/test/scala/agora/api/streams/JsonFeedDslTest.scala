@@ -1,7 +1,7 @@
 package agora.api.streams
 
-import agora.BaseSpec
-import agora.api.json.{ArrayType, BooleanType, DiffEntry, JPath, JsonDiff, JsonSemigroup, NumericType}
+import agora.BaseApiSpec
+import agora.json.{ArrayType, BooleanType, DiffEntry, JPath, JsonDiff, JsonSemigroup, NumericType}
 import agora.flow.{BaseProcessor, ConsumerQueue, ListSubscriber}
 import io.circe.Json
 import io.circe.generic.auto._
@@ -10,7 +10,7 @@ import io.circe.syntax._
 /**
   * In practice people may start w/ a 'DataFeedDsl', marshalling their 'T : Encoder' types into a JsonFeedDsl
   */
-class JsonFeedDslTest extends BaseSpec {
+class JsonFeedDslTest extends BaseApiSpec {
 
   case class Meh(theKey: String)
 

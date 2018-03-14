@@ -1,7 +1,7 @@
 package agora.exec.rest
 
-import agora.api.json.AgoraJsonImplicits
-import agora.api.time.{Timestamp, now}
+import agora.json.AgoraJsonImplicits
+import agora.time.{Timestamp, now}
 import agora.exec.events._
 import agora.exec.model.RunProcess
 import agora.rest.BaseRoutesSpec

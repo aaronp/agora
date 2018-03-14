@@ -1,11 +1,11 @@
 package agora.exec.model
 
-import agora.BaseSpec
+import agora.BaseExecApiSpec
 import io.circe.generic.auto._
 import io.circe.parser._
 import io.circe.syntax._
 
-class RunProcessTest extends BaseSpec {
+class RunProcessTest extends BaseExecApiSpec {
   "RunProcess.resolveEnv" should {
     "replace dollar-side delimited keys in the command strings" in {
       val runProcess = RunProcess(List("$KEY/$KEYS/$KEY/x/$KEY"), Map("KEY" -> "foo"))

@@ -2,12 +2,12 @@ package agora.io
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import agora.BaseSpec
+import agora.BaseRestSpec
 import agora.rest.HasMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import org.scalatest.concurrent.Eventually
 
-class SourcesTest extends BaseSpec with HasMaterializer with Eventually {
+class SourcesTest extends BaseRestSpec with HasMaterializer with Eventually {
 
   import Sources._
 
