@@ -6,7 +6,7 @@ import agora.api.time.Timestamp
 import agora.exec.model.Upload
 import agora.exec.workspace.WorkspaceActor.logger
 import agora.io.dao.Timestamp
-import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, Props}
+import akka.actor.{ActorRef, ActorRefFactory, ActorSystem, PoisonPill, Props}
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import com.typesafe.scalalogging.StrictLogging
@@ -24,7 +24,7 @@ import scala.util.{Success, Try}
   *
   * They can also 'awaitWorkspace' files to become available in that workspace.
   */
-trait WorkspaceClient {
+trait WorkspaceClient extends AutoCloseable {
 
   /**
     * closing the workspace releases the resources used -- e.g. deletes the relevant directory
@@ -118,6 +118,11 @@ object WorkspaceClient extends StrictLogging {
   }
 
   class ActorClient(val endpointActor: ActorRef)(implicit ec: ExecutionContext) extends WorkspaceClient with StrictLogging {
+
+    override def close(): Unit = {
+      endpointActor ! PoisonPill
+    }
+
     override def list(createdAfter: Option[Timestamp] = None, createdBefore: Option[Timestamp] = None) = {
       logger.debug(s"list(createdAfter=$createdAfter, createdBefore=$createdBefore)")
       val promise = Promise[List[String]]()
@@ -155,6 +160,7 @@ object WorkspaceClient extends StrictLogging {
       endpointActor ! AwaitUploads(dependencies, promise)
       promise.future
     }
+
   }
 
   /**

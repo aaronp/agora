@@ -1,5 +1,6 @@
 package agora.exec
 
+import agora.api.data.Lazy
 import agora.api.exchange.{Exchange, ServerSideExchange}
 import agora.exec.events.{DeleteBefore, Housekeeping, StartedSystem, SystemEventMonitor}
 import agora.exec.rest.{ExecutionRoutes, ExecutionWorkflow, QueryRoutes, UploadRoutes}
@@ -45,14 +46,31 @@ object ExecBoot {
 /**
   * Provides functions for setting up the exec service functions
   */
-case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes: Option[Route]) extends FailFastCirceSupport with StrictLogging {
+case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes: Option[Route])
+    extends FailFastCirceSupport
+    with AutoCloseable
+    with StrictLogging {
 
-  lazy val housekeeping = Housekeeping.every(conf.housekeeping.checkEvery)(conf.serverImplicits.system)
+  override def close(): Unit = {
+    lazyEventMonitor.close()
+    lazyUpdatingClient.close()
+    lazyWorkspaceClient.close()
+    lazyHousekeeping.close()
+    lazyWorkflow.close()
+    conf.close()
+    exchange match {
+      case auto: AutoCloseable => auto.close()
+      case _                   =>
+    }
 
-  lazy val workspaceClient: WorkspaceClient = conf.workspaceClient
+  }
+  private val lazyHousekeeping   = Lazy(Housekeeping.every(conf.housekeeping.checkEvery)(conf.serverImplicits.system))
+  def housekeeping: Housekeeping = lazyHousekeeping.value
 
-  def workflow: ExecutionWorkflow =
-    ExecutionWorkflow(conf.defaultEnv, workspaceClient, conf.eventMonitor, conf.enableCache)
+  private val lazyWorkspaceClient = Lazy(conf.workspaceClient)
+
+  private val lazyWorkflow        = Lazy(ExecutionWorkflow(conf.defaultEnv, updatingClient, conf.eventMonitor, conf.enableCache))
+  def workflow: ExecutionWorkflow = lazyWorkflow.value
 
   /** @return a future of the ExecutionRoutes once the exec subscription completes
     */
@@ -60,9 +78,11 @@ case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes
     new ExecutionRoutes(conf, exchange, workflow)
   }
 
-  def uploadRoutes(workspace: WorkspaceClient = workspaceClient) = UploadRoutes(workspace)
+  def uploadRoutes(workspace: WorkspaceClient = updatingClient) = UploadRoutes(workspace)
 
-  lazy val eventMonitor: SystemEventMonitor = {
+  def eventMonitor: SystemEventMonitor = lazyEventMonitor.value
+
+  private val lazyEventMonitor = Lazy {
     val monitor = conf.eventMonitor
 
     val windowInNanos = conf.housekeeping.removeEventsOlderThan.toNanos
@@ -95,10 +115,13 @@ case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes
 
   }
 
-  lazy val updatingClient: UpdatingWorkspaceClient = {
+  private val lazyUpdatingClient = Lazy {
     import conf.serverImplicits._
-    UpdatingWorkspaceClient(workspaceClient, exchange)
+    UpdatingWorkspaceClient(lazyWorkspaceClient.value, exchange)
   }
+
+  def updatingClient: UpdatingWorkspaceClient = lazyUpdatingClient.value
+
   lazy val uploadRoutes: UploadRoutes = UploadRoutes(updatingClient)
 
   /**
@@ -140,4 +163,5 @@ case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes
       rs
     }
   }
+
 }

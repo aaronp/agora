@@ -4,7 +4,7 @@ import agora.BaseSpec
 import agora.io.BaseActor
 import akka.actor.Props
 
-class AkkaImplicitsTest extends BaseSpec  {
+class AkkaImplicitsTest extends BaseSpec {
 
   def threads() = AkkaImplicits.allThreads()
 
@@ -13,7 +13,7 @@ class AkkaImplicitsTest extends BaseSpec  {
 
       val before = threads()
 
-      val ai = new AkkaImplicits("AkkaImplicitsTest", conf"akka.daemonic = off")
+      val ai = AkkaImplicits("AkkaImplicitsTest", conf"akka.daemonic = off")
       ai.system.actorOf(Props[AkkaImplicitsTest.SomeActor])
       val mat = ai.materializer
 
@@ -21,7 +21,6 @@ class AkkaImplicitsTest extends BaseSpec  {
       withClue("We expected AkkaImplicits to have created some threads") {
         after.size should be >= before.size
       }
-
 
       val akkaThreads = ai.threads()
       akkaThreads should not be (empty)
@@ -37,7 +36,6 @@ class AkkaImplicitsTest extends BaseSpec  {
 }
 
 object AkkaImplicitsTest {
-
 
   class SomeActor extends BaseActor {
     override def receive: Receive = {

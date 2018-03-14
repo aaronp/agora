@@ -34,7 +34,7 @@ import scala.util.{Failure, Success, Try}
   * Represents a handler which will be triggered from the given [[HttpRequest]] when a [[RunProcess]] is received
   *
   */
-trait ExecutionWorkflow {
+trait ExecutionWorkflow extends AutoCloseable {
 
   /**
     * Cancel the job identified by the job ID
@@ -73,6 +73,10 @@ case object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
     * @param underlying
     */
   class CachingWorkflow(workspaces: WorkspaceClient, underlying: ExecutionWorkflow) extends ExecutionWorkflow {
+
+    override def close(): Unit = {
+      underlying.close()
+    }
 
     override def onCancelJob(jobId: JobId, waitFor: FiniteDuration)(implicit ec: ExecutionContext) = {
       underlying.onCancelJob(jobId, waitFor)
@@ -122,6 +126,7 @@ case object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
         }
       }
     }
+
   }
 
   /**
@@ -169,6 +174,10 @@ case object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
   class Instance(val defaultEnv: Map[String, String], val workspaces: WorkspaceClient, val eventMonitor: SystemEventMonitor, cacheEnabled: Boolean)
       extends ExecutionWorkflow
       with FailFastCirceSupport {
+
+    override def close(): Unit = {
+      eventMonitor.close()
+    }
 
     /**
       * Used to track processes for cancellation, protected by 'ProcessLock'
@@ -287,20 +296,7 @@ case object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
         val startedEvent = StartedJob(jobId)
         eventMonitor.accept(startedEvent)
         val httpFuture: Future[HttpResponse] = onJob(httpRequest, workspaceDir, jobId, detailsOpt, runProcess)
-
-        /** See https://github.com/aaronp/agora/issues/2
-          *
-          * TODO - work out what the chuff is going on. We seem to need this workspace thread to block until the HttpResponse
-          * is **prepared** ... not completed, but at least created.
-          *
-          * Taking this blocking awaitWorkspace out here will fail the ExecutionWorkflowTest
-          */
-        //          logger.trace(s"Waiting for ${runProcess.httpResponsePreparedTimeout} for job '${jobId}'s http response to be prepared")
-        //          val prepareResponse: HttpResponse = Await.result(httpFuture, runProcess.httpResponsePreparedTimeout)
-        //          logger.trace(s"Job '${jobId}'s http response ready w/ ${prepareResponse.status}")
-
         httpPromise.tryCompleteWith(httpFuture)
-
       }
 
       /** 4) obtain a workspace in which to run the job
@@ -323,28 +319,6 @@ case object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
         }
 
       }
-
-      //      val future: Future[HttpResponse] = workspaceFuture.flatMap { workingDir: Path =>
-      //
-      //        logger.info(s"Job $jobId has working dir $workingDir ready w/ ${runProcess.dependencies}")
-      //
-      //        eventMonitor.accept(StartedJob(jobId))
-      //        val httpFuture: Future[HttpResponse] = onJob(httpRequest, workingDir, jobId, detailsOpt, runProcess)
-      //
-      //        /** See https://github.com/aaronp/agora/issues/2
-      //          *
-      //          * TODO - work out what the chuff is going on. We seem to need this workspace thread to block until the HttpResponse
-      //          * is **prepared** ... not completed, but at least created.
-      //          *
-      //          * Taking this blocking awaitWorkspace out here will fail the ExecutionWorkflowTest
-      //          */
-      //        logger.trace(s"Waiting for ${runProcess.httpResponsePreparedTimeout} for job '${jobId}'s http response to be prepared")
-      //        val prepareResponse: HttpResponse = Await.result(httpFuture, runProcess.httpResponsePreparedTimeout)
-      //        logger.trace(s"Job '${jobId}'s http response ready w/ ${prepareResponse.status}")
-      //
-      //        httpFuture
-      //      }
-      //      future
 
       httpPromise.future
     }
@@ -491,6 +465,7 @@ case object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
       }
       iterableLogger
     }
+
   }
 
   def asErrorResponse(exp: ProcessException) = {

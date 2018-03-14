@@ -14,6 +14,8 @@ trait WorkspaceClientDelegate extends WorkspaceClient {
 
   protected def underlying: WorkspaceClient
 
+  override def close(): Unit = underlying.close()
+
   override def close(workspaceId: WorkspaceId, ifNotModifiedSince: Option[Timestamp], failPendingDependencies: Boolean) = {
     underlying.close(workspaceId, ifNotModifiedSince, failPendingDependencies)
   }

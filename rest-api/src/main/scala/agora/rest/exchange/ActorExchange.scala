@@ -6,7 +6,7 @@ import java.util.concurrent.TimeoutException
 import agora.api.exchange._
 import agora.io.BaseActor
 import agora.rest.exchange.ActorExchange.{StopBuffering, WithQueueState, WrappedClientRequest, WrappedSubscriptionRequest}
-import akka.actor.{ActorRef, ActorSystem, Cancellable, Props}
+import akka.actor.{ActorRef, ActorSystem, Cancellable, PoisonPill, Props}
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, Promise}
@@ -110,7 +110,7 @@ object ActorExchange {
     *
     * @param actorExchange the actor representing an exchange
     */
-  class ActorExchangeClient(actorExchange: ActorRef) extends Exchange {
+  class ActorExchangeClient(actorExchange: ActorRef) extends Exchange with AutoCloseable {
 
     /**
       * When creating a new 'observer', we need to be able to know the 'state of the world' (SOW) to send, followed by
@@ -138,6 +138,8 @@ object ActorExchange {
       actorExchange ! WrappedClientRequest(promise, request)
       promise.future
     }
+
+    override def close(): Unit = actorExchange ! PoisonPill
   }
 
 }

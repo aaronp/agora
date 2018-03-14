@@ -3,10 +3,10 @@ package worker
 
 import java.util.concurrent.TimeUnit
 
+import agora.api.data.Lazy
 import agora.api.exchange.Exchange
-import agora.api.exchange.observer.ExchangeObserver
 import agora.config._
-import agora.rest.exchange.{ExchangeClientObserver, ExchangeRestClient, ExchangeRoutes, ExchangeServerConfig}
+import agora.rest.exchange.{ExchangeRestClient, ExchangeRoutes, ExchangeServerConfig}
 import agora.rest.support.SupportRoutes
 import agora.rest.swagger.SwaggerDocRoutes
 import akka.http.scaladsl.server.Directives._
@@ -73,8 +73,21 @@ class WorkerConfig(c: Config) extends ServerConfig(c) {
 
   /** @return exchange pointed at by this worker
     */
-  lazy val exchangeConfig: ExchangeServerConfig = {
+  private val lazyExchangeConfig: Lazy[ExchangeServerConfig] = Lazy {
     new ExchangeServerConfig(config.getConfig("exchange"))
+  }
+
+  def exchangeConfig = lazyExchangeConfig.value
+
+  override def stop(): Future[Any] = {
+    val fut = super.stop()
+    if (lazyExchangeConfig.created()) {
+      import scala.concurrent.ExecutionContext.Implicits.global
+      val fut2 = exchangeConfig.stop()
+      Future.sequence(List(fut, fut2))
+    } else {
+      fut
+    }
   }
 
   def newWorkerRoutes(exchange: Exchange): DynamicWorkerRoutes = {

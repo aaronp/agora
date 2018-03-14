@@ -4,7 +4,7 @@ import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicInteger
 
 import agora.io.BaseActor
-import akka.actor.{ActorRef, ActorRefFactory, Props}
+import akka.actor.{ActorRef, ActorRefFactory, PoisonPill, Props}
 
 import scala.concurrent.{Future, Promise}
 import scala.util.control.NonFatal
@@ -12,7 +12,9 @@ import scala.util.control.NonFatal
 /**
   * The event monitor is where we sent event notifications we care about (jobs started, stopped, failed, etc)
   */
-trait SystemEventMonitor {
+trait SystemEventMonitor extends AutoCloseable {
+
+  override def close(): Unit = {}
 
   /**
     * Save an event
@@ -67,7 +69,7 @@ object SystemEventMonitor {
     *
     * @param actorMonitor the underlying actor ref to receive the messages
     */
-  private class ActorMonitorClient(actorMonitor: ActorRef, override val toString: String) extends SystemEventMonitor {
+  private class ActorMonitorClient(actorMonitor: ActorRef, override val toString: String) extends SystemEventMonitor with AutoCloseable {
     override def accept(event: RecordedEvent): Unit = {
       actorMonitor ! event
     }
@@ -78,6 +80,8 @@ object SystemEventMonitor {
       actorMonitor ! EventQueryMessage(aux, promise)
       promise.future
     }
+
+    override def close(): Unit = actorMonitor ! PoisonPill
   }
 
   /**

@@ -36,7 +36,7 @@ class ExchangeConfig(c: Config) extends ServerConfig(c) {
 
   def client: ExchangeRestClient = ExchangeRestClient(clientConfig.restClient)
 
-  def connectObserver(obs: ExchangeObserver, location: HostLocation = clientConfig.location)(implicit clientSystem : AkkaImplicits): Future[Subscription] = {
+  def connectObserver(obs: ExchangeObserver, location: HostLocation = clientConfig.location)(implicit clientSystem: AkkaImplicits): Future[Subscription] = {
     import clientSystem._
     ExchangeClientObserver.connectClient(location, obs, http)
   }

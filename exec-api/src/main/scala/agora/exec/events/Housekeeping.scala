@@ -10,7 +10,7 @@ import scala.concurrent.duration.FiniteDuration
 /**
   * A place to add housekeeping events for periodic execution
   */
-trait Housekeeping extends Cancellable {
+trait Housekeeping extends Cancellable with AutoCloseable {
 
   /**
     * Add a callback to be invoked whenever the housekeeping is done
@@ -19,6 +19,7 @@ trait Housekeeping extends Cancellable {
     */
   def registerHousekeepingEvent(f: Housekeeping.CleanupCallback): Unit
 
+  override def close() = cancel()
 }
 
 object Housekeeping {

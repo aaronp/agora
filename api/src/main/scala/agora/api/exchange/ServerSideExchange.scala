@@ -1,8 +1,7 @@
 package agora.api.exchange
 
-import agora.api.exchange.observer.{ExchangeObserver, ExchangeObserverDelegate}
+import agora.api.exchange.observer.ExchangeObserverDelegate
 import agora.api.nextJobId
-import agora.api.Implicits._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -18,7 +17,8 @@ import scala.concurrent.{ExecutionContext, Future}
   * @param observer
   */
 case class ServerSideExchange(underlying: Exchange, val observer: ExchangeObserverDelegate = ExchangeObserverDelegate())(implicit ec: ExecutionContext)
-    extends Exchange {
+    extends Exchange
+    with AutoCloseable {
 
   override def onClientRequest(request: ClientRequest) = underlying.onClientRequest(request)
 
@@ -44,6 +44,11 @@ case class ServerSideExchange(underlying: Exchange, val observer: ExchangeObserv
     val matchFuture: Future[BlockingSubmitJobResponse] = observer.awaitJob(jobWithId)(submitCtxt)
     underlying.submit(jobWithId)
     matchFuture
+  }
+
+  override def close(): Unit = underlying match {
+    case auto: AutoCloseable => auto.close()
+    case _                   =>
   }
 }
 

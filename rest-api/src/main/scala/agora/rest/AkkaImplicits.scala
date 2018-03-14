@@ -1,8 +1,8 @@
 package agora.rest
 
-import java.io.Closeable
+import java.util.concurrent.atomic.AtomicInteger
 
-import akka.actor.{ActorSystem, Cancellable, LightArrayRevolverScheduler, Terminated}
+import akka.actor.{ActorSystem, Terminated}
 import akka.http.scaladsl.{Http, HttpExt}
 import akka.stream.ActorMaterializer
 import com.typesafe.config.Config
@@ -12,89 +12,83 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
-class AkkaImplicits(val actorSystemName: String, actorConfig: Config) extends AutoCloseable with StrictLogging {
+class AkkaImplicits private (actorSystemPrefix: String, actorConfig: Config) extends AutoCloseable with StrictLogging {
+  val actorSystemName = AkkaImplicits.uniqueName(actorSystemPrefix)
   logger.debug(s"Creating actor system $actorSystemName")
+  @volatile private var terminated = false
+
+  private def setTerminated() = {
+    terminated = true
+    AkkaImplicits.remove(this)
+  }
+
   implicit val system = {
     val sys = ActorSystem(actorSystemName, actorConfig)
 
     sys.whenTerminated.onComplete {
-      case Success(_) => logger.info(s"$actorSystemName terminated")
-      case Failure(err) => logger.warn(s"$actorSystemName terminated w/ $err")
+      case Success(_) =>
+        logger.info(s"$actorSystemName terminated")
+        setTerminated()
+      case Failure(err) =>
+        logger.warn(s"$actorSystemName terminated w/ $err")
+        setTerminated()
     }(ExecutionContext.global)
     sys
   }
-  implicit val materializer = ActorMaterializer()
+  implicit val materializer                       = ActorMaterializer()
   implicit val executionContext: ExecutionContext = system.dispatcher
-  implicit val http: HttpExt = Http()
+  implicit val http: HttpExt                      = Http()
 
   override def close(): Unit = stop()
 
+  def isClosed(): Boolean = terminated
+
   def stop(): Future[Terminated] = {
-    materializer.shutdown()
+    logger.warn(s"Shutting down actor system $actorSystemName")
+    try {
+      materializer.shutdown()
+    } catch {
+      case NonFatal(e) => logger.error(s"Error shutting down the materializer for $actorSystemName: ", e)
+    }
     system.terminate()
   }
 
-  private lazy val SystemThreadName = s"${actorSystemName}-.*-\\d+".r
-
-  def stopThreads() = {
-    threads().foreach { t =>
-
-      def doInterrupt() = {
-        try {
-          t.interrupt()
-        } catch {
-          case e: Throwable =>
-            logger.error(s"Interrupting ${t.getName} threw $e")
-        }
-      }
-      try {
-        val target = AkkaImplicits.ThreadTarget.get(t)
-        target match {
-          case null =>
-            logger.error(s"No runnable set on ${t.getName}")
-            t.stop()
-          case c: AutoCloseable =>
-            logger.info(s"Force-closing runnable on ${t.getName}")
-            c.close()
-            doInterrupt()
-          case c: Closeable =>
-            logger.info(s"Force-closing runnable on ${t.getName}")
-            c.close()
-            doInterrupt()
-          case c: Cancellable =>
-            logger.info(s"Force-cancelling cancellable (isCancelled=${c.isCancelled}) on ${t.getName}")
-            c.cancel()
-            doInterrupt()
-//          case lars : LightArrayRevolverScheduler  =>
-          case other  =>
-            logger.error(s"Runnable '$other' on ${t.getName} is not closeable")
-            doInterrupt()
-        }
-
-      } catch {
-        case NonFatal(e) =>
-          logger.error(s"Error getting thread target for ${t.getName}: $e")
-          doInterrupt()
-        case td : ThreadDeath =>
-
-      }
-
-    }
-  }
-
   def threads(): Set[Thread] = {
-
+    val SystemThreadName = s"${actorSystemName}-.*-\\d+".r
     AkkaImplicits.allThreads().filter { t =>
       t.getName match {
         case SystemThreadName() => true
-        case _ => false
+        case _                  => false
       }
     }
   }
 }
 
 object AkkaImplicits {
-  val ThreadTarget = {
+
+  private val uniqueInstanceCounter = new AtomicInteger(0)
+  private def uniqueName(actorSystemPrefix: String) = s"$actorSystemPrefix${uniqueInstanceCounter.incrementAndGet()}"
+
+  private def remove(implicits: AkkaImplicits) = {
+    synchronized {
+      instances = instances diff List(implicits)
+    }
+    require(!instances.contains(implicits))
+  }
+
+  private var instances: List[AkkaImplicits] = Nil
+
+  def openInstances() = instances
+
+  def apply(actorSystemName: String, actorConfig: Config): AkkaImplicits = {
+    val inst = new AkkaImplicits(actorSystemName, actorConfig)
+    synchronized {
+      instances = inst :: instances
+    }
+    inst
+  }
+
+  private val ThreadTarget = {
     val tgt = classOf[Thread].getDeclaredField("target")
     tgt.setAccessible(true)
     tgt

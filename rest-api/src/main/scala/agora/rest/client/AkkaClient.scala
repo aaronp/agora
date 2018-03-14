@@ -23,9 +23,9 @@ import scala.util.{Failure, Success}
   */
 class AkkaClient(val location: HostLocation, akkaSystem: AkkaImplicits) extends RestClient with StrictLogging {
 
-  private implicit def system: ActorSystem = akkaSystem.system
+  private implicit def system: ActorSystem         = akkaSystem.system
   override implicit def materializer: Materializer = akkaSystem.materializer
-  private def http = akkaSystem.http
+  private def http                                 = akkaSystem.http
 
   private val hostPort = location.asURL
 

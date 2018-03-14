@@ -91,7 +91,7 @@ class ClientConfig(config: Config) extends AutoCloseable {
     RestClient(loc, () => newSystem(name))
   }
 
-  def newSystem(name: String = nextActorSystemName()) = new AkkaImplicits(name, config)
+  def newSystem(name: String = nextActorSystemName()) = AkkaImplicits(name, config)
 
   object clientFailover {
 

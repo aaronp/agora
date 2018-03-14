@@ -25,20 +25,23 @@ case class RunningService[C <: ServerConfig, Service](conf: C, service: Service,
     // start shutting down local clients first so they don't keep trying to reconnect.
     // this is really just for a single-host test environment and doesn't really matter in production
 
-    val future: Future[Unit] = conf.stopClients().flatMap { _ =>
-      binding.unbind()
+    val future: Future[Unit] = {
+      service match {
+        case auto: AutoCloseable => auto.close()
+        case _                   =>
+      }
+      val unbindFut = binding.unbind()
+      val confFut   = conf.stop()
+      Future.sequence(List(unbindFut, confFut)).map(_ => Unit)
     }
 
     shutdownPromise.tryCompleteWith(future)
-    future.flatMap { _ =>
-      conf.stop()
-    }
+    shutdownPromise.future
   }
 
   def stop(): Future[Unit] = shutdown
 
   def onShutdown(thunk: => Unit)(implicit ec: ExecutionContext = ExecutionContext.Implicits.global) = {
-
     shutdownPromise.future.onComplete {
       case _ => thunk
     }
@@ -51,7 +54,7 @@ object RunningService extends LazyLogging {
 
   def start[C <: ServerConfig, T](serverConfig: C, inputRoutes: Route, svc: T): Future[RunningService[C, T]] = {
     import serverConfig.serverImplicits._
-    import serverConfig.{host, launchBrowser, port, waitOnUserInput, location}
+    import serverConfig.{host, launchBrowser, location, port, waitOnUserInput}
 
     logger.debug(s"Starting ${actorSystemName} at ${location.asHostPort}")
 

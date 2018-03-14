@@ -2,11 +2,13 @@ package agora.rest
 
 import java.util.concurrent.atomic.AtomicInteger
 
+import agora.api.data.Lazy
 import agora.api.worker.HostLocation
 import agora.config.{RichConfigOps, configForArgs}
 import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.concurrent.Future
+import scala.util.Try
 
 /**
   * A base parsed configuration based on an 'agora-defaults' configuration
@@ -60,8 +62,8 @@ class ServerConfig(val config: Config) extends RichConfigOps with AutoCloseable 
     * resolution, we allow the client to take on 'default' host and port values (empty string and 0, respectively)
     * so that we can fall-back to (resolved) server host/port values.
     */
-  implicit lazy val clientConfig: ClientConfig = {
-    clientConfigCreated = true
+  implicit def clientConfig: ClientConfig = lazyClientConfig.value
+  private val lazyClientConfig = Lazy {
     val clientConf: Config = config.getConfig("client")
     val fixedPort          = Array(s"port=${port}").filter(_ => clientConf.getInt("port") <= 0)
 
@@ -70,30 +72,13 @@ class ServerConfig(val config: Config) extends RichConfigOps with AutoCloseable 
     new ClientConfig(sanitized)
   }
 
-  // keep track of our singletons, and only shutdown once...
-  @volatile private[this] var clientConfigCreated = false
-  private[this] lazy val clientStopFuture         = clientConfig.stop()
-  private[this] lazy val serverStopFuture         = serverImplicits.stop()
-
   override def close() = stop()
 
-  def stopClients(): Future[Any] = {
-    if (clientConfigCreated) {
-      clientStopFuture
-    } else {
-      Future.successful(Unit)
-    }
-  }
+  def stopClients(): Future[Any] = Future.fromTry(Try(lazyClientConfig.close()))
 
-  def stopServer() = {
-    if (serverImplicitsCreated) {
-      serverStopFuture
-    } else {
-      Future.successful(Unit)
-    }
-  }
+  def stopServer(): Future[Any] = Future.fromTry(Try(lazyServerImplicits.close()))
 
-  def stop(): Future[Unit] = {
+  def stop(): Future[Any] = {
     val stopFut1 = stopClients()
     val stopFut2 = stopServer()
     import scala.concurrent.ExecutionContext.Implicits._
@@ -107,14 +92,14 @@ class ServerConfig(val config: Config) extends RichConfigOps with AutoCloseable 
     case n => s"$actorSystemName-$n"
   }
 
-  @volatile private[this] var serverImplicitsCreated = false
-
-  lazy val serverImplicits: AkkaImplicits = {
-    serverImplicitsCreated = true
+  private val lazyServerImplicits = Lazy {
     newSystem(s"${actorSystemName}-server")
   }
 
-  def newSystem(name: String = nextActorSystemName): AkkaImplicits = new AkkaImplicits(name, config)
+  // this needs to be a lazy val instead of a def so we can 'import serverImplicits._'
+  lazy val serverImplicits: AkkaImplicits = lazyServerImplicits.value
+
+  def newSystem(name: String = nextActorSystemName): AkkaImplicits = AkkaImplicits(name, config)
 
   protected def newConfig(overrides: Map[String, String]) = {
     import scala.collection.JavaConverters._
