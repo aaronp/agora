@@ -9,7 +9,7 @@ class AkkaImplicitsTest extends BaseRestApiSpec {
   def threads() = AkkaImplicits.allThreads()
 
   "AkkaImplicits.stop" should {
-    "close all created threads when complete" in {
+    "close all created threads when complete" ignore {
 
       val before = threads()
 
