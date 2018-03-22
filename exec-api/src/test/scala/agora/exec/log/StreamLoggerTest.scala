@@ -1,5 +1,7 @@
 package agora.exec.log
 
+import java.util.concurrent.{CountDownLatch, TimeUnit}
+
 import agora.BaseExecApiSpec
 import org.scalatest.Matchers
 
@@ -26,12 +28,14 @@ class StreamLoggerTest extends BaseExecApiSpec with Matchers {
     "stream output" in {
       val log = StreamLogger()
       // we should be able to call 'iterator' here, before any output is given
-      val streamIter = log.iterator
-      Future(
+      val streamIter     = log.iterator
+      val outputComplete = new CountDownLatch(1)
+      Future {
         Iterator.continually("some text").zipWithIndex.take(22).foreach {
           case (s, i) => log.out(s"$i: $s")
         }
-      )
+        outputComplete.countDown()
+      }
       val firstTen = streamIter.take(10).toList
       firstTen.size shouldBe 10
 
@@ -40,6 +44,7 @@ class StreamLoggerTest extends BaseExecApiSpec with Matchers {
       secondTen.size shouldBe 10
 
       // finally complete the logger
+      outputComplete.await(testTimeout.toMillis, TimeUnit.MILLISECONDS)
       log.complete(0)
 
       // we should still have elements left
