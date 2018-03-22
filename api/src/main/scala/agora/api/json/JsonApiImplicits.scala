@@ -7,6 +7,7 @@ import io.circe.parser.decode
 import io.circe.{Decoder, Encoder}
 
 import scala.io.Source
+import scala.util.{Failure, Left, Right, Success}
 
 trait JsonApiImplicits {
 
@@ -25,7 +26,10 @@ trait JsonApiImplicits {
         src.close
       }
 
-      decode[T](jsonString).toTry
+      decode[T](jsonString) match {
+        case Right(b) => Success(b)
+        case Left(a)  => Failure(a)
+      }
     }
   }
 }
