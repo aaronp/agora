@@ -30,8 +30,7 @@ class JsonFeedDsl(override protected val underlyingPublisher: Publisher[Json]) e
     * @return a field subscription
     */
   def withFields(): JsonFieldSubscriber[Semigroup] = {
-    //    val s : Semigroup[Json] = JsonSemigroup
-    withFields[Semigroup](TypesByPathSemigroup) //(AsConsumerQueue.SemigroupAsQueue)
+    withFields[Semigroup](TypesByPathSemigroup)
   }
 
   /**
@@ -52,7 +51,7 @@ class JsonFeedDsl(override protected val underlyingPublisher: Publisher[Json]) e
   def indexOnKeys(path: JPath, theRest: JPath*)(newQ: => ConsumerQueue[Json]): IndexSubscriber = {
 
     def newPublisher(indexSubscriber: IndexSubscriber, key: List[Json]): BaseProcessor[Json] = {
-      new BaseProcessor[Json] with IntKeyedPublisher[Json] {
+      new BaseProcessor[Json] {
         override def onRequestNext(subscription: BasePublisher.BasePublisherSubscription[Json], requested: Long) = {
           val nrToTake = super.onRequestNext(subscription, requested)
           if (nrToTake > 0) {
