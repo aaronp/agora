@@ -46,16 +46,13 @@ object DurableProcessor extends StrictLogging {
     * @param nextIndex the id (index) counter used to mark each element
     * @tparam T
     */
-  case class Args[T](dao: DurableProcessorDao[T],
-                  propagateSubscriberRequestsToOurSubscription: Boolean = true,
-                  nextIndex : Long = -1)
+  case class Args[T](dao: DurableProcessorDao[T], propagateSubscriberRequestsToOurSubscription: Boolean = true, nextIndex: Long = -1)
 
   private[flow] def computeNumberToTake(lastReceivedIndex: Long, latest: Long, maxIndex: Long): Long = {
     val nrToTake = {
       val maxAvailable = maxIndex.min(latest)
-      val nr = (maxAvailable - lastReceivedIndex).max(0)
-      logger.trace(
-        s"""
+      val nr           = (maxAvailable - lastReceivedIndex).max(0)
+      logger.trace(s"""
            |Will try to pull $nr :
            |              last received index : $lastReceivedIndex
            |  max index of published elements : $latest
@@ -103,13 +100,11 @@ object DurableProcessor extends StrictLogging {
   /** @param args
     * @tparam T
     */
-  class Instance[T](args : Args[T])
-    extends DurableProcessor[T]
-      with PublisherSnapshotSupport[Int] {
+  class Instance[T](args: Args[T]) extends DurableProcessor[T] with PublisherSnapshotSupport[Int] {
 
-    val dao = args.dao
+    val dao                                          = args.dao
     val propagateSubscriberRequestsToOurSubscription = args.propagateSubscriberRequestsToOurSubscription
-    private val nextIndexCounter = new AtomicLong(args.nextIndex)
+    private val nextIndexCounter                     = new AtomicLong(args.nextIndex)
 
     def valueAt(idx: Long) = dao.at(idx)
 
@@ -129,11 +124,11 @@ object DurableProcessor extends StrictLogging {
       PublisherSnapshot(map.mapValues(_.snapshot()))
     }
 
-    private val initialIndex: Long = nextIndexCounter.get()
-    private var maxWrittenIndex = initialIndex
+    private val initialIndex: Long  = nextIndexCounter.get()
+    private var maxWrittenIndex     = initialIndex
     private val MaxWrittenIndexLock = new ReentrantReadWriteLock()
-    private var subscribers = List[DurableSubscription[T]]()
-    private var subscriptionOpt = Option.empty[Subscription]
+    private var subscribers         = List[DurableSubscription[T]]()
+    private var subscriptionOpt     = Option.empty[Subscription]
 
     private val maxRequest = new MaxRequest()
 
@@ -180,7 +175,7 @@ object DurableProcessor extends StrictLogging {
       val hs = SubscribersLock.synchronized {
         // we start off not having requested anything, so start 1 BEFORE the index
         val lastRequestedIndex = index - 1
-        val s = newSubscriber(lastRequestedIndex, subscriber)
+        val s                  = newSubscriber(lastRequestedIndex, subscriber)
         subscribers = s :: subscribers
         s
       }
@@ -259,7 +254,7 @@ object DurableProcessor extends StrictLogging {
     }
 
     private val iWasCreatedFrom = Thread.currentThread().getStackTrace.take(10).mkString("\n\t")
-    private var createdFrom = ""
+    private var createdFrom     = ""
 
     override def onSubscribe(s: Subscription): Unit = {
       def err = {
@@ -273,15 +268,15 @@ object DurableProcessor extends StrictLogging {
       // trigger any requests from our subscribers
       maxRequest.get() match {
         case n if n > 0 => s.request(n)
-        case _ =>
+        case _          =>
       }
     }
   }
 
   class DurableSubscription[T](publisher: Instance[T], deadIndex: Long, initialRequestedIndex: Long, val subscriber: Subscriber[_ >: T])
-    extends Subscription
+      extends Subscription
       with HasName {
-    private[flow] val nextIndexToRequest = new AtomicLong(initialRequestedIndex)
+    private[flow] val nextIndexToRequest        = new AtomicLong(initialRequestedIndex)
     private[this] var lastRequestedIndexCounter = initialRequestedIndex
 
     private[this] object LastRequestedIndexCounterLock
@@ -289,16 +284,16 @@ object DurableProcessor extends StrictLogging {
     def lastRequestedIndex() = LastRequestedIndexCounterLock.synchronized(lastRequestedIndexCounter)
 
     private val totalRequested = new AtomicLong(0)
-    private val totalPushed = new AtomicInteger(0)
+    private val totalPushed    = new AtomicInteger(0)
 
     def name = subscriber match {
       case hn: HasName => hn.name
-      case _ => toString
+      case _           => toString
     }
 
     def snapshot(): SubscriberSnapshot = {
       val lastRequested = lastRequestedIndex()
-      val next = nextIndexToRequest.get
+      val next          = nextIndexToRequest.get
       SubscriberSnapshot(name, totalRequested.get, totalPushed.get, lastRequested.toInt, next - lastRequested, 0, ConsumerQueue.Unbounded)
     }
 
@@ -323,13 +318,13 @@ object DurableProcessor extends StrictLogging {
     }
 
     private def pull(maxIndex: Long): Unit = {
-      val idx = lastRequestedIndex()
+      val idx      = lastRequestedIndex()
       val nrToTake = computeNumberToTake(idx, publisher.currentIndex(), maxIndex)
 
       if (nrToTake > 0) {
         val range = LastRequestedIndexCounterLock.synchronized {
           val fromIndex = lastRequestedIndexCounter + 1
-          val toIndex = lastRequestedIndexCounter + nrToTake
+          val toIndex   = lastRequestedIndexCounter + nrToTake
           lastRequestedIndexCounter = toIndex
           (fromIndex to toIndex)
         }
@@ -373,13 +368,13 @@ object DurableProcessor extends StrictLogging {
     * @tparam T
     */
   class SemigroupDurableProcessor[T: Semigroup](val initialValue: Option[T], val propagateSubscriberRequestsToOurSubscription: Boolean)
-    extends DurableProcessor[T]
+      extends DurableProcessor[T]
       with PublisherSnapshotSupport[Int] {
 
     private object SubscriberListLock
 
     private var subscriptionOpt = Option.empty[Subscription]
-    private var subscribers = List[SubscriptionImpl]()
+    private var subscribers     = List[SubscriptionImpl]()
     private var pendingTakeNext = 0
 
     private object ProcessorCacheLock
@@ -407,15 +402,15 @@ object DurableProcessor extends StrictLogging {
     }
 
     class SubscriptionImpl(val subscriber: Subscriber[_ >: T], queue: ConflatingQueue[T], nextIndexToRequest: AtomicLong = new AtomicLong(-1))
-      extends Subscription
+        extends Subscription
         with HasName {
-      private val totalPushed = new AtomicInteger(0)
+      private val totalPushed    = new AtomicInteger(0)
       private val totalRequested = new AtomicLong(0)
 
       override def name: String = {
         subscriber match {
           case hn: HasName => hn.name
-          case _ => toString
+          case _           => toString
         }
       }
 
@@ -458,7 +453,7 @@ object DurableProcessor extends StrictLogging {
     }
 
     override def subscribeFrom(index: Long, subscriber: Subscriber[_ >: T]): Unit = {
-      val queue = ConsumerQueue[T](processorCache)
+      val queue           = ConsumerQueue[T](processorCache)
       val newSubscription = new SubscriptionImpl(subscriber, queue)
       SubscriberListLock.synchronized {
         subscribers = newSubscription :: subscribers
@@ -505,7 +500,7 @@ object DurableProcessor extends StrictLogging {
       // trigger any requests from our subscribers
       maxRequested.get() match {
         case n if n > 0 => s.request(n)
-        case _ =>
+        case _          =>
       }
     }
 
