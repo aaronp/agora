@@ -1,7 +1,7 @@
 package agora.flow
 
 import agora.BaseIOSpec
-import agora.flow.DurableProcessor.DurableSubscription
+import agora.flow.impl.DurableSubscription
 import cats.instances.int._
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 import org.scalatest.concurrent.Eventually

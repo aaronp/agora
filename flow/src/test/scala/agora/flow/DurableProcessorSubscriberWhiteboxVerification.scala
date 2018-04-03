@@ -13,5 +13,3 @@ class DurableProcessorSubscriberWhiteboxVerification extends SubscriberWhiteboxV
 
   override def createElement(element: Int): Int = element
 }
-
-

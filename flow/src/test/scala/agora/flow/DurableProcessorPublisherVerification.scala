@@ -1,14 +1,16 @@
 package agora.flow
 
 import agora.flow.DurableProcessorPublisherVerification._
+import agora.flow.impl.DurableProcessorInstance
 import org.reactivestreams.Publisher
 import org.reactivestreams.tck.{PublisherVerification, TestEnvironment}
+
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class DurableProcessorPublisherVerification extends PublisherVerification[String](testEnv, PUBLISHER_REFERENCE_CLEANUP_TIMEOUT_MILLIS) {
   override def createPublisher(elements: Long): Publisher[String] = {
 
-    val dp: DurableProcessor.Instance[String] = DurableProcessor[String]
+    val dp: DurableProcessorInstance[String] = DurableProcessor[String]
     (0L to elements).foreach { i =>
       dp.onNext("" + i)
     }
@@ -17,7 +19,7 @@ class DurableProcessorPublisherVerification extends PublisherVerification[String
   }
 
   override def createFailedPublisher(): Publisher[String] = {
-    val dp: DurableProcessor.Instance[String] = DurableProcessor[String]
+    val dp: DurableProcessorInstance[String] = DurableProcessor[String]
     dp.onError(new Exception("bang"))
     dp
   }

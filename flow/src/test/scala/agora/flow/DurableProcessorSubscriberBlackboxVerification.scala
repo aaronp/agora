@@ -10,5 +10,3 @@ class DurableProcessorSubscriberBlackboxVerification extends SubscriberBlackboxV
 
   override def createElement(element: Int): Int = element
 }
-
-
