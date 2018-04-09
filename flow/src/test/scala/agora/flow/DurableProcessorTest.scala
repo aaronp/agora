@@ -154,6 +154,23 @@ class DurableProcessorTest extends BaseIOSpec with Eventually {
     }
   }
   "DurableProcessor.subscribeFrom" should {
+    "notify completed when subscribing to indices after the completed index" in {
+      val processorUnderTest = DurableProcessor[Int]()
+      processorUnderTest.onNext(1)
+      processorUnderTest.onComplete()
+
+      val sub = new ListSubscriber[Int]
+      sub.request(10)
+      processorUnderTest.subscribeFrom(1, sub)
+      sub.isCompleted() shouldBe true
+      sub.receivedInOrderReceived() shouldBe Nil
+
+      val sub2 = new ListSubscriber[Int]
+      sub2.request(10)
+      processorUnderTest.subscribeFrom(0, sub2)
+      sub2.isCompleted() shouldBe true
+      sub2.receivedInOrderReceived() shouldBe List(1)
+    }
     "request data before values are pushed" in {
       val processor = DurableProcessor[String]()
 

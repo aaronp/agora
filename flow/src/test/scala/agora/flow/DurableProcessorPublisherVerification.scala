@@ -16,6 +16,7 @@ class DurableProcessorPublisherVerification extends PublisherVerification[String
       i = i + 1
       dp.onNext("" + i)
     }
+    dp.onComplete()
 
     dp
   }

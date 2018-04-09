@@ -124,8 +124,11 @@ class DurableProcessorInstance[T](args: Args[T]) extends DurableProcessor[T] wit
 
     // are we in error? If so notify eagerly
     processorErrorOpt.foreach { err =>
-      hs.subscriber.onError(err)
-      removeSubscriber(hs)
+      hs.notifyError(err)
+    }
+
+    lastIndex().filter(_ <= index).foreach { idx =>
+      hs.notifyComplete(idx)
     }
   }
 
@@ -164,7 +167,7 @@ class DurableProcessorInstance[T](args: Args[T]) extends DurableProcessor[T] wit
     MaxWrittenIndexLock.writeLock().lock()
     try {
       maxWrittenIndex = maxWrittenIndex.max(newIndex)
-      logger.info(s"Just wrote $newIndex, max index is $maxWrittenIndex")
+      logger.debug(s"Just wrote $newIndex, max index is $maxWrittenIndex")
     } finally {
       MaxWrittenIndexLock.writeLock().unlock()
     }

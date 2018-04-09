@@ -16,7 +16,7 @@ class DurableSubscription[T](publisher: DurableProcessorInstance[T], deadIndex: 
     with StrictLogging {
 
 
-  private[impl] val nextIndexToRequest = new AtomicLong(initialRequestedIndex)
+  private[flow] val nextIndexToRequest = new AtomicLong(initialRequestedIndex)
   private[this] var lastRequestedIndexCounter = initialRequestedIndex
 
   private[this] object LastRequestedIndexCounterLock
@@ -39,6 +39,11 @@ class DurableSubscription[T](publisher: DurableProcessorInstance[T], deadIndex: 
 
   private[impl] def notifyComplete(idx: Long): Unit = {
     checkComplete(idx)
+  }
+
+  private[impl] def notifyError(err: Throwable): Unit = {
+    subscriber.onError(err)
+    publisher.removeSubscriber(this)
   }
 
   /** @param newIndex the new index available
@@ -67,8 +72,11 @@ class DurableSubscription[T](publisher: DurableProcessorInstance[T], deadIndex: 
     if (lastIndex == lastRequestedIndexCounter) {
       logger.debug(s"$name complete at $lastIndex")
       val removed = publisher.removeSubscriber(this)
-      subscriber.onComplete()
-      require(removed, s"$name wasn't removed")
+      if (removed) {
+        subscriber.onComplete()
+      } else {
+        logger.error(s"$name couldn't be removed")
+      }
     } else {
       logger.trace(s"$name not complete as $lastRequestedIndexCounter != last index $lastIndex")
     }
