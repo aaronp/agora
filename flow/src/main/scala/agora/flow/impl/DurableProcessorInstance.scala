@@ -32,10 +32,15 @@ class DurableProcessorInstance[T](args: Args[T]) extends DurableProcessor[T] wit
     }
   }
 
-  def remove(value: DurableSubscription[T]) = {
 
+  /** @param subscription the subscription to remove
+    * @return true if the subscription was removed
+    */
+  def removeSubscriber(subscription: DurableSubscription[T]) = {
     SubscribersLock.synchronized {
-      subscribers = subscribers.diff(List(this))
+      val before = subscribers.contains(subscription)
+      subscribers = subscribers.diff(List(subscription))
+      before && !subscribers.contains(subscription)
     }
   }
 
@@ -101,16 +106,6 @@ class DurableProcessorInstance[T](args: Args[T]) extends DurableProcessor[T] wit
     new DurableSubscription[T](this, initialIndex - 1, lastRequestedIdx, subscriber)
   }
 
-  /** @param subscription the subscription to remove
-    * @return true if the subscription was removed
-    */
-  def removeSubscriber(subscription: DurableSubscription[T]) = {
-    SubscribersLock.synchronized {
-      val before = subscribers.contains(subscription)
-      subscribers = subscribers.diff(List(subscription))
-      before && !subscribers.contains(subscription)
-    }
-  }
 
   override def subscribeFrom(index: Long, subscriber: Subscriber[_ >: T]): Unit = {
     val hs = SubscribersLock.synchronized {

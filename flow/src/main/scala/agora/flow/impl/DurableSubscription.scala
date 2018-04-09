@@ -7,10 +7,10 @@ import agora.flow.{ConsumerQueue, HasName, SubscriberSnapshot}
 import com.typesafe.scalalogging.StrictLogging
 import org.reactivestreams.{Subscriber, Subscription}
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 
-class DurableSubscription[T](publisher: DurableProcessorInstance[T], deadIndex: Long, initialRequestedIndex: Long, val subscriber: Subscriber[_ >: T])
+class DurableSubscription[T](inputPublisher: DurableProcessorInstance[T], deadIndex: Long, initialRequestedIndex: Long, val subscriber: Subscriber[_ >: T])
   extends Subscription
     with HasName
     with StrictLogging {
@@ -18,6 +18,7 @@ class DurableSubscription[T](publisher: DurableProcessorInstance[T], deadIndex: 
 
   private[flow] val nextIndexToRequest = new AtomicLong(initialRequestedIndex)
   private[this] var lastRequestedIndexCounter = initialRequestedIndex
+  private[this] var publisherOpt = Option(inputPublisher)
 
   private[this] object LastRequestedIndexCounterLock
 
@@ -43,7 +44,7 @@ class DurableSubscription[T](publisher: DurableProcessorInstance[T], deadIndex: 
 
   private[impl] def notifyError(err: Throwable): Unit = {
     subscriber.onError(err)
-    publisher.removeSubscriber(this)
+    remove()
   }
 
   /** @param newIndex the new index available
@@ -54,13 +55,20 @@ class DurableSubscription[T](publisher: DurableProcessorInstance[T], deadIndex: 
     }
   }
 
-  def complete() = {
-    Try(subscriber.onComplete())
+  //  def complete() = {
+  //    Try(subscriber.onComplete())
+  //  }
+
+  private def remove() = {
+    publisherOpt.fold(false) { publisher =>
+      publisherOpt = None
+      publisher.removeSubscriber(this)
+    }
   }
 
   override def cancel(): Unit = {
     if (nextIndexToRequest.getAndSet(deadIndex) != deadIndex) {
-      publisher.remove(this)
+      remove()
     }
   }
 
@@ -71,7 +79,7 @@ class DurableSubscription[T](publisher: DurableProcessorInstance[T], deadIndex: 
   private def checkComplete(lastIndex: Long) = {
     if (lastIndex == lastRequestedIndexCounter) {
       logger.debug(s"$name complete at $lastIndex")
-      val removed = publisher.removeSubscriber(this)
+      val removed = remove()
       if (removed) {
         subscriber.onComplete()
       } else {
@@ -83,43 +91,61 @@ class DurableSubscription[T](publisher: DurableProcessorInstance[T], deadIndex: 
   }
 
   private def pull(maxIndex: Long): Unit = {
-    val idx = lastRequestedIndex()
-    val nrToTake = computeNumberToTake(idx, publisher.currentIndex(), maxIndex)
+    publisherOpt.foreach { publisher =>
 
-    if (nrToTake > 0) {
-      val lastIndex = publisher.lastIndex()
+      val idx = lastRequestedIndex()
+      val nrToTake = computeNumberToTake(idx, publisher.currentIndex(), maxIndex)
 
-      val range = LastRequestedIndexCounterLock.synchronized {
-        val fromIndex = lastRequestedIndexCounter + 1
+      if (nrToTake > 0) {
+        val lastIndex = publisher.lastIndex()
 
-        val toIndex = {
-          val computedMax = lastRequestedIndexCounter + nrToTake
-          lastIndex.fold(computedMax)(_.min(computedMax))
+        val range = LastRequestedIndexCounterLock.synchronized {
+          val fromIndex = lastRequestedIndexCounter + 1
+
+          val toIndex = {
+            val computedMax = lastRequestedIndexCounter + nrToTake
+            lastIndex.fold(computedMax)(_.min(computedMax))
+          }
+          lastRequestedIndexCounter = toIndex
+          (fromIndex to toIndex)
         }
-        lastRequestedIndexCounter = toIndex
-        (fromIndex to toIndex)
-      }
 
-      range.iterator.map(publisher.valueAt).foreach {
-        case Success(value) =>
-          notifySubscriber(value)
-          totalPushed.incrementAndGet()
-        case Failure(err) =>
-          cancel()
-          val badIndex = new Exception(s"Couldn't pull $range", err)
-          logger.error(s"Cancelling on request of $range w/ $nrToTake remaining to pull", err)
-          subscriber.onError(badIndex)
-      }
+        range.iterator.map(publisher.valueAt).foreach {
+          case Success(value) =>
+            notifySubscriber(value)
+            totalPushed.incrementAndGet()
+          case Failure(err) =>
+            cancel()
+            val badIndex = new Exception(s"Couldn't pull $range", err)
+            logger.error(s"Cancelling on request of $range w/ $nrToTake remaining to pull", err)
+            subscriber.onError(badIndex)
+        }
 
-      lastIndex.foreach(checkComplete)
+        lastIndex.foreach(checkComplete)
+      }
     }
   }
 
-  def publisherSubscription(): Option[Subscription] = publisher.processorSubscription()
+  def publisherSubscription(): Option[Subscription] = publisherOpt.flatMap(_.processorSubscription)
 
-  override def request(n: Long): Unit = request(n, publisher.propagateSubscriberRequestsToOurSubscription)
+  override def request(n: Long): Unit = {
+    if (n <= 0) {
+      val err = new IllegalArgumentException(s"Invalid request for $n elements. According to the reactive stream spec #309 only positive values may be requested")
+      notifyError(err)
+    } else {
+      publisherOpt.foreach { publisher =>
+        doRequest(n, publisher, publisher.propagateSubscriberRequestsToOurSubscription)
+      }
+    }
+  }
 
   def request(n: Long, propagateSubscriberRequest: Boolean): Unit = {
+    publisherOpt.foreach { publisher =>
+      doRequest(n, publisher, propagateSubscriberRequest)
+    }
+  }
+
+  private def doRequest(n: Long, publisher: DurableProcessorInstance[T], propagateSubscriberRequest: Boolean): Unit = {
     totalRequested.addAndGet(n)
 
     val maxIndex = nextIndexToRequest.addAndGet(n)
