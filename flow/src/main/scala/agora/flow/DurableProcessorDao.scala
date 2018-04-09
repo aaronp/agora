@@ -20,7 +20,7 @@ trait DurableProcessorDao[T] {
   def markComplete(lastIndex: Long): Unit
 
   /**
-    * @return the last index, if known
+    * @return the last (final) index, if known
     */
   def lastIndex(): Option[Long]
 
@@ -36,7 +36,7 @@ trait DurableProcessorDao[T] {
     *
     * @param index
     * @param value
-    * @return
+    * @return a success flag for some reason
     */
   def writeDown(index: Long, value: T): Boolean
 
