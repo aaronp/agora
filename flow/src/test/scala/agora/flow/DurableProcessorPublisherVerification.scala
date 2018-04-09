@@ -11,7 +11,9 @@ class DurableProcessorPublisherVerification extends PublisherVerification[String
   override def createPublisher(elements: Long): Publisher[String] = {
 
     val dp: DurableProcessorInstance[String] = DurableProcessor[String]
-    (0L to elements).foreach { i =>
+    var i = 0L
+    while (i < elements) {
+      i = i + 1
       dp.onNext("" + i)
     }
 
@@ -27,8 +29,8 @@ class DurableProcessorPublisherVerification extends PublisherVerification[String
 
 object DurableProcessorPublisherVerification {
 
-  val DEFAULT_TIMEOUT_MILLIS                     = 100L
-  val DEFAULT_NO_SIGNALS_TIMEOUT_MILLIS: Long    = DEFAULT_TIMEOUT_MILLIS
+  val DEFAULT_TIMEOUT_MILLIS = 100L
+  val DEFAULT_NO_SIGNALS_TIMEOUT_MILLIS: Long = DEFAULT_TIMEOUT_MILLIS
   val PUBLISHER_REFERENCE_CLEANUP_TIMEOUT_MILLIS = 500L
 
   val testEnv = new TestEnvironment(DEFAULT_TIMEOUT_MILLIS, DEFAULT_TIMEOUT_MILLIS)

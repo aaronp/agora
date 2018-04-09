@@ -9,17 +9,28 @@ import com.typesafe.scalalogging.StrictLogging
 import org.reactivestreams.{Subscriber, Subscription}
 
 
-
 /** @param args
   * @tparam T
   */
 class DurableProcessorInstance[T](args: Args[T]) extends DurableProcessor[T] with PublisherSnapshotSupport[Int] with StrictLogging {
 
-  val dao = args.dao
+  protected val dao = args.dao
   val propagateSubscriberRequestsToOurSubscription = args.propagateSubscriberRequestsToOurSubscription
   private val nextIndexCounter = new AtomicLong(args.nextIndex)
 
   def valueAt(idx: Long) = dao.at(idx)
+
+  // the DAO will likely be doing IO or some other potentially expensive operation to work out the last index
+  // As it doesn't change once set, we cache it here if known.
+  @volatile private var cachedLastIndex = Option.empty[Long]
+
+  def lastIndex() = {
+    cachedLastIndex.orElse {
+      val opt = dao.lastIndex()
+      opt.foreach(_ => cachedLastIndex = opt)
+      opt
+    }
+  }
 
   def remove(value: DurableSubscription[T]) = {
 
@@ -42,11 +53,14 @@ class DurableProcessorInstance[T](args: Args[T]) extends DurableProcessor[T] wit
   private val MaxWrittenIndexLock = new ReentrantReadWriteLock()
   private var subscribers = List[DurableSubscription[T]]()
   private var subscriptionOpt = Option.empty[Subscription]
+
+  // keeps track of 'onError' exceptions to be used when new subscribers are added to a processor
+  // which has been notified of an error (via onError)
   private var processorErrorOpt = Option.empty[Throwable]
 
   private val maxRequest = new MaxRequest()
 
-  protected def subscriberList = subscribers
+  //  protected def subscriberList = subscribers
 
   def processorSubscription(): Option[Subscription] = subscriptionOpt
 
@@ -64,25 +78,38 @@ class DurableProcessorInstance[T](args: Args[T]) extends DurableProcessor[T] wit
     * upstream publisher.
     *
     * @param potentialNewMaxIndex
+    * @return true if we have a subscription  and elements were requested from it
     */
-  def onSubscriberRequestingUpTo(sub: DurableSubscription[T], potentialNewMaxIndex: Long, n: Long) = {
+  def onSubscriberRequestingUpTo(sub: DurableSubscription[T], potentialNewMaxIndex: Long, n: Long): Boolean = {
     // we always track how many we want to pull, as we may be subscribed to before
     // we subscribe to an upstream publisher ourselves
     val diff = maxRequest.update(potentialNewMaxIndex)
     if (diff > 0) {
       requestFromSubscription(diff)
-    }
+    } else false
   }
 
   def requestFromSubscription(n: Long) = {
-    subscriptionOpt.foreach { s =>
+    subscriptionOpt.fold(false) { s =>
       onRequest(n)
       s.request(n)
+      true
     }
   }
 
   protected def newSubscriber(lastRequestedIdx: Long, subscriber: Subscriber[_ >: T]) = {
     new DurableSubscription[T](this, initialIndex - 1, lastRequestedIdx, subscriber)
+  }
+
+  /** @param subscription the subscription to remove
+    * @return true if the subscription was removed
+    */
+  def removeSubscriber(subscription: DurableSubscription[T]) = {
+    SubscribersLock.synchronized {
+      val before = subscribers.contains(subscription)
+      subscribers = subscribers.diff(List(subscription))
+      before && !subscribers.contains(subscription)
+    }
   }
 
   override def subscribeFrom(index: Long, subscriber: Subscriber[_ >: T]): Unit = {
@@ -95,11 +122,10 @@ class DurableProcessorInstance[T](args: Args[T]) extends DurableProcessor[T] wit
     }
     hs.subscriber.onSubscribe(hs)
 
+    // are we in error? If so notify eagerly
     processorErrorOpt.foreach { err =>
       hs.subscriber.onError(err)
-      SubscribersLock.synchronized {
-        subscribers = subscribers.diff(List(hs))
-      }
+      removeSubscriber(hs)
     }
   }
 
@@ -170,17 +196,19 @@ class DurableProcessorInstance[T](args: Args[T]) extends DurableProcessor[T] wit
   }
 
   override def onComplete(): Unit = {
-    foreachSubscriber(_.complete())
-    clearSubscribers()
+    val idx = nextIndexCounter.get()
+    dao.markComplete(idx)
+    val lastIdxOpt = dao.lastIndex()
+    require(lastIdxOpt == Option(idx), s"dao.lastIndex() returned ${lastIdxOpt}")
+    foreachSubscriber(_.notifyComplete(idx))
     subscriptionOpt = None
   }
 
   private val iWasCreatedFrom = Thread.currentThread().getStackTrace.take(10).mkString("\n\t")
-  private var createdFrom = ""
 
   override def onSubscribe(s: Subscription): Unit = {
     def err = {
-      val msg = s"Already subscribed w/ $subscriptionOpt, can't add $s, \nI am from:$iWasCreatedFrom\nsubscribe was from $createdFrom\n\n\n"
+      val msg = s"Already subscribed w/ $subscriptionOpt, can't add $s, \nI am from:$iWasCreatedFrom\n"
       msg
     }
 

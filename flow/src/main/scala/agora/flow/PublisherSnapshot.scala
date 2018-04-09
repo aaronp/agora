@@ -19,5 +19,5 @@ case class SubscriberSnapshot(name: String,
                               buffered: Long,
                               limit: QueueLimit) {
   override def toString: String =
-    s"$name {$currentlyRequested requested ($totalRequested total), $totalPushed pushed, $totalReceived received, $buffered buffered, $limit}"
+    s"$name {$currentlyRequested currently requested ($totalRequested total requested), $totalPushed pushed, $totalReceived received, $buffered buffered, $limit}"
 }

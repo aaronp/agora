@@ -14,7 +14,9 @@ class DurableSubscription[T](publisher: DurableProcessorInstance[T], deadIndex: 
   extends Subscription
     with HasName
     with StrictLogging {
-  private[flow] val nextIndexToRequest = new AtomicLong(initialRequestedIndex)
+
+
+  private[impl] val nextIndexToRequest = new AtomicLong(initialRequestedIndex)
   private[this] var lastRequestedIndexCounter = initialRequestedIndex
 
   private[this] object LastRequestedIndexCounterLock
@@ -35,7 +37,13 @@ class DurableSubscription[T](publisher: DurableProcessorInstance[T], deadIndex: 
     SubscriberSnapshot(name, totalRequested.get, totalPushed.get, lastRequested.toInt, next - lastRequested, 0, ConsumerQueue.Unbounded)
   }
 
-  def onNewIndex(newIndex: Long) = {
+  private[impl] def notifyComplete(idx: Long): Unit = {
+    checkComplete(idx)
+  }
+
+  /** @param newIndex the new index available
+    */
+  private[impl] def onNewIndex(newIndex: Long) = {
     if (newIndex <= nextIndexToRequest.get()) {
       pull(newIndex)
     }
@@ -55,14 +63,31 @@ class DurableSubscription[T](publisher: DurableProcessorInstance[T], deadIndex: 
     subscriber.onNext(elm)
   }
 
+  private def checkComplete(lastIndex: Long) = {
+    if (lastIndex == lastRequestedIndexCounter) {
+      logger.debug(s"$name complete at $lastIndex")
+      val removed = publisher.removeSubscriber(this)
+      subscriber.onComplete()
+      require(removed, s"$name wasn't removed")
+    } else {
+      logger.trace(s"$name not complete as $lastRequestedIndexCounter != last index $lastIndex")
+    }
+  }
+
   private def pull(maxIndex: Long): Unit = {
     val idx = lastRequestedIndex()
     val nrToTake = computeNumberToTake(idx, publisher.currentIndex(), maxIndex)
 
     if (nrToTake > 0) {
+      val lastIndex = publisher.lastIndex()
+
       val range = LastRequestedIndexCounterLock.synchronized {
         val fromIndex = lastRequestedIndexCounter + 1
-        val toIndex = lastRequestedIndexCounter + nrToTake
+
+        val toIndex = {
+          val computedMax = lastRequestedIndexCounter + nrToTake
+          lastIndex.fold(computedMax)(_.min(computedMax))
+        }
         lastRequestedIndexCounter = toIndex
         (fromIndex to toIndex)
       }
@@ -77,6 +102,8 @@ class DurableSubscription[T](publisher: DurableProcessorInstance[T], deadIndex: 
           logger.error(s"Cancelling on request of $range w/ $nrToTake remaining to pull", err)
           subscriber.onError(badIndex)
       }
+
+      lastIndex.foreach(checkComplete)
     }
   }
 

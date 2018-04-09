@@ -1,12 +1,11 @@
 package agora.flow
 
 import agora.BaseIOSpec
-import agora.flow.impl.DurableSubscription
+import agora.flow.impl.{DurableProcessorInstance, DurableSubscription}
 import cats.instances.int._
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 import org.scalatest.concurrent.Eventually
 
-import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.Implicits._
 
 class DurableProcessorTest extends BaseIOSpec with Eventually {
@@ -64,10 +63,69 @@ class DurableProcessorTest extends BaseIOSpec with Eventually {
   }
   "DurableProcessor as subscriber" should {
 
+    "notify onComplete independently for each subscriber" in {
+      val processorUnderTest: DurableProcessorInstance[String] = DurableProcessor[String]()
+      processorUnderTest.onNext("first")
+      processorUnderTest.onNext("penultimate")
+
+      val sub1 = new ListSubscriber[String]
+      processorUnderTest.subscribe(sub1)
+      sub1.receivedInOrderReceived() shouldBe Nil
+      sub1.request(2)
+      sub1.isCompleted() shouldBe false
+      sub1.receivedInOrderReceived() shouldBe List("first", "penultimate")
+
+      val sub2 = new ListSubscriber[String]
+      processorUnderTest.subscribe(sub2)
+      sub2.request(100)
+      sub2.receivedInOrderReceived() shouldBe List("first", "penultimate")
+      sub2.isCompleted() shouldBe false
+
+      processorUnderTest.snapshot().subscribers.size shouldBe 2
+
+      // add one more element and call the method under test
+      processorUnderTest.onNext("last")
+      processorUnderTest.onComplete()
+
+      // sub1 has still only requested 2
+      sub1.isCompleted() shouldBe false
+      sub1.receivedInOrderReceived() shouldBe List("first", "penultimate")
+
+      sub2.receivedInOrderReceived() shouldBe List("first", "penultimate", "last")
+      sub2.isCompleted() shouldBe true
+      processorUnderTest.snapshot().subscribers.size shouldBe 1
+
+      sub1.request(1)
+      sub1.isCompleted() shouldBe true
+      sub1.receivedInOrderReceived() shouldBe List("first", "penultimate", "last")
+
+      processorUnderTest.snapshot().subscribers.size shouldBe 0
+    }
+    "notify onComplete for subscriptions created after it has been completed" in {
+      val processorUnderTest = DurableProcessor[String]()
+      processorUnderTest.onNext("only element")
+      processorUnderTest.onComplete()
+
+      val sub1 = new ListSubscriber[String]
+      processorUnderTest.subscribe(sub1)
+      sub1.receivedInOrderReceived() shouldBe Nil
+      sub1.isCompleted() shouldBe false
+
+      sub1.request(1)
+      sub1.isCompleted() shouldBe true
+      sub1.receivedInOrderReceived() shouldBe List("only element")
+
+      val sub2 = new ListSubscriber[String]
+      sub2.request(2)
+      processorUnderTest.subscribe(sub2)
+      sub2.receivedInOrderReceived() shouldBe List("only element")
+      sub2.isCompleted() shouldBe true
+    }
+
     "publish to subscribers" in {
       val controlMessagePublisher = DurableProcessor[String]()
-      val listener                = new ListSubscriber[String]
-      var inlineSubscriberMsg     = ""
+      val listener = new ListSubscriber[String]
+      var inlineSubscriberMsg = ""
       val listener2 = BaseSubscriber[String](1) {
         case (s, msg) =>
           inlineSubscriberMsg = msg
@@ -217,7 +275,7 @@ class DurableProcessorTest extends BaseIOSpec with Eventually {
 
   class TestPub extends Publisher[Int] with Subscription {
     var subscriber: Subscriber[_ >: Int] = null
-    var requests: List[Long]             = Nil
+    var requests: List[Long] = Nil
 
     override def subscribe(s: Subscriber[_ >: Int]): Unit = {
       subscriber = s
