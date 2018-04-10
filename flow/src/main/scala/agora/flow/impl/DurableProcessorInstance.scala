@@ -4,7 +4,7 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
 import agora.flow.DurableProcessor.Args
-import agora.flow.{DurableProcessor, DurableProcessorDao, PublisherSnapshot, PublisherSnapshotSupport}
+import agora.flow.{DurableProcessor, DurableProcessorDao}
 import com.typesafe.scalalogging.StrictLogging
 import org.reactivestreams.{Subscriber, Subscription}
 
@@ -14,7 +14,8 @@ import scala.concurrent.ExecutionContext
 /** @param args
   * @tparam T
   */
-class DurableProcessorInstance[T](args: Args[T])(implicit execContext : ExecutionContext) extends DurableProcessor[T] with PublisherSnapshotSupport[Int] with StrictLogging {
+class DurableProcessorInstance[T](args: Args[T])(implicit execContext: ExecutionContext) extends DurableProcessor[T] with StrictLogging {
+  //with PublisherSnapshotSupport[Int]
 
   protected[impl] val dao: DurableProcessorDao[T] = args.dao
   val propagateSubscriberRequestsToOurSubscription = args.propagateSubscriberRequestsToOurSubscription
@@ -46,14 +47,14 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext : Executio
     }
   }
 
-  def this(dao: DurableProcessorDao[T], propagateSubscriberRequestsToOurSubscription: Boolean = true, currentIndexCounter: Long = -1L)(implicit execContext : ExecutionContext) = {
+  def this(dao: DurableProcessorDao[T], propagateSubscriberRequestsToOurSubscription: Boolean = true, currentIndexCounter: Long = -1L)(implicit execContext: ExecutionContext) = {
     this(Args(dao, propagateSubscriberRequestsToOurSubscription, currentIndexCounter))
   }
 
-  override def snapshot(): PublisherSnapshot[Int] = {
-    val map = subscribers.zipWithIndex.map(_.swap).toMap
-    PublisherSnapshot(map.mapValues(_.snapshot()))
-  }
+  //  override def snapshot(): PublisherSnapshot[Int] = {
+  //    val map = subscribers.zipWithIndex.map(_.swap).toMap
+  //    PublisherSnapshot(map.mapValues(_.snapshot()))
+  //  }
 
   private val initialIndex: Long = nextIndexCounter.get()
   private var maxWrittenIndex = initialIndex
@@ -66,8 +67,6 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext : Executio
   private var processorErrorOpt = Option.empty[Throwable]
 
   private val maxRequest = new MaxRequest()
-
-  //  protected def subscriberList = subscribers
 
   def processorSubscription(): Option[Subscription] = subscriptionOpt
 
@@ -87,7 +86,7 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext : Executio
     * @param potentialNewMaxIndex
     * @return true if we have a subscription  and elements were requested from it
     */
-  def onSubscriberRequestingUpTo(sub: DurableSubscription[T], potentialNewMaxIndex: Long, n: Long): Boolean = {
+  def onSubscriberRequestingUpTo(potentialNewMaxIndex: Long): Boolean = {
     // we always track how many we want to pull, as we may be subscribed to before
     // we subscribe to an upstream publisher ourselves
     val diff = maxRequest.update(potentialNewMaxIndex)
@@ -104,27 +103,27 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext : Executio
     }
   }
 
-  protected def newSubscriber(lastRequestedIdx: Long, subscriber: Subscriber[_ >: T]) = {
-    new DurableSubscription[T](this, lastRequestedIdx, subscriber, execContext)
+  protected def newSubscriber(firstRequestedIdx: Long, subscriber: Subscriber[_ >: T]) = {
+    new DurableSubscription[T](this, firstRequestedIdx.max(-1), subscriber, execContext)
   }
 
 
   override def subscribeFrom(index: Long, subscriber: Subscriber[_ >: T]): Unit = {
     val hs = SubscribersLock.synchronized {
-      // we start off not having requested anything, so start 1 BEFORE the index
-      val lastRequestedIndex = index - 1
-      val s = newSubscriber(lastRequestedIndex, subscriber)
+      val s = newSubscriber(index - 1, subscriber)
       subscribers = s :: subscribers
       s
     }
+
     hs.subscriber.onSubscribe(hs)
+    hs.onNewIndex(currentIndex())
 
     // are we in error? If so notify eagerly
     processorErrorOpt.foreach { err =>
       hs.notifyError(err)
     }
 
-    lastIndex().filter(_ <= index).foreach { idx =>
+    lastIndex().foreach { idx =>
       hs.notifyComplete(idx)
     }
   }
@@ -146,7 +145,7 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext : Executio
 
   override def latestIndex: Option[Long] = Option(currentIndex()).filterNot(_ == initialIndex)
 
-  override val firstIndex = initialIndex + 1
+  override val firstIndex = initialIndex
 
   override def onNext(value: T): Unit = {
 
@@ -179,15 +178,7 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext : Executio
     //        case _ => case _ =>
     //      }
 
-//    subscribers.foreach(f)
-    execContext.execute{
-      new Runnable {
-        override def run(): Unit = {
-          subscribers.foreach(f)
-        }
-      }
-    }
-//    subscribers.par.foreach(f)
+    subscribers.foreach(f)
   }
 
   override def onError(t: Throwable): Unit = {
