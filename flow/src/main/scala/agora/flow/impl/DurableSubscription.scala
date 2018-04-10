@@ -44,7 +44,7 @@ class DurableSubscription[T](inputPublisher: DurableProcessorInstance[T],
   // kept for snapshots
   private val totalRequested = new AtomicLong(0)
   private val totalPushed = new AtomicInteger(0)
-  
+
   private var rangeBuffer = DurableSubscription.emptyBuffer()
   private lazy val pullTask: DurableSubscription.PullRunnable[T] = {
     val task = DurableSubscription.PullRunnable(inputPublisher.dao)

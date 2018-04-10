@@ -5,7 +5,6 @@ import java.nio.file.Path
 import agora.io.{FromBytes, LowPriorityIOImplicits, ToBytes}
 import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
 
-import scala.collection.immutable.NumericRange
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}
 
@@ -14,16 +13,21 @@ import scala.util.{Failure, Success, Try}
   *
   * @tparam T
   */
-trait DurableProcessorDao[T] {
+trait DurableProcessorDao[T] extends DurableProcessorReader[T] {
 
-  /** Marks the given index as the last index
-    */
-  def markComplete(lastIndex: Long): Unit
 
   /**
     * @return the last (final) index, if known
     */
   def lastIndex(): Option[Long]
+
+  /** @return the maximum written index (or none if there are none)
+    */
+  def maxIndex: Option[Long]
+
+  /** Marks the given index as the last index
+    */
+  def markComplete(lastIndex: Long): Unit
 
   /**
     * Note - 'writeDown' will be called from the same thread w/ sequential indices.
@@ -41,18 +45,6 @@ trait DurableProcessorDao[T] {
     */
   def writeDown(index: Long, value: T): Boolean
 
-  /** @param index the index from which to read
-    * @return the value at a particular index (which may not exist or suffer some IO error)
-    */
-  def at(index: Long): Try[T]
-
-//  def readRange(indices: NumericRange.Inclusive[Long]): Try[Iterator[T]] = {
-//    Try(indices.map(at).map(_.get).iterator)
-//  }
-
-  /** @return the maximum written index (or none if there are none)
-    */
-  def maxIndex: Option[Long]
 }
 
 object DurableProcessorDao extends StrictLogging {

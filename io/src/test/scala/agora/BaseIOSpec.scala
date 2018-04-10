@@ -6,7 +6,7 @@ import java.util.UUID
 import agora.io.LowPriorityIOImplicits
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
+import org.scalatest.{BeforeAndAfterAll, GivenWhenThen, Matchers, WordSpec}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
@@ -18,7 +18,7 @@ import scala.util.Properties
   *
   * See http://www.scalatest.org/user_guide/defining_base_classes
   */
-abstract class BaseIOSpec extends WordSpec with Matchers with ScalaFutures with LowPriorityIOImplicits with BeforeAndAfterAll {
+abstract class BaseIOSpec extends WordSpec with Matchers with ScalaFutures with LowPriorityIOImplicits with BeforeAndAfterAll with GivenWhenThen {
 
   /**
     * All the timeouts!
