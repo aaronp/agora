@@ -1,31 +1,58 @@
 package agora.flow.impl
 
+import java.util.concurrent.Exchanger
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 
 import agora.flow.DurableProcessor.computeNumberToTake
-import agora.flow.{ConsumerQueue, HasName, SubscriberSnapshot}
+import agora.flow.{ConsumerQueue, DurableProcessorDao, HasName, SubscriberSnapshot}
 import com.typesafe.scalalogging.StrictLogging
 import org.reactivestreams.{Subscriber, Subscription}
 
+import scala.collection.immutable.NumericRange
+import scala.collection.mutable.ListBuffer
+import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 
-
-class DurableSubscription[T](inputPublisher: DurableProcessorInstance[T], deadIndex: Long, initialRequestedIndex: Long, val subscriber: Subscriber[_ >: T])
+/**
+  *
+  * @param inputPublisher
+  * @param initialRequestedIndex
+  * @param subscriber
+  * @tparam T
+  */
+class DurableSubscription[T](inputPublisher: DurableProcessorInstance[T],
+                             initialRequestedIndex: Long,
+                             val subscriber: Subscriber[_ >: T],
+                             execContext: ExecutionContext)
   extends Subscription
     with HasName
     with StrictLogging {
 
 
+  // this gets incremented every time 'request(n)' is called to track the subscription's
+  // intended max index. The 'lastRequestedIndexCounter' is similar,
   private[flow] val nextIndexToRequest = new AtomicLong(initialRequestedIndex)
+
+  // the last index requested from the publisher, used to compute which indices should be asked for when 'request' is called
   private[this] var lastRequestedIndexCounter = initialRequestedIndex
-  private[this] var publisherOpt = Option(inputPublisher)
 
   private[this] object LastRequestedIndexCounterLock
 
-  def lastRequestedIndex() = LastRequestedIndexCounterLock.synchronized(lastRequestedIndexCounter)
+  // the publisher of the data, kept in an option which is set to None once we're cancelled/errored/completed
+  private[this] var publisherOpt = Option(inputPublisher)
 
+  // kept for snapshots
   private val totalRequested = new AtomicLong(0)
   private val totalPushed = new AtomicInteger(0)
+  
+  private var rangeBuffer = DurableSubscription.emptyBuffer()
+  private lazy val pullTask: DurableSubscription.PullRunnable[T] = {
+    val task = DurableSubscription.PullRunnable(inputPublisher.dao)
+    execContext.execute(task)
+    task
+  }
+
+  def lastRequestedIndex() = LastRequestedIndexCounterLock.synchronized(lastRequestedIndexCounter)
 
   def name = subscriber match {
     case hn: HasName => hn.name
@@ -55,10 +82,6 @@ class DurableSubscription[T](inputPublisher: DurableProcessorInstance[T], deadIn
     }
   }
 
-  //  def complete() = {
-  //    Try(subscriber.onComplete())
-  //  }
-
   private def remove() = {
     publisherOpt.fold(false) { publisher =>
       publisherOpt = None
@@ -67,7 +90,7 @@ class DurableSubscription[T](inputPublisher: DurableProcessorInstance[T], deadIn
   }
 
   override def cancel(): Unit = {
-    if (nextIndexToRequest.getAndSet(deadIndex) != deadIndex) {
+    if (nextIndexToRequest.getAndSet(-1) != -1) {
       remove()
     }
   }
@@ -90,8 +113,13 @@ class DurableSubscription[T](inputPublisher: DurableProcessorInstance[T], deadIn
     }
   }
 
+  private def pullRange(indices: NumericRange.Inclusive[Long]) = {
+    pullTask.ranges.exchange(Option(rangeBuffer))
+
+  }
+
   private def pull(maxIndex: Long): Unit = {
-    publisherOpt.foreach { publisher =>
+    publisherOpt.foreach { publisher: DurableProcessorInstance[T] =>
 
       val idx = lastRequestedIndex()
       val nrToTake = computeNumberToTake(idx, publisher.currentIndex(), maxIndex)
@@ -99,7 +127,7 @@ class DurableSubscription[T](inputPublisher: DurableProcessorInstance[T], deadIn
       if (nrToTake > 0) {
         val lastIndex = publisher.lastIndex()
 
-        val range = LastRequestedIndexCounterLock.synchronized {
+        val range: NumericRange.Inclusive[Long] = LastRequestedIndexCounterLock.synchronized {
           val fromIndex = lastRequestedIndexCounter + 1
 
           val toIndex = {
@@ -110,18 +138,8 @@ class DurableSubscription[T](inputPublisher: DurableProcessorInstance[T], deadIn
           (fromIndex to toIndex)
         }
 
-        range.iterator.map(publisher.valueAt).foreach {
-          case Success(value) =>
-            notifySubscriber(value)
-            totalPushed.incrementAndGet()
-          case Failure(err) =>
-            cancel()
-            val badIndex = new Exception(s"Couldn't pull $range", err)
-            logger.error(s"Cancelling on request of $range w/ $nrToTake remaining to pull", err)
-            subscriber.onError(badIndex)
-        }
-
-        lastIndex.foreach(checkComplete)
+        pullRange(range)
+        //        lastIndex.foreach(checkComplete)
       }
     }
   }
@@ -158,4 +176,32 @@ class DurableSubscription[T](inputPublisher: DurableProcessorInstance[T], deadIn
 
     pull(maxIndex)
   }
+}
+
+object DurableSubscription {
+  type Buffer = ListBuffer[NumericRange.Inclusive[Long]]
+
+  def emptyBuffer(): Buffer = ListBuffer[NumericRange.Inclusive[Long]]()
+
+  private case class PullRunnable[T](dao: DurableProcessorDao[T]) extends Runnable with StrictLogging {
+
+    val ranges: Exchanger[Option[Buffer]] = new Exchanger[Option[Buffer]]
+
+    def drain(buffer: Buffer) = {
+
+    }
+
+    override def run(): Unit = {
+      var bufferOpt = Option(emptyBuffer())
+      while (bufferOpt.isDefined) {
+        bufferOpt.foreach { buffer =>
+          drain(buffer)
+          bufferOpt = ranges.exchange(bufferOpt)
+          logger.debug(s"got new buffer $bufferOpt")
+        }
+      }
+      logger.debug("pull job completing")
+    }
+  }
+
 }

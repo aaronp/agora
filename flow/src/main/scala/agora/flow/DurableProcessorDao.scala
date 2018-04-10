@@ -5,6 +5,7 @@ import java.nio.file.Path
 import agora.io.{FromBytes, LowPriorityIOImplicits, ToBytes}
 import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
 
+import scala.collection.immutable.NumericRange
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}
 
@@ -44,6 +45,10 @@ trait DurableProcessorDao[T] {
     * @return the value at a particular index (which may not exist or suffer some IO error)
     */
   def at(index: Long): Try[T]
+
+//  def readRange(indices: NumericRange.Inclusive[Long]): Try[Iterator[T]] = {
+//    Try(indices.map(at).map(_.get).iterator)
+//  }
 
   /** @return the maximum written index (or none if there are none)
     */

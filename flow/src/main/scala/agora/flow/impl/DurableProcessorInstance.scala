@@ -8,13 +8,15 @@ import agora.flow.{DurableProcessor, DurableProcessorDao, PublisherSnapshot, Pub
 import com.typesafe.scalalogging.StrictLogging
 import org.reactivestreams.{Subscriber, Subscription}
 
+import scala.concurrent.ExecutionContext
+
 
 /** @param args
   * @tparam T
   */
-class DurableProcessorInstance[T](args: Args[T]) extends DurableProcessor[T] with PublisherSnapshotSupport[Int] with StrictLogging {
+class DurableProcessorInstance[T](args: Args[T])(implicit execContext : ExecutionContext) extends DurableProcessor[T] with PublisherSnapshotSupport[Int] with StrictLogging {
 
-  protected val dao = args.dao
+  protected[impl] val dao: DurableProcessorDao[T] = args.dao
   val propagateSubscriberRequestsToOurSubscription = args.propagateSubscriberRequestsToOurSubscription
   private val nextIndexCounter = new AtomicLong(args.nextIndex)
 
@@ -44,7 +46,7 @@ class DurableProcessorInstance[T](args: Args[T]) extends DurableProcessor[T] wit
     }
   }
 
-  def this(dao: DurableProcessorDao[T], propagateSubscriberRequestsToOurSubscription: Boolean = true, currentIndexCounter: Long = -1L) = {
+  def this(dao: DurableProcessorDao[T], propagateSubscriberRequestsToOurSubscription: Boolean = true, currentIndexCounter: Long = -1L)(implicit execContext : ExecutionContext) = {
     this(Args(dao, propagateSubscriberRequestsToOurSubscription, currentIndexCounter))
   }
 
@@ -103,7 +105,7 @@ class DurableProcessorInstance[T](args: Args[T]) extends DurableProcessor[T] wit
   }
 
   protected def newSubscriber(lastRequestedIdx: Long, subscriber: Subscriber[_ >: T]) = {
-    new DurableSubscription[T](this, initialIndex - 1, lastRequestedIdx, subscriber)
+    new DurableSubscription[T](this, lastRequestedIdx, subscriber, execContext)
   }
 
 
@@ -174,9 +176,18 @@ class DurableProcessorInstance[T](args: Args[T]) extends DurableProcessor[T] wit
     //      subscribers.size match {
     //        case 0 =>
     //        case 1 => subscribers.foreach(f)
-    //        case _ => case _ => subscribers.par.foreach(f)
+    //        case _ => case _ =>
     //      }
-    subscribers.foreach(f)
+
+//    subscribers.foreach(f)
+    execContext.execute{
+      new Runnable {
+        override def run(): Unit = {
+          subscribers.foreach(f)
+        }
+      }
+    }
+//    subscribers.par.foreach(f)
   }
 
   override def onError(t: Throwable): Unit = {
