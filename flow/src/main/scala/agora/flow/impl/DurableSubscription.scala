@@ -1,6 +1,5 @@
 package agora.flow.impl
 
-import agora.flow.impl.SubscriberState.{CommandResult, StopResult}
 import agora.flow.{DurableProcessorReader, HasName}
 import com.typesafe.scalalogging.StrictLogging
 import org.reactivestreams.{Subscriber, Subscription}
@@ -28,10 +27,9 @@ class DurableSubscription[T](publisher: DurableProcessorInstance[T],
     case _ => toString
   }
 
-  private def handleResponse(response: Try[CommandResult]) = {
+  private def handleResponse(response: Try[SubscriberStateCommandResult]) = {
     response match {
-      case Success(StopResult(_)) =>
-        publisher.removeSubscriber(this)
+      case Success(StopResult(_)) => publisher.removeSubscriber(this)
       case _ =>
     }
   }

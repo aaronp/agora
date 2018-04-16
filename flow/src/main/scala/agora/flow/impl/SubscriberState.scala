@@ -16,14 +16,12 @@ import scala.util.{Failure, Success, Try}
   *
   * This class is NOT thread-safe, but expects to be executed within a single thread.
   *
-  * This state could be embedded in an actor which accepts [[agora.flow.impl.SubscriberState.Command]]
+  * This state could be embedded in an actor which accepts [[SubscriberStateCommand]]
   * messages, or a simple Runnable which pulls commands from a queue
   */
 class SubscriberState[T](subscription: Subscriber[_ >: T],
                          dao: DurableProcessorReader[T],
                          initialRequestedIndex: Long) extends StrictLogging {
-
-  import SubscriberState._
 
   private var maxIndexAvailable: Long = -1L
   @volatile private var maxIndexRequested: Long = initialRequestedIndex
@@ -37,7 +35,7 @@ class SubscriberState[T](subscription: Subscriber[_ >: T],
     * @param cmd the command to process
     * @return the result
     */
-  def update(cmd: Command): CommandResult = {
+  def update(cmd: SubscriberStateCommand): SubscriberStateCommandResult = {
     try {
       logger.trace(s"handling $cmd")
       val res = onCommandUnsafe(cmd)
@@ -51,7 +49,7 @@ class SubscriberState[T](subscription: Subscriber[_ >: T],
     }
   }
 
-  private def onCommandUnsafe(cmd: Command): CommandResult = {
+  private def onCommandUnsafe(cmd: SubscriberStateCommand): SubscriberStateCommandResult = {
     cmd match {
       case OnRequest(n) =>
         require(n > 0)
@@ -79,7 +77,7 @@ class SubscriberState[T](subscription: Subscriber[_ >: T],
     }
   }
 
-  private def pushValues[T](): CommandResult = {
+  private def pushValues[T](): SubscriberStateCommandResult = {
     val max = maxIndexAvailable.min(maxIndexRequested)
     logger.trace(s"pushValues(req=$maxIndexRequested, available=$maxIndexAvailable, lastPushed=$lastIndexPushed, max=$max)")
 
@@ -101,7 +99,7 @@ class SubscriberState[T](subscription: Subscriber[_ >: T],
 
   }
 
-  private def tryComplete(): CommandResult = {
+  private def tryComplete(): SubscriberStateCommandResult = {
     val res = if (complete) {
       if (lastIndexPushed >= maxIndexAvailable) {
         subscription.onComplete()
@@ -125,7 +123,7 @@ object SubscriberState {
     * Represents something which can drive a subscription
     */
   trait Api {
-    def send(cmd: Command): Future[CommandResult]
+    def send(cmd: SubscriberStateCommand): Future[SubscriberStateCommandResult]
 
     def onRequest(n: Long) = send(OnRequest(n))
 
@@ -138,21 +136,40 @@ object SubscriberState {
     def onError(err: Throwable) = send(OnError(err))
   }
 
-  private type Q = BlockingQueue[(SubscriberState.Command, Promise[CommandResult])]
+  private[impl] type Q = BlockingQueue[(SubscriberStateCommand, Promise[SubscriberStateCommandResult])]
+
+  def newQ(capacity: Int) = new ArrayBlockingQueue[(SubscriberStateCommand, Promise[SubscriberStateCommandResult])](capacity, true)
+
+
+  /**
+    * what we're trying to do here is conflate the queue by collapsing all similar commnds
+    *
+    * @param commands
+    * @param cmd
+    * @return
+    */
+  private[impl] def enqueue(commands: Q, cmd: SubscriberStateCommand) = {
+    val promise = Promise[SubscriberStateCommandResult]()
+    commands.add(cmd -> promise)
+
+    if (commands.size() > 100) {
+      SubscriberStateCommand.conflate(commands)
+    }
+    promise.future
+  }
 
   object Api {
 
     class QueueBasedApi(commands: Q) extends Api with StrictLogging {
-      override def send(cmd: Command): Future[CommandResult] = {
-        val promise = Promise[CommandResult]()
-        logger.debug(s"queueing $cmd")
-        commands.add(cmd -> promise)
-        promise.future
+
+      override def send(cmd: SubscriberStateCommand): Future[SubscriberStateCommandResult] = {
+        logger.trace(s"enqueueing $cmd")
+        enqueue(commands, cmd)
       }
     }
 
     def apply[T](state: SubscriberState[T], capacity: Int)(implicit execContext: ExecutionContext) = {
-      val queue = new ArrayBlockingQueue[(SubscriberState.Command, Promise[CommandResult])](capacity, true)
+      val queue = newQ(capacity)
 
       val runnable = new SubscriberRunnable[T](state, queue)
       execContext.execute(runnable)
@@ -166,18 +183,18 @@ object SubscriberState {
 
     private def pullLoop() = {
       val (firstCmd, firstPromise) = next()
-      var result: CommandResult = state.update(firstCmd)
+      var result: SubscriberStateCommandResult = state.update(firstCmd)
       firstPromise.trySuccess(result)
 
-      while (result == SubscriberState.ContinueResult) {
+      while (result == ContinueResult) {
         val (cmd, promise) = next()
         result = state.update(cmd)
-        promise.success(result)
+        promise.trySuccess(result)
       }
       result
     }
 
-    private def next(): (Command, Promise[CommandResult]) = queue.take()
+    private def next(): (SubscriberStateCommand, Promise[SubscriberStateCommandResult]) = queue.take()
 
     override def run(): Unit = {
       logger.debug("Waiting for first command...")
@@ -185,29 +202,5 @@ object SubscriberState {
       logger.debug(s"SubscriberRunnable completing with ${result}")
     }
   }
-
-  /** The state input result */
-  sealed trait CommandResult
-
-  /** the carry-on-as-normal case */
-  case object ContinueResult extends CommandResult
-
-  /** the stop case, either by completion or exception/error */
-  case class StopResult(error: Option[Throwable]) extends CommandResult
-
-  /**
-    * A state input
-    */
-  sealed trait Command
-
-  case class OnRequest(n: Long) extends Command
-
-  case class OnNewIndexAvailable(maxIndex: Long) extends Command
-
-  case object OnCancel extends Command
-
-  case class OnComplete(maxIndex: Long) extends Command
-
-  case class OnError(error: Throwable) extends Command
 
 }

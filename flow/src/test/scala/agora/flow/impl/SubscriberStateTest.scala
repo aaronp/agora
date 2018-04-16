@@ -1,11 +1,11 @@
 package agora.flow.impl
 
-import agora.flow.impl.SubscriberState._
 import agora.flow.{BaseFlowSpec, DurableProcessorReader, ListSubscriber}
 
 import scala.util.{Success, Try}
 
 class SubscriberStateTest extends BaseFlowSpec {
+
 
   "SubscriberState.update" should {
     "not push elements when none are available" in {
