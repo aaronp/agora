@@ -47,9 +47,8 @@ object DurableProcessor extends StrictLogging {
   private[flow] def computeNumberToTake(lastReceivedIndex: Long, latest: Long, maxIndex: Long): Long = {
     val nrToTake = {
       val maxAvailable = maxIndex.min(latest)
-      val nr = (maxAvailable - lastReceivedIndex).max(0)
-      logger.trace(
-        s"""
+      val nr           = (maxAvailable - lastReceivedIndex).max(0)
+      logger.trace(s"""
            |Will try to pull $nr :
            |              last received index : $lastReceivedIndex
            |  max index of published elements : $latest

@@ -10,16 +10,15 @@ import org.reactivestreams.{Subscriber, Subscription}
 
 import scala.concurrent.ExecutionContext
 
-
 /** @param args
   * @tparam T
   */
 class DurableProcessorInstance[T](args: Args[T])(implicit execContext: ExecutionContext) extends DurableProcessor[T] with StrictLogging {
   //with PublisherSnapshotSupport[Int]
 
-  protected[impl] val dao: DurableProcessorDao[T] = args.dao
+  protected[impl] val dao: DurableProcessorDao[T]  = args.dao
   val propagateSubscriberRequestsToOurSubscription = args.propagateSubscriberRequestsToOurSubscription
-  private val nextIndexCounter = new AtomicLong(args.nextIndex)
+  private val nextIndexCounter                     = new AtomicLong(args.nextIndex)
 
   def valueAt(idx: Long) = dao.at(idx)
 
@@ -35,7 +34,6 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext: Execution
     }
   }
 
-
   /** @param subscription the subscription to remove
     * @return true if the subscription was removed
     */
@@ -47,7 +45,8 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext: Execution
     }
   }
 
-  def this(dao: DurableProcessorDao[T], propagateSubscriberRequestsToOurSubscription: Boolean = true, currentIndexCounter: Long = -1L)(implicit execContext: ExecutionContext) = {
+  def this(dao: DurableProcessorDao[T], propagateSubscriberRequestsToOurSubscription: Boolean = true, currentIndexCounter: Long = -1L)(
+      implicit execContext: ExecutionContext) = {
     this(Args(dao, propagateSubscriberRequestsToOurSubscription, currentIndexCounter))
   }
 
@@ -56,11 +55,11 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext: Execution
   //    PublisherSnapshot(map.mapValues(_.snapshot()))
   //  }
 
-  private val initialIndex: Long = nextIndexCounter.get()
-  private var maxWrittenIndex = initialIndex
+  private val initialIndex: Long  = nextIndexCounter.get()
+  private var maxWrittenIndex     = initialIndex
   private val MaxWrittenIndexLock = new ReentrantReadWriteLock()
-  private var subscribers = List[DurableSubscription[T]]()
-  private var subscriptionOpt = Option.empty[Subscription]
+  private var subscribers         = List[DurableSubscription[T]]()
+  private var subscriptionOpt     = Option.empty[Subscription]
 
   // keeps track of 'onError' exceptions to be used when new subscribers are added to a processor
   // which has been notified of an error (via onError)
@@ -106,7 +105,6 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext: Execution
   protected def newSubscriber(firstRequestedIdx: Long, subscriber: Subscriber[_ >: T]) = {
     new DurableSubscription[T](this, firstRequestedIdx.max(-1), subscriber, execContext)
   }
-
 
   override def subscribeFrom(index: Long, subscriber: Subscriber[_ >: T]): Unit = {
     val hs = SubscribersLock.synchronized {
@@ -218,7 +216,7 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext: Execution
     // trigger any requests from our subscribers
     maxRequest.get() match {
       case n if n > 0 => s.request(n)
-      case _ =>
+      case _          =>
     }
   }
 }

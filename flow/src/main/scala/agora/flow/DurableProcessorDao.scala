@@ -15,7 +15,6 @@ import scala.util.{Failure, Success, Try}
   */
 trait DurableProcessorDao[T] extends DurableProcessorReader[T] {
 
-
   /**
     * @return the last (final) index, if known
     */
@@ -63,7 +62,7 @@ object DurableProcessorDao extends StrictLogging {
 
   case class InvalidIndexException(requestedIndex: Long, msg: String) extends Exception(msg)
 
-  def inDir[T: ToBytes : FromBytes](dir: Path, keepMost: Int = 0)(implicit ec: ExecutionContext) = {
+  def inDir[T: ToBytes: FromBytes](dir: Path, keepMost: Int = 0)(implicit ec: ExecutionContext) = {
     new FileBasedDurableProcessorDao[T](dir, ToBytes.instance[T], FromBytes.instance[T], keepMost)
   }
 
@@ -73,14 +72,14 @@ object DurableProcessorDao extends StrictLogging {
     */
   def apply[T](keepMost: Int = 0) = new DurableProcessorDao[T] {
     private var lastIndexOpt = Option.empty[Long]
-    private var elements = Map[Long, T]()
+    private var elements     = Map[Long, T]()
 
     private object ElementsLock
 
     override def maxIndex: Option[Long] = ElementsLock.synchronized {
       elements.keySet match {
         case set if set.isEmpty => None
-        case set => Option(set.max)
+        case set                => Option(set.max)
       }
     }
 
@@ -122,8 +121,8 @@ object DurableProcessorDao extends StrictLogging {
   }
 
   case class FileBasedDurableProcessorDao[T](dir: Path, toBytes: ToBytes[T], fromBytes: FromBytes[T], keepMost: Int)(
-    implicit val executionContext: ExecutionContext)
-    extends DurableProcessorDao[T]
+      implicit val executionContext: ExecutionContext)
+      extends DurableProcessorDao[T]
       with LazyLogging {
 
     import agora.io.implicits._
@@ -150,7 +149,7 @@ object DurableProcessorDao extends StrictLogging {
     }
 
     private object AsInt {
-      def unapply(child : Path) : Option[Long] = {
+      def unapply(child: Path): Option[Long] = {
         Try(child.fileName.toLong).toOption
       }
     }

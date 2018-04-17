@@ -19,14 +19,12 @@ import scala.util.{Failure, Success, Try}
   * This state could be embedded in an actor which accepts [[SubscriberStateCommand]]
   * messages, or a simple Runnable which pulls commands from a queue
   */
-class SubscriberState[T](subscription: Subscriber[_ >: T],
-                         dao: DurableProcessorReader[T],
-                         initialRequestedIndex: Long) extends StrictLogging {
+class SubscriberState[T](subscription: Subscriber[_ >: T], dao: DurableProcessorReader[T], initialRequestedIndex: Long) extends StrictLogging {
 
-  private var maxIndexAvailable: Long = -1L
+  private var maxIndexAvailable: Long           = -1L
   @volatile private var maxIndexRequested: Long = initialRequestedIndex
-  private var lastIndexPushed: Long = initialRequestedIndex
-  private var complete = false
+  private var lastIndexPushed: Long             = initialRequestedIndex
+  private var complete                          = false
 
   private[impl] def maxRequestedIndex() = maxIndexRequested
 
@@ -140,7 +138,6 @@ object SubscriberState {
 
   def newQ(capacity: Int) = new ArrayBlockingQueue[(SubscriberStateCommand, Promise[SubscriberStateCommandResult])](capacity, true)
 
-
   /**
     * what we're trying to do here is conflate the queue by collapsing all similar commnds
     *
@@ -148,11 +145,11 @@ object SubscriberState {
     * @param cmd
     * @return
     */
-  private[impl] def enqueue(commands: Q, cmd: SubscriberStateCommand) = {
+  private[impl] def enqueue(commands: Q, cmd: SubscriberStateCommand, capacitySizeCheckLimit: Int) = {
     val promise = Promise[SubscriberStateCommandResult]()
     commands.add(cmd -> promise)
 
-    if (commands.size() > 100) {
+    if (commands.size() > capacitySizeCheckLimit) {
       SubscriberStateCommand.conflate(commands)
     }
     promise.future
@@ -160,29 +157,34 @@ object SubscriberState {
 
   object Api {
 
-    class QueueBasedApi(commands: Q) extends Api with StrictLogging {
+    class QueueBasedApi(commands: Q, capacitySizeCheckLimit: Int) extends Api with StrictLogging {
 
       override def send(cmd: SubscriberStateCommand): Future[SubscriberStateCommandResult] = {
         logger.trace(s"enqueueing $cmd")
-        enqueue(commands, cmd)
+        enqueue(commands, cmd, capacitySizeCheckLimit)
       }
     }
 
-    def apply[T](state: SubscriberState[T], capacity: Int)(implicit execContext: ExecutionContext) = {
+    def apply[T](state: SubscriberState[T], capacity: Int, conflateCommandQueueLimit: Option[Int] = None)(implicit execContext: ExecutionContext) = {
       val queue = newQ(capacity)
 
       val runnable = new SubscriberRunnable[T](state, queue)
       execContext.execute(runnable)
-      new QueueBasedApi(queue)
+      val capacitySizeCheckLimit = conflateCommandQueueLimit.getOrElse {
+        (capacity * 0.7).toInt.min(100)
+      }
+      require(capacitySizeCheckLimit > 0, s"Invalid capacitySizeCheckLimit '$capacitySizeCheckLimit': we should conflate commands before they reach capacity")
+      require(capacitySizeCheckLimit < capacity,
+              s"Invalid capacitySizeCheckLimit '$capacitySizeCheckLimit': we should conflate commands before they reach capacity")
+      new QueueBasedApi(queue, capacitySizeCheckLimit)
     }
   }
 
   /** A runnable wrapper to drive the SubscriberState */
-  class SubscriberRunnable[T](state: SubscriberState[T],
-                              queue: Q) extends Runnable with StrictLogging {
+  class SubscriberRunnable[T](state: SubscriberState[T], queue: Q) extends Runnable with StrictLogging {
 
     private def pullLoop() = {
-      val (firstCmd, firstPromise) = next()
+      val (firstCmd, firstPromise)             = next()
       var result: SubscriberStateCommandResult = state.update(firstCmd)
       firstPromise.trySuccess(result)
 

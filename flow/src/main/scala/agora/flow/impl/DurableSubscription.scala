@@ -12,7 +12,7 @@ class DurableSubscription[T](publisher: DurableProcessorInstance[T],
                              val subscriber: Subscriber[_ >: T],
                              execContext: ExecutionContext,
                              queueCapacity: Int = 100)
-  extends Subscription
+    extends Subscription
     with HasName
     with StrictLogging {
 
@@ -24,13 +24,13 @@ class DurableSubscription[T](publisher: DurableProcessorInstance[T],
 
   override def name = subscriber match {
     case hn: HasName => hn.name
-    case _ => toString
+    case _           => toString
   }
 
   private def handleResponse(response: Try[SubscriberStateCommandResult]) = {
     response match {
       case Success(StopResult(_)) => publisher.removeSubscriber(this)
-      case _ =>
+      case _                      =>
     }
   }
 
@@ -56,7 +56,8 @@ class DurableSubscription[T](publisher: DurableProcessorInstance[T],
 
   override def request(n: Long): Unit = {
     if (n <= 0) {
-      val err = new IllegalArgumentException(s"Invalid request for $n elements. According to the reactive stream spec #309 only positive values may be requested")
+      val err = new IllegalArgumentException(
+        s"Invalid request for $n elements. According to the reactive stream spec #309 only positive values may be requested")
       notifyError(err)
     } else {
       doRequest(n, publisher.propagateSubscriberRequestsToOurSubscription)
@@ -68,13 +69,15 @@ class DurableSubscription[T](publisher: DurableProcessorInstance[T],
   }
 
   private def doRequest(n: Long, propagateSubscriberRequest: Boolean): Unit = {
-    subscriptionApi.onRequest(n).onComplete { res =>
-      handleResponse(res)
-      if (propagateSubscriberRequest) {
-        // the child of this historic processor is pulling, so the historic processor
-        // should potentially pull in turn...
-        publisher.onSubscriberRequestingUpTo(state.maxRequestedIndex())
-      }
-    }(execContext)
+    subscriptionApi
+      .onRequest(n)
+      .onComplete { res =>
+        handleResponse(res)
+        if (propagateSubscriberRequest) {
+          // the child of this historic processor is pulling, so the historic processor
+          // should potentially pull in turn...
+          publisher.onSubscriberRequestingUpTo(state.maxRequestedIndex())
+        }
+      }(execContext)
   }
 }

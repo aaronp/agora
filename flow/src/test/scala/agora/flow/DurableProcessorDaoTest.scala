@@ -29,7 +29,6 @@ class DurableProcessorDaoTest extends BaseFlowSpec {
         val dao = DurableProcessorDao.inDir[String](dir, 2)
         dao.maxIndex shouldBe None
 
-
         dao.writeDown(10, "ten") shouldBe true
         dao.maxIndex shouldBe Option(10)
 
@@ -51,11 +50,11 @@ class DurableProcessorDaoTest extends BaseFlowSpec {
         dir.children.map(_.fileName).toList shouldBe List("10")
 
         dao.writeDown(11, "eleven") shouldBe true
-        dir.children.map(_.fileName).toList should contain only("10", "11")
+        dir.children.map(_.fileName).toList should contain only ("10", "11")
 
         dao.writeDown(12, "twelve") shouldBe true
         withClue("10 should be deleted as we only are keeping 2") {
-          dir.children.map(_.fileName).toList should contain only("11", "12")
+          dir.children.map(_.fileName).toList should contain only ("11", "12")
         }
 
         dao.at(12).get shouldBe "twelve"

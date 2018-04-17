@@ -4,8 +4,8 @@ import java.util
 
 import com.typesafe.scalalogging.LazyLogging
 
+import scala.compat.Platform
 import scala.concurrent.Promise
-
 
 /**
   * An input to a subscriber, whether it comes from the subscription requesting or cancelling
@@ -23,16 +23,15 @@ case class OnComplete(maxIndex: Long) extends SubscriberStateCommand
 
 case class OnError(error: Throwable) extends SubscriberStateCommand
 
-
 object SubscriberStateCommand extends LazyLogging {
 
   private[impl] def conflate(queue: SubscriberState.Q): SubscriberState.Q = {
-    val buffer = new Collapse
+    val buffer = new CollapseBuffer
 
     val jList = new util.ArrayList[(SubscriberStateCommand, Promise[SubscriberStateCommandResult])]()
     queue.drainTo(jList)
 
-    val iter = jList.iterator()
+    val iter  = jList.iterator()
     var count = 0
     while (iter.hasNext) {
       val (cmd, promise) = iter.next()
@@ -42,7 +41,12 @@ object SubscriberStateCommand extends LazyLogging {
     val newCommands = buffer.elements()
     queue.addAll(newCommands)
 
-    logger.debug(s"Conflated $count commands to ${newCommands.size}")
+    if (count == newCommands.size) {
+      val sample = newCommands.toArray.take(20).mkString(Platform.EOL)
+      logger.warn(s"Conflated $count commands to ${newCommands.size} had no effect: $sample")
+    } else {
+      logger.debug(s"Conflated $count commands to ${newCommands.size}")
+    }
 
     queue
   }
@@ -55,20 +59,18 @@ object SubscriberStateCommand extends LazyLogging {
     *
     * By completing the promise with 'ContinueResult', that instructs the state machine to keep
     * on processing updates.
-    *
-    *
     */
-  private[impl] class Collapse {
+  private[impl] class CollapseBuffer {
 
     // these are publisher commands
     private var onNewIndexAvailable = Option.empty[(Long, Promise[SubscriberStateCommandResult])]
 
     // we need to keep the promise so that its only completed after the others before it
     private var onComplete = Option.empty[(Long, Promise[SubscriberStateCommandResult])]
-    private var onErrors = List[(OnError, Promise[SubscriberStateCommandResult])]()
+    private var onErrors   = List[(OnError, Promise[SubscriberStateCommandResult])]()
 
     // these are subscriber messages
-    private var onRequest = Option.empty[(Long, Promise[SubscriberStateCommandResult])]
+    private var onRequest      = Option.empty[(Long, Promise[SubscriberStateCommandResult])]
     private var cancelRequests = List[Promise[SubscriberStateCommandResult]]()
 
     def isCancelled = cancelRequests.nonEmpty
@@ -121,13 +123,17 @@ object SubscriberStateCommand extends LazyLogging {
       */
     def update(newCommand: SubscriberStateCommand, newPromise: Promise[SubscriberStateCommandResult]) = {
       newCommand match {
-        case req: OnRequest => conflateOnRequest(req, newPromise)
+        case req: OnRequest           => conflateOnRequest(req, newPromise)
         case req: OnNewIndexAvailable => conflateOnNewIndexAvailable(req, newPromise)
-        case OnCancel =>
+        case OnCancel                 =>
           // if we received a 'complete' before the cancel, then we should honor that and should be able to
           // ignore the cancel
           if (onComplete.isEmpty && !isInError) {
-            cancelRequests = newPromise :: cancelRequests
+            if (cancelRequests.isEmpty) {
+              cancelRequests = newPromise :: cancelRequests
+            } else {
+              newPromise.trySuccess(ContinueResult)
+            }
           } else {
             // we're swallowing the cancel request, so ensure we complete the promise
             // and allow the state to continue to update
@@ -137,11 +143,14 @@ object SubscriberStateCommand extends LazyLogging {
           onComplete = onComplete match {
             case None =>
               if (isInError) {
+                // we've seen an error already, so ignore this OnComplete notification
+                newPromise.trySuccess(StopResult(firstError))
                 None
               } else {
+                // just remember we saw an OnComplete
                 Some(maxIndex -> newPromise)
               }
-            case some@Some((_, oldPromise)) =>
+            case Some((_, oldPromise)) =>
               // we're now in some kind of error state 'cause we seem to have been given 'OnComplete' at least
               // twice from a misbehaving publisher
               val newErrors = {
@@ -152,9 +161,8 @@ object SubscriberStateCommand extends LazyLogging {
               onErrors = newErrors :: onErrors
               newPromise.trySuccess(StopResult(firstError))
               oldPromise.trySuccess(StopResult(firstError))
-              some
+              None
           }
-          newPromise.trySuccess(StopResult(firstError))
         case err: OnError =>
           // just don't worry about conflating the errors
           // a nicely behaved publisher will remove the subscription on error
@@ -164,7 +172,7 @@ object SubscriberStateCommand extends LazyLogging {
 
     def conflateOnNewIndexAvailable(req: OnNewIndexAvailable, newPromise: Promise[SubscriberStateCommandResult]) = {
       onNewIndexAvailable = conflateLongValues(onNewIndexAvailable, newPromise) {
-        case -1L => req.maxIndex
+        case -1L         => req.maxIndex
         case oldMaxIndex => oldMaxIndex.max(req.maxIndex)
       }
     }
@@ -185,8 +193,8 @@ object SubscriberStateCommand extends LazyLogging {
       }
     }
 
-    private def conflateLongValues(opt: Option[(Long, Promise[SubscriberStateCommandResult])],
-                                   newPromise: Promise[SubscriberStateCommandResult])(updateLong: Long => Long) = {
+    private def conflateLongValues(opt: Option[(Long, Promise[SubscriberStateCommandResult])], newPromise: Promise[SubscriberStateCommandResult])(
+        updateLong: Long => Long) = {
       opt match {
         case Some((oldValue, promise)) =>
           if (isCancelled || isInError) {

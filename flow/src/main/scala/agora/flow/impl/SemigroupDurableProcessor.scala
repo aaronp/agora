@@ -7,7 +7,6 @@ import agora.flow._
 import cats.kernel.Semigroup
 import org.reactivestreams.{Subscriber, Subscription}
 
-
 /**
   * A conflating processor
   *
@@ -15,13 +14,13 @@ import org.reactivestreams.{Subscriber, Subscription}
   * @tparam T
   */
 class SemigroupDurableProcessor[T: Semigroup](val initialValue: Option[T], val propagateSubscriberRequestsToOurSubscription: Boolean)
-  extends DurableProcessor[T]
+    extends DurableProcessor[T]
     with PublisherSnapshotSupport[Int] {
 
   private object SubscriberListLock
 
-  private var subscriptionOpt = Option.empty[Subscription]
-  private var subscribers = List[SubscriptionImpl]()
+  private var subscriptionOpt   = Option.empty[Subscription]
+  private var subscribers       = List[SubscriptionImpl]()
   private var processorErrorOpt = Option.empty[Throwable]
 
   private var pendingTakeNext = 0
@@ -51,15 +50,15 @@ class SemigroupDurableProcessor[T: Semigroup](val initialValue: Option[T], val p
   }
 
   class SubscriptionImpl(val subscriber: Subscriber[_ >: T], queue: ConflatingQueue[T], nextIndexToRequest: AtomicLong = new AtomicLong(-1))
-    extends Subscription
+      extends Subscription
       with HasName {
-    private val totalPushed = new AtomicInteger(0)
+    private val totalPushed    = new AtomicInteger(0)
     private val totalRequested = new AtomicLong(0)
 
     override def name: String = {
       subscriber match {
         case hn: HasName => hn.name
-        case _ => toString
+        case _           => toString
       }
     }
 
@@ -103,7 +102,7 @@ class SemigroupDurableProcessor[T: Semigroup](val initialValue: Option[T], val p
   }
 
   override def subscribeFrom(index: Long, subscriber: Subscriber[_ >: T]): Unit = {
-    val queue = ConsumerQueue[T](processorCache)
+    val queue           = ConsumerQueue[T](processorCache)
     val newSubscription = new SubscriptionImpl(subscriber, queue)
 
     SubscriberListLock.synchronized {
@@ -162,7 +161,7 @@ class SemigroupDurableProcessor[T: Semigroup](val initialValue: Option[T], val p
     // trigger any requests from our subscribers
     maxRequested.get() match {
       case n if n > 0 => s.request(n)
-      case _ =>
+      case _          =>
     }
   }
 
