@@ -1,6 +1,6 @@
 package agora.exec
 
-import agora.api.data.Lazy
+import agora.io.Lazy
 import agora.api.exchange.{Exchange, ServerSideExchange}
 import agora.exec.events.{DeleteBefore, Housekeeping, StartedSystem, SystemEventMonitor}
 import agora.exec.rest.{ExecutionRoutes, ExecutionWorkflow, QueryRoutes, UploadRoutes}

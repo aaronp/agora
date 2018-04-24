@@ -92,7 +92,7 @@ class StreamRoutesIntegrationTest
 
     "propagate 'takeNext' requests again" in {
 
-      Given("a local publisher, connected to the server via 'client.publishers.create'")
+      Given("a local publisher, connected to the server via 'client/publishers/create'")
       object LocalPublisher extends SimpleStringPublisher
       val name = "publisherFirst"
       client.publishers.create[String, LocalPublisher.type](name, LocalPublisher).futureValue

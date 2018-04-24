@@ -13,14 +13,11 @@ class RetryClientTest extends BaseRestApiSpec {
 
   "RetryClient.send" should {
     "retry when a connection errors and close the previous connection" in {
-      //      val cc = ClientConfig.load()
-      //      val client: RestClient = cc.clientFor(HostLocation("foo", 1234))
 
       val strategy: RetryStrategy.CountingStrategy = RetryStrategy.tolerate(3).failuresWithin(5.seconds).withDelay(100.millis)
 
       var badClients = List[FailingClient]()
       val retry = RetryClient(strategy) { () =>
-        println("Creating a failing client")
         val c = new FailingClient
         badClients = c :: badClients
         c

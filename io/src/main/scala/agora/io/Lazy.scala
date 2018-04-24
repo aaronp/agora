@@ -1,4 +1,4 @@
-package agora.api.data
+package agora.io
 
 import com.typesafe.scalalogging.LazyLogging
 
@@ -12,7 +12,7 @@ import scala.util.control.NonFatal
   */
 class Lazy[T](mkValue: => T) extends AutoCloseable with LazyLogging {
 
-  private var _created = false
+  @volatile private var _created = false
   lazy val value = {
     _created = true
     mkValue
@@ -20,7 +20,7 @@ class Lazy[T](mkValue: => T) extends AutoCloseable with LazyLogging {
 
   def foreach(f: T => Unit) = {
     if (_created) {
-      Option(f(value))
+      f(value)
     }
   }
 
@@ -34,16 +34,14 @@ class Lazy[T](mkValue: => T) extends AutoCloseable with LazyLogging {
 
   def created() = _created
 
-  override def close(): Unit = if (created()) {
-    value match {
-      case auto: AutoCloseable =>
-        try {
-          auto.close()
-        } catch {
-          case NonFatal(e) => logger.error(s"${auto} threw on close: ${e.getMessage}", e)
-        }
-      case _ =>
-    }
+  override def close(): Unit = foreach {
+    case auto: AutoCloseable =>
+      try {
+        auto.close()
+      } catch {
+        case NonFatal(e) => logger.error(s"${auto} threw on close: ${e.getMessage}", e)
+      }
+    case _ =>
   }
 }
 

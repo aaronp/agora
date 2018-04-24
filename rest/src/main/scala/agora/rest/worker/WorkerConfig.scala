@@ -3,7 +3,7 @@ package worker
 
 import java.util.concurrent.TimeUnit
 
-import agora.api.data.Lazy
+import agora.io.Lazy
 import agora.api.exchange.Exchange
 import agora.config._
 import agora.rest.exchange.{ExchangeRestClient, ExchangeRoutes, ExchangeServerConfig}

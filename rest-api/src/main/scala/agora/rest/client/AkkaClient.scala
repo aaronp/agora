@@ -46,7 +46,7 @@ class AkkaClient(val location: HostLocation, akkaSystem: AkkaImplicits) extends 
   }
 
   def send(request: HttpRequest): Future[HttpResponse] = {
-    logger.warn(s"Sending ${request.method.name} ==> $hostPort${request.uri}")
+    logger.debug(s"Sending ${request.method.name} ==> $hostPort${request.uri}")
     try {
       Source.single(request).via(remoteServiceConnectionFlow).runWith(Sink.head)
     } catch {

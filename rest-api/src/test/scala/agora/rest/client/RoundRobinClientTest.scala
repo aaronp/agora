@@ -1,7 +1,7 @@
 package agora.rest.client
 
 import agora.BaseRestApiSpec
-import agora.api.data.Lazy
+import agora.io.Lazy
 import agora.rest.AkkaImplicits
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.stream.Materializer

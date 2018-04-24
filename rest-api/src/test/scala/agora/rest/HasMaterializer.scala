@@ -1,6 +1,6 @@
 package agora.rest
 
-import agora.api.data.Lazy
+import agora.io.Lazy
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory

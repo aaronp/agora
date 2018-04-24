@@ -10,7 +10,7 @@ import com.typesafe.scalalogging.StrictLogging
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 class AkkaImplicits private (actorSystemPrefix: String, actorConfig: Config) extends AutoCloseable with StrictLogging {
   val actorSystemName = AkkaImplicits.uniqueName(actorSystemPrefix)
@@ -45,7 +45,8 @@ class AkkaImplicits private (actorSystemPrefix: String, actorConfig: Config) ext
   def isClosed(): Boolean = terminated
 
   def stop(): Future[Terminated] = {
-    logger.warn(s"Shutting down actor system $actorSystemName")
+    logger.info(s"Shutting down $actorSystemName")
+
     try {
       materializer.shutdown()
     } catch {
@@ -67,7 +68,8 @@ class AkkaImplicits private (actorSystemPrefix: String, actorConfig: Config) ext
 
 object AkkaImplicits {
 
-  private val uniqueInstanceCounter                 = new AtomicInteger(0)
+  private val uniqueInstanceCounter = new AtomicInteger(0)
+
   private def uniqueName(actorSystemPrefix: String) = s"$actorSystemPrefix${uniqueInstanceCounter.incrementAndGet()}"
 
   private def remove(implicits: AkkaImplicits) = {

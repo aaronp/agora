@@ -1,11 +1,12 @@
 package agora.rest.client
 
+import java.util.concurrent.locks.ReentrantLock
+
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.stream.Materializer
 import com.typesafe.scalalogging.StrictLogging
 
 import scala.concurrent.Future
-import scala.util.Try
 import scala.util.control.NonFatal
 
 /**
@@ -22,7 +23,7 @@ class RetryClient(mkClient: () => RestClient, onError: RetryStrategy) extends Re
     s"RetryClient(current=${clientOpt}, strategy=$onError)"
   }
 
-  private object Lock
+  private val clientLock = new ReentrantLock(true)
 
   /**
     * Resets the client. This may be invoked externally in case of e.g. server 503 errors et al
@@ -40,13 +41,18 @@ class RetryClient(mkClient: () => RestClient, onError: RetryStrategy) extends Re
     this
   }
 
-  def client: RestClient = Lock.synchronized {
-    clientOpt.getOrElse {
-      val c = mkClient()
-      require(c.isInstanceOf[RetryClient] == false, "nested retrying clients found")
-      logger.debug(s"Creating a new underlying client $c")
-      clientOpt = Option(c)
-      c
+  def client: RestClient = {
+    clientLock.lock()
+    try {
+      clientOpt.getOrElse {
+        val c = mkClient()
+        require(c.isInstanceOf[RetryClient] == false, "nested retrying clients found")
+        logger.debug(s"Creating a new underlying client $c")
+        clientOpt = Option(c)
+        c
+      }
+    } finally {
+      clientLock.unlock()
     }
   }
 
@@ -69,14 +75,17 @@ class RetryClient(mkClient: () => RestClient, onError: RetryStrategy) extends Re
   override implicit def materializer: Materializer = client.materializer
 
   override def stop(): Future[Any] = {
-    val clientStopResult: Option[Future[Any]] = Lock.synchronized {
+    clientLock.lock()
+    val previousOpt = try {
       logger.debug(s"Closing $clientOpt")
-      val res = clientOpt.map(_.stop)
+      val res = clientOpt
       clientOpt = None
       res
+    } finally {
+      clientLock.unlock()
     }
 
-    clientStopResult match {
+    previousOpt.map(_.stop()) match {
       case Some(future) => future
       case None         => Future.successful(true)
     }
