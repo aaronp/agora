@@ -2,10 +2,44 @@ package agora.flow
 
 import agora.flow.DurableProcessorDao.InvalidIndexException
 
-import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits._
 
 class DurableProcessorDaoTest extends BaseFlowSpec {
+
+  "DurableProcessorDao.lastIndex" should {
+    "return the max persisted index" in {
+      withDir { dir =>
+        val dao = DurableProcessorDao.inDir[String](dir, 2)
+        dao.lastIndex shouldBe None
+
+        dao.writeDown(10, "ten") shouldBe true
+        dao.lastIndex shouldBe None
+
+        dao.markComplete(11)
+        dao.lastIndex shouldBe Option(11)
+
+        val anotherDaoInSameDir = DurableProcessorDao.inDir[String](dir, 2)
+        anotherDaoInSameDir.lastIndex shouldBe Option(11)
+      }
+    }
+  }
+  "DurableProcessorDao.maxIndex" should {
+    "return the max persisted index" in {
+      withDir { dir =>
+        val dao = DurableProcessorDao.inDir[String](dir, 2)
+        dao.maxIndex shouldBe None
+
+        dao.writeDown(10, "ten") shouldBe true
+        dao.maxIndex shouldBe Option(10)
+
+        val anotherDaoInSameDir = DurableProcessorDao.inDir[String](dir, 2)
+        anotherDaoInSameDir.maxIndex shouldBe Option(10)
+
+        dao.writeDown(110, "one ten") shouldBe true
+        dao.maxIndex shouldBe Option(110)
+      }
+    }
+  }
 
   "DurableProcessorDao.inDir" should {
     "only keep the specified number of elements" in {

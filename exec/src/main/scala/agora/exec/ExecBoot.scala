@@ -155,7 +155,7 @@ case class ExecBoot(conf: ExecConfig, exchange: Exchange, optionalExchangeRoutes
       if (conf.healthUpdateFrequency.toMillis > 0) {
         HealthUpdate.schedule(exchange, ids.toSet, conf.healthUpdateFrequency)
       } else {
-        logger.warn(s"Not scheduling health updates as healthUpdateFrequency is ${conf.healthUpdateFrequency}")
+        logger.info(s"Not scheduling health updates as healthUpdateFrequency is ${conf.healthUpdateFrequency}")
       }
 
       rs

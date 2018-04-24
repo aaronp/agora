@@ -2,8 +2,18 @@ package agora.flow
 
 import cats.Semigroup
 
+/**
+  * The magnet pattern for creating [[ConsumerQueue]] instances of type 'T' for some parameters F[T]
+  *
+  * @tparam F the parameter (input) type
+  */
 trait AsConsumerQueue[F[_]] {
 
+  /**
+    * @param input the paramters for creating a queue
+    * @tparam T
+    * @return a consumer queue of type [T]
+    */
   def newQueue[T](input: F[T]): ConsumerQueue[T]
 }
 

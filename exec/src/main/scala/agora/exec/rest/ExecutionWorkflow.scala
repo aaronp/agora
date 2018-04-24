@@ -305,7 +305,7 @@ case object ExecutionWorkflow extends StrictLogging with FailFastCirceSupport {
       val workspaceFuture: Future[Path] = workspaces.awaitWorkspace(runProcess.dependencies)
 
       val futId = System.identityHashCode(workspaceFuture)
-      logger.warn(
+      logger.info(
         s"Workspace '${runProcess.dependencies.workspace}' (futId $futId) created for cmd >${runProcess.commandString}< w/ ${runProcess.dependencies.dependsOnFiles}")
 
       workspaceFuture.onComplete { workspaceTry: Try[Path] =>

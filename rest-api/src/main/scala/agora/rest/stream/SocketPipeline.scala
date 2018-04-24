@@ -1,5 +1,6 @@
 package agora.rest.stream
 
+import agora.flow.impl.DurableProcessorInstance
 import agora.flow.{HasName, _}
 import agora.rest.exchange.ClientSubscriptionMessage
 import akka.NotUsed
@@ -55,7 +56,7 @@ object SocketPipeline extends StrictLogging {
       * listener of some sort.
       *
       */
-    val republishingDataConsumer = new DurableProcessor.Instance[FromRemote](dao) {
+    val republishingDataConsumer = new DurableProcessorInstance[FromRemote](dao) {
       override def onNext(value: FromRemote): Unit = {
         logger.debug(s"Republishing $name\n${snapshot()} >>>>\n$value\n<<<<\n")
         super.onNext(value)
@@ -70,10 +71,17 @@ object SocketPipeline extends StrictLogging {
       }
     }
 
-    def snapshot() = republishingDataConsumer.snapshot()
+    def snapshot(): PublisherSnapshot[Int] = {
+      republishingDataConsumer match {
+        case support: PublisherSnapshotSupport[Int] => support.snapshot()
+        case _                                      => PublisherSnapshot[Int](Map.empty)
+      }
+//      republishingDataConsumer.snapshot()
+
+    }
 
     override def name: String = {
-      val underlyingName = republishingDataConsumer.snapshot().toString
+      val underlyingName = snapshot().toString
       s"DataSubscriber[$hashCode] for $underlyingName"
     }
 
@@ -124,20 +132,16 @@ object SocketPipeline extends StrictLogging {
       }
     }
 
-    def bufferSnapshot() = buffer.snapshot()
-
-    def flowSnapshot() = flowProcessor.snapshot()
-
     /**
       * the buffer feeds the processor connected to the flow. The flow will immediately request e.g. 16 elements,
       * but the buffer will only pull from the localPublisher (and thus republish to the flowProcessor) when
       * explicitly asked to from the [[ClientSubscriptionMessage]]s we're receiving from the remote server
       */
-    private[stream] val (buffersSubscriptionToLocalProcessor: Subscription, buffer: DurableProcessor.Instance[ToRemote]) = {
+    private[stream] val (buffersSubscriptionToLocalProcessor: Subscription, buffer: DurableProcessorInstance[ToRemote]) = {
       val dao = DurableProcessorDao[ToRemote](20)
 
       // don't automatically pull from the local producer, but rather only when explicitly requested
-      val p = new DurableProcessor.Instance(dao, propagateSubscriberRequestsToOurSubscription = false) with HasName {
+      val p = new DurableProcessorInstance(dao, propagateSubscriberRequestsToOurSubscription = false) with HasName {
         override def name = s"buffer w/ ${snapshot()}"
       }
 

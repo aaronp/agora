@@ -1,10 +1,44 @@
 package agora.flow
 
+import java.util.concurrent.atomic.AtomicLong
+
 import agora.flow.ConsumerQueue.{DiscardLimit, HardLimit, Unbounded}
 import cats.Semigroup
+import org.scalatest.GivenWhenThen
 
-class KeyedPublisherTest extends BaseFlowSpec {
+class KeyedPublisherTest extends BaseFlowSpec with GivenWhenThen {
 
+  "KeyedPublisher.complete" should {
+    "complete subscribers only after they've received all the elements" in {
+      Given("A KeyedPublisher of strings")
+      object Pub extends KeyedPublisher[String] {
+        val lastId = new AtomicLong(0)
+        override type SubscriberKey = Long
+        override protected def nextId()                                 = lastId.incrementAndGet()
+        override def newDefaultSubscriberQueue(): ConsumerQueue[String] = ConsumerQueue.keepLatest(10)
+      }
+
+      And("Two subscriptions are made")
+      val sub1 = new ListSubscriber[String]
+      Pub.subscribe(sub1)
+
+      val sub2 = new ListSubscriber[String]
+      Pub.subscribe(sub2)
+
+      And("One subscription requests two element")
+      sub1.request(2)
+
+      When("three elements are published and then completed")
+
+      Pub.publish("first")
+      Pub.publish("penultimate")
+      Pub.publish("last")
+      Pub.complete()
+
+      Then("both subscriptions should receive all three elements, followed by a onComplete notification")
+
+    }
+  }
   "KeyedPublisher.snapshot" should {
     "report the queue and requested amount from subscriptions" in {
       object Pub extends KeyedPublisher[String] {
@@ -12,6 +46,7 @@ class KeyedPublisherTest extends BaseFlowSpec {
         def anonymousSnapshot() = {
           snapshot().subscribers.mapValues(_.copy(name = ""))
         }
+
         override type SubscriberKey = String
         val ids = Iterator.from(0).map(_.toString)
 

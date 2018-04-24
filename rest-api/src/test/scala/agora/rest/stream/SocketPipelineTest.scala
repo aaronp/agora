@@ -2,15 +2,14 @@ package agora.rest.stream
 
 import agora.BaseRestApiSpec
 import agora.flow.{DurableProcessor, DurableProcessorDao, ListSubscriber}
+import agora.rest.HasMaterializer
 import agora.rest.exchange.ClientSubscriptionMessage
 import io.circe.Json
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 import org.scalatest.GivenWhenThen
 import org.scalatest.concurrent.Eventually
 
-import _root_.scala.concurrent.ExecutionContext.Implicits._
-
-class SocketPipelineTest extends BaseRestApiSpec with GivenWhenThen with Eventually {
+class SocketPipelineTest extends BaseRestApiSpec with GivenWhenThen with Eventually with HasMaterializer {
 
   "Socket.DataSubscriber" should {
 
@@ -109,14 +108,6 @@ class SocketPipelineTest extends BaseRestApiSpec with GivenWhenThen with Eventua
 
       And("The local subscriber cancels")
       localSubscriber.cancel()
-
-      Then("The pipeline NOT should publish a Cancel message")
-      controlMsgSubscriber.received() shouldBe Nil
-      Thread.sleep(10)
-      controlMsgSubscriber.received() shouldBe Nil
-
-      When("The republishingDataConsumer cancels")
-      pipeline.republishingDataConsumer.cancel()
 
       Then("A Cancel control message should be sent")
       eventually {

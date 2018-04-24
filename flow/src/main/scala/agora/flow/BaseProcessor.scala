@@ -1,6 +1,6 @@
 package agora.flow
 
-import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 
 import agora.flow.BasePublisher.BasePublisherSubscription
 import cats.Semigroup
@@ -13,7 +13,7 @@ import scala.collection.JavaConverters._
   *
   * @tparam T the processor type
   */
-trait BaseProcessor[T] extends IntKeyedPublisher[T] with BaseSubscriber[T] with Processor[T, T] {
+trait BaseProcessor[T] extends BasePublisher[T] with BaseSubscriber[T] with Processor[T, T] {
 
   // the current amount requested across all subscriptions, decremented on publish, incremented on
   // 'onRequestNext'
@@ -108,22 +108,22 @@ trait BaseProcessor[T] extends IntKeyedPublisher[T] with BaseSubscriber[T] with 
 
 object BaseProcessor {
 
-  def apply[F[_], T](newQueueArgs: F[T])(implicit asQueue: AsConsumerQueue[F]): BaseProcessor[T] with IntKeyedPublisher[T] = {
-    new BaseProcessor[T] with IntKeyedPublisher[T] {
+  def apply[F[_], T](newQueueArgs: F[T])(implicit asQueue: AsConsumerQueue[F]): BaseProcessor[T] = {
+    new BaseProcessor[T] {
       override def newDefaultSubscriberQueue() = asQueue.newQueue(newQueueArgs)
     }
   }
 
-  def withMaxCapacity[T](maxCapacity: Int): BaseProcessor[T] with IntKeyedPublisher[T] = {
-    new BaseProcessor[T] with IntKeyedPublisher[T] {
+  def withMaxCapacity[T](maxCapacity: Int): BaseProcessor[T] = {
+    new BaseProcessor[T] {
       override def toString = s"BaseProcessor w/ ${snapshot()}"
 
       override def newDefaultSubscriberQueue() = ConsumerQueue.withMaxCapacity(maxCapacity)
     }
   }
 
-  def keepingLatest[T](maxCapacity: Int): BaseProcessor[T] with IntKeyedPublisher[T] = {
-    new BaseProcessor[T] with IntKeyedPublisher[T] {
+  def keepingLatest[T](maxCapacity: Int): BaseProcessor[T] = {
+    new BaseProcessor[T] {
       override def toString = s"BaseProcessor w/ ${snapshot()}"
 
       override def newDefaultSubscriberQueue() = ConsumerQueue.keepLatest(maxCapacity)
@@ -140,7 +140,7 @@ object BaseProcessor {
     * @return
     */
   def apply[T: Semigroup](initialValue: Option[T] = None) = {
-    new BaseProcessor[T] with IntKeyedPublisher[T] {
+    new BaseProcessor[T] {
       override def newDefaultSubscriberQueue() = ConsumerQueue(initialValue)
     }
   }
