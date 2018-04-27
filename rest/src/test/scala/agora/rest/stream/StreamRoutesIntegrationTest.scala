@@ -9,6 +9,8 @@ import agora.rest.stream.SocketPipeline._
 import agora.rest.{HasMaterializer, RunningService, ServerConfig}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.Json
+import lupin.pub.BaseProcessor
+import lupin.{ListSubscriber, PublisherSnapshot, SubscriberSnapshot}
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.{BeforeAndAfterEach, GivenWhenThen}

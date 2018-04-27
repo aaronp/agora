@@ -2,10 +2,10 @@ package agora.api.streams
 
 import agora.BaseApiSpec
 import agora.json.{ArrayType, BooleanType, DiffEntry, JPath, JsonDiff, JsonSemigroup, NumericType}
-import agora.flow.{BaseProcessor, ConsumerQueue, ListSubscriber}
 import io.circe.Json
 import io.circe.generic.auto._
 import io.circe.syntax._
+import lupin.ListSubscriber
 
 /**
   * In practice people may start w/ a 'DataFeedDsl', marshalling their 'T : Encoder' types into a JsonFeedDsl

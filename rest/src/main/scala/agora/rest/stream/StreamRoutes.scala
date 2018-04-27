@@ -2,7 +2,7 @@ package agora.rest.stream
 
 import agora.json.JsonSemigroup
 import agora.flow.AsConsumerQueue.QueueArgs
-import agora.flow.{AsConsumerQueue, DurableProcessorDao}
+import agora.flow.DurableProcessorDao
 import agora.rest.ui.UIRoutes
 import agora.rest.{RunningService, ServerConfig}
 import akka.NotUsed

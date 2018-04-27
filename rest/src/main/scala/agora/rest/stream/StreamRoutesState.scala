@@ -1,6 +1,5 @@
 package agora.rest.stream
 
-import agora.flow.DurableProcessorDao
 import akka.NotUsed
 import akka.http.scaladsl.model.ws.Message
 import akka.stream.Materializer
@@ -9,6 +8,7 @@ import com.typesafe.scalalogging.StrictLogging
 import io.circe.Json
 import io.circe.generic.auto._
 import io.circe.syntax._
+import lupin.pub.sequenced.DurableProcessorDao
 
 /**
   * Keeps track of registered publishers/subscribers

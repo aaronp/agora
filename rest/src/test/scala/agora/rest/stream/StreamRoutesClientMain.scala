@@ -1,9 +1,11 @@
 package agora.rest.stream
 
-import agora.flow.{AsConsumerQueue, BasePublisher, BaseSubscriber}
+import agora.flow.BaseSubscriber
 import agora.rest.ServerConfig
 import agora.rest.client.StreamSubscriberWebsocketClient
 import io.circe.Json
+import lupin.pub.BasePublisher
+import lupin.sub.BaseSubscriber
 
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._

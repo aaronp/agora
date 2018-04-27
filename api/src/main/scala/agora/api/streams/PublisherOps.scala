@@ -1,9 +1,9 @@
 package agora.api.streams
 
 import agora.json.{JsonDiff, JsonDiffIsEmpty, JsonDiffWithValues}
-import agora.flow.{BaseSubscriber, DelegateSubscriber}
 import agora.core.{DataDiff, FieldSelector, IsEmpty}
 import io.circe.{Decoder, Encoder, Json}
+import lupin.sub.{BaseSubscriber, DelegateSubscriber}
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
 import scala.reflect.ClassTag

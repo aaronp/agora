@@ -1,7 +1,8 @@
 package agora.api.streams
 
-import agora.flow.{BaseFlowSpec, ListSubscriber}
+import agora.flow.ListSubscriber
 import io.circe.Json
+import lupin.{BaseFlowSpec, ListSubscriber}
 
 import scala.concurrent.duration._
 

@@ -23,9 +23,3 @@ object HasId {
     override def id(value: T) = f(value)
   }
 }
-// TODO -= make the ID type generic:
-//
-//trait HasId[T] {
-//  type Id
-//  def id(value: T): Id
-//}

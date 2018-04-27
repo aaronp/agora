@@ -1,10 +1,10 @@
 package agora.rest.stream
 
 import agora.BaseRestApiSpec
-import agora.flow.{DurableProcessor, DurableProcessorDao, ListSubscriber}
 import agora.rest.HasMaterializer
 import agora.rest.exchange.ClientSubscriptionMessage
 import io.circe.Json
+import lupin.ListSubscriber
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 import org.scalatest.GivenWhenThen
 import org.scalatest.concurrent.Eventually

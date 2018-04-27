@@ -2,7 +2,6 @@ package agora.api.streams
 
 import agora.BaseApiSpec
 import agora.json.{JType, TypesByPath}
-import agora.flow.{AsConsumerQueue, BaseProcessor, BaseSubscriber}
 import io.circe.Json
 
 class FieldFeedTest extends BaseApiSpec {

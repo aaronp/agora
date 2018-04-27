@@ -1,11 +1,14 @@
 package agora.rest.stream
 
 import agora.BaseRestSpec
-import agora.flow.{DurableProcessor, DurableProcessorDao, ListSubscriber}
+import agora.flow.DurableProcessorDao
 import agora.rest.client.StreamPublisherWebsocketClient
 import agora.rest.{AkkaImplicits, RunningService, ServerConfig}
 import com.typesafe.config.ConfigFactory
 import io.circe.Json
+import lupin.ListSubscriber
+import lupin.pub.DurableProcessor
+import lupin.pub.sequenced.{DurableProcessor, DurableProcessorDao}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 
 import scala.concurrent.Future

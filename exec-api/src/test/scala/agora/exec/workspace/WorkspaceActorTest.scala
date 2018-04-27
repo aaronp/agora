@@ -16,7 +16,7 @@ import scala.util.{Failure, Try}
 
 class WorkspaceActorTest extends BaseExecApiSpec with HasMaterializer with BeforeAndAfterAll with StrictLogging {
 
-  logger.trace("leave this line in -- Trying to get away w/ not having a SubstituteLoggerFactory impl when using LoggingOps")
+  logger.trace("leave this line in -- Trying to get away w/ not having a SubstituteLoggerFactory sequenced when using LoggingOps")
 
   "WorkspaceActor.logger" should {
     "be able to be seen via LoggingOps" ignore {

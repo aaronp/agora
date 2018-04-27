@@ -1,8 +1,9 @@
 package agora.api.streams
 
 import agora.json.{TypeNode, TypesByPath, newTypesByPath}
-import agora.flow.{AccumulatingSubscriber, AsConsumerQueue, BaseProcessor}
 import io.circe.Json
+import lupin.AsConsumerQueue
+import lupin.sub.AccumulatingSubscriber
 
 /**
   * A means to query which json fields this subscriber has seen

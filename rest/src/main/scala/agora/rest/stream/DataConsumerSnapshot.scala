@@ -1,5 +1,5 @@
 package agora.rest.stream
 
-import agora.flow.PublisherSnapshot
+import lupin.PublisherSnapshot
 
 case class DataConsumerSnapshot(name: String, republishSnapshot: PublisherSnapshot[Int])

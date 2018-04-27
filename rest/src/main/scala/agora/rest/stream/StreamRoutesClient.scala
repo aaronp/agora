@@ -11,6 +11,8 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.{Encoder, Json}
+import lupin.pub.DurableProcessor
+import lupin.pub.sequenced.{DurableProcessor, DurableProcessorDao}
 import org.reactivestreams.{Publisher, Subscriber}
 
 import scala.concurrent.{ExecutionContext, Future}

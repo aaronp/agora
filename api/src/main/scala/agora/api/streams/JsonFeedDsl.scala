@@ -4,12 +4,14 @@ import java.util.concurrent.locks.ReentrantLock
 
 import _root_.io.circe.syntax._
 import _root_.io.circe.{Encoder, Json}
-import agora.json.{JPath, JsonDiff, JsonDiffAsDataDiff, TypesByPath, TypesByPathSemigroup}
 import agora.api.streams.JsonFeedDsl.{IndexSubscriber, JsonDeltaSubscriber, JsonFieldSubscriber}
 import agora.api.streams.PublisherOps.implicits._
-import agora.flow._
 import agora.core.{DataDiff, IsEmpty}
+import agora.json.{JPath, JsonDiff, JsonDiffAsDataDiff, TypesByPath, TypesByPathSemigroup}
 import cats.Semigroup
+import lupin.pub.impl.{HasPublisher, HasSubscriber}
+import lupin.pub.{BaseProcessor, BasePublisher}
+import lupin.sub.BaseSubscriber
 import org.reactivestreams.Publisher
 
 /**

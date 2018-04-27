@@ -8,6 +8,8 @@ import akka.http.scaladsl.settings.ClientConnectionSettings
 import akka.stream.Materializer
 import com.typesafe.scalalogging.StrictLogging
 import io.circe.Json
+import lupin.AsConsumerQueue
+import lupin.pub.impl.HasPublisher
 import org.reactivestreams.{Publisher, Subscriber}
 
 import scala.concurrent.{ExecutionContext, Future}

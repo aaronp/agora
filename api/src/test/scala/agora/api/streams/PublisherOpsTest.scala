@@ -1,11 +1,11 @@
 package agora.api.streams
 
 import agora.BaseApiSpec
-import agora.flow.{BaseProcessor, ListSubscriber}
 import cats.syntax.option._
 import io.circe.Json
 import io.circe.generic.auto._
 import io.circe.syntax._
+import lupin.ListSubscriber
 
 class PublisherOpsTest extends BaseApiSpec {
 

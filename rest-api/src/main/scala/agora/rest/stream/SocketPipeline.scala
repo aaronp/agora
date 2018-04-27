@@ -1,6 +1,5 @@
 package agora.rest.stream
 
-import agora.flow.impl.DurableProcessorInstance
 import agora.flow.{HasName, _}
 import agora.rest.exchange.ClientSubscriptionMessage
 import akka.NotUsed
@@ -10,6 +9,10 @@ import com.typesafe.scalalogging.StrictLogging
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder}
+import lupin._
+import lupin.pub.impl.HasName
+import lupin.pub.sequenced.{DurableProcessorDao, DurableProcessorInstance}
+import lupin.sub.BaseSubscriber
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
 import scala.concurrent.ExecutionContext
