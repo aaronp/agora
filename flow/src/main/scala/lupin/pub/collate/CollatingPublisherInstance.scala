@@ -12,14 +12,14 @@ import org.reactivestreams.{Subscriber, Subscription}
 import scala.concurrent.ExecutionContext
 
 
-class CollatingPublisherInstance[K, T](dao: DurableProcessorDao[T], propagateOnError: Boolean)(implicit execContext: ExecutionContext) extends CollatingPublisher[K, T] {
+class CollatingPublisherInstance[K, T](dao: DurableProcessorDao[(K,T)], propagateOnError: Boolean)(implicit execContext: ExecutionContext) extends CollatingPublisher[K, T] {
 
   // used to guard subscribersById and subscribersByIdKeys
   private object SubscribersByIdLock
   private var subscribersById = Map[K, Sub]()
   private val subscribersByIdKeys = new RotatingArray[K]() // ensures fairness in pulling from subscribers, that the first one isn't always used
 
-  private class InternalPublisher extends DurableProcessorInstance[T](Args(dao, true, -1)) {
+  private class InternalPublisher extends DurableProcessorInstance[(K, T)](Args(dao, true, -1)) {
 
     private object NextLock
 
@@ -27,9 +27,8 @@ class CollatingPublisherInstance[K, T](dao: DurableProcessorDao[T], propagateOnE
       * enqueue values from subscriptions. Each subscription will be
       * pushing elements asynchronously, so we need to lock this to ensure single-threaded access to the DAO
       *
-      * @param value
       */
-    def enqueue(value: T) = NextLock.synchronized(onNext(value))
+    def enqueue(key : K, value: T) = NextLock.synchronized(onNext(key -> value))
 
     def onSubscriberError(id: K, err: Throwable) = {
       val allDone = SubscribersByIdLock.synchronized {
@@ -75,7 +74,7 @@ class CollatingPublisherInstance[K, T](dao: DurableProcessorDao[T], propagateOnE
 
     override def onNext(t: T): Unit = {
       currentlyRequested.decrementAndGet()
-      publisher.enqueue(t)
+      publisher.enqueue(key, t)
     }
 
     override def onError(t: Throwable): Unit = publisher.onSubscriberError(key, t)
@@ -136,7 +135,7 @@ class CollatingPublisherInstance[K, T](dao: DurableProcessorDao[T], propagateOnE
 
   override def subscribers() = subscribersById.keySet
 
-  override def subscribe(s: Subscriber[_ >: T]): Unit = {
+  override def subscribe(s: Subscriber[_ >: (K, T)]): Unit = {
     publisher.subscribe(s)
   }
 }

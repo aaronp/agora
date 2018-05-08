@@ -9,13 +9,13 @@ import scala.concurrent.ExecutionContext
 /**
   * A publisher which can be subscribed to multiple publishers.
   *
-  * Internally this would typically use a subscription-side queue,
-  * where each subscriber manages its own queue
+  * Internally this would typically use a subscription-side queue (e.g. [[lupin.pub.passthrough.PassthroughPublisher]],
+  * where each subscriber manages its own queue.
   *
   * @tparam K
   * @tparam T
   */
-trait CollatingPublisher[K, T] extends Publisher[T] {
+trait CollatingPublisher[K, T] extends Publisher[(K, T)] {
 
   /**
     * @return a new subscriber which can be used to subscribe to a Publisher of 'T' elements
@@ -30,7 +30,7 @@ trait CollatingPublisher[K, T] extends Publisher[T] {
 
 object CollatingPublisher {
 
-  def apply[K, T](dao: DurableProcessorDao[T] = DurableProcessorDao[T](), propagateOnError: Boolean = true)(implicit execContext :ExecutionContext): CollatingPublisher[K, T] = {
+  def apply[K, T](dao: DurableProcessorDao[(K, T)] = DurableProcessorDao[(K, T)](), propagateOnError: Boolean = true)(implicit execContext :ExecutionContext): CollatingPublisher[K, T] = {
     new CollatingPublisherInstance[K, T](dao, propagateOnError)
   }
 

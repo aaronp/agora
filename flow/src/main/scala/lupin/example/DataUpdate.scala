@@ -15,18 +15,13 @@ case class DataUpdate[ID, T](id: ID,
   /**
     * Provided we know how to get at a property A from the data T, and a way to index it with the data's key, we
     * can expose a FieldUpdate to push out
-    *
-    * @param accessor
-    * @param fieldDao
-    * @tparam A
-    * @return
     */
-  def fieldUpdate[A](implicit accessor: Accessor.Aux[T, A], fieldDao: IndexedOrder[(A, ID)]): (FieldUpdateAux[ID, A], fieldDao.Self) = {
-    val field: A                      = accessor.get(data)
-    val (index, newDao)               = fieldDao.upsert(field -> id)
-    val update: FieldUpdateAux[ID, A] = FieldUpdate(id, seqNo, index, field, dataOperation)
-    update -> newDao
-  }
+//  def fieldUpdate[A](implicit accessor: Accessor.Aux[T, A], fieldDao: IndexedOrder[(A, ID)]): (FieldUpdateAux[ID, A], fieldDao.Self) = {
+//    val field: A                      = accessor.get(data)
+//    val (index, newDao)               = fieldDao.upsert(field -> id)
+//    val update: FieldUpdateAux[ID, A] = FieldUpdate(id, seqNo, index, field, dataOperation)
+//    update -> newDao
+//  }
 }
 
 object DataUpdate {

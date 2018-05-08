@@ -18,14 +18,14 @@ class CollatingPublisherTest extends BaseFlowSpec with Eventually with GivenWhen
       val third = Publishers.of(1000, 2000)
 
       When("The collating publisher subscribes to two publishers")
-      first.subscribe(cp.newSubscriber(1))
-      second.subscribe(cp.newSubscriber(2))
+      first.subscribe(cp.newSubscriber(-1))
+      second.subscribe(cp.newSubscriber(-2))
 
       Then("no elements should be sent")
-      cp.subscribers().size shouldBe 2
+      cp.subscribers() shouldBe Set(-1, -2)
 
       When("A subscriber requests elements from the subscriber")
-      val list = new ListSubscriber[Int]
+      val list = new ListSubscriber[(Int, Int)]
       cp.subscribe(list)
 
       Then("one of the upstream subscriptions should be requested from")
@@ -33,8 +33,8 @@ class CollatingPublisherTest extends BaseFlowSpec with Eventually with GivenWhen
 
       val gotOne = eventually {
         list.received() match {
-          case List(1) => true
-          case List(100) => false
+          case List((-1, 1)) => true
+          case List((-2, 100)) => false
           case other => fail(s"either the first or second subscription element should be requested: $other")
             true
         }
@@ -42,9 +42,9 @@ class CollatingPublisherTest extends BaseFlowSpec with Eventually with GivenWhen
 
       list.request(1)
       val nextExpected = if (gotOne) {
-        List(1, 100)
+        List((-1, 1), (-2, 100))
       } else {
-        List(100, 1)
+        List((-2, 100), (-1, 1))
       }
 
       eventually {
@@ -55,7 +55,7 @@ class CollatingPublisherTest extends BaseFlowSpec with Eventually with GivenWhen
       list.request(3)
 
       eventually {
-        list.receivedInOrderReceived() should contain allOf(2, 200, 1000)
+        list.receivedInOrderReceived().map(_._2) should contain allOf(2, 200, 1000)
       }
     }
   }

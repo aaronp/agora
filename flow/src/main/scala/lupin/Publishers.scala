@@ -1,7 +1,8 @@
 package lupin
 
+import lupin.pub.concat.ConcatPublisher
 import lupin.pub.join.{JoinPublisher, TupleUpdate}
-import lupin.pub.sequenced.{DurableProcessor, DurableProcessorDao}
+import lupin.pub.sequenced.{DurableProcessor, DurableProcessorDao, DurableProcessorInstance}
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
 import scala.concurrent.ExecutionContext
@@ -10,13 +11,25 @@ object Publishers {
 
   def apply[T](dao: DurableProcessorDao[T])(implicit ec: ExecutionContext) = DurableProcessor[T](dao)
 
-  def of[T](items: T*)(implicit ec: ExecutionContext): Publisher[T] = forList(items.toList)
+  def of[T](items: T*)(implicit ec: ExecutionContext): Publisher[T] = apply(items.iterator)
 
-  def forList[T](items: List[T])(implicit ec: ExecutionContext): Publisher[T] = {
-    val p = DurableProcessor[T]()
-    items.foreach(p.onNext)
-    p.onComplete()
-    p
+  def forList[T](items: List[T])(implicit ec: ExecutionContext): Publisher[T] = apply(items.iterator)
+
+  def apply[T](iter: Iterator[T])(implicit ec: ExecutionContext): Publisher[T] = {
+    new DurableProcessorInstance[T](new DurableProcessor.Args[T](DurableProcessorDao[T]())) {
+      override def onRequest(n: Long): Unit = {
+        val i = if (n > Int.MaxValue) {
+          Int.MaxValue
+        } else {
+          n.toInt
+        }
+        val values = iter.take(i)
+        values.foreach(onNext)
+        if (!iter.hasNext) {
+          onComplete()
+        }
+      }
+    }
   }
 
 
@@ -44,7 +57,15 @@ object Publishers {
     *
     * If the first is cancelled or errors then that is honored.
     */
-  def concat[T](head: Publisher[T], tail: Publisher[T]): Publisher[T] = ???
+  def concat[T](head: Publisher[T], tail: Publisher[T])(implicit ec: ExecutionContext): Publisher[T] = {
+    ConcatPublisher.concat(head, tail)
+  }
+
+  def concat[T](head: Publisher[T])(subscribeNext : Subscriber[T] => Unit)(implicit ec: ExecutionContext): Publisher[T] = {
+    ConcatPublisher.concat(head) { x  =>
+      subscribeNext(x)
+    }
+  }
 
   def map[A, B](underlying: Publisher[A])(f: A => B): Publisher[B] = {
     new Publisher[B] {

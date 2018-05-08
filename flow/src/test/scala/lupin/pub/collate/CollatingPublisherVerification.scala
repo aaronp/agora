@@ -1,7 +1,7 @@
 package lupin.pub.collate
 
 import agora.io.Lazy
-import lupin.newContextWithThreadPrefix
+import lupin.{Publishers, newContextWithThreadPrefix}
 import lupin.pub.sequenced.DurableProcessorPublisherVerification.{PUBLISHER_REFERENCE_CLEANUP_TIMEOUT_MILLIS, testEnv}
 import lupin.pub.sequenced.{DurableProcessor, DurableProcessorDao, DurableProcessorInstance}
 import org.reactivestreams.Publisher
@@ -57,8 +57,7 @@ class CollatingPublisherVerification extends PublisherVerification[String](testE
 
     val cp = CollatingPublisher[String, String]()
     upstream.subscribe(cp.newSubscriber("test"))
-    cp
-
+    Publishers.map(cp)(_._2)
   }
 
   override def createFailedPublisher(): Publisher[String] = {
@@ -66,6 +65,6 @@ class CollatingPublisherVerification extends PublisherVerification[String](testE
     val cp = CollatingPublisher[String, String]()
     upstream.subscribe(cp.newSubscriber("test"))
     upstream.onError(new Exception("bang"))
-    cp
+    Publishers.map(cp)(_._2)
   }
 }

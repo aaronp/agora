@@ -24,7 +24,7 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext: Execution
 
   /** @return a final index if we've been signalled that we're complete
     */
-  def lastIndex() = {
+  def lastIndex(): Option[Long] = {
     cachedLastIndex.orElse {
       val opt = dao.lastIndex()
       opt.foreach(_ => cachedLastIndex = opt)
@@ -115,8 +115,8 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext: Execution
   }
 
   protected def requestFromSubscription(n: Long) = {
+    onRequest(n)
     subscriptionOpt.fold(false) { s =>
-      onRequest(n)
       s.request(n)
       true
     }

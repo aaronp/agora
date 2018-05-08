@@ -2,7 +2,7 @@ package lupin.pub.concat
 
 import lupin.pub.sequenced.DurableProcessor.Args
 import lupin.pub.sequenced.{DurableProcessorDao, DurableProcessorInstance}
-import org.reactivestreams.{Publisher, Subscription}
+import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
 import scala.concurrent.ExecutionContext
 
@@ -16,7 +16,11 @@ object ConcatPublisher {
     * @tparam T
     * @return a single publisher which represents the two publishers
     */
-  def concat[T](head: Publisher[_ <: T], tail: Publisher[_ <: T])(implicit ec: ExecutionContext): Publisher[T] = {
+  def concat[T](head: Publisher[T], tail: Publisher[T])(implicit ec: ExecutionContext): Publisher[T] = {
+    concat(head)(tail.subscribe)
+  }
+
+  def concat[T](head: Publisher[T])(subscribeNext : Subscriber[T] => Unit)(implicit ec: ExecutionContext): Publisher[T] = {
 
     /**
       * Override the processor to change the behaviour of 'onComplete' to
@@ -39,7 +43,7 @@ object ConcatPublisher {
         } else {
           firstCompleted = true
           clearSubscription()
-          tail.subscribe(this)
+          subscribeNext(this)
         }
       }
     }
