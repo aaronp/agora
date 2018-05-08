@@ -21,7 +21,7 @@ class CellUpdateTest extends BaseFlowSpec {
       )
 
       // create some data source
-      val pub = Publishers.forList(people)
+      val pub = Publishers.forValues(people)
 
       // an a view source
       val viewUpdates = DurableProcessor[ViewPort]()

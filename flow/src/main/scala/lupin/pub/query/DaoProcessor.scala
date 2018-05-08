@@ -1,11 +1,12 @@
 package lupin.pub.query
 
+import lupin.Publishers
 import lupin.example.Accessor
 import lupin.pub.FIFO
 import lupin.pub.passthrough.PassthroughProcessorInstance
 import lupin.pub.query.DaoProcessor.CrudOperation
 import lupin.sub.BaseSubscriber
-import org.reactivestreams.Subscriber
+import org.reactivestreams.{Publisher, Subscriber}
 
 import scala.concurrent.ExecutionContext
 
@@ -59,7 +60,22 @@ object DaoProcessor {
           simple
         }
       }
-      publisher.subscribe(subscriber, queue)
+      val creates: Set[Create[K, T]] = ids.flatMap { id =>
+        valuesById.get(id).map { value =>
+          val key = accessor.get(value)
+          Create[K, T](key, value)
+        }
+      }
+
+      if (creates.nonEmpty) {
+        val initial: Publisher[CrudOperation[K, T]] = Publishers.forValues(creates)
+        Publishers.concat(initial) { sub =>
+          publisher.subscribe(sub, queue)
+        }.subscribe(subscriber)
+      } else {
+        publisher.subscribe(subscriber, queue)
+      }
+
     }
 
     override def onNext(value: T): Unit = {

@@ -13,7 +13,7 @@ object Publishers {
 
   def of[T](items: T*)(implicit ec: ExecutionContext): Publisher[T] = apply(items.iterator)
 
-  def forList[T](items: List[T])(implicit ec: ExecutionContext): Publisher[T] = apply(items.iterator)
+  def forValues[T](items: Iterable[T])(implicit ec: ExecutionContext): Publisher[T] = apply(items.iterator)
 
   def apply[T](iter: Iterator[T])(implicit ec: ExecutionContext): Publisher[T] = {
     new DurableProcessorInstance[T](new DurableProcessor.Args[T](DurableProcessorDao[T]())) {
@@ -64,9 +64,7 @@ object Publishers {
   }
 
   def concat[T](head: Publisher[T])(subscribeNext: Subscriber[T] => Unit)(implicit ec: ExecutionContext): Publisher[T] = {
-    ConcatPublisher.concat(head) { x =>
-      subscribeNext(x)
-    }
+    ConcatPublisher.concat(head)(subscribeNext)
   }
 
   def map[A, B](underlying: Publisher[A])(f: A => B): Publisher[B] = {

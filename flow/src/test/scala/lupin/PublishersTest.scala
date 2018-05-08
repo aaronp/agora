@@ -56,9 +56,9 @@ class PublishersTest extends BaseFlowSpec with GivenWhenThen {
     }
 
   }
-  "Publishers.forList" should {
+  "Publishers.forValues" should {
     "publish the values to all subscribers" in {
-      val p = Publishers.forList(List(1, 2, 3, 4))
+      val p = Publishers.forValues(List(1, 2, 3, 4))
 
       val sub = new ListSubscriber[Int]
       p.subscribe(sub)
