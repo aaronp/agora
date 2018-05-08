@@ -18,13 +18,15 @@ object Publishers {
   def apply[T](iter: Iterator[T])(implicit ec: ExecutionContext): Publisher[T] = {
     new DurableProcessorInstance[T](new DurableProcessor.Args[T](DurableProcessorDao[T]())) {
       override def onRequest(n: Long): Unit = {
-        val i = if (n > Int.MaxValue) {
+        var i = if (n > Int.MaxValue) {
           Int.MaxValue
         } else {
           n.toInt
         }
-        val values = iter.take(i)
-        values.foreach(onNext)
+        while (i > 0 && iter.hasNext) {
+          onNext(iter.next())
+          i = i - 1
+        }
         if (!iter.hasNext) {
           onComplete()
         }
@@ -61,8 +63,8 @@ object Publishers {
     ConcatPublisher.concat(head, tail)
   }
 
-  def concat[T](head: Publisher[T])(subscribeNext : Subscriber[T] => Unit)(implicit ec: ExecutionContext): Publisher[T] = {
-    ConcatPublisher.concat(head) { x  =>
+  def concat[T](head: Publisher[T])(subscribeNext: Subscriber[T] => Unit)(implicit ec: ExecutionContext): Publisher[T] = {
+    ConcatPublisher.concat(head) { x =>
       subscribeNext(x)
     }
   }
