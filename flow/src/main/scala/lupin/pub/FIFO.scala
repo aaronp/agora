@@ -36,6 +36,18 @@ trait FIFO[T] {
 
 object FIFO {
 
+  class FilteredFIFO[T](queue: FIFO[T], predicate: T => Boolean) extends FIFO[T] {
+    override def enqueue(value: T): Boolean = if (predicate(value)) {
+      queue.enqueue(value)
+    } else {
+      true
+    }
+
+    override def pop(): T = queue.pop()
+  }
+
+  def filter[T](queue: FIFO[T])(predicate: T => Boolean): FIFO[T] = new FilteredFIFO[T](queue, predicate)
+
   /**
     * @tparam T the value type
     * @return a FIFO which will always overwrite the last value -- popping will still block after the latest value is read

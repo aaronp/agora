@@ -4,7 +4,7 @@ import lupin.pub.sequenced.DurableProcessor
 import lupin.{BaseFlowSpec, ListSubscriber, Publishers}
 import org.scalatest.concurrent.Eventually
 
-class CellUpdateTest extends BaseFlowSpec with Eventually {
+class CellUpdateTest extends BaseFlowSpec {
 
 
   "CellUpdate flow" should {

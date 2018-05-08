@@ -2,6 +2,8 @@ package lupin
 
 import agora.BaseIOSpec
 import agora.io.Lazy
+import org.scalatest.concurrent.Eventually
+
 import scala.language.{implicitConversions, postfixOps}
 
 /**
@@ -9,7 +11,7 @@ import scala.language.{implicitConversions, postfixOps}
   *
   * See http://www.scalatest.org/user_guide/defining_base_classes
   */
-abstract class BaseFlowSpec extends BaseIOSpec {
+abstract class BaseFlowSpec extends BaseIOSpec with Eventually{
 
   private val lazyCtxt = Lazy(newContextWithThreadPrefix(getClass.getSimpleName))
   implicit def ctxt    = lazyCtxt.value

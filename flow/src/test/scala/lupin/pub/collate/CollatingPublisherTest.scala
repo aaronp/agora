@@ -4,7 +4,7 @@ import lupin.{BaseFlowSpec, ListSubscriber, Publishers}
 import org.scalatest.GivenWhenThen
 import org.scalatest.concurrent.Eventually
 
-class CollatingPublisherTest extends BaseFlowSpec with Eventually with GivenWhenThen {
+class CollatingPublisherTest extends BaseFlowSpec with GivenWhenThen {
 
   "CollatingPublisher" should {
     "publish values from all its publishers" in {

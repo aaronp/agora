@@ -3,7 +3,7 @@ package lupin.pub.concat
 import lupin.{BaseFlowSpec, ListSubscriber, Publishers}
 import org.scalatest.concurrent.Eventually
 
-class ConcatPublisherTest extends BaseFlowSpec with Eventually {
+class ConcatPublisherTest extends BaseFlowSpec {
   "CollatingPublisher.concat" should {
     "publish elements to multiple subscribers" in {
       val first = Publishers.of(1, 2, 3)

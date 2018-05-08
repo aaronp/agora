@@ -26,7 +26,7 @@ trait PassthroughPublisher[T] extends Publisher[T] {
 }
 
 object PassthroughPublisher {
-  def apply[T](makeDefaultQueue: () => FIFO[Option[T]])(implicit execContext: ExecutionContext): PassthroughPublisher[T] = {
+  def apply[T](makeDefaultQueue: () => FIFO[Option[T]] = () => FIFO[Option[T]]())(implicit execContext: ExecutionContext): PassthroughProcessorInstance[T] = {
     new PassthroughProcessorInstance[T](makeDefaultQueue)
   }
 }
