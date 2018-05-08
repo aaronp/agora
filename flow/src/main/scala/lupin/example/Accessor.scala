@@ -7,8 +7,8 @@ package lupin.example
   *
   * we might have a
   * {{{
-  *   val getId : IndexedAux[Thing, Long] = ???
-  *   val getName : IndexedAux[Thing, String] = ???
+  *   val getId : Accessor.Aux[Thing, Long] = ???
+  *   val getName : Accessor.Aux[Thing, String] = ???
   *   val id : Long = getId.indexOf(someThing)
   * }}}
   *

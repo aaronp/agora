@@ -3,7 +3,7 @@ package lupin
 import org.scalatest.GivenWhenThen
 import org.scalatest.concurrent.Eventually
 
-class PublishersTest extends BaseFlowSpec with Eventually with GivenWhenThen {
+class PublishersTest extends BaseFlowSpec with GivenWhenThen {
 
   "Publishers.apply(iter)" should {
     "only progress the iterator when elements are requested" in {

@@ -3,9 +3,8 @@ package lupin.pub.sequenced
 import lupin.sub.BaseSubscriber
 import lupin.{BaseFlowSpec, ListSubscriber}
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
-import org.scalatest.concurrent.Eventually
 
-class DurableProcessorTest extends BaseFlowSpec with Eventually {
+class DurableProcessorTest extends BaseFlowSpec {
 
   implicit def asRichListSubscriber[T](subscriber: ListSubscriber[T]) = new {
     def verifyReceived(expected: String*) = {
@@ -89,8 +88,8 @@ class DurableProcessorTest extends BaseFlowSpec with Eventually {
 
     "publish to subscribers" in {
       val controlMessagePublisher = DurableProcessor[String]()
-      val listener                = new ListSubscriber[String]
-      var inlineSubscriberMsg     = ""
+      val listener = new ListSubscriber[String]
+      var inlineSubscriberMsg = ""
       val listener2 = BaseSubscriber[String](1) {
         case (s, msg) =>
           inlineSubscriberMsg = msg
@@ -265,7 +264,7 @@ class DurableProcessorTest extends BaseFlowSpec with Eventually {
 
   class TestPub extends Publisher[Int] with Subscription {
     var subscriber: Subscriber[_ >: Int] = null
-    var requests: List[Long]             = Nil
+    var requests: List[Long] = Nil
 
     override def subscribe(s: Subscriber[_ >: Int]): Unit = {
       subscriber = s

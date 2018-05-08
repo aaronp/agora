@@ -2,7 +2,7 @@ package lupin.pub.query
 
 import lupin.example.Accessor
 import lupin.pub.FIFO
-import lupin.pub.passthrough.PassthroughPublisher
+import lupin.pub.passthrough.PassthroughProcessorInstance
 import lupin.pub.query.DaoProcessor.CrudOperation
 import lupin.sub.BaseSubscriber
 import org.reactivestreams.Subscriber
@@ -33,12 +33,19 @@ object DaoProcessor {
     new Instance[K, T](filter)
   }
 
-  class Instance[K, T](override val defaultInput: Set[K] = Set.empty)(implicit accessor: Accessor.Aux[T, K], execContext: ExecutionContext) extends DaoProcessor[K, T] with BaseSubscriber[T] {
+  class Instance[K, T](override val defaultInput: Set[K] = Set.empty)(implicit accessor: Accessor.Aux[T, K], execContext: ExecutionContext)
+    extends DaoProcessor[K, T]
+      with BaseSubscriber[T] {
 
     // TODO - replace this map w/ some key/value store
     private var valuesById: Map[K, T] = Map[K, T]()
 
-    private val publisher = PassthroughPublisher[CrudOperation[K, T]]()
+    private val outer = this
+    private val publisher = new PassthroughProcessorInstance[CrudOperation[K, T]](() => FIFO[Option[CrudOperation[K, T]]]()) {
+      override def request(n: Long = 1) = {
+        outer.request(n)
+      }
+    }
 
     override def subscribeWith(ids: Set[K], subscriber: Subscriber[_ >: CrudOperation[K, T]]): Unit = {
 
@@ -57,11 +64,11 @@ object DaoProcessor {
 
     override def onNext(value: T): Unit = {
       val key = accessor.get(value)
-      valuesById = valuesById.updated(key, value)
       val crud = valuesById.get(key) match {
         case None => Create[K, T](key, value)
         case Some(_) => Update[K, T](key, value)
       }
+      valuesById = valuesById.updated(key, value)
       publisher.onNext(crud)
     }
 

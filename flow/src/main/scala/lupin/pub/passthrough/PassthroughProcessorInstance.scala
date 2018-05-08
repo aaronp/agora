@@ -91,8 +91,9 @@ class PassthroughProcessorInstance[T](newQueue: () => FIFO[Option[T]])(implicit 
   protected[passthrough] def onSubscriptionRequesting(subscriberId: Int, previouslyRequested: Long, newValue: Long): Long = {
     val nrToRequest = MaxRequestedValueFromASubscriberLock.synchronized {
       if (maxRequestedValueFromASubscriber < newValue) {
+        val diff = newValue - maxRequestedValueFromASubscriber
         maxRequestedValueFromASubscriber = newValue
-        newValue - maxRequestedValueFromASubscriber
+        diff
       } else {
         0
       }

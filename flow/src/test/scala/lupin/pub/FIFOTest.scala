@@ -2,11 +2,10 @@ package lupin.pub
 
 import cats.kernel.Semigroup
 import lupin.BaseFlowSpec
-import org.scalatest.concurrent.Eventually
 
 import scala.concurrent.Future
 
-class FIFOTest extends BaseFlowSpec with Eventually {
+class FIFOTest extends BaseFlowSpec {
 
   "FIFO.apply" should {
     "block on pop" in {
