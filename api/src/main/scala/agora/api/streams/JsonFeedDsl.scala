@@ -4,15 +4,16 @@ import java.util.concurrent.locks.ReentrantLock
 
 import _root_.io.circe.syntax._
 import _root_.io.circe.{Encoder, Json}
-import agora.api.streams.JsonFeedDsl.{IndexSubscriber, JsonDeltaSubscriber, JsonFieldSubscriber}
+import agora.api.streams.JsonFeedDsl.{IndexSubscriber, JsonDeltaSubscriber}
 import agora.api.streams.PublisherOps.implicits._
 import agora.core.{DataDiff, IsEmpty}
-import agora.json.{JPath, JsonDiff, JsonDiffAsDataDiff, TypesByPath, TypesByPathSemigroup}
-import cats.Semigroup
+import agora.json.{JPath, JsonDiff, JsonDiffAsDataDiff, TypesByPath}
 import lupin.pub.impl.{HasPublisher, HasSubscriber}
-import lupin.pub.{BaseProcessor, BasePublisher}
+import lupin.pub.passthrough.{PassthroughProcessor, PassthroughProcessorInstance}
+import lupin.pub.sequenced.DurableProcessor
+import lupin.pub.{BaseProcessor, FIFO}
 import lupin.sub.BaseSubscriber
-import org.reactivestreams.Publisher
+import org.reactivestreams.{Publisher, Subscriber}
 
 /**
   * DSL for putting things on an upstream json feed (publisher)
@@ -21,28 +22,28 @@ import org.reactivestreams.Publisher
   */
 class JsonFeedDsl(override protected val underlyingPublisher: Publisher[Json]) extends HasPublisher[Json] {
 
-  def withFields(maxQueueSize: Int): JsonFieldSubscriber[AsConsumerQueue.MaxCapacity] = {
-    //    withFields(() => ConsumerQueue.withMaxCapacity(maxQueueSize))
-    withFields[AsConsumerQueue.MaxCapacity](AsConsumerQueue.MaxCapacity[TypesByPath](maxQueueSize))
-  }
-
-  /**
-    * A field subscription which conflates fields
-    *
-    * @return a field subscription
-    */
-  def withFields(): JsonFieldSubscriber[Semigroup] = {
-    withFields[Semigroup](TypesByPathSemigroup)
-  }
-
-  /**
-    * @return a field subscription with a custom queue
-    */
-  def withFields[F[_]](newQueueInput: F[TypesByPath])(implicit asConsumerQueue: AsConsumerQueue[F]): JsonFieldSubscriber[F] = {
-    val pathSubscriber: FieldFeed.AccumulatingJsonPathsSubscriber[F] = new FieldFeed.AccumulatingJsonPathsSubscriber(newQueueInput)
-    underlyingPublisher.subscribe(pathSubscriber)
-    new JsonFieldSubscriber(underlyingPublisher, pathSubscriber)
-  }
+//  def withFields(maxQueueSize: Int): JsonFieldSubscriber[AsConsumerQueue.MaxCapacity] = {
+//    //    withFields(() => ConsumerQueue.withMaxCapacity(maxQueueSize))
+//    withFields[AsConsumerQueue.MaxCapacity](AsConsumerQueue.MaxCapacity[TypesByPath](maxQueueSize))
+//  }
+//
+//  /**
+//    * A field subscription which conflates fields
+//    *
+//    * @return a field subscription
+//    */
+//  def withFields(): JsonFieldSubscriber[Semigroup] = {
+//    withFields[Semigroup](TypesByPathSemigroup)
+//  }
+//
+//  /**
+//    * @return a field subscription with a custom queue
+//    */
+//  def withFields[F[_]](newQueueInput: F[TypesByPath])(newQueue: () => FIFO[Option[Json]]): JsonFieldSubscriber[F] = {
+//    val pathSubscriber: FieldFeed.AccumulatingJsonPathsSubscriber[F] = new FieldFeed.AccumulatingJsonPathsSubscriber(newQueueInput)
+//    underlyingPublisher.subscribe(pathSubscriber)
+//    new JsonFieldSubscriber(underlyingPublisher, pathSubscriber)
+//  }
 
   /**
     * route feeds based on an index created by the value represented by the given path
@@ -50,21 +51,26 @@ class JsonFeedDsl(override protected val underlyingPublisher: Publisher[Json]) e
     * @param path    the path to the value on which the keys should be taken
     * @param theRest any other paths to construct a constituent key
     */
-  def indexOnKeys(path: JPath, theRest: JPath*)(newQ: => ConsumerQueue[Json]): IndexSubscriber = {
+  def indexOnKeys(path: JPath, theRest: JPath*)(newQueue: () => FIFO[Option[Json]]): IndexSubscriber = {
 
     def newPublisher(indexSubscriber: IndexSubscriber, key: List[Json]): BaseProcessor[Json] = {
-      new BaseProcessor[Json] {
-        override def onRequestNext(subscription: BasePublisher.BasePublisherSubscription[Json], requested: Long) = {
-          val nrToTake = super.onRequestNext(subscription, requested)
-          if (nrToTake > 0) {
-            indexSubscriber.request(nrToTake)
+      new PassthroughProcessorInstance[Json](newQueue) {
+        override protected[passthrough] def onSubscriptionRequesting(subscriberId: Int, previouslyRequested: Long, newValue: Long): Long = {
+          val diff = super.onSubscriptionRequesting(subscriberId, previouslyRequested, newValue)
+          if (diff > 0) {
+            indexSubscriber.request(diff)
           }
-          nrToTake
+          diff
         }
+//        override def onRequestNext(subscription: BasePublisher.BasePublisherSubscription[Json], requested: Long) = {
+//          val nrToTake = super.onRequestNext(subscription, requested)
+//          if (nrToTake > 0) {
+//            indexSubscriber.request(nrToTake)
+//          }
+//          nrToTake
+//        }
 
         override def toString: String = key.mkString("[", ",", "[")
-
-        override def newDefaultSubscriberQueue() = newQ
       }
     }
 
@@ -97,24 +103,32 @@ class JsonFeedDsl(override protected val underlyingPublisher: Publisher[Json]) e
     * @param diff
     * @return
     */
-  def withDeltas(mkQueue: () => ConsumerQueue[JsonDiff] = () => ConsumerQueue(None), initialRequest: Int = 0)(implicit diff: DataDiff[Json, JsonDiff] =
+  def withDeltas(mkQueue: () => FIFO[Option[JsonDiff]] = () => FIFO(), initialRequest: Int = 0)(implicit diff: DataDiff[Json, JsonDiff] =
                                                                                                                 JsonDiffAsDataDiff): JsonDeltaSubscriber = {
-
-    object DownstreamPublisher extends JsonDeltaSubscriber {
-
-      override def onRequestNext(subscription: BasePublisher.BasePublisherSubscription[JsonDiff], requested: Long) = {
-        val nrToTake = super.onRequestNext(subscription, requested)
-        if (nrToTake > 0) {
-          request(nrToTake)
+    object DownstreamPublisher extends PassthroughProcessorInstance[JsonDiff](mkQueue) {
+      override protected[passthrough] def onSubscriptionRequesting(subscriberId: Int, previouslyRequested: Long, newValue: Long): Long = {
+        val diff = super.onSubscriptionRequesting(subscriberId, previouslyRequested, newValue)
+        if (diff > 0) {
+          request(diff)
         }
-        nrToTake
+        diff
       }
-
-      override def newDefaultSubscriberQueue(): ConsumerQueue[JsonDiff] = mkQueue()
+//    extends JsonDeltaSubscriber {
+//
+//      override def onRequestNext(subscription: BasePublisher.BasePublisherSubscription[JsonDiff], requested: Long) = {
+//        val nrToTake = super.onRequestNext(subscription, requested)
+//        if (nrToTake > 0) {
+//          request(nrToTake)
+//        }
+//        nrToTake
+//      }
+//
+//      override def newDefaultSubscriberQueue(): ConsumerQueue[JsonDiff] = mkQueue()
     }
 
     implicit val diffEmpty: IsEmpty[JsonDiff] = agora.json.JsonDiffIsEmpty
-    underlyingPublisher.subscribeToDeltas(DownstreamPublisher)
+//    underlyingPublisher.subscribeToDeltas(DownstreamPublisher)
+    ???
     DownstreamPublisher
   }
 
@@ -125,7 +139,7 @@ object JsonFeedDsl {
   def apply(publisher: Publisher[Json]) = new JsonFeedDsl(publisher)
 
   trait LowPriorityJsonFeedImplicits {
-    implicit def asJsonFeed(pub: BasePublisher[Json]) = new JsonFeedDsl(pub)
+    implicit def asJsonFeed(pub: Publisher[Json]) = new JsonFeedDsl(pub)
   }
 
   object implicits extends LowPriorityJsonFeedImplicits
@@ -137,11 +151,11 @@ object JsonFeedDsl {
     * @param initialRequest
     * @param newPublisherForKey the factory to use when creating a new publisher
     */
-  class IndexSubscriber(name: String, paths: List[JPath], initialRequest: Int, newPublisherForKey: (IndexSubscriber, List[Json]) => BaseProcessor[Json])
+  class IndexSubscriber(name: String, paths: List[JPath], initialRequest: Int, newPublisherForKey: (IndexSubscriber, List[Json]) => DurableProcessor[Json])
       extends BaseSubscriber[Json] {
     type Key = List[Json]
     private val Lock                                          = new ReentrantLock()
-    private var publisherByKey: Map[Key, BaseProcessor[Json]] = Map.empty
+    private var publisherByKey: Map[Key, DurableProcessor[Json]] = Map.empty
 
     def getPublisher[K: Encoder](key: K): Publisher[Json] = {
       getPublisher(List(key.asJson))
@@ -149,7 +163,7 @@ object JsonFeedDsl {
 
     def getPublisher(key: Key): Publisher[Json] = getOrCreateBasePublisher(key)
 
-    private def getOrCreateBasePublisher(key: Key): BaseProcessor[Json] = {
+    private def getOrCreateBasePublisher(key: Key): DurableProcessor[Json] = {
       publisherByKey.get(key) match {
         case Some(p) => p
         case None =>
@@ -169,7 +183,8 @@ object JsonFeedDsl {
       val key = paths.map { path =>
         path(json).getOrElse(Json.Null)
       }
-      getOrCreateBasePublisher(key).publish(json)
+//      getOrCreateBasePublisher(key).publish(json)
+      ???
       request(1)
     }
   }
@@ -178,8 +193,9 @@ object JsonFeedDsl {
     * A Subscription which takes Json --> JsonDiff to downstream publisher
     *
     */
-  trait JsonDeltaSubscriber extends BaseSubscriber[Either[Json, JsonDiff]] with BasePublisher[JsonDiff] {
+  class JsonDeltaSubscriber extends BaseSubscriber[Either[Json, JsonDiff]] with Publisher[JsonDiff] {
     private var latestJson: Json = Json.Null
+    protected lazy val publisher = PassthroughProcessor[JsonDiff](() => FIFO())
 
     def lastDeltaJson(): Json = {
       lastDiff match {
@@ -194,13 +210,15 @@ object JsonFeedDsl {
       either match {
         case Left(json) =>
           latestJson = json
-          publish(JsonDiff(json))
+          publisher.onNext(JsonDiff(json))
         case Right(diff) =>
           lastDiff = Option(diff)
-          publish(diff)
+          publisher.onNext(diff)
       }
       request(1)
     }
+
+    override def subscribe(s: Subscriber[_ >: JsonDiff]): Unit = publisher.subscribe(s)
   }
 
   class JsonFieldSubscriber[F[_]](publisher: Publisher[Json], override protected val underlyingSubscriber: FieldFeed.AccumulatingJsonPathsSubscriber[F])

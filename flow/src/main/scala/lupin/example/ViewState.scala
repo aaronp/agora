@@ -1,6 +1,6 @@
 package lupin.example
 
-import lupin.Publishers
+import lupin.{Publishers, Subscribers}
 import lupin.pub.collate.CollatingPublisher
 import lupin.pub.sequenced.{DurableProcessor, DurableProcessorInstance}
 import lupin.sub.BaseSubscriber
@@ -97,33 +97,36 @@ import scala.concurrent.{Await, ExecutionContext, Future}
   *
   *
   * @param availableFieldsByName
-  * @param subscribedFieldsByName
+  * @param initialSubscribedFieldsByName
   * @param ec
   * @param timeout
   * @tparam ID
   */
 class ViewState[ID] private(availableFieldsByName: Map[String, FieldFeed[ID]],
-                            subscribedFieldsByName: Map[FieldAndRange, Subscription] = Map.empty)
+                            initialSubscribedFieldsByName: Map[FieldAndRange, Subscription] = Map.empty)
                            (implicit ec: ExecutionContext, timeout: FiniteDuration) {
 
-  val viewSubscription: DurableProcessorInstance[ViewPort] = DurableProcessor[ViewPort]()
+  // exposes a publisher/subscriber for ViewPort updates
+  val viewSubscription = DurableProcessor[ViewPort]()
 
-  // TODO - use a different, non-indexed processor
-  viewSubscription.requestIndex(1)
-
-  viewSubscription.subscribe(BaseSubscriber[ViewPort](1) {
+  private val viewUpdateListener = BaseSubscriber[ViewPort](1) {
     case (s, viewPort) =>
-      update(viewPort)
+      updateSubscriptionsBasedOnViewPort(viewPort)
       s.request(1)
-  })
+  }
 
+  viewUpdateListener.request(1)
+  viewSubscription.subscribe(viewUpdateListener)
+
+  // exposes a publisher of 'CellUpdate[ID, FieldUpdate[ID]]' -- notifications when
+  // a 'cell' is updated in the current ViewPort
   val cellPublisher: CollatingPublisher[FieldAndRange, CellUpdate[ID, FieldUpdate[ID]]] = {
     CollatingPublisher[FieldAndRange, CellUpdate[ID, FieldUpdate[ID]]]()
   }
 
-  //DurableProcessorInstance
+  var subscribedFieldsByName: Map[FieldAndRange, Subscription] = initialSubscribedFieldsByName
 
-  private[example] def update(currentView: ViewPort)(implicit timeout: FiniteDuration): ViewState[ID] = {
+  private[example] def updateSubscriptionsBasedOnViewPort(currentView: ViewPort)(implicit timeout: FiniteDuration): ViewState[ID] = {
 
 
     // TODO - we also have to know what feed ranges we need to update/change.
@@ -140,7 +143,7 @@ class ViewState[ID] private(availableFieldsByName: Map[String, FieldFeed[ID]],
     val (keepFields: Map[FieldAndRange, Subscription], cancelFields) = subscribedFieldsByName.partition {
       case (fieldAndCol, s) =>
 
-        //TODO -  also add to the criteria ranges which we no longer care about
+        //TODO -  also add to the criteria index ranges which we no longer care about
         currentView.cols.contains(fieldAndCol.field)
     }
     cancelFields.foreach {
@@ -156,6 +159,7 @@ class ViewState[ID] private(availableFieldsByName: Map[String, FieldFeed[ID]],
       ???
       keepFields.exists(_._1.field == field)
     }
+
     val futureSubscriptions: immutable.Iterable[(String, Publisher[CellUpdate[ID, FieldUpdate[ID]]], Future[Subscription])] = availableFieldsByName.collect {
       case (fieldName, fieldPublisher) if requiredNewSubscriptions.contains(fieldName) =>
 

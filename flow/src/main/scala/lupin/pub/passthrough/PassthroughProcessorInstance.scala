@@ -14,7 +14,7 @@ import scala.concurrent.ExecutionContext
   * haven't.
   *
   */
-class PassthroughPublisherInstance[T](newQueue: () => FIFO[Option[T]])(implicit execContext: ExecutionContext) extends BaseSubscriber[T] with PassthroughPublisher[T] {
+class PassthroughProcessorInstance[T](newQueue: () => FIFO[Option[T]])(implicit execContext: ExecutionContext) extends BaseSubscriber[T] with PassthroughProcessor[T] {
 
   private object SubscribersByIdLock
 
@@ -88,7 +88,7 @@ class PassthroughPublisherInstance[T](newQueue: () => FIFO[Option[T]])(implicit 
   }
 
 
-  private[passthrough] def onSubscriptionRequesting(subscriberId: Int, previouslyRequested: Long, newValue: Long): Unit = {
+  protected[passthrough] def onSubscriptionRequesting(subscriberId: Int, previouslyRequested: Long, newValue: Long): Long = {
     val nrToRequest = MaxRequestedValueFromASubscriberLock.synchronized {
       if (maxRequestedValueFromASubscriber < newValue) {
         maxRequestedValueFromASubscriber = newValue
@@ -102,5 +102,6 @@ class PassthroughPublisherInstance[T](newQueue: () => FIFO[Option[T]])(implicit 
     if (nrToRequest > 0) {
       request(nrToRequest)
     }
+    nrToRequest
   }
 }

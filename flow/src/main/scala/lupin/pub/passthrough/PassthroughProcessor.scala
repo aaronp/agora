@@ -1,7 +1,7 @@
 package lupin.pub.passthrough
 
 import lupin.pub.FIFO
-import org.reactivestreams.{Publisher, Subscriber}
+import org.reactivestreams.{Processor, Publisher, Subscriber}
 
 import scala.concurrent.ExecutionContext
 
@@ -16,7 +16,7 @@ import scala.concurrent.ExecutionContext
   * subscribers(!)
   *
   */
-trait PassthroughPublisher[T] extends Publisher[T] {
+trait PassthroughProcessor[T] extends PassthroughPublisher[T] with Subscriber[T] with Processor[T] {
 
   protected def makeDefaultQueue(): FIFO[Option[T]]
 
@@ -25,8 +25,8 @@ trait PassthroughPublisher[T] extends Publisher[T] {
   def subscribe(subscriber: Subscriber[_ >: T], queue: FIFO[Option[T]]): Unit
 }
 
-object PassthroughPublisher {
-  def apply[T](makeDefaultQueue: () => FIFO[Option[T]])(implicit execContext: ExecutionContext): PassthroughPublisher[T] = {
+object PassthroughProcessor{
+  def apply[T](makeDefaultQueue: () => FIFO[Option[T]])(implicit execContext: ExecutionContext): PassthroughProcessor[T] = {
     new PassthroughProcessorInstance[T](makeDefaultQueue)
   }
 }

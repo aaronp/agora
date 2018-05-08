@@ -8,7 +8,7 @@ import scala.util.Try
 
 private[passthrough] class PassthroughSubscription[T](id: Int,
                                                       val queue: FIFO[Option[T]],
-                                                      publisher: PassthroughPublisherInstance[T],
+                                                      publisher: PassthroughProcessorInstance[T],
                                                       subscriber: Subscriber[_ >: T])
   extends Subscription
     with Runnable
