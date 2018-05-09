@@ -1,6 +1,7 @@
 package lupin.example
 
 import lupin.Subscribers
+import lupin.pub.query.SyncDao
 import lupin.pub.sequenced.{DurableProcessor, DurableProcessorInstance}
 import org.reactivestreams.{Publisher, Subscriber}
 
@@ -26,7 +27,8 @@ trait ConcreteExample {
     val daoFeed: DurableProcessorInstance[SyncDao[K, Input]] = DurableProcessor[SyncDao[K, Input]]()
 
     val listener: Subscriber[Input] = Subscribers.fold[SyncDao[K, Input], Input](daoFeed, lookup) { (s, input) =>
-      s.update(input)
+      val (_, newDao) = s.update(input)
+      newDao
     }
     dataStream.subscribe(listener)
     daoFeed

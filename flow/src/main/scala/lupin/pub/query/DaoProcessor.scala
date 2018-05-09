@@ -4,42 +4,37 @@ import lupin.Publishers
 import lupin.example.Accessor
 import lupin.pub.FIFO
 import lupin.pub.passthrough.PassthroughProcessorInstance
-import lupin.pub.query.DaoProcessor.CrudOperation
 import lupin.sub.BaseSubscriber
 import org.reactivestreams.{Publisher, Subscriber}
 
 import scala.concurrent.ExecutionContext
 
 /**
-  * Represents a publisher which can request updates for an entity of a particular ID (or None)
+  * Represents a special case of a QueryPublisher which will publish [[CrudOperation]]s for a set of IDs  of type K.
   *
-  * @tparam K
-  * @tparam T
+  * @tparam K the key type
+  * @tparam T the entity type
   */
 trait DaoProcessor[K, T] extends QueryPublisher[Set[K], CrudOperation[K, T]]
 
 object DaoProcessor {
 
-  sealed trait CrudOperation[K, T] {
-    def key: K
+  def apply[K, T](inputDao: SyncDao[K, T] = null,
+                  filter: Set[K] = Set[K]())(implicit accessor: Accessor.Aux[T, K], execContext: ExecutionContext) = {
+    val dao = if (inputDao == null) {
+      SyncDao[K, T](accessor)
+    } else {
+      inputDao
+    }
+    new Instance[K, T](dao, filter)
   }
 
-  case class Create[K, T](override val key: K, value: T) extends CrudOperation[K, T]
 
-  case class Update[K, T](override val key: K, value: T) extends CrudOperation[K, T]
-
-  case class Delete[K, T](override val key: K) extends CrudOperation[K, T]
-
-  def apply[K, T](filter: Set[K] = Set.empty)(implicit accessor: Accessor.Aux[T, K], execContext: ExecutionContext) = {
-    new Instance[K, T](filter)
-  }
-
-  class Instance[K, T](override val defaultInput: Set[K] = Set.empty)(implicit accessor: Accessor.Aux[T, K], execContext: ExecutionContext)
+  class Instance[K, T](inputDao: SyncDao[K, T], override val defaultInput: Set[K])(implicit accessor: Accessor.Aux[T, K], execContext: ExecutionContext)
     extends DaoProcessor[K, T]
       with BaseSubscriber[T] {
 
-    // TODO - replace this map w/ some key/value store
-    private var valuesById: Map[K, T] = Map[K, T]()
+    private var dao = inputDao
 
     private val outer = this
     private val publisher = new PassthroughProcessorInstance[CrudOperation[K, T]](() => FIFO[Option[CrudOperation[K, T]]]()) {
@@ -61,7 +56,7 @@ object DaoProcessor {
         }
       }
       val creates: Set[Create[K, T]] = ids.flatMap { id =>
-        valuesById.get(id).map { value =>
+        dao.get(id).map { value =>
           val key = accessor.get(value)
           Create[K, T](key, value)
         }
@@ -79,13 +74,9 @@ object DaoProcessor {
     }
 
     override def onNext(value: T): Unit = {
-      val key = accessor.get(value)
-      val crud = valuesById.get(key) match {
-        case None => Create[K, T](key, value)
-        case Some(_) => Update[K, T](key, value)
-      }
-      valuesById = valuesById.updated(key, value)
-      publisher.onNext(crud)
+      val (crudOp, newDao) = dao.update(value)
+      dao = newDao
+      publisher.onNext(crudOp)
     }
 
     override def onError(t: Throwable): Unit = {

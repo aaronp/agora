@@ -9,12 +9,15 @@ import scala.concurrent.ExecutionContext
 
 object Publishers {
 
-  def apply[T](dao: DurableProcessorDao[T])(implicit ec: ExecutionContext) = DurableProcessor[T](dao)
-
-  def of[T](items: T*)(implicit ec: ExecutionContext): Publisher[T] = apply(items.iterator)
-
-  def forValues[T](items: Iterable[T])(implicit ec: ExecutionContext): Publisher[T] = apply(items.iterator)
-
+  /**
+    * Creates a publisher which contains the given elements. The iterator won't be consumed until it is subscribed
+    * to/consumed
+    *
+    * @param iter
+    * @param ec
+    * @tparam T
+    * @return a Publisher of the given elements
+    */
   def apply[T](iter: Iterator[T])(implicit ec: ExecutionContext): Publisher[T] = {
     new DurableProcessorInstance[T](new DurableProcessor.Args[T](DurableProcessorDao[T]())) {
       override def onRequest(n: Long): Unit = {
@@ -34,6 +37,11 @@ object Publishers {
     }
   }
 
+  def apply[T](dao: DurableProcessorDao[T])(implicit ec: ExecutionContext) = DurableProcessor[T](dao)
+
+  def of[T](items: T*)(implicit ec: ExecutionContext): Publisher[T] = apply(items.iterator)
+
+  def forValues[T](items: Iterable[T])(implicit ec: ExecutionContext): Publisher[T] = apply(items.iterator)
 
   /**
     * Joins the given publishers of the same type into a single [[Publisher]]
