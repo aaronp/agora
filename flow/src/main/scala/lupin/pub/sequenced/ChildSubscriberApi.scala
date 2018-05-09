@@ -33,7 +33,8 @@ object ChildSubscriberApi {
     }
   }
 
-  def apply[T](capacity: Int, conflateCommandQueueLimit: Option[Int] = None)(newRunnable: Queue => Runnable)(implicit execContext: ExecutionContext): ChildSubscriberApi = {
+  def apply[T](capacity: Int, conflateCommandQueueLimit: Option[Int] = None)(newRunnable: Queue => Runnable)(
+      implicit execContext: ExecutionContext): ChildSubscriberApi = {
     val queue: Queue = newQ(capacity)
 
     val runnable = newRunnable(queue)
@@ -43,7 +44,7 @@ object ChildSubscriberApi {
     }
     require(capacitySizeCheckLimit > 0, s"Invalid capacitySizeCheckLimit '$capacitySizeCheckLimit': we should conflate commands before they reach capacity")
     require(capacitySizeCheckLimit < capacity,
-      s"Invalid capacitySizeCheckLimit '$capacitySizeCheckLimit': we should conflate commands before they reach capacity")
+            s"Invalid capacitySizeCheckLimit '$capacitySizeCheckLimit': we should conflate commands before they reach capacity")
     new QueueBasedApi(queue, capacitySizeCheckLimit)
   }
 }

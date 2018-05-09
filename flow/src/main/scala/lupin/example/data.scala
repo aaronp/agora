@@ -1,5 +1,7 @@
 package lupin.example
 
+import lupin.data.Accessor
+
 trait IndexedField[T] {
   def forSelection(selection: IndexSelection): Map[Long, T]
 }

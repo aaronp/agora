@@ -52,7 +52,6 @@ class PublishersTest extends BaseFlowSpec with GivenWhenThen {
       }
       Iter.lastValue shouldBe 2
 
-
     }
 
   }

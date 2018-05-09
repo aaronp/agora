@@ -1,7 +1,7 @@
 package lupin.pub.query
 
 import lupin.Publishers
-import lupin.example.Accessor
+import lupin.data.Accessor
 import lupin.pub.FIFO
 import lupin.pub.passthrough.PassthroughProcessorInstance
 import lupin.sub.BaseSubscriber
@@ -19,8 +19,7 @@ trait DaoProcessor[K, T] extends QueryPublisher[Set[K], CrudOperation[K, T]]
 
 object DaoProcessor {
 
-  def apply[K, T](inputDao: SyncDao[K, T] = null,
-                  filter: Set[K] = Set[K]())(implicit accessor: Accessor.Aux[T, K], execContext: ExecutionContext) = {
+  def apply[K, T](inputDao: SyncDao[K, T] = null, filter: Set[K] = Set[K]())(implicit accessor: Accessor.Aux[T, K], execContext: ExecutionContext) = {
     val dao = if (inputDao == null) {
       SyncDao[K, T](accessor)
     } else {
@@ -29,9 +28,8 @@ object DaoProcessor {
     new Instance[K, T](dao, filter)
   }
 
-
   class Instance[K, T](inputDao: SyncDao[K, T], override val defaultInput: Set[K])(implicit accessor: Accessor.Aux[T, K], execContext: ExecutionContext)
-    extends DaoProcessor[K, T]
+      extends DaoProcessor[K, T]
       with BaseSubscriber[T] {
 
     private var dao = inputDao
@@ -64,9 +62,11 @@ object DaoProcessor {
 
       if (creates.nonEmpty) {
         val initial: Publisher[CrudOperation[K, T]] = Publishers.forValues(creates)
-        Publishers.concat(initial) { sub =>
-          publisher.subscribe(sub, queue)
-        }.subscribe(subscriber)
+        Publishers
+          .concat(initial) { sub =>
+            publisher.subscribe(sub, queue)
+          }
+          .subscribe(subscriber)
       } else {
         publisher.subscribe(subscriber, queue)
       }

@@ -1,5 +1,6 @@
 package lupin
 
+import lupin.pub.collate.CollatingPublisher
 import lupin.pub.concat.ConcatPublisher
 import lupin.pub.join.{JoinPublisher, TupleUpdate}
 import lupin.pub.sequenced.{DurableProcessor, DurableProcessorDao, DurableProcessorInstance}
@@ -37,7 +38,7 @@ object Publishers {
     }
   }
 
-  def apply[T](dao: DurableProcessorDao[T])(implicit ec: ExecutionContext) = DurableProcessor[T](dao)
+  def apply[T](dao: DurableProcessorDao[T] = DurableProcessorDao[T]())(implicit ec: ExecutionContext) = DurableProcessor[T](dao)
 
   def of[T](items: T*)(implicit ec: ExecutionContext): Publisher[T] = apply(items.iterator)
 
@@ -52,11 +53,20 @@ object Publishers {
     * @tparam T
     * @return a single publisher which will consume elements from the other publishers and represent them as a single publisher
     */
-  def combine[T](first: Publisher[T], second: Publisher[T], theRest: Publisher[T]*): Publisher[T] = {
+  def combine[T](first: Publisher[T], second: Publisher[T], theRest: Publisher[T]*)(implicit ec: ExecutionContext): Publisher[T] = {
     combine(first +: second +: theRest)
   }
 
-  def combine[T](publishers: Iterable[Publisher[T]]): Publisher[T] = ???
+  def combine[T](publishers: Iterable[Publisher[T]])(implicit ec: ExecutionContext): Publisher[T] = {
+    val combined: CollatingPublisher[Int, T] = CollatingPublisher[Int, T]()
+    publishers.zipWithIndex.foreach {
+      case (pub, idx) =>
+        val sub = combined.newSubscriber(idx)
+        pub.subscribe(sub)
+    }
+
+    Publishers.map(combined)(_._2)
+  }
 
   def join[A, B](left: Publisher[A], right: Publisher[B])(implicit ec: ExecutionContext): Publisher[TupleUpdate[A, B]] = {
     JoinPublisher(left, right)

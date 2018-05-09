@@ -9,7 +9,7 @@ import scala.util.control.NonFatal
 private class SubscriberRunnable[T](state: SubscriberState[T], queue: Queue) extends Runnable with StrictLogging {
 
   private def pullLoop() = {
-    val (firstCmd, firstPromise) = next()
+    val (firstCmd, firstPromise)             = next()
     var result: SubscriberStateCommandResult = state.update(firstCmd)
     firstPromise.trySuccess(result)
 

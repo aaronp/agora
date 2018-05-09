@@ -1,6 +1,5 @@
 package lupin.pub.query
 
-
 sealed trait CrudOperation[K, T] {
   def key: K
 }

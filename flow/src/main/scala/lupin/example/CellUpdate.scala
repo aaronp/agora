@@ -6,7 +6,6 @@ import org.reactivestreams.Publisher
 
 import scala.concurrent.ExecutionContext
 
-
 object CellUpdate {
   def subscribeTo[T, ID, U <: FieldUpdate[ID]](data: Publisher[T], views: Publisher[ViewPort])(implicit ec: ExecutionContext): CellFeed[ID, U] = {
     val joined: Publisher[TupleUpdate[T, ViewPort]] = Publishers.join(data, views)
@@ -57,9 +56,9 @@ case class CellUpdate[ID, U <: FieldUpdate[ID]](previouslySentSeqNo: Option[SeqN
   def merge(update: CellUpdate[ID, U]): CellUpdate[ID, U] = {
     val newPrev = (previouslySentSeqNo, update.previouslySentSeqNo) match {
       case (Some(a), Some(b)) => Option(a.max(b))
-      case (optA, optB) => optA.orElse(optB)
+      case (optA, optB)       => optA.orElse(optB)
     }
-    val newSeqNo = seqNo.max(update.seqNo)
+    val newSeqNo   = seqNo.max(update.seqNo)
     val newUpdates = updates ++ update.updates
     CellUpdate(newPrev, newSeqNo, newUpdates)
   }

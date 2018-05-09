@@ -15,8 +15,8 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 class DurableProcessorInstance[T](args: Args[T])(implicit execContext: ExecutionContext) extends DurableProcessor[T] with StrictLogging {
 
   protected[sequenced] val dao: DurableProcessorDao[T] = args.dao
-  val propagateSubscriberRequestsToOurSubscription = args.propagateSubscriberRequestsToOurSubscription
-  private val nextIndexCounter = new AtomicLong(args.nextIndex)
+  val propagateSubscriberRequestsToOurSubscription     = args.propagateSubscriberRequestsToOurSubscription
+  private val nextIndexCounter                         = new AtomicLong(args.nextIndex)
 
   // the DAO will likely be doing IO or some other potentially expensive operation to work out the last index
   // As it doesn't change once set, we cache it here if known.
@@ -56,15 +56,15 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext: Execution
   def subscriberCount(): Int = SubscribersLock.synchronized(subscribersById.size)
 
   def this(dao: DurableProcessorDao[T], propagateSubscriberRequestsToOurSubscription: Boolean = true, currentIndexCounter: Long = -1L)(
-    implicit execContext: ExecutionContext) = {
+      implicit execContext: ExecutionContext) = {
     this(Args(dao, propagateSubscriberRequestsToOurSubscription, currentIndexCounter))
   }
 
-  private val initialIndex: Long = nextIndexCounter.get()
-  private var maxWrittenIndex = initialIndex
+  private val initialIndex: Long  = nextIndexCounter.get()
+  private var maxWrittenIndex     = initialIndex
   private val MaxWrittenIndexLock = new ReentrantReadWriteLock()
-  private var subscribersById = Map[Int, DurableSubscription[T]]()
-  private var subscriptionOpt = Option.empty[Subscription]
+  private var subscribersById     = Map[Int, DurableSubscription[T]]()
+  private var subscriptionOpt     = Option.empty[Subscription]
   private val subscriptionPromise = Promise[Subscription]()
 
   private object SubscriptionOptLock
@@ -237,7 +237,6 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext: Execution
     clearSubscription()
   }
 
-
   protected def clearSubscription() = {
     SubscriptionOptLock.synchronized {
       subscriptionOpt = None
@@ -261,7 +260,7 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext: Execution
       // trigger any requests from our subscribers
       maxRequest.get() match {
         case n if n > 0 => s.request(n)
-        case _ =>
+        case _          =>
       }
     }
   }

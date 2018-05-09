@@ -1,4 +1,4 @@
-package lupin.example
+package lupin.data
 
 /**
   * This will allow us to lookup a property for a given type T.

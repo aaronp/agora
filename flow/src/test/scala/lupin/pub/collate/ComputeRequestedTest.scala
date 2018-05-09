@@ -7,11 +7,7 @@ class ComputeRequestedTest extends BaseFlowSpec {
   "ComputeRequested.sort" should {
     "sort the map by increasing nur of selected" in {
 
-      val map: Map[Int, Long] = Map(1 -> 10,
-        2 -> 31,
-        3 -> 2,
-        4 -> 3,
-        5 -> 100)
+      val map: Map[Int, Long]  = Map(1 -> 10, 2 -> 31, 3 -> 2, 4 -> 3, 5 -> 100)
       val (total, max, sorted) = ComputeRequested.sort(map.iterator)
       total shouldBe map.size
       max shouldBe 100
@@ -57,8 +53,9 @@ class ComputeRequestedTest extends BaseFlowSpec {
 
     def format(m: Map[Int, Long]) = {
       m.map {
-        case (id, r) => s"sub$id requesting $r"
-      }.mkString(", ")
+          case (id, r) => s"sub$id requesting $r"
+        }
+        .mkString(", ")
     }
 
     def subs = format(input.toMap)

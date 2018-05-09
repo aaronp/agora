@@ -1,4 +1,4 @@
-package lupin.pub.impl
+package lupin.data
 
 import org.reactivestreams.{Subscriber, Subscription}
 

@@ -20,15 +20,13 @@ object ConcatPublisher {
     concat(head)(tail.subscribe)
   }
 
-  def concat[T](head: Publisher[T])(subscribeNext : Subscriber[T] => Unit)(implicit ec: ExecutionContext): Publisher[T] = {
+  def concat[T](head: Publisher[T])(subscribeNext: Subscriber[T] => Unit)(implicit ec: ExecutionContext): Publisher[T] = {
 
     /**
       * Override the processor to change the behaviour of 'onComplete' to
       * instead subscribe to the second publisher
       */
-    val dp = new DurableProcessorInstance[T](Args(DurableProcessorDao[T](),
-      true,
-      -1)) {
+    val dp = new DurableProcessorInstance[T](Args(DurableProcessorDao[T](), true, -1)) {
 
       private var firstCompleted = false
 
@@ -51,6 +49,5 @@ object ConcatPublisher {
 
     dp
   }
-
 
 }

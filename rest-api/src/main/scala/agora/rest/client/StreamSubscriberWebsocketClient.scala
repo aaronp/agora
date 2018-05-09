@@ -9,7 +9,7 @@ import akka.stream.Materializer
 import com.typesafe.scalalogging.StrictLogging
 import io.circe.Json
 import lupin.AsConsumerQueue
-import lupin.pub.impl.HasPublisher
+import lupin.data.HasPublisher
 import org.reactivestreams.{Publisher, Subscriber}
 
 import scala.concurrent.{ExecutionContext, Future}

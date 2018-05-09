@@ -25,7 +25,7 @@ trait QueryPublisher[Q, T] extends Publisher[T] {
 
 object QueryPublisher {
 
-  def apply[T: Ordering](defaultInput: IndexSelection)(implicit execContext : ExecutionContext): Indexer[T] = {
+  def apply[T: Ordering](defaultInput: IndexSelection)(implicit execContext: ExecutionContext): Indexer[T] = {
     new Indexer[T](defaultInput)
   }
 

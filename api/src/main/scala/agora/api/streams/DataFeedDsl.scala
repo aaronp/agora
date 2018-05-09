@@ -2,8 +2,8 @@ package agora.api.streams
 
 import agora.api.streams.PublisherOps.implicits._
 import io.circe.Encoder
+import lupin.data.HasProcessor
 import lupin.pub.BaseProcessor
-import lupin.pub.impl.HasProcessor
 
 import scala.reflect.ClassTag
 

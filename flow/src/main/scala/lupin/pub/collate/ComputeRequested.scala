@@ -106,7 +106,7 @@ private[collate] object ComputeRequested {
     def inc(amountToTakeForEachNode: Long, amountToTakeForEachNodeRemainder: Long, remaining: Long): Long = {
       if (remaining > 0) {
         val remainder = amountToTakeForEachNodeRemainder.min(1)
-        val take = (amountToTakeForEachNode + remainder).min(remaining)
+        val take      = (amountToTakeForEachNode + remainder).min(remaining)
         added = added + take
         if (next != null && next.requested < requested) {
           next.inc(amountToTakeForEachNode, amountToTakeForEachNodeRemainder - remainder, remaining - take)
@@ -120,8 +120,7 @@ private[collate] object ComputeRequested {
 
     /** all nodes are topped up, just distribute the remaining evenly
       */
-    def fillEvenly(totalRemainingToRequest: Long,
-                   totalSubscriptions: Int): Long = {
+    def fillEvenly(totalRemainingToRequest: Long, totalSubscriptions: Int): Long = {
       val ave = totalRemainingToRequest / totalSubscriptions
       val mod = totalRemainingToRequest % totalSubscriptions
       inc(ave, mod, totalRemainingToRequest)
@@ -130,9 +129,7 @@ private[collate] object ComputeRequested {
     /**
       * try to ensure all nodes have the same nr of requested
       */
-    def fillToMax(head: SortedDiffNode[K],
-                  totalRemainingToRequest: Long,
-                  totalSubscriptions: Int): Long = {
+    def fillToMax(head: SortedDiffNode[K], totalRemainingToRequest: Long, totalSubscriptions: Int): Long = {
       if (totalRemainingToRequest > 0) {
         // if there's a difference between us and the next node,
         // fill from the beginning of the list

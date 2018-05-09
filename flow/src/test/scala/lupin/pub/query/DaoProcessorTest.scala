@@ -1,6 +1,6 @@
 package lupin.pub.query
 
-import lupin.example.Accessor
+import lupin.data.Accessor
 import lupin.{BaseFlowSpec, ListSubscriber, Publishers}
 
 class DaoProcessorTest extends BaseFlowSpec {
@@ -39,12 +39,11 @@ class DaoProcessorTest extends BaseFlowSpec {
 
       crudListener.request(5)
       eventually {
-        crudListener.receivedInOrderReceived() should contain only(
+        crudListener.receivedInOrderReceived() should contain only (
           Create(1, Person(1, "George")),
           Create(3, Person(3, "Jayne"))
         )
       }
-
 
     }
     "publish CRUD updates for filtered elements" in {
@@ -81,7 +80,7 @@ class DaoProcessorTest extends BaseFlowSpec {
       // request the next element, an update to Georgina
       crudListener.request(1)
       Thread.sleep(testNegativeTimeout.toMillis)
-      crudListener.receivedInOrderReceived() should contain inOrder(
+      crudListener.receivedInOrderReceived() should contain inOrder (
         Create(1, Person(1, "Georgina")),
         Create(3, Person(3, "Jayne")),
         Update(1, Person(1, "George"))

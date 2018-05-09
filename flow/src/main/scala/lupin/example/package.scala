@@ -1,5 +1,6 @@
 package lupin
 
+import lupin.data.Accessor
 import lupin.pub.query.QueryPublisher
 import org.reactivestreams.Publisher
 
@@ -24,8 +25,8 @@ package object example {
     * After indexing, we can provide which index a particular value 'A' is at for a processed 'ID' and SeqNo
     */
   // can look up the value A of a field based on id 'K'
-  type FieldDao[ID, A] = Lookup[ID, A]
-  type FieldUpdateAux[ID, A] = FieldUpdate[ID] {type FieldType = A}
+  type FieldDao[ID, A]       = Lookup[ID, A]
+  type FieldUpdateAux[ID, A] = FieldUpdate[ID] { type FieldType = A }
 
   type FieldFeed[ID] = QueryPublisher[IndexSelection, FieldUpdate[ID]]
 

@@ -8,7 +8,8 @@ import agora.api.streams.JsonFeedDsl.{IndexSubscriber, JsonDeltaSubscriber}
 import agora.api.streams.PublisherOps.implicits._
 import agora.core.{DataDiff, IsEmpty}
 import agora.json.{JPath, JsonDiff, JsonDiffAsDataDiff, TypesByPath}
-import lupin.pub.impl.{HasPublisher, HasSubscriber}
+import lupin.data.{HasPublisher, HasSubscriber}
+import lupin.pub.impl.HasSubscriber
 import lupin.pub.passthrough.{PassthroughProcessor, PassthroughProcessorInstance}
 import lupin.pub.sequenced.DurableProcessor
 import lupin.pub.{BaseProcessor, FIFO}

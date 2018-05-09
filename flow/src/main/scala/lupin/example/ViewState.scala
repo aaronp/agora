@@ -10,7 +10,6 @@ import scala.collection.immutable
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Await, ExecutionContext, Future}
 
-
 /**
   * This class encapsulates the union of some data updates ([[FieldFeed]]s) with a [[ViewPort]] feed.
   *
@@ -102,9 +101,9 @@ import scala.concurrent.{Await, ExecutionContext, Future}
   * @param timeout
   * @tparam ID
   */
-class ViewState[ID] private(availableFieldsByName: Map[String, FieldFeed[ID]],
-                            initialSubscribedFieldsByName: Map[FieldAndRange, Subscription] = Map.empty)
-                           (implicit ec: ExecutionContext, timeout: FiniteDuration) {
+class ViewState[ID] private (availableFieldsByName: Map[String, FieldFeed[ID]], initialSubscribedFieldsByName: Map[FieldAndRange, Subscription] = Map.empty)(
+    implicit ec: ExecutionContext,
+    timeout: FiniteDuration) {
 
   // exposes a publisher/subscriber for ViewPort updates
   val viewSubscription = DurableProcessor[ViewPort]()
@@ -128,7 +127,6 @@ class ViewState[ID] private(availableFieldsByName: Map[String, FieldFeed[ID]],
 
   private[example] def updateSubscriptionsBasedOnViewPort(currentView: ViewPort)(implicit timeout: FiniteDuration): ViewState[ID] = {
 
-
     // TODO - we also have to know what feed ranges we need to update/change.
     // if the indices moved from e.g. (0 - 100) to (10 - 110), we can create a new subscription for e.g. (100 - 200)
     // as well as re-using the (0 - 100) one.
@@ -142,7 +140,6 @@ class ViewState[ID] private(availableFieldsByName: Map[String, FieldFeed[ID]],
     //
     val (keepFields: Map[FieldAndRange, Subscription], cancelFields) = subscribedFieldsByName.partition {
       case (fieldAndCol, s) =>
-
         //TODO -  also add to the criteria index ranges which we no longer care about
         currentView.cols.contains(fieldAndCol.field)
     }
@@ -162,7 +159,6 @@ class ViewState[ID] private(availableFieldsByName: Map[String, FieldFeed[ID]],
 
     val futureSubscriptions: immutable.Iterable[(String, Publisher[CellUpdate[ID, FieldUpdate[ID]]], Future[Subscription])] = availableFieldsByName.collect {
       case (fieldName, fieldPublisher) if requiredNewSubscriptions.contains(fieldName) =>
-
         // subscribe from the given indices
         val newFieldSubscription = DurableProcessor[FieldUpdate[ID]]()
         fieldPublisher.subscribeWith(currentView.indices, newFieldSubscription)
@@ -171,7 +167,7 @@ class ViewState[ID] private(availableFieldsByName: Map[String, FieldFeed[ID]],
           asCellUpdate(fieldName, currentView, next, None)
         }
 
-        val fieldAndRange : FieldAndRange = ??? //()
+        val fieldAndRange: FieldAndRange = ??? //()
         cellFeed.subscribe(cellPublisher.newSubscriber(fieldAndRange))
 
         (fieldName, cellFeed, newFieldSubscription.subscriptionFuture)
@@ -196,10 +192,7 @@ class ViewState[ID] private(availableFieldsByName: Map[String, FieldFeed[ID]],
     ???
   }
 
-  def asCellUpdate(field: String,
-                   currentView: ViewPort,
-                   fieldUpdate: FieldUpdate[ID],
-                   previouslySentSeqNo: Option[SeqNo]): CellUpdate[ID, FieldUpdate[ID]] = {
+  def asCellUpdate(field: String, currentView: ViewPort, fieldUpdate: FieldUpdate[ID], previouslySentSeqNo: Option[SeqNo]): CellUpdate[ID, FieldUpdate[ID]] = {
     val cellUpdate: CellUpdate[ID, FieldUpdate[ID]] =
       CellUpdate(previouslySentSeqNo, fieldUpdate.seqNo, Map(CellCoord(fieldUpdate.index, field) -> fieldUpdate))
     cellUpdate
@@ -207,9 +200,8 @@ class ViewState[ID] private(availableFieldsByName: Map[String, FieldFeed[ID]],
 }
 
 object ViewState {
-  def subscribeTo[ID](
-                       viewPort: Publisher[ViewPort],
-                       availableFieldsByName: Map[String, FieldFeed[ID]])(implicit ec: ExecutionContext, timeout: FiniteDuration) = {
+  def subscribeTo[ID](viewPort: Publisher[ViewPort], availableFieldsByName: Map[String, FieldFeed[ID]])(implicit ec: ExecutionContext,
+                                                                                                        timeout: FiniteDuration) = {
 
     val state = new ViewState[ID](availableFieldsByName, Map.empty)
     viewPort.subscribe(state.viewSubscription)

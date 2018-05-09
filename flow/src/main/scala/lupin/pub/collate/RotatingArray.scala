@@ -36,11 +36,11 @@ class RotatingArray[T](initialElms: Iterable[T] = Iterable.empty) {
   /** @return an iterator over the array and advance the iterator so that the next time it's called it'll be of different elements
     */
   def iterator: Iterator[T] = new Iterator[T] {
-    private val len = array.size
+    private val len      = array.size
     private val endIndex = if (len == 0) -1 else ((lastIteratorIndex + 1) % len)
     lastIteratorIndex = endIndex
     private var currentIndex = if (len == 0) -1 else ((endIndex + 1) % len)
-    private var lastRead = false
+    private var lastRead     = false
 
     override def hasNext: Boolean = len > 0 && !lastRead
 

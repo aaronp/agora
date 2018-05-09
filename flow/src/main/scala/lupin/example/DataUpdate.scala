@@ -4,7 +4,7 @@ import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicLong
 
 import agora.io.ToBytes
-import lupin.pub.impl.HasKey
+import lupin.data.{Accessor, HasKey}
 
 case class DataUpdate[ID, T](id: ID,
                              // dao : Lookup[ID, T]

@@ -43,9 +43,9 @@ case class TableView[ID, U <: RenderableFieldUpdate[ID, _]](view: ViewPort, cell
       case SpecificIndices(indices) =>
         indices.map(rowAtIndex)
     }
-    val titledGrid: immutable.Seq[List[String]] = view.cols +: grid
+    val titledGrid: immutable.Seq[List[String]]     = view.cols +: grid
     val colSizes: immutable.Seq[immutable.Seq[Int]] = titledGrid.transpose.map(_.map(_.length))
-    val maxColSizes: immutable.Seq[Int] = colSizes.map(_.max)
+    val maxColSizes: immutable.Seq[Int]             = colSizes.map(_.max)
 
     val rows: immutable.Seq[String] = titledGrid.map { row =>
       row
@@ -66,12 +66,12 @@ case class TableView[ID, U <: RenderableFieldUpdate[ID, _]](view: ViewPort, cell
 }
 
 object TableView {
-  def subscribeTo[T, ID, U <: RenderableFieldUpdate[ID, _]](data: Publisher[T], views: Publisher[ViewPort])(implicit ec: ExecutionContext): Publisher[TableView[ID, U]] = {
+  def subscribeTo[T, ID, U <: RenderableFieldUpdate[ID, _]](data: Publisher[T], views: Publisher[ViewPort])(
+      implicit ec: ExecutionContext): Publisher[TableView[ID, U]] = {
 
     val cells: CellFeed[ID, U] = CellUpdate.subscribeTo[T, ID, U](data, views)
     Publishers.map(cells) { cellUpdate: CellUpdate[ID, U] =>
-      //cellUpdate
-      ???
+      cellUpdate
     }
     ???
   }

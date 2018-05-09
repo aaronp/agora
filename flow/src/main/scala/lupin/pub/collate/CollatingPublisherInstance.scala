@@ -3,7 +3,7 @@ package lupin.pub.collate
 import java.util.concurrent.atomic.AtomicLong
 
 import com.typesafe.scalalogging.StrictLogging
-import lupin.pub.impl.HasKey
+import lupin.data.HasKey
 import lupin.pub.sequenced.DurableProcessor.Args
 import lupin.pub.sequenced.{DurableProcessorDao, DurableProcessorInstance}
 import lupin.sub.BaseSubscriber
@@ -11,12 +11,12 @@ import org.reactivestreams.{Subscriber, Subscription}
 
 import scala.concurrent.ExecutionContext
 
-
-class CollatingPublisherInstance[K, T](dao: DurableProcessorDao[(K,T)], propagateOnError: Boolean)(implicit execContext: ExecutionContext) extends CollatingPublisher[K, T] {
+class CollatingPublisherInstance[K, T](dao: DurableProcessorDao[(K, T)], propagateOnError: Boolean)(implicit execContext: ExecutionContext)
+    extends CollatingPublisher[K, T] {
 
   // used to guard subscribersById and subscribersByIdKeys
   private object SubscribersByIdLock
-  private var subscribersById = Map[K, Sub]()
+  private var subscribersById     = Map[K, Sub]()
   private val subscribersByIdKeys = new RotatingArray[K]() // ensures fairness in pulling from subscribers, that the first one isn't always used
 
   private class InternalPublisher extends DurableProcessorInstance[(K, T)](Args(dao, true, -1)) {
@@ -28,7 +28,7 @@ class CollatingPublisherInstance[K, T](dao: DurableProcessorDao[(K,T)], propagat
       * pushing elements asynchronously, so we need to lock this to ensure single-threaded access to the DAO
       *
       */
-    def enqueue(key : K, value: T) = NextLock.synchronized(onNext(key -> value))
+    def enqueue(key: K, value: T) = NextLock.synchronized(onNext(key -> value))
 
     def onSubscriberError(id: K, err: Throwable) = {
       val allDone = SubscribersByIdLock.synchronized {

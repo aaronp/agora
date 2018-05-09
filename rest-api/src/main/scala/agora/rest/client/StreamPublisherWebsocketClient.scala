@@ -7,7 +7,7 @@ import akka.http.scaladsl.model.ws.WebSocketRequest
 import akka.stream.Materializer
 import com.typesafe.scalalogging.StrictLogging
 import io.circe.Encoder
-import lupin.pub.impl.HasPublisher
+import lupin.data.HasPublisher
 import org.reactivestreams.Publisher
 
 import scala.concurrent.{ExecutionContext, Future}

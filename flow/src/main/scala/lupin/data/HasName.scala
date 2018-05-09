@@ -1,4 +1,4 @@
-package lupin.pub.impl
+package lupin.data
 
 /**
   * A means for naming things. The idea is that various implementations can elect

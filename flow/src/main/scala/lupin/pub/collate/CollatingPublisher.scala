@@ -1,6 +1,7 @@
 package lupin.pub.collate
 
-import lupin.pub.impl.HasKey
+import lupin.Publishers
+import lupin.data.HasKey
 import lupin.pub.sequenced.DurableProcessorDao
 import org.reactivestreams.{Publisher, Subscriber}
 
@@ -20,17 +21,20 @@ trait CollatingPublisher[K, T] extends Publisher[(K, T)] {
   /**
     * @return a new subscriber which can be used to subscribe to a Publisher of 'T' elements
     */
-  def newSubscriber(key : K): Subscriber[T] with HasKey[K]
+  def newSubscriber(key: K): Subscriber[T] with HasKey[K]
 
   def cancelSubscriber(key: K): Boolean
 
   def subscribers(): Set[K]
 
+  def values: Publisher[T] = Publishers.map(this)(_._2)
+
 }
 
 object CollatingPublisher {
 
-  def apply[K, T](dao: DurableProcessorDao[(K, T)] = DurableProcessorDao[(K, T)](), propagateOnError: Boolean = true)(implicit execContext :ExecutionContext): CollatingPublisher[K, T] = {
+  def apply[K, T](dao: DurableProcessorDao[(K, T)] = DurableProcessorDao[(K, T)](), propagateOnError: Boolean = true)(
+    implicit execContext: ExecutionContext): CollatingPublisher[K, T] = {
     new CollatingPublisherInstance[K, T](dao, propagateOnError)
   }
 

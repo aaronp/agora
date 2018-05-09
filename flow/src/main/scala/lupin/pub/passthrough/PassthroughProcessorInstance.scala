@@ -6,7 +6,6 @@ import org.reactivestreams.Subscriber
 
 import scala.concurrent.ExecutionContext
 
-
 /**
   * NOTE: some FIFO impls may block when enqueueing, so we should be mindful of that when pushing to them.
   *
@@ -14,14 +13,16 @@ import scala.concurrent.ExecutionContext
   * haven't.
   *
   */
-class PassthroughProcessorInstance[T](newQueue: () => FIFO[Option[T]])(implicit execContext: ExecutionContext) extends BaseSubscriber[T] with PassthroughProcessor[T] {
+class PassthroughProcessorInstance[T](newQueue: () => FIFO[Option[T]])(implicit execContext: ExecutionContext)
+    extends BaseSubscriber[T]
+    with PassthroughProcessor[T] {
 
   private object SubscribersByIdLock
 
-  private var subscribersById = Map[Int, PassthroughSubscription[T]]()
+  private var subscribersById                  = Map[Int, PassthroughSubscription[T]]()
   private var maxRequestedValueFromASubscriber = 0L
-  private var receivedError = Option.empty[Throwable]
-  private var completed = false
+  private var receivedError                    = Option.empty[Throwable]
+  private var completed                        = false
 
   private object MaxRequestedValueFromASubscriberLock
 
@@ -86,7 +87,6 @@ class PassthroughProcessorInstance[T](newQueue: () => FIFO[Option[T]])(implicit 
       subscribersById = subscribersById - subscriberId
     }
   }
-
 
   protected[passthrough] def onSubscriptionRequesting(subscriberId: Int, previouslyRequested: Long, newValue: Long): Long = {
     val nrToRequest = MaxRequestedValueFromASubscriberLock.synchronized {

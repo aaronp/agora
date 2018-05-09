@@ -7,7 +7,6 @@ import scala.concurrent.{Future, Promise}
 package object sequenced {
   type Queue = BlockingQueue[(SubscriberStateCommand, Promise[SubscriberStateCommandResult])]
 
-
   def newQ(capacity: Int): Queue = new ArrayBlockingQueue[(SubscriberStateCommand, Promise[SubscriberStateCommandResult])](capacity, true)
 
   def enqueue(commands: Queue, cmd: SubscriberStateCommand, capacitySizeCheckLimit: Int): Future[SubscriberStateCommandResult] = {

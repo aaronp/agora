@@ -1,20 +1,20 @@
 package lupin.pub.sequenced
 
 import com.typesafe.scalalogging.StrictLogging
-import lupin.pub.impl.{HasKey, HasName}
+import lupin.data.{HasKey, HasName}
 import org.reactivestreams.{Subscriber, Subscription}
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Success, Try}
 
-class DurableSubscription[T](override val key : Int,
+class DurableSubscription[T](override val key: Int,
                              publisher: DurableProcessorInstance[T],
                              initialRequestedIndex: Long,
                              val subscriber: Subscriber[_ >: T],
                              execContext: ExecutionContext,
                              conflateCommandQueueLimit: Option[Int] = None,
-                             queueCapacity: Int = 100)(implicit execCtxt : ExecutionContext)
-  extends Subscription
+                             queueCapacity: Int = 100)(implicit execCtxt: ExecutionContext)
+    extends Subscription
     with HasName
     with HasKey[Int]
     with StrictLogging {
@@ -31,14 +31,14 @@ class DurableSubscription[T](override val key : Int,
 
   override def name = subscriber match {
     case hn: HasName => hn.name
-    case _ => toString
+    case _           => toString
   }
 
   private def handleResponse(response: Try[SubscriberStateCommandResult]) = {
     response match {
-      case Success(CancelResult) => publisher.cancelSubscriber(this)
+      case Success(CancelResult)  => publisher.cancelSubscriber(this)
       case Success(StopResult(_)) => publisher.removeSubscriber(this)
-      case _ =>
+      case _                      =>
     }
   }
 

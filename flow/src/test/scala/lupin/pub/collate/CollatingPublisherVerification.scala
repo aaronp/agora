@@ -41,12 +41,12 @@ class CollatingPublisherVerification extends PublisherVerification[String](testE
 
   override def createPublisher(elements: Long): Publisher[String] = {
     val upstream = if (elements > 100) {
-      val dao = new RangeDao(elements)
+      val dao                                  = new RangeDao(elements)
       val dp: DurableProcessorInstance[String] = DurableProcessor[String](dao)
       dp
     } else {
       val dp = DurableProcessor[String]()
-      var i = 0L
+      var i  = 0L
       while (i < elements) {
         i = i + 1
         dp.onNext("" + i)
@@ -62,7 +62,7 @@ class CollatingPublisherVerification extends PublisherVerification[String](testE
 
   override def createFailedPublisher(): Publisher[String] = {
     val upstream = DurableProcessor[String]()
-    val cp = CollatingPublisher[String, String]()
+    val cp       = CollatingPublisher[String, String]()
     upstream.subscribe(cp.newSubscriber("test"))
     upstream.onError(new Exception("bang"))
     Publishers.map(cp)(_._2)

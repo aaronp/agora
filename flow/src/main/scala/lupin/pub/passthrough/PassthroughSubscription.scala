@@ -10,13 +10,13 @@ private[passthrough] class PassthroughSubscription[T](id: Int,
                                                       val queue: FIFO[Option[T]],
                                                       publisher: PassthroughProcessorInstance[T],
                                                       subscriber: Subscriber[_ >: T])
-  extends Subscription
+    extends Subscription
     with Runnable
     with StrictLogging {
 
   @volatile var currentlyRequested = 0L
-  @volatile var totalRequested = 0L
-  @volatile var completed = false
+  @volatile var totalRequested     = 0L
+  @volatile var completed          = false
 
   private object Lock
 

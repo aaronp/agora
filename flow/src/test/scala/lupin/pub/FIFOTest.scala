@@ -20,7 +20,7 @@ class FIFOTest extends BaseFlowSpec {
       queue.pop() shouldBe "third"
 
       // now try to pop another value -- it should block
-      @volatile var done = ""
+      @volatile var done   = ""
       @volatile var called = false
       Future {
         called = true
@@ -54,7 +54,7 @@ class FIFOTest extends BaseFlowSpec {
       ints.pop() shouldBe Option(List(1, 2, 3, 4))
 
       // now try to pop another value -- it should block
-      @volatile var done = Option.empty[List[Int]]
+      @volatile var done   = Option.empty[List[Int]]
       @volatile var called = false
       Future {
         called = true
@@ -84,7 +84,7 @@ class FIFOTest extends BaseFlowSpec {
       fifo.pop() shouldBe Option("third")
 
       // now try to pop another value -- it should block
-      @volatile var done = Option.empty[String]
+      @volatile var done   = Option.empty[String]
       @volatile var called = false
       Future {
         called = true

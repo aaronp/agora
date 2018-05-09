@@ -6,9 +6,9 @@ import org.scalatest.concurrent.Eventually
 class ConcatPublisherTest extends BaseFlowSpec {
   "CollatingPublisher.concat" should {
     "publish elements to multiple subscribers" in {
-      val first = Publishers.of(1, 2, 3)
+      val first  = Publishers.of(1, 2, 3)
       val second = Publishers.of(4, 5, 6)
-      val six = ConcatPublisher.concat(first, second)
+      val six    = ConcatPublisher.concat(first, second)
 
       val sub1 = new ListSubscriber[Int]
       sub1.request(5)
@@ -29,9 +29,9 @@ class ConcatPublisherTest extends BaseFlowSpec {
       }
     }
     "publish elements from both publishers in order" in {
-      val first = Publishers.of(1, 2, 3)
+      val first  = Publishers.of(1, 2, 3)
       val second = Publishers.of(4, 5, 6)
-      val six = ConcatPublisher.concat(first, second)
+      val six    = ConcatPublisher.concat(first, second)
 
       val sub1 = new ListSubscriber[Int]
       sub1.request(10)
@@ -43,7 +43,7 @@ class ConcatPublisherTest extends BaseFlowSpec {
     }
     "publish elements the same publisher twice" in {
       val three = Publishers.of(1, 2, 3)
-      val six = ConcatPublisher.concat(three, three)
+      val six   = ConcatPublisher.concat(three, three)
 
       val sub = new ListSubscriber[Int]
       sub.request(10)
@@ -55,7 +55,7 @@ class ConcatPublisherTest extends BaseFlowSpec {
 
     }
     "concat concatenated publishers" in {
-      val three = Publishers.of(1, 2, 3)
+      val three  = Publishers.of(1, 2, 3)
       val twelve = ConcatPublisher.concat(ConcatPublisher.concat(three, three), ConcatPublisher.concat(three, three))
 
       val sub = new ListSubscriber[Int]

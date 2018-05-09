@@ -4,7 +4,6 @@ import java.util.concurrent.LinkedBlockingQueue
 
 import cats.kernel.Semigroup
 
-
 /**
   * Provides a generic, minimal implementation of a queue for elements sent between a publisher and a subscriber
   *
@@ -22,7 +21,6 @@ trait FIFO[T] {
     */
   def enqueue(value: T): Boolean
 
-
   /**
     * A blocking operation to take an element from the queue.
     *
@@ -37,11 +35,12 @@ trait FIFO[T] {
 object FIFO {
 
   class FilteredFIFO[T](queue: FIFO[T], predicate: T => Boolean) extends FIFO[T] {
-    override def enqueue(value: T): Boolean = if (predicate(value)) {
-      queue.enqueue(value)
-    } else {
-      true
-    }
+    override def enqueue(value: T): Boolean =
+      if (predicate(value)) {
+        queue.enqueue(value)
+      } else {
+        true
+      }
 
     override def pop(): T = queue.pop()
   }
@@ -78,7 +77,6 @@ object FIFO {
     }
   }
 
-
   /** Creates a FIFO based on the semigroup
     *
     * @tparam T the FIFO type
@@ -104,7 +102,6 @@ object FIFO {
       }
       true
     }
-
     override def pop(): Option[T] = {
       Lock.synchronized {
         if (last.isEmpty) {
