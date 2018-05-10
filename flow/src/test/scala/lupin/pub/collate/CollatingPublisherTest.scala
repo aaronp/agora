@@ -9,6 +9,27 @@ import org.scalatest.GivenWhenThen
 class CollatingPublisherTest extends BaseFlowSpec with GivenWhenThen {
 
   "CollatingPublisher" should {
+    "consume from all publishers even after some have completed" in {
+      val cp = CollatingPublisher[Int, Int](fair = true)
+      val first = Publishers.of(1, 2, 3, 4, 5, 6)
+      val second = Publishers.of(100)
+      val negativeInts = (-10 to -1).toList
+      val third = Publishers.forValues(negativeInts)
+
+      When("The collating publisher subscribes to two publishers")
+      first.subscribe(cp.newSubscriber(1))
+      second.subscribe(cp.newSubscriber(2))
+      third.subscribe(cp.newSubscriber(3))
+
+      val sub = new ListSubscriber[Int]
+      cp.valuesPublisher.subscribe(sub)
+      sub.request(Long.MaxValue)
+
+      eventually {
+        sub.receivedInOrderReceived() should contain allElementsOf (negativeInts ++ List(1, 2, 3, 4, 5, 6, 100))
+      }
+
+    }
     "only request elements when all are consumed" in {
 
       //consider the case where we subscribe to 3 publishers.

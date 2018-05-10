@@ -143,9 +143,10 @@ class CollatingPublisherInstance[K, T](dao: DurableProcessorDao[(K, T)],
       // if we get to zero, we should automatically request more,
       // as some of the other publishers may be empty
       if (!fair && remaining == 0) {
-        val o = publisher.outstandingRequested()
-        if (o > 0) {
-          request(o)
+        val outstanding = publisher.outstandingRequested()
+        logger.debug(s"Fair is set, so $key requesting outstanding elms: $outstanding")
+        if (outstanding > 0) {
+          request(outstanding)
         }
       }
       publisher.enqueue(key, t)

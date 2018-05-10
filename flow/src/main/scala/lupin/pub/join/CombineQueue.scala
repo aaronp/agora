@@ -47,29 +47,30 @@ private[join] class CombineQueue[A, B](leftQueue: FIFO[LeftUpdate[A, B]],
 
   // calls to pop should all be single-threaded
   override def pop(): Option[TupleUpdate[A, B]] = {
-    if (completed) {
-      None
-    } else {
-      Lock.synchronized {
-        (leftCount, rightCount) match {
-          case (a, b) if a > 0 && b > 0 =>
-            val result = leftQueue.pop().and(rightQueue.pop().right)
-            leftCount = leftCount - 1
-            rightCount = rightCount - 1
-            Option(result)
-          case (a, _) if a > 0 =>
-            val result = leftQueue.pop()
-            leftCount = leftCount - 1
-            Option(result)
-          case (_, b) if b > 0 =>
-            val result = rightQueue.pop()
-            rightCount = rightCount - 1
-            Option(result)
-          case other =>
+    Thread.sleep(10)
+    Lock.synchronized {
+      (leftCount, rightCount) match {
+        case (a, b) if a > 0 && b > 0 =>
+          val result = leftQueue.pop().and(rightQueue.pop().right)
+          leftCount = leftCount - 1
+          rightCount = rightCount - 1
+          Option(result)
+        case (a, _) if a > 0 =>
+          val result = leftQueue.pop()
+          leftCount = leftCount - 1
+          Option(result)
+        case (_, b) if b > 0 =>
+          val result = rightQueue.pop()
+          rightCount = rightCount - 1
+          Option(result)
+        case other =>
+          if (completed && leftCount == 0 && rightCount == 0) {
+            None
+          } else {
             logger.debug(s"Combine queue waiting w/ $other")
             Lock.wait()
             pop()
-        }
+          }
       }
     }
   }
