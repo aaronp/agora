@@ -60,7 +60,7 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext: Execution
     this(Args(dao, propagateSubscriberRequestsToOurSubscription, currentIndexCounter))
   }
 
-  private val initialIndex: Long  = nextIndexCounter.get()
+  protected val initialIndex: Long  = nextIndexCounter.get()
   private var maxWrittenIndex     = initialIndex
   private val MaxWrittenIndexLock = new ReentrantReadWriteLock()
   private var subscribersById     = Map[Int, DurableSubscription[T]]()
@@ -74,6 +74,8 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext: Execution
   private var processorErrorOpt = Option.empty[Throwable]
 
   private val maxRequest = new MaxRequest()
+
+  protected def maxRequestedIndex() = maxRequest.get()
 
   def processorSubscription(): Option[Subscription] = subscriptionOpt
 
@@ -158,7 +160,7 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext: Execution
     }
   }
 
-  private[sequenced] def currentIndex() = {
+  protected[sequenced] def currentIndex() = {
     MaxWrittenIndexLock.readLock().lock()
     try {
       maxWrittenIndex
@@ -258,7 +260,7 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext: Execution
       s.cancel()
     } else {
       // trigger any requests from our subscribers
-      maxRequest.get() match {
+      maxRequestedIndex match {
         case n if n > 0 => s.request(n)
         case _          =>
       }

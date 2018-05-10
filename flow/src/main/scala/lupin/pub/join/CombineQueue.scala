@@ -12,36 +12,37 @@ import lupin.pub.FIFO
   * @tparam A
   * @tparam B
   */
-private[join] class CombineQueue[A, B](val leftQueue: FIFO[LeftUpdate[A, B]],
-                                       val rightQueue: FIFO[RightUpdate[A, B]]) extends FIFO[Option[TupleUpdate[A, B]]] with StrictLogging {
+private[join] class CombineQueue[A, B](leftQueue: FIFO[LeftUpdate[A, B]],
+                                       rightQueue: FIFO[RightUpdate[A, B]]) extends FIFO[Option[TupleUpdate[A, B]]] with StrictLogging {
 
   @volatile private var completed = false
 
   private object Lock
 
-  private var leftCount = 0
-  private var rightCount = 0
+  @volatile private var leftCount = 0
+  @volatile private var rightCount = 0
 
   override def enqueue(value: Option[TupleUpdate[A, B]]): Boolean = {
-    value match {
-      case None =>
-        completed = true
-        true
-      case Some(left@LeftUpdate(_)) =>
-        Lock.synchronized {
+    val result = Lock.synchronized {
+      value match {
+        case None =>
+          completed = true
+          Lock.notify()
+          true
+        case Some(left@LeftUpdate(_)) =>
           val ok = leftQueue.enqueue(left)
           leftCount = leftCount + 1
           Lock.notify()
           ok
-        }
-      case Some(right@RightUpdate(_)) =>
-        Lock.synchronized {
+        case Some(right@RightUpdate(_)) =>
           val ok = rightQueue.enqueue(right)
           rightCount = rightCount + 1
           Lock.notify()
           ok
-        }
+      }
     }
+    logger.debug(s"Enqueueing tuple $value has $leftCount and $rightCount, returning $result")
+    result
   }
 
   // calls to pop should all be single-threaded

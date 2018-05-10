@@ -13,18 +13,12 @@ private[collate] object ComputeRequested {
     * @param request
     * @return
     */
-  def apply[K](currentlyRequestedById: Iterator[(K, Long)], request: Long): Map[K, Long] = {
+  def apply[K](currentlyRequestedById: Iterator[(K, Long)], request: Long, ensureMinRequested: Boolean): Map[K, Long] = {
     if (currentlyRequestedById.isEmpty) {
       Map.empty
     } else {
-      if (request == 1) {
-        val (leastKey, _) = currentlyRequestedById.minBy(_._2)
-        Map(leastKey -> 1)
-      } else {
-
-        val (total, maxRequested, root) = sort(currentlyRequestedById)
-        root.calculateRequested(root, maxRequested, request, total)
-      }
+      val (total, maxRequested, root) = sort(currentlyRequestedById)
+      root.calculateRequested(root, maxRequested, request, total, ensureMinRequested)
     }
   }
 
@@ -42,15 +36,22 @@ private[collate] object ComputeRequested {
     * @param r
     */
   class SortedDiffNode[K](val key: K, r: Long) {
-    def append(updateMap: Map[K, Long]): Map[K, Long] = {
-      if (added > 0) {
+    def append(updateMap: Map[K, Long], ensureMinRequested: Boolean): Map[K, Long] = {
+      // ensure each provider always has at least one element requested... otherwise
+      // we will only go as fast as the slowest publisher
+      val amountToRequest = if (ensureMinRequested && requested == 0) {
+        1
+      } else {
+        added
+      }
+      if (amountToRequest > 0) {
         if (next != null) {
-          next.append(updateMap.updated(key, added))
+          next.append(updateMap.updated(key, amountToRequest), ensureMinRequested)
         } else {
-          updateMap.updated(key, added)
+          updateMap.updated(key, amountToRequest)
         }
       } else if (next != null) {
-        next.append(updateMap)
+        next.append(updateMap, ensureMinRequested)
       } else {
         updateMap
       }
@@ -65,7 +66,8 @@ private[collate] object ComputeRequested {
     def calculateRequested(head: SortedDiffNode[K],
                            maxRequestedFromAllSubscriptions: Long,
                            totalRemainingToRequest: Long,
-                           totalSubscriptions: Int): Map[K, Long] = {
+                           totalSubscriptions: Int,
+                           ensureMinRequested: Boolean): Map[K, Long] = {
       // don't bother trying to make everything evenly subscribed if
       // the first and last subscriptions are already equal
       if (head.requested == maxRequestedFromAllSubscriptions) {
@@ -74,7 +76,7 @@ private[collate] object ComputeRequested {
         val remaining = fillToMax(head, totalRemainingToRequest, totalSubscriptions)
         require(remaining == 0)
       }
-      head.append(Map[K, Long]())
+      head.append(Map[K, Long](), ensureMinRequested)
     }
 
     /**
@@ -106,7 +108,7 @@ private[collate] object ComputeRequested {
     def inc(amountToTakeForEachNode: Long, amountToTakeForEachNodeRemainder: Long, remaining: Long): Long = {
       if (remaining > 0) {
         val remainder = amountToTakeForEachNodeRemainder.min(1)
-        val take      = (amountToTakeForEachNode + remainder).min(remaining)
+        val take = (amountToTakeForEachNode + remainder).min(remaining)
         added = added + take
         if (next != null && next.requested < requested) {
           next.inc(amountToTakeForEachNode, amountToTakeForEachNodeRemainder - remainder, remaining - take)
@@ -128,6 +130,11 @@ private[collate] object ComputeRequested {
 
     /**
       * try to ensure all nodes have the same nr of requested
+      *
+      * @param head                    the first node in this linked list (the one w/ the least requested)
+      * @param totalRemainingToRequest the total amount remaining to request ... the number which should be spread across the publisher subscriptions
+      * @param totalSubscriptions      the number of subscriptions to fill
+      * @return the total amount outstanding left to request
       */
     def fillToMax(head: SortedDiffNode[K], totalRemainingToRequest: Long, totalSubscriptions: Int): Long = {
       if (totalRemainingToRequest > 0) {

@@ -1,6 +1,5 @@
 package lupin.pub.join
 
-import com.typesafe.scalalogging.StrictLogging
 import lupin.Publishers
 import lupin.data.HasKey
 import lupin.pub.FIFO
@@ -39,19 +38,22 @@ object JoinPublisher {
     //
     // first, create summat which will request from both publishers
     //
-    val collate = CollatingPublisher[Int, TupleUpdate[A, B]]()
+    val collate = CollatingPublisher[Int, TupleUpdate[A, B]](fair = true)
 
-    val fromLeft: Subscriber[TupleUpdate[A, B]] with HasKey[Int] = collate.newSubscriber(1)
+    val fromLeft = collate.newSubscriber(1)
     Publishers.map(left)(a => TupleUpdate.left[A, B](a)).subscribe(fromLeft)
+    fromLeft.request(1)
 
-    val fromRight: Subscriber[TupleUpdate[A, B]] with HasKey[Int] = collate.newSubscriber(2)
+
+    val fromRight = collate.newSubscriber(2)
     Publishers.map(right)(b => TupleUpdate.right[A, B](b)).subscribe(fromRight)
+    fromRight.request(1)
 
     //
     // now subscribe a subscriber-side passthrough publisher which will collate the values
     //
     val consumer = PassthroughPublisher[TupleUpdate[A, B]](() => new CombineQueue(newLeftQueue(), newRightQueue()))
-    collate.values.subscribe(consumer)
+    collate.valuesPublisher.subscribe(consumer)
 
     consumer
   }

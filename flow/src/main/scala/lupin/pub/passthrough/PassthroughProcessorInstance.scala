@@ -70,9 +70,9 @@ class PassthroughProcessorInstance[T](newQueue: () => FIFO[Option[T]])(implicit 
   override def onError(t: Throwable): Unit = {
     receivedError = receivedError.orElse(Option(t))
     val subscribers = SubscribersByIdLock.synchronized {
-      val oldSubsribers = subscribersById.values
+      val oldSubscribers = subscribersById.values
       subscribersById = Map.empty
-      oldSubsribers
+      oldSubscribers
     }
     subscribers.foreach(_.markOnError(t))
   }

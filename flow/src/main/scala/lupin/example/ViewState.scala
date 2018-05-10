@@ -120,7 +120,7 @@ class ViewState[ID] private (availableFieldsByName: Map[String, FieldFeed[ID]], 
   // exposes a publisher of 'CellUpdate[ID, FieldUpdate[ID]]' -- notifications when
   // a 'cell' is updated in the current ViewPort
   val cellPublisher: CollatingPublisher[FieldAndRange, CellUpdate[ID, FieldUpdate[ID]]] = {
-    CollatingPublisher[FieldAndRange, CellUpdate[ID, FieldUpdate[ID]]]()
+    CollatingPublisher[FieldAndRange, CellUpdate[ID, FieldUpdate[ID]]](fair = true)
   }
 
   var subscribedFieldsByName: Map[FieldAndRange, Subscription] = initialSubscribedFieldsByName

@@ -57,8 +57,8 @@ object Publishers {
     combine(first +: second +: theRest)
   }
 
-  def combine[T](publishers: Iterable[Publisher[T]])(implicit ec: ExecutionContext): Publisher[T] = {
-    val combined: CollatingPublisher[Int, T] = CollatingPublisher[Int, T]()
+  def combine[T](publishers: Iterable[Publisher[T]], fair : Boolean = true)(implicit ec: ExecutionContext): Publisher[T] = {
+    val combined: CollatingPublisher[Int, T] = CollatingPublisher[Int, T](fair = fair)
     publishers.zipWithIndex.foreach {
       case (pub, idx) =>
         val sub = combined.newSubscriber(idx)

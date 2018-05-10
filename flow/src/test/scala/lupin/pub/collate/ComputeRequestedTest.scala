@@ -36,7 +36,7 @@ class ComputeRequestedTest extends BaseFlowSpec {
       import tc.requested
 
       s"distribute a request for $requested across ${tc.subs} as ${tc.expctd}" in {
-        val updates: Map[Int, Long] = ComputeRequested(tc.input, requested)
+        val updates: Map[Int, Long] = ComputeRequested(tc.input, requested, true)
 
         val newState = updates.foldLeft(tc.input.toMap) {
           case (map, (id, r)) => map.updated(id, map(id) + r)
