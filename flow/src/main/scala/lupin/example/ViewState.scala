@@ -164,7 +164,7 @@ class ViewState[ID] private (availableFieldsByName: Map[String, FieldFeed[ID]], 
         fieldPublisher.subscribeWith(currentView.indices, newFieldSubscription)
 
         val cellFeed: Publisher[CellUpdate[ID, FieldUpdate[ID]]] = Publishers.map(newFieldSubscription) { next: FieldUpdate[ID] =>
-          asCellUpdate(fieldName, currentView, next, None)
+          asCellUpdate(fieldName, currentView, next)
         }
 
         val fieldAndRange: FieldAndRange = ??? //()
@@ -192,9 +192,9 @@ class ViewState[ID] private (availableFieldsByName: Map[String, FieldFeed[ID]], 
     ???
   }
 
-  def asCellUpdate(field: String, currentView: ViewPort, fieldUpdate: FieldUpdate[ID], previouslySentSeqNo: Option[SeqNo]): CellUpdate[ID, FieldUpdate[ID]] = {
+  def asCellUpdate(field: String, currentView: ViewPort, fieldUpdate: FieldUpdate[ID]): CellUpdate[ID, FieldUpdate[ID]] = {
     val cellUpdate: CellUpdate[ID, FieldUpdate[ID]] =
-      CellUpdate(previouslySentSeqNo, fieldUpdate.seqNo, Map(CellCoord(fieldUpdate.index, field) -> fieldUpdate))
+      CellUpdate(Map(CellCoord(fieldUpdate.index, field) -> fieldUpdate))
     cellUpdate
   }
 }

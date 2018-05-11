@@ -1,11 +1,10 @@
 package lupin.pub.join
 
 import lupin.Publishers
-import lupin.data.HasKey
 import lupin.pub.FIFO
 import lupin.pub.collate.CollatingPublisher
 import lupin.pub.passthrough.PassthroughPublisher
-import org.reactivestreams.{Publisher, Subscriber}
+import org.reactivestreams.Publisher
 
 import scala.concurrent.ExecutionContext
 

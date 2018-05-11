@@ -47,7 +47,6 @@ private[join] class CombineQueue[A, B](leftQueue: FIFO[LeftUpdate[A, B]],
 
   // calls to pop should all be single-threaded
   override def pop(): Option[TupleUpdate[A, B]] = {
-    Thread.sleep(10)
     Lock.synchronized {
       (leftCount, rightCount) match {
         case (a, b) if a > 0 && b > 0 =>

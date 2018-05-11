@@ -32,9 +32,18 @@ class JoinPublisherTest extends BaseFlowSpec with GivenWhenThen {
 
       sub2.request(2)
       eventually {
-        sub2.receivedInOrderReceived() shouldBe List(
-          BothUpdated(1, 4)
+        val possibleUpdates = List(
+          List(BothUpdated(1, 4), BothUpdated(2, 5)),
+          List(BothUpdated(1, 4), RightUpdate(5)),
+          List(BothUpdated(1, 4), LeftUpdate(2)),
+          List(LeftUpdate(1), BothUpdated(2, 4)),
+          List(LeftUpdate(1), RightUpdate(4))
         )
+        val actual = sub2.receivedInOrderReceived()
+
+        withClue(s"Actually received: $actual") {
+          possibleUpdates should contain(actual)
+        }
       }
 
       sub1.request((1 to 8).size)

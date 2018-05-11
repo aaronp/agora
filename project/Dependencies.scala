@@ -47,6 +47,9 @@ object Dependencies {
   val Api: List[ModuleID] = reactiveStreams :: logging ::: testDependencies ::: circe
   val Rest: List[ModuleID] = Api ::: akkaHttp ::: cucumber ::: List(pprint, swagger, cors) ::: streamsTck
   val RestApi: List[ModuleID] = Api ::: akkaHttp
-  val Flow: List[ModuleID] = reactiveStreams :: cats :: logging ::: testDependencies ::: streamsTck
+
+  val mongoDriver = "org.mongodb.scala" %% "mongo-scala-driver" % "2.3.0"
+
+  val Flow: List[ModuleID] = mongoDriver :: reactiveStreams :: cats :: logging ::: testDependencies ::: streamsTck
   val Json: List[ModuleID] = config :: circe ::: testDependencies
 }

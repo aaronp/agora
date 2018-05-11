@@ -57,7 +57,7 @@ object Publishers {
     combine(first +: second +: theRest)
   }
 
-  def combine[T](publishers: Iterable[Publisher[T]], fair : Boolean = true)(implicit ec: ExecutionContext): Publisher[T] = {
+  def combine[T](publishers: Iterable[Publisher[T]], fair: Boolean = true)(implicit ec: ExecutionContext): Publisher[T] = {
     val combined: CollatingPublisher[Int, T] = CollatingPublisher[Int, T](fair = fair)
     publishers.zipWithIndex.foreach {
       case (pub, idx) =>
@@ -83,6 +83,35 @@ object Publishers {
 
   def concat[T](head: Publisher[T])(subscribeNext: Subscriber[T] => Unit)(implicit ec: ExecutionContext): Publisher[T] = {
     ConcatPublisher.concat(head)(subscribeNext)
+  }
+
+  def foldLeft[A, B](underlying: Publisher[A], initialValue: B)(f: (B, A) => B): Publisher[B] = {
+
+    new Publisher[B] {
+      override def subscribe(mappedSubscriber: Subscriber[_ >: B]): Unit = {
+        object WrapperForA extends Subscriber[A] {
+          var combinedValue = initialValue
+
+          override def onSubscribe(sInner: Subscription): Unit = {
+            mappedSubscriber.onSubscribe(sInner)
+          }
+
+          override def onNext(t: A): Unit = {
+            combinedValue = f(combinedValue, t)
+            mappedSubscriber.onNext(combinedValue)
+          }
+
+          override def onError(t: Throwable): Unit = {
+            mappedSubscriber.onError(t)
+          }
+
+          override def onComplete(): Unit = {
+            mappedSubscriber.onComplete()
+          }
+        }
+        underlying.subscribe(WrapperForA)
+      }
+    }
   }
 
   def map[A, B](underlying: Publisher[A])(f: A => B): Publisher[B] = {

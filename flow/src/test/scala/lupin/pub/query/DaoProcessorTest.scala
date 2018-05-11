@@ -2,8 +2,9 @@ package lupin.pub.query
 
 import lupin.data.Accessor
 import lupin.{BaseFlowSpec, ListSubscriber, Publishers}
+import org.scalatest.GivenWhenThen
 
-class DaoProcessorTest extends BaseFlowSpec {
+class DaoProcessorTest extends BaseFlowSpec with GivenWhenThen {
 
   // create some example data type
   case class Person(id: Int, name: String)
@@ -44,30 +45,35 @@ class DaoProcessorTest extends BaseFlowSpec {
           Create(3, Person(3, "Jayne"))
         )
       }
-
     }
+
     "publish CRUD updates for filtered elements" in {
 
-      val dao = DaoProcessor[Int, Person]()
+      Given("Some data publisher")
       val people = Publishers.of(
         Person(1, "Georgina"),
         Person(2, "Eleanor"),
         Person(3, "Jayne"),
         Person(1, "George")
       )
+
+      When("we subscribe to the data w/ a DaoProcessor")
+      val dao = DaoProcessor[Int, Person]()
       people.subscribe(dao)
 
+      And("observe the data through the DaoProcessor")
       val crudListener = new ListSubscriber[CrudOperation[Int, Person]]
       dao.subscribeWith(Set(1, 3), crudListener)
 
       crudListener.receivedInOrderReceived() shouldBe Nil
-      crudListener.request(1)
 
+      Then("We should see Create values for the data requested")
+      crudListener.request(1)
       eventually {
         crudListener.receivedInOrderReceived() shouldBe List(Create(1, Person(1, "Georgina")))
       }
 
-      // request the next element (Eleanor, #2)
+      // sanity check that we're only getting the first requested element
       crudListener.request(1)
       Thread.sleep(testNegativeTimeout.toMillis)
       crudListener.receivedInOrderReceived() shouldBe List(Create(1, Person(1, "Georgina")))
@@ -77,6 +83,7 @@ class DaoProcessorTest extends BaseFlowSpec {
       Thread.sleep(testNegativeTimeout.toMillis)
       crudListener.receivedInOrderReceived() shouldBe List(Create(1, Person(1, "Georgina")), Create(3, Person(3, "Jayne")))
 
+      When("The last element is requested, it should see an update")
       // request the next element, an update to Georgina
       crudListener.request(1)
       Thread.sleep(testNegativeTimeout.toMillis)
@@ -85,6 +92,11 @@ class DaoProcessorTest extends BaseFlowSpec {
         Create(3, Person(3, "Jayne")),
         Update(1, Person(1, "George"))
       )
+
+      And("complete as the upstream data source is complete")
+      eventually {
+        crudListener.isCompleted() shouldBe true
+      }
     }
   }
 }

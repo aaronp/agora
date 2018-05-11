@@ -10,7 +10,7 @@ import org.reactivestreams.{Publisher, Subscriber}
 import scala.concurrent.ExecutionContext
 
 /**
-  * Represents a special case of a QueryPublisher which will publish [[CrudOperation]]s for a set of IDs  of type K.
+  * Represents a special case of a QueryPublisher which will publish [[CrudOperation]]s for a set of IDs of type K.
   *
   * @tparam K the key type
   * @tparam T the entity type
@@ -41,9 +41,14 @@ object DaoProcessor {
       }
     }
 
+    /**
+      *
+      * @param ids
+      * @param subscriber
+      */
     override def subscribeWith(ids: Set[K], subscriber: Subscriber[_ >: CrudOperation[K, T]]): Unit = {
 
-      val queue = {
+      val queue: FIFO[Option[CrudOperation[K, T]]] = {
         val simple = FIFO[Option[CrudOperation[K, T]]]()
         if (ids.nonEmpty) {
           FIFO.filter(simple) { op =>
@@ -60,6 +65,10 @@ object DaoProcessor {
         }
       }
 
+      /**
+        * If some ids are specified, then we need to publish the existing data as Create operations
+        * for those before publishing updates
+        */
       if (creates.nonEmpty) {
         val initial: Publisher[CrudOperation[K, T]] = Publishers.forValues(creates)
         Publishers
