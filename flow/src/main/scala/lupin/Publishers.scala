@@ -19,7 +19,7 @@ object Publishers {
     * @tparam T
     * @return a Publisher of the given elements
     */
-  def apply[T](iter: Iterator[T])(implicit ec: ExecutionContext): Publisher[T] = {
+  def apply[T](iter: Iterator[T])(implicit ec: ExecutionContext) = {
     new DurableProcessorInstance[T](DurableProcessorDao[T]()) {
       override def onRequest(n: Long): Unit = {
         var i = if (n > Int.MaxValue) {
@@ -85,10 +85,9 @@ object Publishers {
     ConcatPublisher.concat(head)(subscribeNext)
   }
 
-  def foldLeft[A, B](underlying: Publisher[A], initialValue: B)(f: (B, A) => B): Publisher[B] = {
-
-    new Publisher[B] {
-      override def subscribe(mappedSubscriber: Subscriber[_ >: B]): Unit = {
+  def foldWith[A, B, T](underlying: Publisher[A], initialValue: B)(f: (B, A) => (B, T)): Publisher[T] = {
+    new Publisher[T] {
+      override def subscribe(mappedSubscriber: Subscriber[_ >: T]): Unit = {
         object WrapperForA extends Subscriber[A] {
           var combinedValue = initialValue
 
@@ -97,8 +96,9 @@ object Publishers {
           }
 
           override def onNext(t: A): Unit = {
-            combinedValue = f(combinedValue, t)
-            mappedSubscriber.onNext(combinedValue)
+            val (newCombined, next) = f(combinedValue, t)
+            combinedValue = newCombined
+            mappedSubscriber.onNext(next)
           }
 
           override def onError(t: Throwable): Unit = {
@@ -112,6 +112,47 @@ object Publishers {
         underlying.subscribe(WrapperForA)
       }
     }
+  }
+
+  def foldLeft[A, B](underlying: Publisher[A], initialValue: B)(f: (B, A) => B): Publisher[B] = {
+    foldWith[A, B, B](underlying, initialValue) {
+      case (b, a) =>
+        val nextB = f(b, a)
+        nextB -> nextB
+    }
+  }
+
+  def filter[A](underlying: Publisher[A])(f: A => Boolean): Publisher[A] = {
+    new Publisher[A] {
+      override def subscribe(mappedSubscriber: Subscriber[_ >: A]): Unit = {
+        object WrapperForA extends Subscriber[A] {
+          private var ourSubscription: Subscription = null
+
+          override def onSubscribe(sInner: Subscription): Unit = {
+            mappedSubscriber.onSubscribe(sInner)
+            ourSubscription = sInner
+          }
+
+          override def onNext(t: A): Unit = {
+            if (f(t)) {
+              mappedSubscriber.onNext(t)
+            } else if (ourSubscription != null) {
+              ourSubscription.request(1)
+            }
+          }
+
+          override def onError(t: Throwable): Unit = {
+            mappedSubscriber.onError(t)
+          }
+
+          override def onComplete(): Unit = {
+            mappedSubscriber.onComplete()
+          }
+        }
+        underlying.subscribe(WrapperForA)
+      }
+    }
+
   }
 
   def map[A, B](underlying: Publisher[A])(f: A => B): Publisher[B] = {

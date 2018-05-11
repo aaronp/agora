@@ -1,81 +1,100 @@
 package lupin.pub.query
 
-import lupin.Publishers
-import lupin.example.{IndexRange, IndexSelection, SpecificIndices}
-import lupin.pub.sequenced.{DurableProcessor, DurableProcessorDao, DurableProcessorInstance}
-import lupin.sub.BaseSubscriber
-import org.reactivestreams.{Publisher, Subscriber, Subscription}
+import lupin.data.Accessor
+import org.reactivestreams.Publisher
 
 import scala.concurrent.ExecutionContext
 
-/** The idea of an 'Indexer' is something which indexes a property A of some type T.
-  *
-  * We'll have some original publisher of 'T' which gets mapped onto a key/value of [K, V],
-  * but for our purposes that can just be represented as a single type 'A' (e.g. A is [K,V])
-  *
-  * For this naive implementation, we just need an Ordering[A] to work out which index, then republish the (A, Index) ...
-  * which will in practice be the index, key and field value.
-  *
-  * @tparam T
-  */
-class Indexer[T: Ordering](override val defaultInput: IndexSelection)(implicit execContext: ExecutionContext)
-    extends QueryPublisher[IndexSelection, (T, Int)]
-    with BaseSubscriber[T] {
-
-  private var values                                        = Vector[T]()
-  private val publisher: DurableProcessorInstance[(T, Int)] = DurableProcessor[(T, Int)]()
-
-  def upsert(input: T): (T, Int) = {
-    if (!values.contains(input)) {
-      values = values :+ input
-    }
-    val idx  = values.indexOf(input)
-    val pear = (input, idx)
-    publisher.onNext(pear)
-    pear
-  }
-
-  override def onSubscribe(s: Subscription): Unit = {
-    publisher.onSubscribe(s)
-  }
-
-  override def subscribeWith(input: IndexSelection, subscriber: Subscriber[_ >: (T, Int)]): Unit = {
-    val queryPub: DurableProcessorInstance[(T, Int)] = Publishers(DurableProcessorDao[(T, Int)]())
-
-    val indicesIter: Iterator[Long] = input match {
-      case SpecificIndices(indices) => indices.iterator
-      case IndexRange(from, to)     => (from.to(to)).filter(_ <= Int.MaxValue).iterator
-    }
-
-    val lastReceived = publisher.lastIndex()
-    val get          = values.lift
-    indicesIter.foreach { idxLong =>
-      if (idxLong <= Int.MaxValue) {
-        get(idxLong.toInt).foreach { value =>
-          queryPub.onNext(value -> idxLong.toInt)
-        }
-      }
-    }
-    queryPub.onComplete()
-
-    Publishers
-      .concat(queryPub) { sub =>
-        lastReceived match {
-          case None      => publisher.subscribe(sub)
-          case Some(idx) => publisher.subscribeFrom(idx, sub)
-        }
-      }
-      .subscribe(subscriber)
-  }
-
-  override def onNext(value: T): Unit = {
-    upsert(value)
-  }
-}
-
 object Indexer {
-  def apply[T](data : Publisher[T]) = {
-    Publishers
 
+  case class Sequenced[T](seqNo: Long, data: T)
+
+  sealed trait IndexOperation[T]
+
+  case class NewIndex[T](index: Long, value: T) extends IndexOperation[T]
+
+  case class MovedIndex[T](from: Long, to: Long, value: T) extends IndexOperation[T]
+
+  case class RemovedIndex[T](index: Long, value: T) extends IndexOperation[T]
+
+
+  case class Indexed[K, T](seqNo: Long, id: K, indexOp: IndexOperation[T])
+
+
+  import lupin.implicits._
+
+  def crud[K, T](data: Publisher[T],
+                 inputDao: SyncDao[K, T] = null)(implicit accessor: Accessor.Aux[T, K], execContext: ExecutionContext): Publisher[(CrudOperation[K], T)] = {
+    val dao = if (inputDao == null) {
+      SyncDao[K, T](accessor)
+    } else {
+      inputDao
+    }
+
+    data.foldWith[SyncDao[K, T], (CrudOperation[K], T)](dao) {
+      case (db, next) =>
+        val (crudOp, newDao) = db.update(next)
+        newDao -> (crudOp, next)
+    }
+  }
+
+  def apply[K, T: Ordering](seqNoDataAndOp: Publisher[Sequenced[(CrudOperation[K], T)]]): Publisher[Indexed[K, T]] = {
+
+    class SortedEntry(val key: K, val value: T) {
+      override def equals(other: Any) = other match {
+        case se: SortedEntry => key == se.key
+        case _ => false
+      }
+
+      override def hashCode(): Int = key.hashCode()
+    }
+
+    def insert(sortedValues: Vector[SortedEntry], entry: SortedEntry): Vector[SortedEntry] = {
+      //        values :+ entry
+      import Ordering.Implicits._
+      val (before, after) = sortedValues.span(_.value < entry.value)
+      before ++: (entry +: after)
+    }
+
+    case class IndexStore(values: Vector[SortedEntry] = Vector()) {
+
+      def index(seqNo: Long, data: T, op: CrudOperation[K]): (IndexStore, Indexed[K, T]) = {
+        val entry = new SortedEntry(op.key, data)
+        op match {
+          case Create(key) =>
+            require(!values.contains(entry))
+            val newStore = copy(values = insert(values, entry))
+            val idx = values.indexOf(entry)
+            newStore -> Indexed[K, T](seqNo, key, NewIndex(idx, data))
+          case Update(key) =>
+            require(values.contains(entry))
+
+            val oldIndex = values.indexOf(entry)
+            val removedValues = values diff (List(entry))
+            require(removedValues.size == values.size - 1)
+
+            val newStore = copy(values = insert(removedValues, entry))
+
+            val idx = values.indexOf(entry)
+            newStore -> Indexed[K, T](seqNo, key, MovedIndex(oldIndex, idx, data))
+          case Delete(key) =>
+            require(values.contains(entry))
+
+            val oldIndex = values.indexOf(entry)
+            val removedValues = values diff (List(entry))
+            require(removedValues.size == values.size - 1)
+
+            val newStore = copy(values = removedValues)
+            newStore -> Indexed[K, T](seqNo, key, RemovedIndex(oldIndex, data))
+        }
+      }
+
+      this
+    }
+
+    seqNoDataAndOp.foldWith(new IndexStore) {
+      case (store, Sequenced(seqNo, (op, data))) =>
+        store.index(seqNo, data, op)
+    }
   }
 }

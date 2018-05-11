@@ -4,10 +4,10 @@ import lupin.Publishers
 import lupin.data.Accessor
 import lupin.pub.FIFO
 import lupin.pub.passthrough.PassthroughProcessorInstance
-import lupin.pub.sequenced.DurableProcessorInstance
 import lupin.sub.BaseSubscriber
-import org.reactivestreams.{Publisher, Subscriber}
+import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext
 
 /**
@@ -66,8 +66,78 @@ object DaoProcessor {
         */
       if (ids.nonEmpty) {
 
-        // subscribe to updates BEFORE feeding the existing data
-        val buffer: DurableProcessorInstance[CrudOperation[K, T]] = Publishers[CrudOperation[K, T]]()
+        class InternalBuffer[B] extends Publisher[B] with BaseSubscriber[B] {
+          private val listBuffer = ListBuffer[B]()
+
+          lazy val outerSubscription = subscription()
+          var connected: Subscriber[_ >: B] = null
+
+          private var errorOpt = Option.empty[Throwable]
+          private var completed = false
+
+          override def onError(t: Throwable): Unit = {
+            if (connected != null) {
+              connected.onError(t)
+            } else {
+              errorOpt = Option(t)
+            }
+          }
+
+          override def onComplete(): Unit = {
+            if (connected != null) {
+              connected.onComplete()
+            } else {
+              completed = true
+            }
+          }
+
+          override def subscribe(s: Subscriber[_ >: B]): Unit = {
+            // we're now joining onto the outer publisher
+            require(connected == null)
+            connected = s
+            connected.onSubscribe(new Subscription {
+              var totalRequested = 0L
+
+              override def request(n: Long): Unit = {
+                if (listBuffer.nonEmpty) {
+                  totalRequested = totalRequested + n
+                  if (totalRequested < 0) {
+                    totalRequested = Long.MaxValue
+                  }
+                  while (listBuffer.nonEmpty && totalRequested > 0) {
+                    connected.onNext(listBuffer.remove(0))
+                    totalRequested = totalRequested - 1
+                  }
+                  if (listBuffer.isEmpty && totalRequested > 0) {
+                    outerSubscription.request(totalRequested)
+                  }
+                } else {
+                  outerSubscription.request(n)
+                }
+              }
+
+              override def cancel(): Unit = {
+                outerSubscription.cancel()
+              }
+            })
+
+            errorOpt.foreach(connected.onError)
+            if (completed && errorOpt.isEmpty) {
+              connected.onComplete()
+            }
+          }
+
+          override def onNext(value: B): Unit = {
+            // either buffering or direct
+            if (connected == null || listBuffer.nonEmpty) {
+              listBuffer += value
+            } else {
+              connected.onNext(value)
+            }
+          }
+        }
+
+        val buffer = new InternalBuffer[CrudOperation[K, T]]
         publisher.subscribe(buffer, queue)
         buffer.request(1)
 
@@ -82,7 +152,12 @@ object DaoProcessor {
         }
 
         val initial: Publisher[CrudOperation[K, T]] = Publishers.forValues(requestedData)
-        Publishers.concat(initial, buffer).subscribe(subscriber)
+        val joined = Publishers.concat(initial) { sub =>
+          //          buffer.dec()
+          buffer.subscribe(sub)
+        }
+
+        joined.subscribe(subscriber)
       } else {
         publisher.subscribe(subscriber, queue)
       }

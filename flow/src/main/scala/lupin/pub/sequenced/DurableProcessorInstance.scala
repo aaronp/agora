@@ -4,24 +4,25 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
 import com.typesafe.scalalogging.StrictLogging
-import lupin.pub.sequenced.DurableProcessor.Args
 import org.reactivestreams.{Subscriber, Subscription}
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
-/** @param args
+
+/**
+  *
+  * @param dao                                          the durable bit -- what's going to write down the elements received
+  * @param propagateSubscriberRequestsToOurSubscription if true, requests from our subscribers will result us requesting data from our subscription
+  * @param currentIndexCounter                          the id (index) counter used to mark each element
   * @tparam T
   */
-class DurableProcessorInstance[T](args: Args[T])(implicit execContext: ExecutionContext) extends DurableProcessor[T] with StrictLogging {
+class DurableProcessorInstance[T](dao: DurableProcessorDao[T],
+                                  val propagateSubscriberRequestsToOurSubscription: Boolean = true,
+                                  currentIndexCounter: Long = -1L)(implicit execContext: ExecutionContext) extends DurableProcessor[T] with StrictLogging {
 
-  def this(dao: DurableProcessorDao[T], propagateSubscriberRequestsToOurSubscription: Boolean = true, currentIndexCounter: Long = -1L)(
-    implicit execContext: ExecutionContext) = {
-    this(Args(dao, propagateSubscriberRequestsToOurSubscription, currentIndexCounter))
-  }
-
-  protected[sequenced] val dao: DurableProcessorDao[T] = args.dao
-  val propagateSubscriberRequestsToOurSubscription = args.propagateSubscriberRequestsToOurSubscription
-  private val nextIndexCounter = new AtomicLong(args.nextIndex)
+  //  protected[sequenced] val dao: DurableProcessorDao[T] = args.dao
+  //  val propagateSubscriberRequestsToOurSubscription = args.propagateSubscriberRequestsToOurSubscription
+  private val nextIndexCounter = new AtomicLong(currentIndexCounter)
 
   // the DAO will likely be doing IO or some other potentially expensive operation to work out the last index
   // As it doesn't change once set, we cache it here if known.

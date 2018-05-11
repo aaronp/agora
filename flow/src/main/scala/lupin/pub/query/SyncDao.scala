@@ -17,7 +17,7 @@ import lupin.example.Lookup
 trait SyncDao[K, Result] extends Lookup[K, Result] {
   type Self <: SyncDao[K, Result]
 
-  def update(value: Result): (CrudOperation[K, Result], Self)
+  def update(value: Result): (CrudOperation[K], Self)
 
 }
 
@@ -27,8 +27,8 @@ object SyncDao {
     type Self = Buffer[K, T]
 
     override def update(value: T) = {
-      val key    = idx.get(value)
-      val crud   = map.get(key).fold(Create(key, value): CrudOperation[K, T])(_ => Update(key, value))
+      val key = idx.get(value)
+      val crud = map.get(key).fold(Create(key): CrudOperation[K])(_ => Update(key))
       val newMap = map.updated(key, value)
       crud -> new Buffer(newMap)
     }

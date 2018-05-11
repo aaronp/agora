@@ -214,5 +214,4 @@ object SubscriberStateCommand extends LazyLogging {
       }
     }
   }
-
 }
