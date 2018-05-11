@@ -35,7 +35,7 @@ object DurableProcessor extends StrictLogging {
   def apply[T]()(implicit ec: ExecutionContext): DurableProcessorInstance[T] = apply(DurableProcessorDao[T](), true)
 
   def apply[T](dao: DurableProcessorDao[T], propagateSubscriberRequestsToOurSubscription: Boolean = true)(implicit ec: ExecutionContext) = {
-    new DurableProcessorInstance[T](Args(dao, propagateSubscriberRequestsToOurSubscription, -1))
+    new DurableProcessorInstance[T](dao, propagateSubscriberRequestsToOurSubscription)
   }
 
   /**

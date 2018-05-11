@@ -14,6 +14,11 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
   */
 class DurableProcessorInstance[T](args: Args[T])(implicit execContext: ExecutionContext) extends DurableProcessor[T] with StrictLogging {
 
+  def this(dao: DurableProcessorDao[T], propagateSubscriberRequestsToOurSubscription: Boolean = true, currentIndexCounter: Long = -1L)(
+    implicit execContext: ExecutionContext) = {
+    this(Args(dao, propagateSubscriberRequestsToOurSubscription, currentIndexCounter))
+  }
+
   protected[sequenced] val dao: DurableProcessorDao[T] = args.dao
   val propagateSubscriberRequestsToOurSubscription = args.propagateSubscriberRequestsToOurSubscription
   private val nextIndexCounter = new AtomicLong(args.nextIndex)
@@ -54,11 +59,6 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext: Execution
   }
 
   def subscriberCount(): Int = SubscribersLock.synchronized(subscribersById.size)
-
-  def this(dao: DurableProcessorDao[T], propagateSubscriberRequestsToOurSubscription: Boolean = true, currentIndexCounter: Long = -1L)(
-    implicit execContext: ExecutionContext) = {
-    this(Args(dao, propagateSubscriberRequestsToOurSubscription, currentIndexCounter))
-  }
 
   protected val initialIndex: Long = nextIndexCounter.get()
   private var maxWrittenIndex = initialIndex

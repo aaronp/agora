@@ -1,8 +1,7 @@
 package lupin.pub.concat
 
-import lupin.pub.sequenced.DurableProcessor.Args
 import lupin.pub.sequenced.{DurableProcessorDao, DurableProcessorInstance}
-import org.reactivestreams.{Publisher, Subscriber, Subscription}
+import org.reactivestreams.{Publisher, Subscriber}
 
 import scala.concurrent.ExecutionContext
 
@@ -26,7 +25,7 @@ object ConcatPublisher {
       * Override the processor to change the behaviour of 'onComplete' to
       * instead subscribe to the second publisher
       */
-    val buffer = new DurableProcessorInstance[T](Args(DurableProcessorDao[T](), true, -1)) {
+    val buffer = new DurableProcessorInstance[T](DurableProcessorDao[T]()) {
       private var firstCompleted = false
       override def onComplete(): Unit = {
         if (firstCompleted) {

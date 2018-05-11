@@ -20,7 +20,7 @@ object Publishers {
     * @return a Publisher of the given elements
     */
   def apply[T](iter: Iterator[T])(implicit ec: ExecutionContext): Publisher[T] = {
-    new DurableProcessorInstance[T](new DurableProcessor.Args[T](DurableProcessorDao[T]())) {
+    new DurableProcessorInstance[T](DurableProcessorDao[T]()) {
       override def onRequest(n: Long): Unit = {
         var i = if (n > Int.MaxValue) {
           Int.MaxValue
