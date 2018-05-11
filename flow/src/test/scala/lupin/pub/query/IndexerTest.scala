@@ -5,7 +5,7 @@ import lupin.{BaseFlowSpec, ListSubscriber, Publishers}
 import org.reactivestreams.Publisher
 import org.scalatest.GivenWhenThen
 
-class DaoProcessorTest extends BaseFlowSpec with GivenWhenThen {
+class IndexerTest extends BaseFlowSpec with GivenWhenThen {
 
   // create some example data type
   case class Person(id: Int, name: String)
@@ -17,7 +17,7 @@ class DaoProcessorTest extends BaseFlowSpec with GivenWhenThen {
     override def get(value: Person): Index = value.id
   }
 
-  "DaoProcessor" should {
+  "Indexer.crud" should {
     "publish initial elements meeting the criteria" in {
 
 

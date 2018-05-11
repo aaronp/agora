@@ -24,7 +24,7 @@ class CellUpdateTest extends BaseFlowSpec with GivenWhenThen {
         Person(6, "kevin", "arnold", "green"))
 
       And("A ViewPort feed")
-      val viewUpdates = Publishers.instance[ViewPort]()
+      val viewUpdates = Publishers.sequenced[ViewPort]()
 
       When("the two are joined in a table view")
       val tables = TableView.subscribeTo(pub, viewUpdates.valuesPublisher())

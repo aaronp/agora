@@ -1,17 +1,20 @@
 package lupin.pub.query
 
+import lupin.Publishers
 import lupin.data.Accessor
+import lupin.example.{IndexRange, IndexSelection, SpecificIndices}
 import org.reactivestreams.Publisher
 
 import scala.concurrent.ExecutionContext
 
+trait Indexer[K, T] {
+  type Self <: Indexer[K, T]
+
+  def index(seqNo: Long, data: T, op: CrudOperation[K]): (Self, IndexedValue[K, T])
+
+}
+
 object Indexer {
-
-  case class Sequenced[T](seqNo: Long, data: T)
-
-
-  case class Indexed[K, T](seqNo: Long, id: K, indexOp: IndexOperation[T])
-
 
   import lupin.implicits._
 
@@ -31,64 +34,87 @@ object Indexer {
   }
 
 
-
-  def apply[K, T: Ordering](seqNoDataAndOp: Publisher[Sequenced[(CrudOperation[K], T)]]): Publisher[Indexed[K, T]] = {
-
-    class SortedEntry(val key: K, val value: T) {
-      override def equals(other: Any) = other match {
-        case se: SortedEntry => key == se.key
-        case _ => false
-      }
-
-      override def hashCode(): Int = key.hashCode()
-    }
-
-    def insert(sortedValues: Vector[SortedEntry], entry: SortedEntry): Vector[SortedEntry] = {
-      //        values :+ entry
-      import Ordering.Implicits._
-      val (before, after) = sortedValues.span(_.value < entry.value)
-      before ++: (entry +: after)
-    }
-
-    case class IndexStore(values: Vector[SortedEntry] = Vector()) {
-
-      def index(seqNo: Long, data: T, op: CrudOperation[K]): (IndexStore, Indexed[K, T]) = {
-        val entry = new SortedEntry(op.key, data)
-        op match {
-          case Create(key) =>
-            require(!values.contains(entry))
-            val newStore = copy(values = insert(values, entry))
-            val idx = values.indexOf(entry)
-            newStore -> Indexed[K, T](seqNo, key, NewIndex(idx, data))
-          case Update(key) =>
-            require(values.contains(entry))
-
-            val oldIndex = values.indexOf(entry)
-            val removedValues = values diff (List(entry))
-            require(removedValues.size == values.size - 1)
-
-            val newStore = copy(values = insert(removedValues, entry))
-
-            val idx = values.indexOf(entry)
-            newStore -> Indexed[K, T](seqNo, key, MovedIndex(oldIndex, idx, data))
-          case Delete(key) =>
-            require(values.contains(entry))
-
-            val oldIndex = values.indexOf(entry)
-            val removedValues = values diff (List(entry))
-            require(removedValues.size == values.size - 1)
-
-            val newStore = copy(values = removedValues)
-            newStore -> Indexed[K, T](seqNo, key, RemovedIndex(oldIndex, data))
-        }
-      }
-
-      this
-    }
-
-    seqNoDataAndOp.foldWith(new IndexStore) {
-      case (store, Sequenced(seqNo, (op, data))) =>
-        store.index(seqNo, data, op)
+  def apply[K, T: Ordering](seqNoDataAndOp: Publisher[Sequenced[(CrudOperation[K], T)]],
+                            indexer: Indexer[K, T] = slowInMemoryIndexer[K, T]()
+                           ): Publisher[IndexedValue[K, T]] = {
+    seqNoDataAndOp.foldWith(indexer) {
+      case (store, Sequenced(seqNo, (op, data))) => store.index(seqNo, data, op)
     }
   }
+
+
+  private class SortedEntry[K, T](val key: K, val seqNo: Long, val value: T) {
+    override def equals(other: Any) = other match {
+      case se: SortedEntry[_, _] => key == se.key
+      case _ => false
+    }
+
+    override def hashCode(): Int = key.hashCode()
+  }
+
+  private def insert[K, T: Ordering](sortedValues: Vector[SortedEntry[K, T]], entry: SortedEntry[K, T]): Vector[SortedEntry[K, T]] = {
+    import Ordering.Implicits._
+    val (before, after) = sortedValues.span(_.value < entry.value)
+    before ++: (entry +: after)
+  }
+
+
+  type QueryIndexer[K, T] = Indexer[K, T] with IndexQuerySource[K, T] { type Self <: Indexer[K, T] with IndexQuerySource[K, T]}
+  def slowInMemoryIndexer[K, T](): QueryIndexer[K, T] = new IndexStore
+
+  private case class IndexStore[K, T: Ordering](values: Vector[SortedEntry[K, T]] = Vector()) extends Indexer[K, T] with IndexQuerySource[K, T] {
+
+    override type Self = IndexStore[K, T]
+
+    override def index(seqNo: Long, data: T, op: CrudOperation[K]) = {
+      val entry = new SortedEntry(op.key, seqNo, data)
+      op match {
+        case Create(key) =>
+          require(!values.contains(entry))
+          val newStore = copy(values = insert(values, entry))
+          val idx = values.indexOf(entry)
+          newStore -> IndexedValue[K, T](seqNo, key, NewIndex(idx, data))
+        case Update(key) =>
+          require(values.contains(entry))
+
+          val oldIndex = values.indexOf(entry)
+          val removedValues = values diff (List(entry))
+          require(removedValues.size == values.size - 1)
+
+          val newStore = copy(values = insert(removedValues, entry))
+
+          val idx = values.indexOf(entry)
+          newStore -> IndexedValue[K, T](seqNo, key, MovedIndex(oldIndex, idx, data))
+        case Delete(key) =>
+          require(values.contains(entry))
+
+          val oldIndex = values.indexOf(entry)
+          val removedValues = values diff (List(entry))
+          require(removedValues.size == values.size - 1)
+
+          val newStore = copy(values = removedValues)
+          newStore -> IndexedValue[K, T](seqNo, key, RemovedIndex(oldIndex, data))
+      }
+    }
+
+    override def query(criteria: IndexSelection) = {
+      val get = values.lift
+      val indicesIterator = criteria match {
+        case IndexRange(from, to) => (from to to).iterator
+        case SpecificIndices(indices) => indices.iterator
+      }
+
+      val found = indicesIterator.flatMap { idx =>
+        if (idx > Int.MaxValue | idx < 0) {
+          None
+        } else {
+          get(idx.toInt).map { entry =>
+            IndexQueryResult[K, T](entry.seqNo, entry.key, idx, entry.value)
+          }
+        }
+      }
+      Publishers(found)
+    }
+  }
+
 }

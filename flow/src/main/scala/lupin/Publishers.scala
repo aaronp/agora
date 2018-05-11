@@ -20,31 +20,49 @@ object Publishers {
     * @return a Publisher of the given elements
     */
   def apply[T](iter: Iterator[T])(implicit ec: ExecutionContext) = {
-    new DurableProcessorInstance[T](DurableProcessorDao[T]()) {
-      override def onRequest(n: Long): Unit = {
-        var i = if (n > Int.MaxValue) {
-          Int.MaxValue
+    unfold {
+      case _ =>
+        if (iter.hasNext) {
+          None
         } else {
-          n.toInt
+          Option(iter.next)
         }
-        while (i > 0 && iter.hasNext) {
-          onNext(iter.next())
-          i = i - 1
-        }
-        if (!iter.hasNext) {
-          onComplete()
-        }
-      }
-    }.valuesPublisher()
+    }
   }
 
-  def instance[T](dao: DurableProcessorDao[T] = DurableProcessorDao[T]())(implicit ec: ExecutionContext): DurableProcessorInstance[T] = {
+  def sequenced[T](dao: DurableProcessorDao[T] = DurableProcessorDao[T]())(implicit ec: ExecutionContext): DurableProcessorInstance[T] = {
     DurableProcessor[T](dao)
   }
 
   def of[T](items: T*)(implicit ec: ExecutionContext) = apply(items.iterator)
 
   def forValues[T](items: Iterable[T])(implicit ec: ExecutionContext): Publisher[T] = apply(items.iterator)
+
+  def unfold[T](createNext: Option[T] => Option[T]): Publisher[T] = {
+    new DurableProcessorInstance[T](DurableProcessorDao[T]()) {
+      var currentlyRequested = 0L
+      var previous = Option.empty[T]
+
+      def hasNext = previous.nonEmpty
+
+      override def onRequest(n: Long): Unit = {
+        require(n > 0)
+        currentlyRequested = currentlyRequested + n
+        if (currentlyRequested < 0) {
+          currentlyRequested = Long.MaxValue
+        }
+        do {
+          previous = createNext(previous)
+          previous.foreach(onNext)
+          currentlyRequested = currentlyRequested - 1
+        } while (hasNext && currentlyRequested > 0)
+
+        if (!hasNext) {
+          onComplete()
+        }
+      }
+    }.valuesPublisher()
+  }
 
   /**
     * Joins the given publishers of the same type into a single [[Publisher]]
