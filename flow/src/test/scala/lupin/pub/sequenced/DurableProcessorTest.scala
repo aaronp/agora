@@ -22,7 +22,7 @@ class DurableProcessorTest extends BaseFlowSpec {
       processorUnderTest.onNext("penultimate")
 
       val sub1 = new ListSubscriber[String]
-      processorUnderTest.subscribe(sub1)
+      processorUnderTest.valuesPublisher().subscribe(sub1)
       sub1.receivedInOrderReceived() shouldBe Nil
       sub1.request(2)
       sub1.isCompleted() shouldBe false
@@ -31,7 +31,7 @@ class DurableProcessorTest extends BaseFlowSpec {
       }
 
       val sub2 = new ListSubscriber[String]
-      processorUnderTest.subscribe(sub2)
+      processorUnderTest.valuesPublisher().subscribe(sub2)
       sub2.request(100)
       eventually {
         sub2.receivedInOrderReceived() shouldBe List("first", "penultimate")
@@ -66,7 +66,7 @@ class DurableProcessorTest extends BaseFlowSpec {
       processorUnderTest.onNext("only element")
       processorUnderTest.onComplete()
 
-      val sub1 = new ListSubscriber[String]
+      val sub1 = new ListSubscriber[(Long, String)]
       processorUnderTest.subscribe(sub1)
       sub1.receivedInOrderReceived() shouldBe Nil
       sub1.isCompleted() shouldBe false
@@ -79,7 +79,7 @@ class DurableProcessorTest extends BaseFlowSpec {
 
       val sub2 = new ListSubscriber[String]
       sub2.request(2)
-      processorUnderTest.subscribe(sub2)
+      processorUnderTest.valuesPublisher().subscribe(sub2)
       eventually {
         sub2.receivedInOrderReceived() shouldBe List("only element")
         sub2.isCompleted() shouldBe true
@@ -95,8 +95,8 @@ class DurableProcessorTest extends BaseFlowSpec {
           inlineSubscriberMsg = msg
           s.request(1)
       }
-      controlMessagePublisher.subscribe(listener)
-      controlMessagePublisher.subscribe(listener2)
+      controlMessagePublisher.valuesPublisher().subscribe(listener)
+      controlMessagePublisher.valuesPublisher().subscribe(listener2)
       listener.request(1)
       controlMessagePublisher.onNext("first msg")
 
@@ -107,12 +107,12 @@ class DurableProcessorTest extends BaseFlowSpec {
     }
     "request when subscribed if it has subscribers who requested data" in {
       object Pub extends TestPub
-      val processorUnderTest = DurableProcessor[Int]()
+      val processorUnderTest: DurableProcessorInstance[Int] = DurableProcessor[Int]()
       Pub.verifyRequestsPropagated(processorUnderTest)
     }
     "pull from its publisher when its subscribers pull" in {
       object Pub extends TestPub
-      val processorUnderTest = DurableProcessor[Int]()
+      val processorUnderTest: DurableProcessorInstance[Int] = DurableProcessor[Int]()
       Pub.verifySubscriber(processorUnderTest)
       processorUnderTest.processorSubscription().size shouldBe 1
     }
@@ -123,7 +123,7 @@ class DurableProcessorTest extends BaseFlowSpec {
       processorUnderTest.onNext(1)
       processorUnderTest.onComplete()
 
-      val sub = new ListSubscriber[Int]
+      val sub = new ListSubscriber[(Long, Int)]
       sub.request(10)
       processorUnderTest.subscribeFrom(1, sub)
       eventually {
@@ -133,7 +133,7 @@ class DurableProcessorTest extends BaseFlowSpec {
         sub.receivedInOrderReceived() shouldBe Nil
       }
 
-      val sub2 = new ListSubscriber[Int]
+      val sub2 = new ListSubscriber[(Long, Int)]
       sub2.request(10)
       processorUnderTest.subscribeFrom(0, sub2)
       eventually {
@@ -144,7 +144,7 @@ class DurableProcessorTest extends BaseFlowSpec {
     "request data before values are pushed" in {
       val processor = DurableProcessor[String]()
 
-      val subscriber = new ListSubscriber[String]
+      val subscriber = new ListSubscriber[(Long, String)]
       processor.subscribe(subscriber)
 
       subscriber.request(7)
@@ -157,7 +157,7 @@ class DurableProcessorTest extends BaseFlowSpec {
       //      processor.firstIndex shouldBe 0
       processor.latestIndex shouldBe None
 
-      val startAtThree = new ListSubscriber[String]
+      val startAtThree = new ListSubscriber[(Long, String)]
       startAtThree.request(2)
       processor.subscribeFrom(2, startAtThree)
 
@@ -168,7 +168,7 @@ class DurableProcessorTest extends BaseFlowSpec {
       processor.onNext("c") // 2
       startAtThree.verifyReceived("c")
 
-      val startAtTwo = new ListSubscriber[String]
+      val startAtTwo = new ListSubscriber[(Long, String)]
       startAtTwo.request(1)
       processor.subscribeFrom(1, startAtTwo)
       startAtTwo.verifyReceived("b")
@@ -179,14 +179,14 @@ class DurableProcessorTest extends BaseFlowSpec {
     "support multiple subscriptions" in {
       val processor = DurableProcessor[String]()
 
-      val firstSubscriber = new ListSubscriber[String]
+      val firstSubscriber = new ListSubscriber[(Long, String)]
       firstSubscriber.request(2)
       processor.subscribe(firstSubscriber)
 
       processor.onNext("a")
       firstSubscriber.verifyReceived("a")
 
-      val secondSubscriber = new ListSubscriber[String]
+      val secondSubscriber = new ListSubscriber[(Long, String)]
       processor.subscribe(secondSubscriber)
       secondSubscriber.receivedInOrderReceived() shouldBe Nil
 
@@ -233,7 +233,7 @@ class DurableProcessorTest extends BaseFlowSpec {
         processor.latestIndex shouldBe Option(2)
       }
 
-      val subscriber = new ListSubscriber[String]
+      val subscriber = new ListSubscriber[(Long, String)]
       processor.subscribe(subscriber)
       subscriber.isSubscribed() shouldBe true
       val subscription = subscriber.subscription().asInstanceOf[DurableSubscription[_]]
@@ -277,14 +277,14 @@ class DurableProcessorTest extends BaseFlowSpec {
       requests = n :: requests
     }
 
-    def verifyRequestsPropagated(processorUnderTest: Publisher[Int] with Subscriber[Int]) = {
+    def verifyRequestsPropagated(processorUnderTest: DurableProcessorInstance[Int]) = {
       requests shouldBe Nil
 
       val downstreamFirst = new ListSubscriber[Int]()
-      processorUnderTest.subscribe(downstreamFirst)
+      processorUnderTest.valuesPublisher().subscribe(downstreamFirst)
       downstreamFirst.request(12)
       val downstreamSecond = new ListSubscriber[Int]()
-      processorUnderTest.subscribe(downstreamSecond)
+      processorUnderTest.valuesPublisher().subscribe(downstreamSecond)
       downstreamSecond.request(14)
 
       subscribe(processorUnderTest)
@@ -297,14 +297,14 @@ class DurableProcessorTest extends BaseFlowSpec {
       }
     }
 
-    def verifySubscriber(processorUnderTest: Publisher[Int] with Subscriber[Int]) = {
+    def verifySubscriber(processorUnderTest: DurableProcessorInstance[Int]) = {
       subscribe(processorUnderTest)
       requests shouldBe Nil
 
       val downstreamFirst = new ListSubscriber[Int]()
-      processorUnderTest.subscribe(downstreamFirst)
+      processorUnderTest.valuesPublisher().subscribe(downstreamFirst)
       val downstreamSecond = new ListSubscriber[Int]()
-      processorUnderTest.subscribe(downstreamSecond)
+      processorUnderTest.valuesPublisher().subscribe(downstreamSecond)
 
       withClue("The historic processor should only request the maximum requested of its subscribers") {
         downstreamFirst.request(2)

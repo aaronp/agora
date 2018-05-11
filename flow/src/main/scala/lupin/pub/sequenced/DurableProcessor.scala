@@ -12,7 +12,7 @@ import scala.concurrent.ExecutionContext
   */
 trait DurableProcessor[T] extends Publisher[(Long, T)] with Subscriber[T] {
 
-  def subscribeFrom(index: Long, subscriber: Subscriber[_ >: T]): Unit
+  def subscribeFrom(index: Long, subscriber: Subscriber[_ >: (Long, T)]): Unit
 
   /**
     * The default is to start subscribing from the first available index
@@ -22,12 +22,21 @@ trait DurableProcessor[T] extends Publisher[(Long, T)] with Subscriber[T] {
 
   /** @return the first index available to read from, or -1 if none
     */
-  def firstIndex: Long
+  def firstIndex(): Long
 
   /**
     * @return the most-recently written index
     */
   def latestIndex: Option[Long]
+
+  /**
+    * Convenience to provide just the data values w/o the indices
+    * @return a publisher of the data w/o the indices
+    */
+  def valuesPublisher() : Publisher[T] = {
+    import lupin.implicits._
+    this.map(_._2)
+  }
 }
 
 object DurableProcessor extends StrictLogging {

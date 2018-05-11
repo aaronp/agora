@@ -18,7 +18,7 @@ class DurableProcessorSubscriberWhiteboxVerification extends SubscriberWhiteboxV
   }
   override def createSubscriber(probe: SubscriberWhiteboxVerification.WhiteboxSubscriberProbe[String]): Subscriber[String] = {
     val dp = DurableProcessor[String]()
-    dp.subscribe(new Subscriber[String] {
+    dp.valuesPublisher().subscribe(new Subscriber[String] {
       override def onSubscribe(s: Subscription): Unit = {
         probe.registerOnSubscribe(new SubscriberWhiteboxVerification.SubscriberPuppet() {
           override def triggerRequest(elements: Long): Unit = {

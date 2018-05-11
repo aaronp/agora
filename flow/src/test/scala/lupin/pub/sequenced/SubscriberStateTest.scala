@@ -8,14 +8,14 @@ class SubscriberStateTest extends BaseFlowSpec {
 
   "SubscriberState.update" should {
     "not push elements when none are available" in {
-      val subscriber = new ListSubscriber[String]
+      val subscriber = new ListSubscriber[(Long, String)]
       val state      = new SubscriberState(subscriber, TestDao, -1)
       state.update(OnRequest(1)) shouldBe ContinueResult
       subscriber.received() shouldBe Nil
       subscriber.isCompleted() shouldBe false
     }
     "not push available elements until requested" in {
-      val subscriber = new ListSubscriber[String]
+      val subscriber = new ListSubscriber[(Long, String)]
       val state      = new SubscriberState(subscriber, TestDao, -1)
       state.update(OnNewIndexAvailable(4)) shouldBe ContinueResult
       subscriber.receivedInOrderReceived() shouldBe Nil
@@ -25,7 +25,7 @@ class SubscriberStateTest extends BaseFlowSpec {
       subscriber.receivedInOrderReceived() shouldBe List("0")
     }
     "push all elements when told some are available after requested" in {
-      val subscriber = new ListSubscriber[String]
+      val subscriber = new ListSubscriber[(Long, String)]
       val state      = new SubscriberState(subscriber, TestDao, -1)
       state.update(OnRequest(2)) shouldBe ContinueResult
       state.update(OnNewIndexAvailable(4)) shouldBe ContinueResult
@@ -36,7 +36,7 @@ class SubscriberStateTest extends BaseFlowSpec {
       subscriber.receivedInOrderReceived() shouldBe List("0", "1", "2")
     }
     "push all elements when completed" in {
-      val subscriber = new ListSubscriber[String]
+      val subscriber = new ListSubscriber[(Long, String)]
       val state      = new SubscriberState(subscriber, TestDao, -1)
       state.update(OnRequest(1)) shouldBe ContinueResult
       state.update(OnComplete(1)) shouldBe ContinueResult
@@ -48,13 +48,13 @@ class SubscriberStateTest extends BaseFlowSpec {
       subscriber.isCompleted() shouldBe true
     }
     "return Stop when cancelled" in {
-      val state = new SubscriberState(new ListSubscriber[String], TestDao, -1)
+      val state = new SubscriberState(new ListSubscriber[(Long, String)], TestDao, -1)
       state.update(OnCancel) shouldBe CancelResult
     }
     "return Stop when an exception is thrown" in {
-      val errorSubscriber = new ListSubscriber[String] {
-        override def onNext(t: String): Unit = {
-          sys.error(t)
+      val errorSubscriber = new ListSubscriber[(Long, String)] {
+        override def onNext(t: (Long, String)): Unit = {
+          sys.error(t._2)
         }
       }
       val state = new SubscriberState(errorSubscriber, TestDao, -1)

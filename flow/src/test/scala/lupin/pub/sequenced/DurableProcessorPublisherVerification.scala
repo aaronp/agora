@@ -42,7 +42,7 @@ class DurableProcessorPublisherVerification extends PublisherVerification[String
     if (elements > 100) {
       val dao                                  = new RangeDao(elements)
       val dp: DurableProcessorInstance[String] = DurableProcessor[String](dao)
-      dp
+      dp.valuesPublisher()
     } else {
       val dp = DurableProcessor[String]()
       var i  = 0L
@@ -51,14 +51,14 @@ class DurableProcessorPublisherVerification extends PublisherVerification[String
         dp.onNext("" + i)
       }
       dp.onComplete()
-      dp
+      dp.valuesPublisher()
     }
   }
 
   override def createFailedPublisher(): Publisher[String] = {
     val dp: DurableProcessorInstance[String] = DurableProcessor[String]
     dp.onError(new Exception("bang"))
-    dp
+    dp.valuesPublisher()
   }
 }
 

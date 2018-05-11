@@ -1,9 +1,10 @@
 package lupin.example
 
-import lupin.pub.sequenced.DurableProcessor
 import lupin.{BaseFlowSpec, ListSubscriber, Publishers}
+import org.reactivestreams.Publisher
 import org.scalatest.GivenWhenThen
-import org.scalatest.concurrent.Eventually
+
+import scala.concurrent.ExecutionContext.Implicits._
 
 class CellUpdateTest extends BaseFlowSpec with GivenWhenThen {
 
@@ -23,10 +24,10 @@ class CellUpdateTest extends BaseFlowSpec with GivenWhenThen {
         Person(6, "kevin", "arnold", "green"))
 
       And("A ViewPort feed")
-      val viewUpdates = Publishers[ViewPort]()
+      val viewUpdates = Publishers.instance[ViewPort]()
 
       When("the two are joined in a table view")
-      val tables = TableView.subscribeTo(pub, viewUpdates)
+      val tables = TableView.subscribeTo(pub, viewUpdates.valuesPublisher())
 
       Then("we should be able to observe the data flowing through the data source via the view port")
       // now create a table view based on the data and views

@@ -58,14 +58,14 @@ class CollatingPublisherVerification extends PublisherVerification[String](testE
     }
 
     val cp = CollatingPublisher[String, String](fair = true)
-    upstream.subscribe(cp.newSubscriber("test"))
+    upstream.valuesPublisher().subscribe(cp.newSubscriber("test"))
     Publishers.map(cp)(_._2)
   }
 
   override def createFailedPublisher(): Publisher[String] = {
     val upstream = DurableProcessor[String]()
     val cp       = CollatingPublisher[String, String](fair = true)
-    upstream.subscribe(cp.newSubscriber("test"))
+    upstream.valuesPublisher().subscribe(cp.newSubscriber("test"))
     upstream.onError(new Exception("bang"))
     Publishers.map(cp)(_._2)
   }

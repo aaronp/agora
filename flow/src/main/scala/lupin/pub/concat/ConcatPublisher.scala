@@ -39,7 +39,7 @@ object ConcatPublisher {
     }
     head.subscribe(buffer)
 
-    buffer
+    buffer.valuesPublisher()
   }
 
 }

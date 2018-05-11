@@ -9,14 +9,6 @@ object Indexer {
 
   case class Sequenced[T](seqNo: Long, data: T)
 
-  sealed trait IndexOperation[T]
-
-  case class NewIndex[T](index: Long, value: T) extends IndexOperation[T]
-
-  case class MovedIndex[T](from: Long, to: Long, value: T) extends IndexOperation[T]
-
-  case class RemovedIndex[T](index: Long, value: T) extends IndexOperation[T]
-
 
   case class Indexed[K, T](seqNo: Long, id: K, indexOp: IndexOperation[T])
 
@@ -37,6 +29,8 @@ object Indexer {
         newDao -> (crudOp, next)
     }
   }
+
+
 
   def apply[K, T: Ordering](seqNoDataAndOp: Publisher[Sequenced[(CrudOperation[K], T)]]): Publisher[Indexed[K, T]] = {
 

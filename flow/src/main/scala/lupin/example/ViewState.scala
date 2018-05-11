@@ -106,7 +106,7 @@ class ViewState[ID] private (availableFieldsByName: Map[String, FieldFeed[ID]], 
     timeout: FiniteDuration) {
 
   // exposes a publisher/subscriber for ViewPort updates
-  val viewSubscription = DurableProcessor[ViewPort]()
+  val viewSubscription: DurableProcessorInstance[ViewPort] = DurableProcessor[ViewPort]()
 
   private val viewUpdateListener = BaseSubscriber[ViewPort](1) {
     case (s, viewPort) =>
@@ -115,7 +115,7 @@ class ViewState[ID] private (availableFieldsByName: Map[String, FieldFeed[ID]], 
   }
 
   viewUpdateListener.request(1)
-  viewSubscription.subscribe(viewUpdateListener)
+  viewSubscription.valuesPublisher().subscribe(viewUpdateListener)
 
   // exposes a publisher of 'CellUpdate[ID, FieldUpdate[ID]]' -- notifications when
   // a 'cell' is updated in the current ViewPort
@@ -161,16 +161,18 @@ class ViewState[ID] private (availableFieldsByName: Map[String, FieldFeed[ID]], 
       case (fieldName, fieldPublisher) if requiredNewSubscriptions.contains(fieldName) =>
         // subscribe from the given indices
         val newFieldSubscription = DurableProcessor[FieldUpdate[ID]]()
-        fieldPublisher.subscribeWith(currentView.indices, newFieldSubscription)
+//        fieldPublisher.subscribeWith(currentView.indices, newFieldSubscription)
 
-        val cellFeed: Publisher[CellUpdate[ID, FieldUpdate[ID]]] = Publishers.map(newFieldSubscription) { next: FieldUpdate[ID] =>
-          asCellUpdate(fieldName, currentView, next)
-        }
+//        val cellFeed: Publisher[CellUpdate[ID, FieldUpdate[ID]]] = Publishers.map(newFieldSubscription) { next: FieldUpdate[ID] =>
+//          asCellUpdate(fieldName, currentView, next)
+//        }
 
         val fieldAndRange: FieldAndRange = ??? //()
-        cellFeed.subscribe(cellPublisher.newSubscriber(fieldAndRange))
+//        cellFeed.subscribe(cellPublisher.newSubscriber(fieldAndRange))
 
-        (fieldName, cellFeed, newFieldSubscription.subscriptionFuture)
+//        (fieldName, cellFeed, newFieldSubscription.subscriptionFuture)
+
+       ???
     }
 
     //

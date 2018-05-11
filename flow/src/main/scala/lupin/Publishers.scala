@@ -35,12 +35,14 @@ object Publishers {
           onComplete()
         }
       }
-    }
+    }.valuesPublisher()
   }
 
-  def apply[T](dao: DurableProcessorDao[T] = DurableProcessorDao[T]())(implicit ec: ExecutionContext) = DurableProcessor[T](dao)
+  def instance[T](dao: DurableProcessorDao[T] = DurableProcessorDao[T]())(implicit ec: ExecutionContext): DurableProcessorInstance[T] = {
+    DurableProcessor[T](dao)
+  }
 
-  def of[T](items: T*)(implicit ec: ExecutionContext): Publisher[T] = apply(items.iterator)
+  def of[T](items: T*)(implicit ec: ExecutionContext) = apply(items.iterator)
 
   def forValues[T](items: Iterable[T])(implicit ec: ExecutionContext): Publisher[T] = apply(items.iterator)
 

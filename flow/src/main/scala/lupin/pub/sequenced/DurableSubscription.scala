@@ -10,7 +10,7 @@ import scala.util.{Success, Try}
 class DurableSubscription[T](override val key: Int,
                              publisher: DurableProcessorInstance[T],
                              initialRequestedIndex: Long,
-                             val subscriber: Subscriber[_ >: T],
+                             val subscriber: Subscriber[_ >: (Long, T)],
                              execContext: ExecutionContext,
                              conflateCommandQueueLimit: Option[Int] = None,
                              queueCapacity: Int = 100)(implicit execCtxt: ExecutionContext)

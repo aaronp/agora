@@ -16,9 +16,11 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
   * @param currentIndexCounter                          the id (index) counter used to mark each element
   * @tparam T
   */
-class DurableProcessorInstance[T](dao: DurableProcessorDao[T],
+class DurableProcessorInstance[T](val dao: DurableProcessorDao[T],
                                   val propagateSubscriberRequestsToOurSubscription: Boolean = true,
                                   currentIndexCounter: Long = -1L)(implicit execContext: ExecutionContext) extends DurableProcessor[T] with StrictLogging {
+
+  type IndexSubscription = (Long, T)
 
   //  protected[sequenced] val dao: DurableProcessorDao[T] = args.dao
   //  val propagateSubscriberRequestsToOurSubscription = args.propagateSubscriberRequestsToOurSubscription
@@ -139,7 +141,7 @@ class DurableProcessorInstance[T](dao: DurableProcessorDao[T],
     }
   }
 
-  protected def newSubscriber(firstRequestedIdx: Long, subscriber: Subscriber[_ >: T]): DurableSubscription[T] = {
+  protected def newSubscriber(firstRequestedIdx: Long, subscriber: Subscriber[_ >: IndexSubscription]): DurableSubscription[T] = {
     val id = if (subscribersById.isEmpty) {
       0
     } else {
@@ -148,7 +150,7 @@ class DurableProcessorInstance[T](dao: DurableProcessorDao[T],
     new DurableSubscription[T](id, this, firstRequestedIdx.max(-1), subscriber, execContext)
   }
 
-  override def subscribeFrom(index: Long, subscriber: Subscriber[_ >: T]): Unit = {
+  override def subscribeFrom(index: Long, subscriber: Subscriber[_ >: IndexSubscription]): Unit = {
     val hs: DurableSubscription[T] = SubscribersLock.synchronized {
       val s = newSubscriber(index - 1, subscriber)
       require(!subscribersById.contains(s.key))

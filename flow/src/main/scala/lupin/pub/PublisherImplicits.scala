@@ -18,7 +18,7 @@ object PublisherImplicits {
 
     def filter(p: T => Boolean): Publisher[T] = Publishers.filter(publisher)(p)
 
-    def concat(theRest: Publisher[T]) = Publishers.concat(publisher, theRest)
+    def concat(theRest: Publisher[T])(implicit ec: ExecutionContext): Publisher[T] = Publishers.concat(publisher, theRest)
 
     def combine(first: Publisher[T], theRest: Publisher[T]*)(implicit ec: ExecutionContext): Publisher[T] = {
       Publishers.combine(publisher, first, theRest: _*)

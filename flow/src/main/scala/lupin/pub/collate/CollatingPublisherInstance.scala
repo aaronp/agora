@@ -187,6 +187,6 @@ class CollatingPublisherInstance[K, T](dao: DurableProcessorDao[(K, T)],
   override def subscribers() = subscribersById.keySet
 
   override def subscribe(s: Subscriber[_ >: (K, T)]): Unit = {
-    publisher.subscribe(s)
+    publisher.valuesPublisher().subscribe(s)
   }
 }

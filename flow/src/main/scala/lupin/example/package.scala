@@ -1,7 +1,6 @@
 package lupin
 
 import lupin.data.Accessor
-import lupin.pub.query.QueryPublisher
 import org.reactivestreams.Publisher
 
 package object example {
@@ -28,7 +27,7 @@ package object example {
   type FieldDao[ID, A]       = Lookup[ID, A]
   type FieldUpdateAux[ID, A] = FieldUpdate[ID] { type FieldType = A }
 
-  type FieldFeed[ID] = QueryPublisher[IndexSelection, FieldUpdate[ID]]
+  type FieldFeed[ID] = Publisher[(IndexSelection, FieldUpdate[ID])]
 
   /**
     * 4) View Feed provides the interested view (index range) for a particular field, as well as all the columns we're interested in
@@ -58,8 +57,5 @@ package object example {
     */
   type CellFeed[ID, U <: FieldUpdate[ID]] = Publisher[CellUpdate[ID, U]]
 
-  def apply[ID, T, U <: FieldUpdate[ID]](publisher: Publisher[T])(implicit getId: Accessor.Aux[ID, T]): CellFeed[ID, U] = {
-    ???
-  }
 
 }
