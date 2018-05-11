@@ -11,8 +11,8 @@ class IndexQuerySourceTest extends BaseFlowSpec {
       import lupin.implicits._
 
       case class Foo(id: Int, name: String, someProperty: String)
-      implicit object FooId extends Accessor[Foo, Int] {
-        override def get(value: Foo): Int = value.id
+      implicit object FooId extends Accessor[(Long, Foo), Int] {
+        override def get(value: (Long, Foo)): Int = value._2.id
       }
       def next(lastValue: Option[Foo]): Option[Foo] = {
         println(s"generated from $lastValue")

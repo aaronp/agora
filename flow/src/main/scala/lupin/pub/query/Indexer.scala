@@ -35,8 +35,7 @@ object Indexer {
 
 
   def apply[K, T: Ordering](seqNoDataAndOp: Publisher[Sequenced[(CrudOperation[K], T)]],
-                            indexer: Indexer[K, T] = slowInMemoryIndexer[K, T]()
-                           ): Publisher[IndexedValue[K, T]] = {
+                            indexer: Indexer[K, T]): Publisher[IndexedValue[K, T]] = {
     seqNoDataAndOp.foldWith(indexer) {
       case (store, Sequenced(seqNo, (op, data))) => store.index(seqNo, data, op)
     }

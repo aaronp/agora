@@ -11,10 +11,8 @@ class IndexerTest extends BaseFlowSpec with GivenWhenThen {
   case class Person(id: Int, name: String)
 
   // .. and put in scope an accessor for obtaining an ID for our new type
-  implicit object PersonIdAccessor extends Accessor[Person] {
-    override type Index = Int
-
-    override def get(value: Person): Index = value.id
+  implicit object PersonIdAccessor extends Accessor[Person, Int] {
+    override def get(value: Person) = value.id
   }
 
   "Indexer.crud" should {

@@ -10,7 +10,7 @@ object DataOperation extends Enumeration {
   val Delete, Update, Create = Value
 }
 
-case class Property[T](name: String, ordering: Ordering[T], accessor: Accessor[T])
+case class Property[T](name: String, ordering: Ordering[T], accessor: Accessor.Aux[T])
 
 case class ColumnView[T](columns: List[Property[T]]) {
   def cellNames = columns.map(_.name)

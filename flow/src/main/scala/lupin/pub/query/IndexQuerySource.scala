@@ -66,7 +66,8 @@ object IndexQuerySource {
 
       override def index(seqNo: Long, data: T, op: CrudOperation[K]): (Self, IndexedValue[K, T]) = {
         val (newInst, indexedValue) = current.index(seqNo, data, op)
-        val casted: IndexQuerySource[K, T] with Indexer[K, T] = ev(newInst)
+        val casted  = newInst.asInstanceOf[IndexQuerySource[K, T] with Indexer[K, T]]
+//        val casted:  = ev(newInst)
         current = casted
         (this, indexedValue)
       }
