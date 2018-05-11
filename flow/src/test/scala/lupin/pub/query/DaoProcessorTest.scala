@@ -33,19 +33,22 @@ class DaoProcessorTest extends BaseFlowSpec with GivenWhenThen {
 
       val initialLoadListener = new ListSubscriber[(CrudOperation[Int], Person)]
       dao.subscribe(initialLoadListener)
+
       initialLoadListener.request(10) // load up our DAO prior to any new subscriptions
       eventually {
         initialLoadListener.receivedInOrderReceived().size shouldBe 4
       }
 
       val crudListener = new ListSubscriber[(CrudOperation[Int], Person)]
-//      dao.subscribeWith(Set(1, 3), crudListener)
+      import lupin.implicits._
+      dao.filter(p => Set(1,3).contains(p._1.key)).subscribe(crudListener)
 
       crudListener.request(5)
       eventually {
         crudListener.receivedInOrderReceived() should contain only (
-          Create(1, Person(1, "George")),
-          Create(3, Person(3, "Jayne"))
+          Create(1) -> Person(1, "Georgina"),
+          Create(3) -> Person(3, "Jayne"),
+          Update(1) -> Person(1, "George")
         )
       }
     }
