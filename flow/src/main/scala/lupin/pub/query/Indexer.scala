@@ -4,7 +4,7 @@ import lupin.Publishers
 import lupin.example.{IndexRange, IndexSelection, SpecificIndices}
 import lupin.pub.sequenced.{DurableProcessor, DurableProcessorDao, DurableProcessorInstance}
 import lupin.sub.BaseSubscriber
-import org.reactivestreams.{Subscriber, Subscription}
+import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
 import scala.concurrent.ExecutionContext
 
@@ -70,5 +70,12 @@ class Indexer[T: Ordering](override val defaultInput: IndexSelection)(implicit e
 
   override def onNext(value: T): Unit = {
     upsert(value)
+  }
+}
+
+object Indexer {
+  def apply[T](data : Publisher[T]) = {
+    Publishers
+
   }
 }

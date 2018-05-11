@@ -26,15 +26,8 @@ object ConcatPublisher {
       * Override the processor to change the behaviour of 'onComplete' to
       * instead subscribe to the second publisher
       */
-    val dp = new DurableProcessorInstance[T](Args(DurableProcessorDao[T](), true, -1)) {
-
+    val buffer = new DurableProcessorInstance[T](Args(DurableProcessorDao[T](), true, -1)) {
       private var firstCompleted = false
-
-      override def onSubscribe(s: Subscription): Unit = {
-        // allow us to reset the subscription
-        super.onSubscribe(s)
-      }
-
       override def onComplete(): Unit = {
         if (firstCompleted) {
           super.onComplete()
@@ -45,9 +38,9 @@ object ConcatPublisher {
         }
       }
     }
-    head.subscribe(dp)
+    head.subscribe(buffer)
 
-    dp
+    buffer
   }
 
 }

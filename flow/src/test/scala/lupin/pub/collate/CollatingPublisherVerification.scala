@@ -37,6 +37,8 @@ class CollatingPublisherVerification extends PublisherVerification[String](testE
       }
 
     override def maxIndex: Option[Long] = lastIndex()
+
+    override def minIndex(): Option[Long] = Option(0)
   }
 
   override def createPublisher(elements: Long): Publisher[String] = {

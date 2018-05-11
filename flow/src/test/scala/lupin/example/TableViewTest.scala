@@ -7,7 +7,7 @@ class TableViewTest extends BaseFlowSpec {
   type RFU = RenderableFieldUpdate[String, String]
 
   def newUpdate(): CellUpdate[String, RFU] = {
-    CellUpdate[String, RenderableFieldUpdate[String, String]](None, 0, Map.empty)
+    CellUpdate[String, RenderableFieldUpdate[String, String]](Map.empty)
   }
 
   "TableView.render" should {

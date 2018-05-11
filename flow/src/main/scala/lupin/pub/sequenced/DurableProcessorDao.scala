@@ -24,6 +24,10 @@ trait DurableProcessorDao[T] extends DurableProcessorReader[T] {
     */
   def maxIndex: Option[Long]
 
+  /** @return the maximum written index (or none if there are none)
+    */
+  def minIndex(): Option[Long]
+
   /** Marks the given index as the last index
     */
   def markComplete(lastIndex: Long): Unit
@@ -58,11 +62,13 @@ object DurableProcessorDao extends StrictLogging {
     override def at(index: Long) = underlying.at(index)
 
     override def maxIndex: Option[Long] = underlying.maxIndex
+
+    override def minIndex(): Option[Long] = underlying.minIndex()
   }
 
   case class InvalidIndexException(requestedIndex: Long, msg: String) extends Exception(msg)
 
-  def inDir[T: ToBytes: FromBytes](dir: Path, keepMost: Int = 0)(implicit ec: ExecutionContext) = {
+  def inDir[T: ToBytes : FromBytes](dir: Path, keepMost: Int = 0)(implicit ec: ExecutionContext) = {
     new FileBasedDurableProcessorDao[T](dir, ToBytes.instance[T], FromBytes.instance[T], keepMost)
   }
 
@@ -72,14 +78,14 @@ object DurableProcessorDao extends StrictLogging {
     */
   def apply[T](keepMost: Int = 0) = new DurableProcessorDao[T] {
     private var lastIndexOpt = Option.empty[Long]
-    private var elements     = Map[Long, T]()
+    private var elements = Map[Long, T]()
 
     private object ElementsLock
 
     override def maxIndex: Option[Long] = ElementsLock.synchronized {
       elements.keySet match {
         case set if set.isEmpty => None
-        case set                => Option(set.max)
+        case set => Option(set.max)
       }
     }
 
@@ -118,11 +124,19 @@ object DurableProcessorDao extends StrictLogging {
     }
 
     override def lastIndex(): Option[Long] = lastIndexOpt
+
+    override def minIndex(): Option[Long] = {
+      if (elements.isEmpty) {
+        None
+      } else {
+        Option(elements.keySet.min)
+      }
+    }
   }
 
   case class FileBasedDurableProcessorDao[T](dir: Path, toBytes: ToBytes[T], fromBytes: FromBytes[T], keepMost: Int)(
-      implicit val executionContext: ExecutionContext)
-      extends DurableProcessorDao[T]
+    implicit val executionContext: ExecutionContext)
+    extends DurableProcessorDao[T]
       with LazyLogging {
 
     import agora.io.implicits._
@@ -132,6 +146,18 @@ object DurableProcessorDao extends StrictLogging {
     @volatile private var max = -1L
 
     private lazy val lastIndexFile = dir.resolve(".lastIndex")
+
+
+    /** @return the maximum written index (or none if there are none)
+      */
+    override def minIndex(): Option[Long] = {
+      val indices = fileIndices()
+      if (indices.isEmpty) {
+        None
+      } else {
+        Option(indices.min)
+      }
+    }
 
     override def markComplete(lastIndex: Long): Unit = {
       MaxLock.synchronized {
@@ -154,16 +180,23 @@ object DurableProcessorDao extends StrictLogging {
       }
     }
 
+    private def fileIndices() = {
+      dir.childrenIter.collect {
+        case AsInt(idx) => idx
+      }
+    }
+
     override def maxIndex: Option[Long] = {
       if (max == -1L) {
-        val indices = dir.childrenIter.collect {
-          case AsInt(idx) => idx
-        }
-        if (indices.isEmpty) {
-          None
-        } else {
-          max = indices.max
-          Option(max)
+        MaxLock.synchronized {
+          val indices = fileIndices()
+
+          if (indices.isEmpty) {
+            None
+          } else {
+            max = indices.max
+            Option(max)
+          }
         }
       } else {
         Option(max)

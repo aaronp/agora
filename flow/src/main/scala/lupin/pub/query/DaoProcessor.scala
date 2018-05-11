@@ -4,6 +4,7 @@ import lupin.Publishers
 import lupin.data.Accessor
 import lupin.pub.FIFO
 import lupin.pub.passthrough.PassthroughProcessorInstance
+import lupin.pub.sequenced.DurableProcessorInstance
 import lupin.sub.BaseSubscriber
 import org.reactivestreams.{Publisher, Subscriber}
 
@@ -29,7 +30,7 @@ object DaoProcessor {
   }
 
   class Instance[K, T](inputDao: SyncDao[K, T], override val defaultInput: Set[K])(implicit accessor: Accessor.Aux[T, K], execContext: ExecutionContext)
-      extends DaoProcessor[K, T]
+    extends DaoProcessor[K, T]
       with BaseSubscriber[T] {
 
     private var dao = inputDao
@@ -58,28 +59,33 @@ object DaoProcessor {
           simple
         }
       }
-      val creates: Set[Create[K, T]] = ids.flatMap { id =>
-        dao.get(id).map { value =>
-          val key = accessor.get(value)
-          Create[K, T](key, value)
-        }
-      }
 
       /**
         * If some ids are specified, then we need to publish the existing data as Create operations
         * for those before publishing updates
         */
-      if (creates.nonEmpty) {
-        val initial: Publisher[CrudOperation[K, T]] = Publishers.forValues(creates)
-        Publishers
-          .concat(initial) { sub =>
-            publisher.subscribe(sub, queue)
+      if (ids.nonEmpty) {
+
+        // subscribe to updates BEFORE feeding the existing data
+        val buffer: DurableProcessorInstance[CrudOperation[K, T]] = Publishers[CrudOperation[K, T]]()
+        publisher.subscribe(buffer, queue)
+        buffer.request(1)
+
+        // now read the data. The gap between having subscribed (above) and now reading the data
+        // *should* eliminate the race-condition of missing updates: If we first read the data,
+        // then subscribed to udpates, we would miss any updates which occur in between those two actions
+        val requestedData: Set[Create[K, T]] = ids.flatMap { id =>
+          dao.get(id).map { value =>
+            val key = accessor.get(value)
+            Create[K, T](key, value)
           }
-          .subscribe(subscriber)
+        }
+
+        val initial: Publisher[CrudOperation[K, T]] = Publishers.forValues(requestedData)
+        Publishers.concat(initial, buffer).subscribe(subscriber)
       } else {
         publisher.subscribe(subscriber, queue)
       }
-
     }
 
     override def onNext(value: T): Unit = {

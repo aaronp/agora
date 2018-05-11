@@ -20,8 +20,13 @@ trait DurableProcessor[T] extends Publisher[T] with Subscriber[T] {
     */
   override def subscribe(subscriber: Subscriber[_ >: T]) = subscribeFrom(firstIndex, subscriber)
 
+  /** @return the first index available to read from, or -1 if none
+    */
   def firstIndex: Long
 
+  /**
+    * @return the most-recently written index
+    */
   def latestIndex: Option[Long]
 }
 

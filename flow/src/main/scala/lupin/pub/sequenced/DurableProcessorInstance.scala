@@ -15,8 +15,8 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 class DurableProcessorInstance[T](args: Args[T])(implicit execContext: ExecutionContext) extends DurableProcessor[T] with StrictLogging {
 
   protected[sequenced] val dao: DurableProcessorDao[T] = args.dao
-  val propagateSubscriberRequestsToOurSubscription     = args.propagateSubscriberRequestsToOurSubscription
-  private val nextIndexCounter                         = new AtomicLong(args.nextIndex)
+  val propagateSubscriberRequestsToOurSubscription = args.propagateSubscriberRequestsToOurSubscription
+  private val nextIndexCounter = new AtomicLong(args.nextIndex)
 
   // the DAO will likely be doing IO or some other potentially expensive operation to work out the last index
   // As it doesn't change once set, we cache it here if known.
@@ -56,15 +56,16 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext: Execution
   def subscriberCount(): Int = SubscribersLock.synchronized(subscribersById.size)
 
   def this(dao: DurableProcessorDao[T], propagateSubscriberRequestsToOurSubscription: Boolean = true, currentIndexCounter: Long = -1L)(
-      implicit execContext: ExecutionContext) = {
+    implicit execContext: ExecutionContext) = {
     this(Args(dao, propagateSubscriberRequestsToOurSubscription, currentIndexCounter))
   }
 
-  protected val initialIndex: Long  = nextIndexCounter.get()
-  private var maxWrittenIndex     = initialIndex
+  protected val initialIndex: Long = nextIndexCounter.get()
+  private var maxWrittenIndex = initialIndex
   private val MaxWrittenIndexLock = new ReentrantReadWriteLock()
-  private var subscribersById     = Map[Int, DurableSubscription[T]]()
-  private var subscriptionOpt     = Option.empty[Subscription]
+  private var subscribersById = Map[Int, DurableSubscription[T]]()
+  private var numRequestedPriorToSubscribe = 0L
+  private var subscriptionOpt = Option.empty[Subscription]
   private val subscriptionPromise = Promise[Subscription]()
 
   private object SubscriptionOptLock
@@ -101,6 +102,19 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext: Execution
     requestIndex(potentialNewMaxIndex)
   }
 
+  def request(n: Long) = {
+    processorSubscription match {
+      case Some(s) => s.request(n)
+      case None =>
+        val value = numRequestedPriorToSubscribe + n
+        if (value < 0) {
+          numRequestedPriorToSubscribe = Long.MaxValue
+        } else {
+          numRequestedPriorToSubscribe = value
+        }
+    }
+  }
+
   /**
     * requests up to this index from its subscription
     *
@@ -118,7 +132,7 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext: Execution
 
   protected def requestFromSubscription(n: Long) = {
     onRequest(n)
-    subscriptionOpt.fold(false) { s =>
+    processorSubscription.fold(false) { s =>
       s.request(n)
       true
     }
@@ -171,7 +185,7 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext: Execution
 
   override def latestIndex: Option[Long] = Option(currentIndex()).filterNot(_ == initialIndex)
 
-  override val firstIndex = initialIndex
+  override def firstIndex = dao.minIndex().getOrElse(initialIndex)
 
   override def onNext(value: T): Unit = {
     logger.debug(s"onNext($value)")
@@ -249,6 +263,10 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext: Execution
     val alreadySubscribed = SubscriptionOptLock.synchronized {
       subscriptionOpt match {
         case None =>
+          if (numRequestedPriorToSubscribe > 0) {
+            s.request(numRequestedPriorToSubscribe)
+            numRequestedPriorToSubscribe = 0
+          }
           subscriptionOpt = Option(s)
           subscriptionPromise.trySuccess(s)
           false
@@ -262,7 +280,7 @@ class DurableProcessorInstance[T](args: Args[T])(implicit execContext: Execution
       // trigger any requests from our subscribers
       maxRequestedIndex match {
         case n if n > 0 => s.request(n)
-        case _          =>
+        case _ =>
       }
     }
   }

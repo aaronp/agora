@@ -34,6 +34,7 @@ class DurableProcessorPublisherVerification extends PublisherVerification[String
         Success(index + "")
       }
 
+    override def minIndex(): Option[Long] = Option(0)
     override def maxIndex: Option[Long] = lastIndex()
   }
 
