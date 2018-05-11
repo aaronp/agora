@@ -20,8 +20,8 @@ object Publishers {
     * @return a Publisher of the given elements
     */
   def apply[T](iter: Iterator[T])(implicit ec: ExecutionContext) = {
-    unfold {
-      case _ =>
+    unfold[T] {
+      case _  =>
         if (iter.hasNext) {
           None
         } else {
@@ -38,7 +38,7 @@ object Publishers {
 
   def forValues[T](items: Iterable[T])(implicit ec: ExecutionContext): Publisher[T] = apply(items.iterator)
 
-  def unfold[T](createNext: Option[T] => Option[T]): Publisher[T] = {
+  def unfold[T](createNext: Option[T] => Option[T])(implicit ec: ExecutionContext): Publisher[T] = {
     new DurableProcessorInstance[T](DurableProcessorDao[T]()) {
       var currentlyRequested = 0L
       var previous = Option.empty[T]

@@ -35,7 +35,7 @@ object DataUpdate {
     * @tparam ID
     * @tparam T
     */
-  class Instance[ID, T](seqCounter: AtomicLong)(implicit idForSeqAndValue: Accessor.Aux[(Long, T), (DataOperation.Value, ID)]) {
+  class Instance[ID, T](seqCounter: AtomicLong)(implicit idForSeqAndValue: Accessor[(Long, T), (DataOperation.Value, ID)]) {
     def apply(value: T): DataUpdate[ID, T] = {
       val seqNo    = seqCounter.incrementAndGet()
       val (op, id) = idForSeqAndValue.get(seqNo -> value)
@@ -45,12 +45,12 @@ object DataUpdate {
 
   def apply[ID, T](input: T)(implicit hasKey: HasKey[ID]): DataUpdate[ID, T] = ???
 
-  def apply[ID, T](input: T)(implicit idForSeqAndValue: Accessor.Aux[(Long, T), (DataOperation.Value, ID)]) = {
+  def apply[ID, T](input: T)(implicit idForSeqAndValue: Accessor[(Long, T), (DataOperation.Value, ID)]) = {
     new Instance(new AtomicLong(0L))
   }
 
   // TODO - create an in-memory and disk-based writer
-  def writer[T: ToBytes](dir: Path): Accessor.Aux[(Long, T), (DataOperation.Value, Long)] = {
+  def writer[T: ToBytes](dir: Path): Accessor[(Long, T), (DataOperation.Value, Long)] = {
     ???
   }
 

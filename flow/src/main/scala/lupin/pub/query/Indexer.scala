@@ -19,7 +19,7 @@ object Indexer {
   import lupin.implicits._
 
   def crud[K, T](data: Publisher[T],
-                 inputDao: SyncDao[K, T] = null)(implicit accessor: Accessor.Aux[T, K], execContext: ExecutionContext): Publisher[(CrudOperation[K], T)] = {
+                 inputDao: SyncDao[K, T] = null)(implicit accessor: Accessor[T, K], execContext: ExecutionContext): Publisher[(CrudOperation[K], T)] = {
     val dao = if (inputDao == null) {
       SyncDao[K, T](accessor)
     } else {
@@ -60,9 +60,9 @@ object Indexer {
 
 
   type QueryIndexer[K, T] = Indexer[K, T] with IndexQuerySource[K, T] { type Self <: Indexer[K, T] with IndexQuerySource[K, T]}
-  def slowInMemoryIndexer[K, T](): QueryIndexer[K, T] = new IndexStore
+  def slowInMemoryIndexer[K, T: Ordering](implicit executionContext: ExecutionContext): QueryIndexer[K, T] = new IndexStore
 
-  private case class IndexStore[K, T: Ordering](values: Vector[SortedEntry[K, T]] = Vector()) extends Indexer[K, T] with IndexQuerySource[K, T] {
+  private case class IndexStore[K, T: Ordering](values: Vector[SortedEntry[K, T]] = Vector())(implicit executionContext: ExecutionContext) extends Indexer[K, T] with IndexQuerySource[K, T] {
 
     override type Self = IndexStore[K, T]
 

@@ -1,6 +1,6 @@
 package lupin.pub
 
-import lupin.Publishers
+import lupin.{Publishers, Subscribers}
 import org.reactivestreams.Publisher
 
 import scala.concurrent.ExecutionContext
@@ -34,6 +34,7 @@ object PublisherImplicits {
       Publishers.foldWith[T, I, H](publisher, initialValue)(f)
     }
 
+    def foreach(f : T => Unit) = publisher.subscribe(Subscribers.foreach(f))
   }
 
 }

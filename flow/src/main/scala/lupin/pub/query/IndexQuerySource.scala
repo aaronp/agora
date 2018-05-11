@@ -27,19 +27,19 @@ object IndexQuerySource {
     * @return
     */
   def apply[K, T, A: Ordering](data: Publisher[(Long, T)],
-                               inputDao: SyncDao[K, (Long, T)] = null)(getter: T => A)(implicit getId: Accessor.Aux[T, K], execContext: ExecutionContext) = {
+                               inputDao: SyncDao[K, (Long, T)] = null)(getter: T => A)(implicit getId: Accessor[(Long, T), K], execContext: ExecutionContext): Publisher[IndexedValue[K, A]] = {
     val insert: Publisher[(CrudOperation[K], (Long, T))] = Indexer.crud(data, inputDao)
-    apply(insert, inputDao)(getter)
+    forSequencedDataFeed(insert, inputDao)(getter)
   }
 
-  def apply[K, T, A: Ordering](sequencedDataFeed: Publisher[(CrudOperation[K], (Long, T))],
-                               inputDao: SyncDao[K, (Long, T)] = null)(getter: T => A)(implicit getId: Accessor.Aux[T, K], execContext: ExecutionContext) = {
+  def forSequencedDataFeed[K, T, A: Ordering](sequencedDataFeed: Publisher[(CrudOperation[K], (Long, T))],
+                               inputDao: SyncDao[K, (Long, T)] = null)(getter: T => A)(implicit execContext: ExecutionContext): Publisher[IndexedValue[K, A]] = {
     import lupin.implicits._
     val sequencedValues: Publisher[Sequenced[(CrudOperation[K], A)]] = sequencedDataFeed.map {
       case (crudOp, (seqNo, value)) => Sequenced(seqNo, (crudOp, getter(value)))
     }
 
-    val indexer: IndexQuerySource[K, A] with Indexer[K, A] = IndexQuerySource.apply(Indexer.slowInMemoryIndexer())
+    val indexer: IndexQuerySource[K, A] with Indexer[K, A] = IndexQuerySource.apply(Indexer.slowInMemoryIndexer)
     Indexer[K, A](sequencedValues, indexer)
   }
 
@@ -66,7 +66,8 @@ object IndexQuerySource {
 
       override def index(seqNo: Long, data: T, op: CrudOperation[K]): (Self, IndexedValue[K, T]) = {
         val (newInst, indexedValue) = current.index(seqNo, data, op)
-        current = ev(newInst)
+        val casted: IndexQuerySource[K, T] with Indexer[K, T] = ev(newInst)
+        current = casted
         (this, indexedValue)
       }
     }

@@ -5,6 +5,17 @@ import org.reactivestreams.Subscriber
 
 object Subscribers {
 
+  def foreach[T](f: T => Unit): Subscriber[T] = {
+    val sub = new BaseSubscriber[T] {
+      override def onNext(t: T): Unit = {
+        f(t)
+        subscription().request(1)
+      }
+    }
+    sub.request(1)
+    sub
+  }
+
   def fold[A, B](initial: A)(f: (A, B) => A): Subscriber[B] = {
     val sub = BaseSubscriber[A](1) {
       case (sub, next) => sub.request(1)
