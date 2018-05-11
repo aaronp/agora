@@ -6,10 +6,10 @@ import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
 class DurableProcessorTest extends BaseFlowSpec {
 
-  implicit def asRichListSubscriber[T](subscriber: ListSubscriber[T]) = new {
+  implicit def asRichListSubscriber[T](subscriber: ListSubscriber[(Long, T)]) = new {
     def verifyReceived(expected: String*) = {
       eventually {
-        subscriber.receivedInOrderReceived() shouldBe expected.toList
+        subscriber.receivedInOrderReceived().map(_._2) shouldBe expected.toList
       }
     }
   }
@@ -74,7 +74,7 @@ class DurableProcessorTest extends BaseFlowSpec {
       sub1.request(1)
       eventually {
         sub1.isCompleted() shouldBe true
-        sub1.receivedInOrderReceived() shouldBe List("only element")
+        sub1.receivedInOrderReceived().map(_._2) shouldBe List("only element")
       }
 
       val sub2 = new ListSubscriber[String]
@@ -138,19 +138,8 @@ class DurableProcessorTest extends BaseFlowSpec {
       processorUnderTest.subscribeFrom(0, sub2)
       eventually {
         sub2.isCompleted() shouldBe true
-        sub2.receivedInOrderReceived() shouldBe List(1)
+        sub2.receivedInOrderReceived().map(_._2) shouldBe List(1)
       }
-    }
-    "request data before values are pushed" in {
-      val processor = DurableProcessor[String]()
-
-      val subscriber = new ListSubscriber[(Long, String)]
-      processor.subscribe(subscriber)
-
-      subscriber.request(7)
-
-      //      val List(only) = processor.snapshot().subscribers.values.toList
-      //      only.currentlyRequested shouldBe 7
     }
     "Allow subscriptions to receive already published values" in {
       val processor = DurableProcessor[String]()
@@ -228,7 +217,7 @@ class DurableProcessorTest extends BaseFlowSpec {
       }
 
       processor.onNext("third value")
-      processor.firstIndex shouldBe -1
+      processor.firstIndex shouldBe 0
       eventually {
         processor.latestIndex shouldBe Option(2)
       }
