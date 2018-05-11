@@ -8,9 +8,7 @@ import org.reactivestreams.Publisher
 import scala.concurrent.ExecutionContext
 
 trait Indexer[K, T] {
-  type Self <: Indexer[K, T]
-
-  def index(seqNo: Long, data: T, op: CrudOperation[K]): (Self, IndexedValue[K, T])
+  def index(seqNo: Long, data: T, op: CrudOperation[K]): (Indexer[K, T], IndexedValue[K, T])
 
 }
 
@@ -18,6 +16,16 @@ object Indexer {
 
   import lupin.implicits._
 
+  /**
+    * Folds the data feed over the given [[SyncDao]] used to write them down and return a [[CrudOperation]] result
+    * @param data
+    * @param inputDao
+    * @param accessor
+    * @param execContext
+    * @tparam K
+    * @tparam T
+    * @return a publisher of the operations w/ the values flowing through it
+    */
   def crud[K, T](data: Publisher[T],
                  inputDao: SyncDao[K, T] = null)(implicit accessor: Accessor[T, K], execContext: ExecutionContext): Publisher[(CrudOperation[K], T)] = {
     val dao = if (inputDao == null) {
@@ -58,12 +66,10 @@ object Indexer {
   }
 
 
-  type QueryIndexer[K, T] = Indexer[K, T] with IndexQuerySource[K, T] { type Self <: Indexer[K, T] with IndexQuerySource[K, T]}
+  type QueryIndexer[K, T] = Indexer[K, T] with IndexQuerySource[K, T]
   def slowInMemoryIndexer[K, T: Ordering](implicit executionContext: ExecutionContext): QueryIndexer[K, T] = new IndexStore
 
   private case class IndexStore[K, T: Ordering](values: Vector[SortedEntry[K, T]] = Vector())(implicit executionContext: ExecutionContext) extends Indexer[K, T] with IndexQuerySource[K, T] {
-
-    override type Self = IndexStore[K, T]
 
     override def index(seqNo: Long, data: T, op: CrudOperation[K]) = {
       val entry = new SortedEntry(op.key, seqNo, data)

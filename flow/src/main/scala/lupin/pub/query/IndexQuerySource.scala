@@ -33,7 +33,7 @@ object IndexQuerySource {
   }
 
   def forSequencedDataFeed[K, T, A: Ordering](sequencedDataFeed: Publisher[(CrudOperation[K], (Long, T))],
-                               inputDao: SyncDao[K, (Long, T)] = null)(getter: T => A)(implicit execContext: ExecutionContext): Publisher[IndexedValue[K, A]] = {
+                                              inputDao: SyncDao[K, (Long, T)] = null)(getter: T => A)(implicit execContext: ExecutionContext): Publisher[IndexedValue[K, A]] = {
     import lupin.implicits._
     val sequencedValues: Publisher[Sequenced[(CrudOperation[K], A)]] = sequencedDataFeed.map {
       case (crudOp, (seqNo, value)) => Sequenced(seqNo, (crudOp, getter(value)))
@@ -49,14 +49,12 @@ object IndexQuerySource {
     * to provide access to the 'latest' indexer
     *
     * @param initialValue
-    * @param ev
     * @tparam K
     * @tparam T
     * @return
     */
-  def apply[K, T](initialValue: Indexer.QueryIndexer[K, T])(implicit ev: initialValue.Self <:< IndexQuerySource[K, T] with Indexer[K, T]): IndexQuerySource[K, T] with Indexer[K, T] = {
+  def apply[K, T](initialValue: Indexer.QueryIndexer[K, T]): IndexQuerySource[K, T] with Indexer[K, T] = {
     object Impl extends IndexQuerySource[K, T] with Indexer[K, T] {
-      override type Self = IndexQuerySource[K, T] with Indexer[K, T]
       @volatile var current: IndexQuerySource[K, T] with Indexer[K, T] = initialValue
 
       override def query(criteria: IndexSelection) = {
@@ -64,10 +62,10 @@ object IndexQuerySource {
         snapshot.query(criteria)
       }
 
-      override def index(seqNo: Long, data: T, op: CrudOperation[K]): (Self, IndexedValue[K, T]) = {
+      override def index(seqNo: Long, data: T, op: CrudOperation[K]) = {
         val (newInst, indexedValue) = current.index(seqNo, data, op)
-        val casted  = newInst.asInstanceOf[IndexQuerySource[K, T] with Indexer[K, T]]
-//        val casted:  = ev(newInst)
+        val casted = newInst.asInstanceOf[IndexQuerySource[K, T] with Indexer[K, T]]
+        //        val casted:  = ev(newInst)
         current = casted
         (this, indexedValue)
       }

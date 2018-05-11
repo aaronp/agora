@@ -4,8 +4,16 @@ sealed trait CrudOperation[K] {
   def key: K
 }
 
-case class Create[K, T](override val key: K) extends CrudOperation[K]
+object CrudOperation {
+  def create[K](key: K): CrudOperation[K] = Create[K](key)
 
-case class Update[K, T](override val key: K) extends CrudOperation[K]
+  def update[K](key: K): CrudOperation[K] = Update[K](key)
 
-case class Delete[K, T](override val key: K) extends CrudOperation[K]
+  def delete[K](key: K): CrudOperation[K] = Delete[K](key)
+}
+
+case class Create[K](override val key: K) extends CrudOperation[K]
+
+case class Update[K](override val key: K) extends CrudOperation[K]
+
+case class Delete[K](override val key: K) extends CrudOperation[K]

@@ -21,11 +21,11 @@ object Publishers {
     */
   def apply[T](iter: Iterator[T])(implicit ec: ExecutionContext) = {
     unfold[T] {
-      case _  =>
-        if (iter.hasNext) {
-          None
+      case _ =>
+        if (!iter.hasNext) {
+          None -> false
         } else {
-          Option(iter.next)
+          Option(iter.next) -> iter.hasNext
         }
     }
   }
@@ -38,12 +38,18 @@ object Publishers {
 
   def forValues[T](items: Iterable[T])(implicit ec: ExecutionContext): Publisher[T] = apply(items.iterator)
 
-  def unfold[T](createNext: Option[T] => Option[T])(implicit ec: ExecutionContext): Publisher[T] = {
+  /**
+    * publish the values until the function returns a (nextValue, hasNext) where the second tuple value is false
+    *
+    * @param createNext a function which, given the previous value, can return an optional next value and 'hasNext' result
+    * @param ec
+    * @tparam T
+    * @return
+    */
+  def unfold[T](createNext: Option[T] => (Option[T], Boolean))(implicit ec: ExecutionContext): Publisher[T] = {
     new DurableProcessorInstance[T](DurableProcessorDao[T]()) {
       var currentlyRequested = 0L
       var previous = Option.empty[T]
-
-      def hasNext = previous.nonEmpty
 
       override def onRequest(n: Long): Unit = {
         require(n > 0)
@@ -51,8 +57,11 @@ object Publishers {
         if (currentlyRequested < 0) {
           currentlyRequested = Long.MaxValue
         }
+        var hasNext = true
         do {
-          previous = createNext(previous)
+          val (newPrevious, newHasNext) = createNext(previous)
+          hasNext = newHasNext && newPrevious.nonEmpty
+          previous = newPrevious
           previous.foreach(onNext)
           currentlyRequested = currentlyRequested - 1
         } while (hasNext && currentlyRequested > 0)

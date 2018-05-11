@@ -3,7 +3,7 @@ package lupin.pub
 import lupin.{Publishers, Subscribers}
 import org.reactivestreams.Publisher
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 trait PublisherImplicits {
 
@@ -34,7 +34,13 @@ object PublisherImplicits {
       Publishers.foldWith[T, I, H](publisher, initialValue)(f)
     }
 
-    def foreach(f : T => Unit) = publisher.subscribe(Subscribers.foreach(f))
+    def foreach(f: T => Unit) = publisher.subscribe(Subscribers.foreach(f))
+
+    def collect(): Future[List[T]] = {
+      val sub = Subscribers.collect[T]()
+      publisher.subscribe(sub)
+      sub.result
+    }
   }
 
 }

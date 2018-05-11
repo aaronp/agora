@@ -1,6 +1,6 @@
 package lupin
 
-import lupin.sub.{BaseSubscriber, DelegateSubscriber}
+import lupin.sub.{BaseSubscriber, CollectSubscriber, DelegateSubscriber}
 import org.reactivestreams.Subscriber
 
 object Subscribers {
@@ -15,6 +15,9 @@ object Subscribers {
     sub.request(1)
     sub
   }
+
+
+  def collect[T]() = new CollectSubscriber[T]
 
   def fold[A, B](initial: A)(f: (A, B) => A): Subscriber[B] = {
     val sub = BaseSubscriber[A](1) {
