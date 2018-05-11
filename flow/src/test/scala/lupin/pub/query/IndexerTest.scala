@@ -26,7 +26,7 @@ class IndexerTest extends BaseFlowSpec with GivenWhenThen {
 
       val fields = List("alpha", "beta", "gamma", "delta", "epsilon")
       val indexedValues = ListBuffer[IndexedValue[Int, String]]()
-      val querySource = fields.zipWithIndex.foldLeft(indexer) {
+      val (querySource: QueryIndexer[Int, String]) = fields.zipWithIndex.foldLeft(indexer) {
         case (dao, (str, index)) =>
           val id = index + 100 // make up some different ID
         val op = CrudOperation.create(id)
@@ -38,9 +38,9 @@ class IndexerTest extends BaseFlowSpec with GivenWhenThen {
       indexedValues.toList shouldBe List(
         IndexedValue(0, 100, IndexOperation.newIndex(0, "alpha")),
         IndexedValue(1, 101, IndexOperation.newIndex(1, "beta")),
+        IndexedValue(2, 102, IndexOperation.newIndex(2, "gamma")),
         IndexedValue(3, 103, IndexOperation.newIndex(2, "delta")),
-        IndexedValue(4, 104, IndexOperation.newIndex(2, "epsilon")),
-        IndexedValue(2, 102, IndexOperation.newIndex(2, "gamma"))
+        IndexedValue(4, 104, IndexOperation.newIndex(3, "epsilon"))
       )
 
       import lupin.implicits._
@@ -56,11 +56,18 @@ class IndexerTest extends BaseFlowSpec with GivenWhenThen {
       )
 
 
-      val newI = querySource.asInstanceOf[QueryIndexer[Int, String]]
       // change 'delta' to 'zeta'
-      val q =  newI.index(500, "zeta", CrudOperation.update(103))
-      println(q)
+      val (newQuerySource: QueryIndexer[Int, String], moveResult) = querySource.index(500, "zeta", CrudOperation.update(103))
+      moveResult shouldBe IndexedValue(500, 103, MovedIndex(2, 4, "zeta"))
 
+      val updatedResults = newQuerySource.query(IndexSelection(0, fields.size)).collect().futureValue
+      updatedResults shouldBe List(
+        IndexQueryResult(0, 100, 0, "alpha"),
+        IndexQueryResult(1, 101, 1, "beta"),
+        IndexQueryResult(4, 104, 2, "epsilon"),
+        IndexQueryResult(2, 102, 3, "gamma"),
+        IndexQueryResult(500, 103, 4, "zeta")
+      )
     }
   }
 

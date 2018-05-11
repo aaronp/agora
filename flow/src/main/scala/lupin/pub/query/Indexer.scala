@@ -67,9 +67,9 @@ object Indexer {
 
 
   type QueryIndexer[K, T] = Indexer[K, T] with IndexQuerySource[K, T]
-  def slowInMemoryIndexer[K, T: Ordering](implicit executionContext: ExecutionContext): QueryIndexer[K, T] = new IndexStore
+  def slowInMemoryIndexer[K, T: Ordering](implicit executionContext: ExecutionContext): QueryIndexer[K, T] = new SlowInMemoryStore
 
-  private case class IndexStore[K, T: Ordering](values: Vector[SortedEntry[K, T]] = Vector())(implicit executionContext: ExecutionContext) extends Indexer[K, T] with IndexQuerySource[K, T] {
+  private case class SlowInMemoryStore[K, T: Ordering](values: Vector[SortedEntry[K, T]] = Vector())(implicit executionContext: ExecutionContext) extends Indexer[K, T] with IndexQuerySource[K, T] {
 
     override def index(seqNo: Long, data: T, op: CrudOperation[K]) = {
       val entry = new SortedEntry(op.key, seqNo, data)
@@ -77,7 +77,7 @@ object Indexer {
         case Create(key) =>
           require(!values.contains(entry))
           val newStore = copy(values = insert(values, entry))
-          val idx = values.indexOf(entry)
+          val idx = newStore.values.indexOf(entry)
           newStore -> IndexedValue[K, T](seqNo, key, NewIndex(idx, data))
         case Update(key) =>
           require(values.contains(entry))
@@ -88,7 +88,7 @@ object Indexer {
 
           val newStore = copy(values = insert(removedValues, entry))
 
-          val idx = values.indexOf(entry)
+          val idx = newStore.values.indexOf(entry)
           newStore -> IndexedValue[K, T](seqNo, key, MovedIndex(oldIndex, idx, data))
         case Delete(key) =>
           require(values.contains(entry))
