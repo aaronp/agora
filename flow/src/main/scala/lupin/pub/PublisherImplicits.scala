@@ -34,7 +34,11 @@ object PublisherImplicits {
       Publishers.foldWith[T, I, H](publisher, initialValue)(f)
     }
 
-    def foreach(f: T => Unit) = publisher.subscribe(Subscribers.foreach(f))
+    def foreach(f: T => Unit): Future[Boolean] = {
+      val sub = Subscribers.foreach(f)
+      publisher.subscribe(sub)
+      sub.result
+    }
 
     def collect(): Future[List[T]] = {
       val sub = Subscribers.collect[T]()

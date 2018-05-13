@@ -1,21 +1,11 @@
 package lupin
 
-import lupin.sub.{BaseSubscriber, CollectSubscriber, DelegateSubscriber}
+import lupin.sub.{BaseSubscriber, CollectSubscriber, DelegateSubscriber, ForeachSubscriber}
 import org.reactivestreams.Subscriber
 
 object Subscribers {
 
-  def foreach[T](f: T => Unit): Subscriber[T] = {
-    val sub = new BaseSubscriber[T] {
-      override def onNext(t: T): Unit = {
-        f(t)
-        subscription().request(1)
-      }
-    }
-    sub.request(1)
-    sub
-  }
-
+  def foreach[T](f: T => Unit) = new ForeachSubscriber[T](f)
 
   def collect[T]() = new CollectSubscriber[T]
 

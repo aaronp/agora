@@ -10,20 +10,19 @@ class IndexQuerySourceTest extends BaseFlowSpec {
 
       import lupin.implicits._
 
-      case class Foo(id: Int, name: String, someProperty: String)
+      case class Foo(id: Int, name: String, someProperty: String, count : Int)
       implicit object FooId extends Accessor[(Long, Foo), Int] {
         override def get(value: (Long, Foo)): Int = value._2.id
       }
       def next(lastValue: Option[Foo]) = {
-        val foo = lastValue.fold(Option(Foo(0, "first foo", "alpha!"))) {
-          case Foo(100, _, _) =>
-
-            None
+        val foo = lastValue.fold(Option(Foo(0, "first foo", "alpha!", 0))) {
+          case Foo(_, _, _, 20) => None
           case previous =>
             val x = previous.id
-            Option(Foo(x + 1 % 5, s"$x mod 7 is ${x % 7}", "property" + x))
+            val newID = (x + 1) % 5
+            val newIdx = previous.count + 1
+            Option(Foo(newID, s"$newIdx w/ ${x % 7} for id $newID", "property" + x, newIdx))
         }
-        println(s"generated from $lastValue returning $foo")
         foo -> true
       }
 
@@ -35,11 +34,13 @@ class IndexQuerySourceTest extends BaseFlowSpec {
         foo.name
       }
 
-      indexedNames.foreach { value =>
+      val allReceived = indexedNames.foreach { value =>
 
         println(value)
 
       }
+
+      allReceived.futureValue shouldBe true
 
 
       println("done")

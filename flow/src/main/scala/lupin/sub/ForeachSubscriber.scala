@@ -2,21 +2,19 @@ package lupin.sub
 
 import org.reactivestreams.{Subscriber, Subscription}
 
-import scala.collection.mutable.ListBuffer
 import scala.concurrent.{Future, Promise}
 
-class CollectSubscriber[T] extends Subscriber[T] {
-  val buffer = ListBuffer[T]()
-  private val promise = Promise[List[T]]()
+class ForeachSubscriber[T](f: T => Unit) extends Subscriber[T] {
+  private val promise = Promise[Boolean]()
 
-  def result: Future[List[T]] = promise.future
+  def result: Future[Boolean] = promise.future
 
   override def onSubscribe(s: Subscription): Unit = {
     s.request(Long.MaxValue)
   }
 
   override def onNext(value: T): Unit = {
-    buffer += value
+    f(value)
   }
 
   override def onError(t: Throwable): Unit = {
@@ -24,6 +22,7 @@ class CollectSubscriber[T] extends Subscriber[T] {
   }
 
   override def onComplete(): Unit = {
-    promise.trySuccess(buffer.toList)
+    promise.trySuccess(true)
   }
 }
+
