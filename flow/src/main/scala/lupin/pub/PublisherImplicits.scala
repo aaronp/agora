@@ -40,7 +40,7 @@ object PublisherImplicits {
       sub.result
     }
 
-    def collect(limit : Long = Long.MaxValue): Future[List[T]] = {
+    def collect(limit: Long = Long.MaxValue): Future[List[T]] = {
       val sub = Subscribers.collect[T](limit)
       publisher.subscribe(sub)
       sub.result

@@ -23,7 +23,7 @@ class CollatingPublisherVerification extends PublisherVerification[String](testE
   class RangeDao(elements: Long) extends DurableProcessorDao[String] {
     override def markComplete(lastIndex: Long): Unit = {}
 
-    override def lastIndex(): Option[Long] = Option(elements - 1)
+    override def finalIndex(): Option[Long] = Option(elements - 1)
 
     override def writeDown(index: Long, value: String): Boolean = {
       true
@@ -36,7 +36,7 @@ class CollatingPublisherVerification extends PublisherVerification[String](testE
         Success(index + "")
       }
 
-    override def maxIndex: Option[Long] = lastIndex()
+    override def maxIndex: Option[Long] = finalIndex()
 
     override def minIndex(): Option[Long] = Option(0)
   }

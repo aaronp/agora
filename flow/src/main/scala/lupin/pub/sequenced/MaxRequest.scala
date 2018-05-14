@@ -1,6 +1,8 @@
 package lupin.pub.sequenced
 
-private[sequenced] class MaxRequest(initialValue: Long = -1L) {
+import com.typesafe.scalalogging.StrictLogging
+
+private[sequenced] class MaxRequest(initialValue: Long = -1L) extends StrictLogging {
 
   private object MaxRequestedIndexLock
 
@@ -25,6 +27,7 @@ private[sequenced] class MaxRequest(initialValue: Long = -1L) {
     MaxRequestedIndexLock.synchronized {
       if (potentialNewMaxRequested > maxRequested) {
         val diff = (potentialNewMaxRequested - maxRequested.max(0)).max(0)
+        logger.debug(s"Updating to $potentialNewMaxIndex from $maxRequested produced $diff")
         maxRequested = potentialNewMaxRequested
         diff
       } else 0

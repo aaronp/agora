@@ -5,7 +5,7 @@ import org.reactivestreams.{Subscriber, Subscription}
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{Future, Promise}
 
-class CollectSubscriber[T](limit : Long = Long.MaxValue) extends Subscriber[T] {
+class CollectSubscriber[T](limit: Long = Long.MaxValue) extends Subscriber[T] {
   val buffer          = ListBuffer[T]()
   private val promise = Promise[List[T]]()
 

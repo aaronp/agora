@@ -35,7 +35,7 @@ class DurableProcessorInstance[T](val dao: DurableProcessorDao[T],
     */
   def lastIndex(): Option[Long] = {
     cachedLastIndex.orElse {
-      val opt = dao.lastIndex()
+      val opt = dao.finalIndex()
       opt.foreach(_ => cachedLastIndex = opt)
       opt
     }
@@ -78,7 +78,7 @@ class DurableProcessorInstance[T](val dao: DurableProcessorDao[T],
   // which has been notified of an error (via onError)
   private var processorErrorOpt = Option.empty[Throwable]
 
-  private val maxRequest = new MaxRequest()
+  private val maxRequest = new MaxRequest(dao.minIndex().getOrElse(-1))
 
   protected def maxRequestedIndex() = maxRequest.get()
 
@@ -251,8 +251,8 @@ class DurableProcessorInstance[T](val dao: DurableProcessorDao[T],
   override def onComplete(): Unit = {
     val idx = nextIndexCounter.get()
     dao.markComplete(idx)
-    val lastIdxOpt = dao.lastIndex()
-    require(lastIdxOpt == Option(idx), s"dao.lastIndex() returned ${lastIdxOpt}")
+    val lastIdxOpt = dao.finalIndex()
+    require(lastIdxOpt == Option(idx), s"dao.finalIndex() returned ${lastIdxOpt}")
     foreachSubscriber(_.notifyComplete(idx))
     clearSubscription()
   }
@@ -267,10 +267,6 @@ class DurableProcessorInstance[T](val dao: DurableProcessorDao[T],
     val alreadySubscribed = SubscriptionOptLock.synchronized {
       subscriptionOpt match {
         case None =>
-          if (numRequestedPriorToSubscribe > 0) {
-            s.request(numRequestedPriorToSubscribe)
-            numRequestedPriorToSubscribe = 0
-          }
           subscriptionOpt = Option(s)
           subscriptionPromise.trySuccess(s)
           false
@@ -281,8 +277,17 @@ class DurableProcessorInstance[T](val dao: DurableProcessorDao[T],
     if (alreadySubscribed) {
       s.cancel()
     } else {
+
+      val numToRequest = if (numRequestedPriorToSubscribe > 0) {
+        val num = maxRequestedIndex.max(numRequestedPriorToSubscribe)
+        numRequestedPriorToSubscribe = 0
+        num
+      } else {
+        maxRequestedIndex
+      }
+
       // trigger any requests from our subscribers
-      maxRequestedIndex match {
+      numToRequest match {
         case n if n > 0 => s.request(n)
         case _          =>
       }

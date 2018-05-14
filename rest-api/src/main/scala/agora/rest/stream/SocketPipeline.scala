@@ -1,6 +1,5 @@
 package agora.rest.stream
 
-import agora.flow.{HasName, _}
 import agora.rest.exchange.ClientSubscriptionMessage
 import akka.NotUsed
 import akka.http.scaladsl.model.ws.{Message, TextMessage}
@@ -11,7 +10,7 @@ import io.circe.syntax._
 import io.circe.{Decoder, Encoder}
 import lupin._
 import lupin.data.HasName
-import lupin.pub.sequenced.{DurableProcessorDao, DurableProcessorInstance}
+import lupin.pub.sequenced.{DurableProcessor, DurableProcessorDao, DurableProcessorInstance}
 import lupin.sub.BaseSubscriber
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
@@ -61,7 +60,7 @@ object SocketPipeline extends StrictLogging {
       */
     val republishingDataConsumer = new DurableProcessorInstance[FromRemote](dao) {
       override def onNext(value: FromRemote): Unit = {
-        logger.debug(s"Republishing $name\n${snapshot()} >>>>\n$value\n<<<<\n")
+        logger.debug(s"Republishing $name\n>>>>\n$value\n<<<<\n")
         super.onNext(value)
       }
       override protected def onRequest(n: Long) = {
@@ -74,18 +73,8 @@ object SocketPipeline extends StrictLogging {
       }
     }
 
-    def snapshot(): PublisherSnapshot[Int] = {
-      republishingDataConsumer match {
-        case support: PublisherSnapshotSupport[Int] => support.snapshot()
-        case _                                      => PublisherSnapshot[Int](Map.empty)
-      }
-//      republishingDataConsumer.snapshot()
-
-    }
-
     override def name: String = {
-      val underlyingName = snapshot().toString
-      s"DataSubscriber[$hashCode] for $underlyingName"
+      s"DataSubscriber[$hashCode] for $republishingDataConsumer"
     }
 
     /**
@@ -128,13 +117,6 @@ object SocketPipeline extends StrictLogging {
     */
   class DataPublisher[ToRemote: Encoder](val localPublisher: Publisher[ToRemote])(implicit ec: ExecutionContext) extends HasName {
 
-    def snapshot(): Option[PublisherSnapshot[Int]] = {
-      localPublisher match {
-        case s: PublisherSnapshotSupport[Int] => Option(s.snapshot())
-        case _                                => None
-      }
-    }
-
     /**
       * the buffer feeds the processor connected to the flow. The flow will immediately request e.g. 16 elements,
       * but the buffer will only pull from the localPublisher (and thus republish to the flowProcessor) when
@@ -145,7 +127,7 @@ object SocketPipeline extends StrictLogging {
 
       // don't automatically pull from the local producer, but rather only when explicitly requested
       val p = new DurableProcessorInstance(dao, propagateSubscriberRequestsToOurSubscription = false) with HasName {
-        override def name = s"buffer w/ ${snapshot()}"
+        override def name = s"buffer w/ ${dao}"
       }
 
       // when the local producer gets messages, we push to our buffer
@@ -162,7 +144,7 @@ object SocketPipeline extends StrictLogging {
       */
     private[stream] val flowProcessor = {
       val p = DurableProcessor[ToRemote]()
-      buffer.subscribe(p)
+      buffer.valuesPublisher().subscribe(p)
       p
     }
 
@@ -179,7 +161,7 @@ object SocketPipeline extends StrictLogging {
           buffersSubscriptionToLocalProcessor.request(n)
           sub.request(1)
       }
-      p.subscribe(actionFromControl)
+      p.valuesPublisher().subscribe(actionFromControl)
       p
     }
 

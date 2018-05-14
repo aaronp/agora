@@ -18,7 +18,7 @@ trait DurableProcessorDao[T] extends DurableProcessorReader[T] {
   /**
     * @return the last (final) index, if known
     */
-  def lastIndex(): Option[Long]
+  def finalIndex(): Option[Long]
 
   /** @return the maximum written index (or none if there are none)
     */
@@ -55,7 +55,7 @@ object DurableProcessorDao extends StrictLogging {
   class Delegate[T](underlying: DurableProcessorDao[T]) extends DurableProcessorDao[T] {
     override def markComplete(lastIndex: Long) = underlying.markComplete(lastIndex)
 
-    override def lastIndex() = underlying.lastIndex()
+    override def finalIndex() = underlying.finalIndex()
 
     override def writeDown(index: Long, value: T) = underlying.writeDown(index, value)
 
@@ -123,7 +123,7 @@ object DurableProcessorDao extends StrictLogging {
       lastIndexOpt = lastIndexOpt.orElse(Option(lastIndex))
     }
 
-    override def lastIndex(): Option[Long] = lastIndexOpt
+    override def finalIndex(): Option[Long] = lastIndexOpt
 
     override def minIndex(): Option[Long] = {
       if (elements.isEmpty) {
@@ -145,7 +145,7 @@ object DurableProcessorDao extends StrictLogging {
 
     @volatile private var max = -1L
 
-    private lazy val lastIndexFile = dir.resolve(".lastIndex")
+    private lazy val lastIndexFile = dir.resolve(".finalIndex")
 
     /** @return the maximum written index (or none if there are none)
       */
@@ -165,7 +165,7 @@ object DurableProcessorDao extends StrictLogging {
       lastIndexFile.text = lastIndex.toString
     }
 
-    override def lastIndex(): Option[Long] = {
+    override def finalIndex(): Option[Long] = {
       if (lastIndexFile.exists()) {
         Option(lastIndexFile.text.toLong)
       } else {

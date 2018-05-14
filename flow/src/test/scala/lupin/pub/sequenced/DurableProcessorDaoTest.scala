@@ -5,20 +5,20 @@ import lupin.pub.sequenced.DurableProcessorDao.InvalidIndexException
 
 class DurableProcessorDaoTest extends BaseFlowSpec {
 
-  "DurableProcessorDao.lastIndex" should {
+  "DurableProcessorDao.finalIndex" should {
     "return the max persisted index" in {
       withDir { dir =>
         val dao = DurableProcessorDao.inDir[String](dir, 2)
-        dao.lastIndex shouldBe None
+        dao.finalIndex shouldBe None
 
         dao.writeDown(10, "ten") shouldBe true
-        dao.lastIndex shouldBe None
+        dao.finalIndex shouldBe None
 
         dao.markComplete(11)
-        dao.lastIndex shouldBe Option(11)
+        dao.finalIndex shouldBe Option(11)
 
         val anotherDaoInSameDir = DurableProcessorDao.inDir[String](dir, 2)
-        anotherDaoInSameDir.lastIndex shouldBe Option(11)
+        anotherDaoInSameDir.finalIndex shouldBe Option(11)
       }
     }
   }
