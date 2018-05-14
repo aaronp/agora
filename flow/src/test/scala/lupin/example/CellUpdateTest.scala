@@ -12,7 +12,6 @@ class CellUpdateTest extends BaseFlowSpec with GivenWhenThen {
     "expose the fields in a view from a static publisher" in {
       case class Person(id: Int, name: String, lastName: String, favouriteColour: String)
 
-
       Given("Some data source")
       // create some data source
       val pub = Publishers.of(
@@ -21,7 +20,8 @@ class CellUpdateTest extends BaseFlowSpec with GivenWhenThen {
         Person(3, "foo", "bizz", "green"),
         Person(4, "foo", "buzz", "black"),
         Person(5, "sue", "smith", "red"),
-        Person(6, "kevin", "arnold", "green"))
+        Person(6, "kevin", "arnold", "green")
+      )
 
       And("A ViewPort feed")
       val viewUpdates = Publishers.sequenced[ViewPort]()

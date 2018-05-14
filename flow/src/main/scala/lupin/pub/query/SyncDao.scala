@@ -27,8 +27,8 @@ object SyncDao {
     type Self = Buffer[K, T]
 
     override def update(value: T) = {
-      val key = idx.get(value)
-      val crud = map.get(key).fold(Create(key): CrudOperation[K])(_ => Update(key))
+      val key    = idx.get(value)
+      val crud   = map.get(key).fold(Create(key): CrudOperation[K])(_ => Update(key))
       val newMap = map.updated(key, value)
       crud -> new Buffer(newMap)
     }

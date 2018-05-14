@@ -10,11 +10,11 @@ class CollatingPublisherTest extends BaseFlowSpec with GivenWhenThen {
 
   "CollatingPublisher" should {
     "consume from all publishers even after some have completed" in {
-      val cp = CollatingPublisher[Int, Int](fair = true)
-      val first = Publishers.of(1, 2, 3, 4, 5, 6)
-      val second = Publishers.of(100)
+      val cp           = CollatingPublisher[Int, Int](fair = true)
+      val first        = Publishers.of(1, 2, 3, 4, 5, 6)
+      val second       = Publishers.of(100)
       val negativeInts = (-10 to -1).toList
-      val third = Publishers.forValues(negativeInts)
+      val third        = Publishers.forValues(negativeInts)
 
       When("The collating publisher subscribes to two publishers")
       first.subscribe(cp.newSubscriber(1))
@@ -44,7 +44,7 @@ class CollatingPublisherTest extends BaseFlowSpec with GivenWhenThen {
       val cp = CollatingPublisher[Int, Int](fair = false)
       class TestSubscription(subscriber: Subscriber[Int]) extends Subscription {
         var totalRequested = new AtomicLong(0)
-        var cancelCalls = new AtomicInteger(0)
+        var cancelCalls    = new AtomicInteger(0)
         subscriber.onSubscribe(this)
 
         def requested = totalRequested.get
@@ -73,7 +73,6 @@ class CollatingPublisherTest extends BaseFlowSpec with GivenWhenThen {
         sub3.requested shouldBe 1
       }
 
-
       println("done")
     }
     "publish values from all its publishers" in {
@@ -82,9 +81,9 @@ class CollatingPublisherTest extends BaseFlowSpec with GivenWhenThen {
       cp.subscribers() shouldBe empty
 
       And("some publishers")
-      val first = Publishers.of(1, 2, 3)
+      val first  = Publishers.of(1, 2, 3)
       val second = Publishers.of(100, 200, 300, 400)
-      val third = Publishers.of(1000, 2000)
+      val third  = Publishers.of(1000, 2000)
 
       When("The collating publisher subscribes to two publishers")
       first.subscribe(cp.newSubscriber(-1))
@@ -100,7 +99,7 @@ class CollatingPublisherTest extends BaseFlowSpec with GivenWhenThen {
 
       val gotOne = eventually {
         list.received() match {
-          case List((-1, 1)) => true
+          case List((-1, 1))   => true
           case List((-2, 100)) => false
           case other =>
             fail(s"either the first or second subscription element should be requested: $other")
@@ -124,7 +123,7 @@ class CollatingPublisherTest extends BaseFlowSpec with GivenWhenThen {
       list.request(3)
 
       eventually {
-        list.receivedInOrderReceived().map(_._2) should contain allOf(2, 200, 1000)
+        list.receivedInOrderReceived().map(_._2) should contain allOf (2, 200, 1000)
       }
     }
   }

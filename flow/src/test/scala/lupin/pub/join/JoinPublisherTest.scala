@@ -8,8 +8,8 @@ class JoinPublisherTest extends BaseFlowSpec with GivenWhenThen {
   def unpack(received: List[TupleUpdate[Int, Int]]): List[Int] = {
     received.flatMap {
       case BothUpdated(a, b) => List(a, b)
-      case LeftUpdate(a) => List(a)
-      case RightUpdate(a) => List(a)
+      case LeftUpdate(a)     => List(a)
+      case RightUpdate(a)    => List(a)
     }
   }
 
@@ -27,7 +27,7 @@ class JoinPublisherTest extends BaseFlowSpec with GivenWhenThen {
       eventually {
         val actual: List[TupleUpdate[Int, Int]] = sub1.receivedInOrderReceived()
 
-        unpack(actual) should contain only(1, 2, 4, 5)
+        unpack(actual) should contain only (1, 2, 4, 5)
       }
 
       sub2.request(2)

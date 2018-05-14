@@ -7,7 +7,7 @@ object Subscribers {
 
   def foreach[T](f: T => Unit) = new ForeachSubscriber[T](f)
 
-  def collect[T]() = new CollectSubscriber[T]
+  def collect[T](limit : Long = Long.MaxValue) = new CollectSubscriber[T](limit)
 
   def fold[A, B](initial: A)(f: (A, B) => A): Subscriber[B] = {
     val sub = BaseSubscriber[A](1) {

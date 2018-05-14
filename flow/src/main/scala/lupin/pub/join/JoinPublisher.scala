@@ -28,11 +28,8 @@ object JoinPublisher {
     * @tparam B
     * @return a publisher which joins the two publishers
     */
-  def apply[A, B](left: Publisher[A],
-                  right: Publisher[B],
-                  newLeftQueue: () => FIFO[LeftUpdate[A, B]],
-                  newRightQueue: () => FIFO[RightUpdate[A, B]]
-                 )(implicit ec: ExecutionContext): Publisher[TupleUpdate[A, B]] = {
+  def apply[A, B](left: Publisher[A], right: Publisher[B], newLeftQueue: () => FIFO[LeftUpdate[A, B]], newRightQueue: () => FIFO[RightUpdate[A, B]])(
+      implicit ec: ExecutionContext): Publisher[TupleUpdate[A, B]] = {
 
     //
     // first, create summat which will request from both publishers
@@ -41,7 +38,6 @@ object JoinPublisher {
 
     val fromLeft = collate.newSubscriber(1)
     Publishers.map(left)(a => TupleUpdate.left[A, B](a)).subscribe(fromLeft)
-
 
     val fromRight = collate.newSubscriber(2)
     Publishers.map(right)(b => TupleUpdate.right[A, B](b)).subscribe(fromRight)
@@ -54,6 +50,5 @@ object JoinPublisher {
 
     consumer
   }
-
 
 }

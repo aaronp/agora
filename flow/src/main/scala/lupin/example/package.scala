@@ -57,5 +57,4 @@ package object example {
     */
   type CellFeed[ID, U <: FieldUpdate[ID]] = Publisher[CellUpdate[ID, U]]
 
-
 }

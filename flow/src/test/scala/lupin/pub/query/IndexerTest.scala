@@ -24,12 +24,12 @@ class IndexerTest extends BaseFlowSpec with GivenWhenThen {
 
       val indexer: QueryIndexer[Int, String] = Indexer.slowInMemoryIndexer[Int, String]
 
-      val fields = List("alpha", "beta", "gamma", "delta", "epsilon")
+      val fields        = List("alpha", "beta", "gamma", "delta", "epsilon")
       val indexedValues = ListBuffer[IndexedValue[Int, String]]()
       val (querySource: QueryIndexer[Int, String]) = fields.zipWithIndex.foldLeft(indexer) {
         case (dao, (str, index)) =>
-          val id = index + 100 // make up some different ID
-        val op = CrudOperation.create(id)
+          val id                  = index + 100 // make up some different ID
+          val op                  = CrudOperation.create(id)
           val (newIndexer, value) = dao.index(index, str, op)
           indexedValues += value
           newIndexer.asInstanceOf[QueryIndexer[Int, String]]
@@ -55,7 +55,6 @@ class IndexerTest extends BaseFlowSpec with GivenWhenThen {
         IndexQueryResult(2, 102, 4, "gamma")
       )
 
-
       // change 'delta' to 'zeta'
       val (newQuerySource: QueryIndexer[Int, String], moveResult) = querySource.index(500, "zeta", CrudOperation.update(103))
       moveResult shouldBe IndexedValue(500, 103, MovedIndex(2, 4, "zeta"))
@@ -73,7 +72,6 @@ class IndexerTest extends BaseFlowSpec with GivenWhenThen {
 
   "Indexer.crud" should {
     "publish initial elements meeting the criteria" in {
-
 
       val people = Publishers.of(
         Person(1, "Georgina"),
@@ -98,7 +96,7 @@ class IndexerTest extends BaseFlowSpec with GivenWhenThen {
 
       crudListener.request(5)
       eventually {
-        crudListener.receivedInOrderReceived() should contain only(
+        crudListener.receivedInOrderReceived() should contain only (
           Create(1) -> Person(1, "Georgina"),
           Create(3) -> Person(3, "Jayne"),
           Update(1) -> Person(1, "George")
@@ -142,7 +140,7 @@ class IndexerTest extends BaseFlowSpec with GivenWhenThen {
       crudListener.request(2)
 
       eventually {
-        crudListener.receivedInOrderReceived() should contain inOrder(
+        crudListener.receivedInOrderReceived() should contain inOrder (
           Create(1) -> (Person(1, "Georgina")),
           Create(2) -> (Person(2, "Eleanor")),
           Create(3) -> (Person(3, "Jayne")),

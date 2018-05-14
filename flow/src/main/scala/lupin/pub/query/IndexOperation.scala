@@ -1,6 +1,5 @@
 package lupin.pub.query
 
-
 sealed trait IndexOperation[T]
 
 object IndexOperation {

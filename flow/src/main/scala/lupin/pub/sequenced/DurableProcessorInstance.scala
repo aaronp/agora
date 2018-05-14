@@ -8,7 +8,6 @@ import org.reactivestreams.{Subscriber, Subscription}
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
-
 /**
   *
   * @param dao                                          the durable bit -- what's going to write down the elements received
@@ -18,7 +17,9 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
   */
 class DurableProcessorInstance[T](val dao: DurableProcessorDao[T],
                                   val propagateSubscriberRequestsToOurSubscription: Boolean = true,
-                                  currentIndexCounter: Long = -1L)(implicit execContext: ExecutionContext) extends DurableProcessor[T] with StrictLogging {
+                                  currentIndexCounter: Long = -1L)(implicit execContext: ExecutionContext)
+    extends DurableProcessor[T]
+    with StrictLogging {
 
   type IndexSubscription = (Long, T)
 
@@ -63,13 +64,13 @@ class DurableProcessorInstance[T](val dao: DurableProcessorDao[T],
 
   def subscriberCount(): Int = SubscribersLock.synchronized(subscribersById.size)
 
-  protected val initialIndex: Long = nextIndexCounter.get()
-  private var maxWrittenIndex = initialIndex
-  private val MaxWrittenIndexLock = new ReentrantReadWriteLock()
-  private var subscribersById = Map[Int, DurableSubscription[T]]()
+  protected val initialIndex: Long         = nextIndexCounter.get()
+  private var maxWrittenIndex              = initialIndex
+  private val MaxWrittenIndexLock          = new ReentrantReadWriteLock()
+  private var subscribersById              = Map[Int, DurableSubscription[T]]()
   private var numRequestedPriorToSubscribe = 0L
-  private var subscriptionOpt = Option.empty[Subscription]
-  private val subscriptionPromise = Promise[Subscription]()
+  private var subscriptionOpt              = Option.empty[Subscription]
+  private val subscriptionPromise          = Promise[Subscription]()
 
   private object SubscriptionOptLock
 
@@ -283,7 +284,7 @@ class DurableProcessorInstance[T](val dao: DurableProcessorDao[T],
       // trigger any requests from our subscribers
       maxRequestedIndex match {
         case n if n > 0 => s.request(n)
-        case _ =>
+        case _          =>
       }
     }
   }

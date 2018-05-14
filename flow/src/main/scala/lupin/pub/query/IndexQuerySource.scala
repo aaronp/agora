@@ -12,7 +12,6 @@ trait IndexQuerySource[K, T] {
 
 object IndexQuerySource {
 
-
   /**
     * An example of how to index a property 'A' of 'T' which is keyed on 'K'
     *
@@ -26,14 +25,14 @@ object IndexQuerySource {
     * @tparam A
     * @return
     */
-  def apply[K, T, A: Ordering](data: Publisher[(Long, T)],
-                               inputDao: SyncDao[K, (Long, T)] = null)(getter: T => A)(implicit getId: Accessor[(Long, T), K], execContext: ExecutionContext): Publisher[IndexedValue[K, A]] = {
+  def apply[K, T, A: Ordering](data: Publisher[(Long, T)], inputDao: SyncDao[K, (Long, T)] = null)(
+      getter: T => A)(implicit getId: Accessor[(Long, T), K], execContext: ExecutionContext): Publisher[IndexedValue[K, A]] = {
     val insert: Publisher[(CrudOperation[K], (Long, T))] = Indexer.crud(data, inputDao)
     forSequencedDataFeed(insert, inputDao)(getter)
   }
 
-  def forSequencedDataFeed[K, T, A: Ordering](sequencedDataFeed: Publisher[(CrudOperation[K], (Long, T))],
-                                              inputDao: SyncDao[K, (Long, T)] = null)(getter: T => A)(implicit execContext: ExecutionContext): Publisher[IndexedValue[K, A]] = {
+  def forSequencedDataFeed[K, T, A: Ordering](sequencedDataFeed: Publisher[(CrudOperation[K], (Long, T))], inputDao: SyncDao[K, (Long, T)] = null)(
+      getter: T => A)(implicit execContext: ExecutionContext): Publisher[IndexedValue[K, A]] = {
     import lupin.implicits._
     val sequencedValues: Publisher[Sequenced[(CrudOperation[K], A)]] = sequencedDataFeed.map {
       case (crudOp, (seqNo, value)) => Sequenced(seqNo, (crudOp, getter(value)))
@@ -42,7 +41,6 @@ object IndexQuerySource {
     val indexer: IndexQuerySource[K, A] with Indexer[K, A] = IndexQuerySource.apply(Indexer.slowInMemoryIndexer)
     Indexer[K, A](sequencedValues, indexer)
   }
-
 
   /**
     * Some instances of indexer will be immutable as they fold over values. This instance will wrap those so as
@@ -64,7 +62,7 @@ object IndexQuerySource {
 
       override def index(seqNo: Long, data: T, op: CrudOperation[K]) = {
         val (newInst, indexedValue) = current.index(seqNo, data, op)
-        val casted = newInst.asInstanceOf[IndexQuerySource[K, T] with Indexer[K, T]]
+        val casted                  = newInst.asInstanceOf[IndexQuerySource[K, T] with Indexer[K, T]]
         //        val casted:  = ev(newInst)
         current = casted
         (this, indexedValue)

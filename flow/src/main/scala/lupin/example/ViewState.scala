@@ -172,7 +172,7 @@ class ViewState[ID] private (availableFieldsByName: Map[String, FieldFeed[ID]], 
 
 //        (fieldName, cellFeed, newFieldSubscription.subscriptionFuture)
 
-       ???
+        ???
     }
 
     //

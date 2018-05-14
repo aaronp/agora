@@ -19,15 +19,14 @@ import scala.concurrent.ExecutionContext
   * @tparam K
   * @tparam T
   */
-class CollatingPublisherInstance[K, T](dao: DurableProcessorDao[(K, T)],
-                                       propagateOnError: Boolean,
-                                       fair: Boolean)(implicit execContext: ExecutionContext)
-  extends CollatingPublisher[K, T] with StrictLogging {
+class CollatingPublisherInstance[K, T](dao: DurableProcessorDao[(K, T)], propagateOnError: Boolean, fair: Boolean)(implicit execContext: ExecutionContext)
+    extends CollatingPublisher[K, T]
+    with StrictLogging {
 
   // used to guard subscribersById and subscribersByIdKeys
   private object SubscribersByIdLock
 
-  private var subscribersById = Map[K, SubscriberInst]()
+  private var subscribersById     = Map[K, SubscriberInst]()
   private val subscribersByIdKeys = new RotatingArray[K]() // ensures fairness in pulling from subscribers, that the first one isn't always used
 
   /**
@@ -37,7 +36,6 @@ class CollatingPublisherInstance[K, T](dao: DurableProcessorDao[(K, T)],
   private class InternalPublisher extends DurableProcessorInstance[(K, T)](dao) {
 
     private object NextLock
-
 
     def outstandingRequested() = {
       val c = currentIndex()
@@ -89,7 +87,6 @@ class CollatingPublisherInstance[K, T](dao: DurableProcessorDao[(K, T)],
     // subscription -- which is this InternalPublisherSubscription
     private object InternalPublisherSubscription extends Subscription with StrictLogging {
       override def request(userRequested: Long): Unit = {
-
 
         if (subscribersById.size < 2) {
           logger.debug(s"Sending request for $userRequested to only ${subscribersById.size} subscriber")
@@ -155,7 +152,6 @@ class CollatingPublisherInstance[K, T](dao: DurableProcessorDao[(K, T)],
 
     override def onComplete(): Unit = publisher.onSubscriberComplete(key)
   }
-
 
   override def newSubscriber(key: K): SubscriberInst = {
     val sub = new SubscriberInst(key)

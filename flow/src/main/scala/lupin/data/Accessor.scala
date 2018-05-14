@@ -21,10 +21,10 @@ trait Accessor[T, A] {
 object Accessor {
   trait Aux[T] {
     type Prop
-    def get(value : T) : Prop
+    def get(value: T): Prop
   }
 
-  implicit def auxAsAccessor[T](aux : Aux[T]) : Accessor[T, aux.Prop] = new Accessor[T, aux.Prop] {
+  implicit def auxAsAccessor[T](aux: Aux[T]): Accessor[T, aux.Prop] = new Accessor[T, aux.Prop] {
     override def get(value: T): aux.Prop = aux.get(value)
   }
 

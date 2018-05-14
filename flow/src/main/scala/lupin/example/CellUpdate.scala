@@ -12,8 +12,8 @@ object CellUpdate {
 
     val first: CellUpdate[ID, U] = CellUpdate(Map.empty)
     Publishers.foldLeft(joined, first) {
-      case (cellUpdate, LeftUpdate(value)) => cellUpdate
-      case (cellUpdate, RightUpdate(viewPort)) => cellUpdate
+      case (cellUpdate, LeftUpdate(value))            => cellUpdate
+      case (cellUpdate, RightUpdate(viewPort))        => cellUpdate
       case (cellUpdate, BothUpdated(value, viewPort)) => cellUpdate
     }
     ???

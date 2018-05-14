@@ -33,7 +33,7 @@ trait DurableProcessor[T] extends Publisher[(Long, T)] with Subscriber[T] {
     * Convenience to provide just the data values w/o the indices
     * @return a publisher of the data w/o the indices
     */
-  def valuesPublisher() : Publisher[T] = {
+  def valuesPublisher(): Publisher[T] = {
     import lupin.implicits._
     this.map(_._2)
   }

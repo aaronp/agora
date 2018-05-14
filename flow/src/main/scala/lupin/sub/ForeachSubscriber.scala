@@ -25,4 +25,3 @@ class ForeachSubscriber[T](f: T => Unit) extends Subscriber[T] {
     promise.trySuccess(true)
   }
 }
-

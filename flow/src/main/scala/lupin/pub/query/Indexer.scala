@@ -26,8 +26,8 @@ object Indexer {
     * @tparam T
     * @return a publisher of the operations w/ the values flowing through it
     */
-  def crud[K, T](data: Publisher[T],
-                 inputDao: SyncDao[K, T] = null)(implicit accessor: Accessor[T, K], execContext: ExecutionContext): Publisher[(CrudOperation[K], T)] = {
+  def crud[K, T](data: Publisher[T], inputDao: SyncDao[K, T] = null)(implicit accessor: Accessor[T, K],
+                                                                     execContext: ExecutionContext): Publisher[(CrudOperation[K], T)] = {
     val dao = if (inputDao == null) {
       SyncDao[K, T](accessor)
     } else {
@@ -41,19 +41,16 @@ object Indexer {
     }
   }
 
-
-  def apply[K, T: Ordering](seqNoDataAndOp: Publisher[Sequenced[(CrudOperation[K], T)]],
-                            indexer: Indexer[K, T]): Publisher[IndexedValue[K, T]] = {
+  def apply[K, T: Ordering](seqNoDataAndOp: Publisher[Sequenced[(CrudOperation[K], T)]], indexer: Indexer[K, T]): Publisher[IndexedValue[K, T]] = {
     seqNoDataAndOp.foldWith(indexer) {
       case (store, Sequenced(seqNo, (op, data))) => store.index(seqNo, data, op)
     }
   }
 
-
   private class SortedEntry[K, T](val key: K, val seqNo: Long, val value: T) {
     override def equals(other: Any) = other match {
       case se: SortedEntry[_, _] => key == se.key
-      case _ => false
+      case _                     => false
     }
 
     override def hashCode(): Int = key.hashCode()
@@ -65,11 +62,12 @@ object Indexer {
     before ++: (entry +: after)
   }
 
-
   type QueryIndexer[K, T] = Indexer[K, T] with IndexQuerySource[K, T]
   def slowInMemoryIndexer[K, T: Ordering](implicit executionContext: ExecutionContext): QueryIndexer[K, T] = new SlowInMemoryStore
 
-  private case class SlowInMemoryStore[K, T: Ordering](values: Vector[SortedEntry[K, T]] = Vector())(implicit executionContext: ExecutionContext) extends Indexer[K, T] with IndexQuerySource[K, T] {
+  private case class SlowInMemoryStore[K, T: Ordering](values: Vector[SortedEntry[K, T]] = Vector())(implicit executionContext: ExecutionContext)
+      extends Indexer[K, T]
+      with IndexQuerySource[K, T] {
 
     override def index(seqNo: Long, data: T, op: CrudOperation[K]) = {
       val entry = new SortedEntry(op.key, seqNo, data)
@@ -77,12 +75,12 @@ object Indexer {
         case Create(key) =>
           require(!values.contains(entry))
           val newStore = copy(values = insert(values, entry))
-          val idx = newStore.values.indexOf(entry)
+          val idx      = newStore.values.indexOf(entry)
           newStore -> IndexedValue[K, T](seqNo, key, NewIndex(idx, data))
         case Update(key) =>
           require(values.contains(entry))
 
-          val oldIndex = values.indexOf(entry)
+          val oldIndex      = values.indexOf(entry)
           val removedValues = values diff (List(entry))
           require(removedValues.size == values.size - 1)
 
@@ -93,7 +91,7 @@ object Indexer {
         case Delete(key) =>
           require(values.contains(entry))
 
-          val oldIndex = values.indexOf(entry)
+          val oldIndex      = values.indexOf(entry)
           val removedValues = values diff (List(entry))
           require(removedValues.size == values.size - 1)
 
@@ -105,7 +103,7 @@ object Indexer {
     override def query(criteria: IndexSelection) = {
       val get = values.lift
       val indicesIterator = criteria match {
-        case IndexRange(from, to) => (from to to).iterator
+        case IndexRange(from, to)     => (from to to).iterator
         case SpecificIndices(indices) => indices.iterator
       }
 

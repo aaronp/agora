@@ -22,29 +22,29 @@ class SubscriberStateTest extends BaseFlowSpec {
       subscriber.isCompleted() shouldBe false
 
       state.update(OnRequest(1)) shouldBe ContinueResult
-      subscriber.receivedInOrderReceived() shouldBe List("0")
+      subscriber.receivedInOrderReceived() shouldBe List(0 -> "0")
     }
     "push all elements when told some are available after requested" in {
       val subscriber = new ListSubscriber[(Long, String)]
       val state      = new SubscriberState(subscriber, TestDao, -1)
       state.update(OnRequest(2)) shouldBe ContinueResult
       state.update(OnNewIndexAvailable(4)) shouldBe ContinueResult
-      subscriber.receivedInOrderReceived() shouldBe List("0", "1")
+      subscriber.receivedInOrderReceived() shouldBe List(0 -> "0", 1 -> "1")
       subscriber.isCompleted() shouldBe false
 
       state.update(OnRequest(1)) shouldBe ContinueResult
-      subscriber.receivedInOrderReceived() shouldBe List("0", "1", "2")
+      subscriber.receivedInOrderReceived() shouldBe List(0 -> "0", 1 -> "1", 2 -> "2")
     }
     "push all elements when completed" in {
       val subscriber = new ListSubscriber[(Long, String)]
       val state      = new SubscriberState(subscriber, TestDao, -1)
       state.update(OnRequest(1)) shouldBe ContinueResult
       state.update(OnComplete(1)) shouldBe ContinueResult
-      subscriber.receivedInOrderReceived() shouldBe List("0")
+      subscriber.receivedInOrderReceived() shouldBe List(0 -> "0")
       subscriber.isCompleted() shouldBe false
 
       state.update(OnRequest(1)) shouldBe StopResult(None)
-      subscriber.receivedInOrderReceived() shouldBe List("0", "1")
+      subscriber.receivedInOrderReceived() shouldBe List(0 -> "0", 1 -> "1")
       subscriber.isCompleted() shouldBe true
     }
     "return Stop when cancelled" in {

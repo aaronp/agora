@@ -108,7 +108,7 @@ private[collate] object ComputeRequested {
     def inc(amountToTakeForEachNode: Long, amountToTakeForEachNodeRemainder: Long, remaining: Long): Long = {
       if (remaining > 0) {
         val remainder = amountToTakeForEachNodeRemainder.min(1)
-        val take = (amountToTakeForEachNode + remainder).min(remaining)
+        val take      = (amountToTakeForEachNode + remainder).min(remaining)
         added = added + take
         if (next != null && next.requested < requested) {
           next.inc(amountToTakeForEachNode, amountToTakeForEachNodeRemainder - remainder, remaining - take)

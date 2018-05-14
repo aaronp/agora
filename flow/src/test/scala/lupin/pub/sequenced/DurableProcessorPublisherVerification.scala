@@ -35,7 +35,7 @@ class DurableProcessorPublisherVerification extends PublisherVerification[String
       }
 
     override def minIndex(): Option[Long] = Option(0)
-    override def maxIndex: Option[Long] = lastIndex()
+    override def maxIndex: Option[Long]   = lastIndex()
   }
 
   override def createPublisher(elements: Long): Publisher[String] = {

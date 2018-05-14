@@ -1,5 +1,6 @@
 package lupin
 
+import lupin.pub.FIFO
 import lupin.pub.collate.CollatingPublisher
 import lupin.pub.concat.ConcatPublisher
 import lupin.pub.join.{JoinPublisher, TupleUpdate}
@@ -49,7 +50,7 @@ object Publishers {
   def unfold[T](createNext: Option[T] => (Option[T], Boolean))(implicit ec: ExecutionContext): Publisher[T] = {
     new DurableProcessorInstance[T](DurableProcessorDao[T]()) {
       var currentlyRequested = 0L
-      var previous = Option.empty[T]
+      var previous           = Option.empty[T]
 
       override def onRequest(n: Long): Unit = {
         require(n > 0)
@@ -71,6 +72,17 @@ object Publishers {
         }
       }
     }.valuesPublisher()
+  }
+
+  /**
+    * Creates a publisher from a FIFO which uses 'None' to signal completion
+    * @param queue
+    * @param ec
+    * @tparam T
+    * @return a Publisher for the [[FIFO]] queue
+    */
+  def apply[T](queue: FIFO[Option[T]])(implicit ec: ExecutionContext): Publisher[T] = {
+    unfold(_ => (queue.pop() -> true))
   }
 
   /**
