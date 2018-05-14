@@ -21,21 +21,45 @@ class IndexQuerySourceTest extends BaseFlowSpec with GivenWhenThen {
       import lupin.implicits._
 
 
-      val nameQuery: IndexQuerySource[String, String] = IndexQuerySource.fromSequencedDataFeed(data)(_.name)
-      val ageQuery = IndexQuerySource.fromSequencedDataFeed(data)(_.age)
+      val sequencedData: Publisher[Sequenced[(CrudOperation[String], String)]] = Sequenced.map(data)(_.name)
+      val nameIndexer: Publisher[IndexedValue[String, String]] with IndexQuerySource[String, String] = IndexQuerySource.fromSequencedUpdates(sequencedData)
+
 
       And("A query for an index selection of indices 1 and 2")
-      val firstTwoNames: Publisher[IndexedEntry[String, String]] = nameQuery.between(1, 2)
+      val firstTwoNames: Publisher[IndexedEntry[String, String]] = nameIndexer.between(1, 2)
 
+      val indexListener = nameIndexer.withSubscriber(new ListSubscriber[IndexedValue[String, String]]())
+      indexListener.request(10)
       val updateListener = firstTwoNames.withSubscriber(new ListSubscriber[IndexedEntry[String, String]]())
+      updateListener.request(10)
 
       When("The first value is inserted")
       val seqNo = new AtomicLong(0)
       updates.enqueue(Option(CrudOperation.create("uuid-1") -> (seqNo.incrementAndGet(), Person("uuid-1", "Henry", 3))))
+      // pull some data through the indexer
 
-      Then("no values should be available")
-      Thread.sleep(testNegativeTimeout.toMillis)
-      updateListener.received().size shouldBe 0
+
+      Then("A value should be indexed, but the queried indices (1 to 2) shouldn't be available yet as it is outside the queried index range")
+      eventually {
+        indexListener.received().size shouldBe 1
+      }
+      updateListener.received() shouldBe empty
+      indexListener.received() shouldBe List(IndexedValue(1, "uuid-1", NewIndex(0, "Henry")))
+
+      When("The second value is inserted")
+      updates.enqueue(Option(CrudOperation.create("uuid-2") -> (seqNo.incrementAndGet(), Person("uuid-2", "Eleanor", 2))))
+
+      Then("We should see an update for the index")
+      eventually {
+        indexListener.received() shouldBe List(
+          IndexedValue(2, "uuid-2", NewIndex(0, "Eleanor")),
+          IndexedValue(1, "uuid-1", NewIndex(0, "Henry"))
+        )
+      }
+      eventually {
+        updateListener.received.size shouldBe 1
+      }
+      updateListener.received().head shouldBe IndexedEntry(1, 1, "uuid-2", "Eleanor")
     }
   }
 

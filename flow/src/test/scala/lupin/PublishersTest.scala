@@ -1,10 +1,32 @@
 package lupin
 
+import lupin.pub.FIFO
 import org.scalatest.GivenWhenThen
-import org.scalatest.concurrent.Eventually
 
 class PublishersTest extends BaseFlowSpec with GivenWhenThen {
 
+  "Publishers.apply(fifo queue)" should {
+    "push elements as they're enqueued" in {
+      val queue = FIFO[Option[Int]]()
+      val publisher = Publishers(queue)
+      val list = new ListSubscriber[Int]
+      publisher.subscribe(list)
+      list.request(3)
+      Thread.sleep(testNegativeTimeout.toMillis)
+      list.received() shouldBe empty
+
+      queue.enqueue(Option(123))
+      queue.enqueue(Option(456))
+      eventually {
+        list.receivedInOrderReceived() shouldBe List(123, 456)
+      }
+
+      queue.enqueue(None)
+      eventually {
+        list.isCompleted() shouldBe true
+      }
+    }
+  }
   "Publishers.apply(iter)" should {
     "only progress the iterator when elements are requested" in {
       var hasNextRetVal = true

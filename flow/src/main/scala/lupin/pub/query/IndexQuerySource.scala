@@ -1,8 +1,8 @@
 package lupin.pub.query
 
 import lupin.data.Accessor
-import lupin.example.{IndexRange, IndexSelection, SpecificIndices}
-import org.reactivestreams.Publisher
+import lupin.example.IndexSelection
+import org.reactivestreams.{Publisher, Subscriber}
 
 import scala.concurrent.ExecutionContext
 
@@ -31,7 +31,7 @@ trait IndexQuerySource[K, T] {
 
   final def forIndices(indices: List[Long]): Publisher[IndexedEntry[K, T]] = query(IndexSelection(indices))
 
-  final def forIndices(firstIndex: Long, theRest : Long*) : Publisher[IndexedEntry[K, T]] = {
+  final def forIndices(firstIndex: Long, theRest: Long*): Publisher[IndexedEntry[K, T]] = {
     forIndices(firstIndex :: theRest.toList)
   }
 }
@@ -52,32 +52,42 @@ object IndexQuerySource {
     * @return
     */
   def apply[K, T, A: Ordering](data: Publisher[(Long, T)], inputDao: SyncDao[K, (Long, T)] = null)(
-    getter: T => A)(implicit getId: Accessor[(Long, T), K], execContext: ExecutionContext): IndexQuerySource[K, A] = {
+    getter: T => A)(implicit getId: Accessor[(Long, T), K], execContext: ExecutionContext): Publisher[IndexedValue[K, A]] with IndexQuerySource[K, A] = {
     val insert: Publisher[(CrudOperation[K], (Long, T))] = Indexer.crud(data, inputDao)
-    fromSequencedDataFeed(insert)(getter)
+
+    val mapped = Sequenced.map(insert)(getter)
+    fromSequencedUpdates(mapped)
   }
 
-  /** @param sequencedDataFeed a data feed of CRUD updates (insertions, updates, deletions of keys) with a sequence (version) number and data..
-    * @param getter
+
+  /**
+    *
+    * @param sequencedUpdates
     * @param execContext
     * @tparam K
     * @tparam T
-    * @tparam A
-    * @return
+    * @return an IndexQuerySource which can be used to read the data sent through it when used as an [[Indexer]]
     */
-  def fromSequencedDataFeed[K, T, A: Ordering](sequencedDataFeed: Publisher[(CrudOperation[K], (Long, T))])(getter: T => A)(implicit execContext: ExecutionContext): IndexQuerySource[K, A] = {
-    import lupin.implicits._
+  def fromSequencedUpdates[K, T: Ordering](sequencedUpdates: Publisher[Sequenced[(CrudOperation[K], T)]])(implicit execContext: ExecutionContext): Publisher[IndexedValue[K, T]] with IndexQuerySource[K, T] = {
+    val withLatest = keepLatest[K, T](Indexer.slowInMemoryIndexer)
 
-    val mapped = sequencedDataFeed.map {
-      case (crudOp, (seqNo, input)) => Sequenced(seqNo, (crudOp, getter(input)))
+    val indexer = Indexer(sequencedUpdates, withLatest)
+
+    new Publisher[IndexedValue[K, T]] with IndexQuerySource[K, T] {
+      override def subscribe(s: Subscriber[_ >: IndexedValue[K, T]]): Unit = {
+        indexer.subscribe(s)
+      }
+
+      override def query(criteria: IndexSelection): Publisher[IndexedEntry[K, T]] = {
+        val snapshotResults = withLatest.query(criteria)
+
+
+
+        var minSeqNoFound = -1L
+        snapshotResults.map { res =>
+
+      }
     }
-    fromSequencedUpdates[K, A](mapped)
-  }
-
-  def fromSequencedUpdates[K, T: Ordering](sequencedUpdates: Publisher[Sequenced[(CrudOperation[K], T)]])(implicit execContext: ExecutionContext): IndexQuerySource[K, T] = {
-    val indexer: IndexQuerySource[K, T] with Indexer[K, T] = keepLatest(Indexer.slowInMemoryIndexer)
-    Indexer[K, T](sequencedUpdates, indexer)
-    indexer
   }
 
   /**
@@ -88,7 +98,7 @@ object IndexQuerySource {
     *
     * {{{
     *
-
+    *
     *
     *   val stateUpdate : (T, T) => T
     *

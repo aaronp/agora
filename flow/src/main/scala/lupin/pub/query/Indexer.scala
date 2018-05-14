@@ -7,9 +7,21 @@ import org.reactivestreams.Publisher
 
 import scala.concurrent.ExecutionContext
 
+/**
+  * Represents something which can maintain an ordered sequence of values of type T
+  *
+  * @tparam K
+  * @tparam T
+  */
 trait Indexer[K, T] {
-  def index(seqNo: Long, data: T, op: CrudOperation[K]): (Indexer[K, T], IndexedValue[K, T])
 
+  /**
+    * @param seqNo the sequenced number (or version) of the data
+    * @param data  the data being operated on
+    * @param op    the operation (insert, update, delete) for a given key
+    * @return An indexed value -- a tuple representing the input data + an [[IndexOperation]]
+    */
+  def index(seqNo: Long, data: T, op: CrudOperation[K]): (Indexer[K, T], IndexedValue[K, T])
 }
 
 object Indexer {
@@ -18,6 +30,7 @@ object Indexer {
 
   /**
     * Folds the data feed over the given [[SyncDao]] used to write them down and return a [[CrudOperation]] result
+    *
     * @param data
     * @param inputDao
     * @param accessor
@@ -54,14 +67,20 @@ object Indexer {
     */
   def apply[K, T: Ordering](seqNoDataAndOp: Publisher[Sequenced[(CrudOperation[K], T)]], indexer: Indexer[K, T]): Publisher[IndexedValue[K, T]] = {
     seqNoDataAndOp.foldWith(indexer) {
-      case (store, Sequenced(seqNo, (op, data))) => store.index(seqNo, data, op)
+      case (store, Sequenced(seqNo, (op, data))) =>
+
+        val retVal = store.index(seqNo, data, op)
+
+        println(retVal)
+
+        retVal
     }
   }
 
   private class SortedEntry[K, T](val key: K, val seqNo: Long, val value: T) {
     override def equals(other: Any) = other match {
       case se: SortedEntry[_, _] => key == se.key
-      case _                     => false
+      case _ => false
     }
 
     override def hashCode(): Int = key.hashCode()
@@ -74,10 +93,11 @@ object Indexer {
   }
 
   type QueryIndexer[K, T] = Indexer[K, T] with IndexQuerySource[K, T]
+
   def slowInMemoryIndexer[K, T: Ordering](implicit executionContext: ExecutionContext): QueryIndexer[K, T] = new SlowInMemoryStore
 
   private case class SlowInMemoryStore[K, T: Ordering](values: Vector[SortedEntry[K, T]] = Vector())(implicit executionContext: ExecutionContext)
-      extends Indexer[K, T]
+    extends Indexer[K, T]
       with IndexQuerySource[K, T] {
 
     override def index(seqNo: Long, data: T, op: CrudOperation[K]) = {
@@ -86,12 +106,12 @@ object Indexer {
         case Create(key) =>
           require(!values.contains(entry))
           val newStore = copy(values = insert(values, entry))
-          val idx      = newStore.values.indexOf(entry)
+          val idx = newStore.values.indexOf(entry)
           newStore -> IndexedValue[K, T](seqNo, key, NewIndex(idx, data))
         case Update(key) =>
           require(values.contains(entry))
 
-          val oldIndex      = values.indexOf(entry)
+          val oldIndex = values.indexOf(entry)
           val removedValues = values diff (List(entry))
           require(removedValues.size == values.size - 1)
 
@@ -102,7 +122,7 @@ object Indexer {
         case Delete(key) =>
           require(values.contains(entry))
 
-          val oldIndex      = values.indexOf(entry)
+          val oldIndex = values.indexOf(entry)
           val removedValues = values diff (List(entry))
           require(removedValues.size == values.size - 1)
 
@@ -111,15 +131,15 @@ object Indexer {
       }
     }
 
-    override def query(criteria: IndexSelection) = {
+    override def query(criteria: IndexSelection): Publisher[IndexedEntry[K, T]] = {
       val get = values.lift
       val indicesIterator = criteria match {
-        case IndexRange(from, to)     => (from to to).iterator
+        case IndexRange(from, to) => (from to to).iterator
         case SpecificIndices(indices) => indices.iterator
       }
 
       val found = indicesIterator.flatMap { idx =>
-        if (idx > Int.MaxValue | idx < 0) {
+        if (idx > Int.MaxValue || idx < 0) {
           None
         } else {
           get(idx.toInt).map { entry =>
