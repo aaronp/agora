@@ -10,7 +10,7 @@ import scala.concurrent.ExecutionContext
   *
   * @tparam T
   */
-trait DurableProcessor[T] extends Publisher[(Long, T)] with Subscriber[T] {
+trait SequencedProcessor[T] extends Publisher[(Long, T)] with Subscriber[T] {
 
   def subscribeFrom(index: Long, subscriber: Subscriber[_ >: (Long, T)]): Unit
 
@@ -39,12 +39,12 @@ trait DurableProcessor[T] extends Publisher[(Long, T)] with Subscriber[T] {
   }
 }
 
-object DurableProcessor extends StrictLogging {
+object SequencedProcessor extends StrictLogging {
 
-  def apply[T]()(implicit ec: ExecutionContext): DurableProcessorInstance[T] = apply(DurableProcessorDao[T](), true)
+  def apply[T]()(implicit ec: ExecutionContext): SequencedProcessorInstance[T] = apply(DurableProcessorDao[T](), true)
 
   def apply[T](dao: DurableProcessorDao[T], propagateSubscriberRequestsToOurSubscription: Boolean = true)(implicit ec: ExecutionContext) = {
-    new DurableProcessorInstance[T](dao, propagateSubscriberRequestsToOurSubscription)
+    new SequencedProcessorInstance[T](dao, propagateSubscriberRequestsToOurSubscription)
   }
 
   private[sequenced] def computeNumberToTake(lastReceivedIndex: Long, latest: Long, maxIndex: Long): Long = {

@@ -20,10 +20,8 @@ class IndexQuerySourceTest extends BaseFlowSpec with GivenWhenThen {
 
       import lupin.implicits._
 
-
       val sequencedData: Publisher[Sequenced[(CrudOperation[String], String)]] = Sequenced.map(data)(_.name)
       val nameIndexer: Publisher[IndexedValue[String, String]] with IndexQuerySource[String, String] = IndexQuerySource.fromSequencedUpdates(sequencedData)
-
 
       And("A query for an index selection of indices 1 and 2")
       val firstTwoNames: Publisher[IndexedEntry[String, String]] = nameIndexer.between(1, 2)

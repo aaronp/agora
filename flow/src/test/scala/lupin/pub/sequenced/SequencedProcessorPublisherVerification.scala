@@ -5,10 +5,10 @@ import lupin.newContextWithThreadPrefix
 import org.reactivestreams.Publisher
 import org.reactivestreams.tck.{PublisherVerification, TestEnvironment}
 import org.testng.annotations.AfterTest
-import DurableProcessorPublisherVerification._
+import SequencedProcessorPublisherVerification._
 import scala.util.{Failure, Success, Try}
 
-class DurableProcessorPublisherVerification extends PublisherVerification[String](testEnv, PUBLISHER_REFERENCE_CLEANUP_TIMEOUT_MILLIS) {
+class SequencedProcessorPublisherVerification extends PublisherVerification[String](testEnv, PUBLISHER_REFERENCE_CLEANUP_TIMEOUT_MILLIS) {
   private val lazyCtxt = Lazy(newContextWithThreadPrefix(getClass.getSimpleName))
 
   implicit def ctxt = lazyCtxt.value
@@ -41,10 +41,10 @@ class DurableProcessorPublisherVerification extends PublisherVerification[String
   override def createPublisher(elements: Long): Publisher[String] = {
     if (elements > 100) {
       val dao                                  = new RangeDao(elements)
-      val dp: DurableProcessorInstance[String] = DurableProcessor[String](dao)
+      val dp: SequencedProcessorInstance[String] = SequencedProcessor[String](dao)
       dp.valuesPublisher()
     } else {
-      val dp = DurableProcessor[String]()
+      val dp = SequencedProcessor[String]()
       var i  = 0L
       while (i < elements) {
         i = i + 1
@@ -56,13 +56,13 @@ class DurableProcessorPublisherVerification extends PublisherVerification[String
   }
 
   override def createFailedPublisher(): Publisher[String] = {
-    val dp: DurableProcessorInstance[String] = DurableProcessor[String]
+    val dp: SequencedProcessorInstance[String] = SequencedProcessor[String]
     dp.onError(new Exception("bang"))
     dp.valuesPublisher()
   }
 }
 
-object DurableProcessorPublisherVerification {
+object SequencedProcessorPublisherVerification {
 
   val DEFAULT_TIMEOUT_MILLIS                     = 100L
   val DEFAULT_NO_SIGNALS_TIMEOUT_MILLIS: Long    = DEFAULT_TIMEOUT_MILLIS

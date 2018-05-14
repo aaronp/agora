@@ -1,6 +1,6 @@
 package lupin
 
-import lupin.sub.{BaseSubscriber, CollectSubscriber, DelegateSubscriber, ForeachSubscriber}
+import lupin.sub.{BaseSubscriber, CollectSubscriber, SubscriberDelegate, ForeachSubscriber}
 import org.reactivestreams.Subscriber
 
 object Subscribers {
@@ -25,7 +25,7 @@ object Subscribers {
   }
 
   def contraMap[A, B](underlying: Subscriber[A])(f: B => A): Subscriber[B] = {
-    new DelegateSubscriber[B](underlying) {
+    new SubscriberDelegate[B](underlying) {
       override def toString = s"contra-mapped $underlying"
 
       override def onNext(t: B): Unit = underlying.onNext(f(t))

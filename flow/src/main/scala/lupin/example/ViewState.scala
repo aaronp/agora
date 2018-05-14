@@ -2,7 +2,7 @@ package lupin.example
 
 import lupin.{Publishers, Subscribers}
 import lupin.pub.collate.CollatingPublisher
-import lupin.pub.sequenced.{DurableProcessor, DurableProcessorInstance}
+import lupin.pub.sequenced.{SequencedProcessor, SequencedProcessorInstance}
 import lupin.sub.BaseSubscriber
 import org.reactivestreams.{Publisher, Subscription}
 
@@ -106,7 +106,7 @@ class ViewState[ID] private (availableFieldsByName: Map[String, FieldFeed[ID]], 
     timeout: FiniteDuration) {
 
   // exposes a publisher/subscriber for ViewPort updates
-  val viewSubscription: DurableProcessorInstance[ViewPort] = DurableProcessor[ViewPort]()
+  val viewSubscription: SequencedProcessorInstance[ViewPort] = SequencedProcessor[ViewPort]()
 
   private val viewUpdateListener = BaseSubscriber[ViewPort](1) {
     case (s, viewPort) =>
@@ -160,7 +160,7 @@ class ViewState[ID] private (availableFieldsByName: Map[String, FieldFeed[ID]], 
     val futureSubscriptions: immutable.Iterable[(String, Publisher[CellUpdate[ID, FieldUpdate[ID]]], Future[Subscription])] = availableFieldsByName.collect {
       case (fieldName, fieldPublisher) if requiredNewSubscriptions.contains(fieldName) =>
         // subscribe from the given indices
-        val newFieldSubscription = DurableProcessor[FieldUpdate[ID]]()
+        val newFieldSubscription = SequencedProcessor[FieldUpdate[ID]]()
 //        fieldPublisher.subscribeWith(currentView.indices, newFieldSubscription)
 
 //        val cellFeed: Publisher[CellUpdate[ID, FieldUpdate[ID]]] = Publishers.map(newFieldSubscription) { next: FieldUpdate[ID] =>

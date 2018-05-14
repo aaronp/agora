@@ -2,6 +2,7 @@ package lupin.pub.query
 
 import lupin.data.Accessor
 import lupin.example.IndexSelection
+import lupin.pub.sequenced.SequencedProcessor
 import org.reactivestreams.{Publisher, Subscriber}
 
 import scala.concurrent.ExecutionContext
@@ -68,10 +69,10 @@ object IndexQuerySource {
     * @tparam T
     * @return an IndexQuerySource which can be used to read the data sent through it when used as an [[Indexer]]
     */
-  def fromSequencedUpdates[K, T: Ordering](sequencedUpdates: Publisher[Sequenced[(CrudOperation[K], T)]])(implicit execContext: ExecutionContext): Publisher[IndexedValue[K, T]] with IndexQuerySource[K, T] = {
+  def fromSequencedUpdates[K, T: Ordering](sequencedUpdates: SequencedProcessor[Sequenced[(CrudOperation[K], T)]])(implicit execContext: ExecutionContext): Publisher[IndexedValue[K, T]] with IndexQuerySource[K, T] = {
     val withLatest = keepLatest[K, T](Indexer.slowInMemoryIndexer)
 
-    val indexer = Indexer(sequencedUpdates, withLatest)
+    val indexer = Indexer(sequencedUpdates.valuesPublisher(), withLatest)
 
     new Publisher[IndexedValue[K, T]] with IndexQuerySource[K, T] {
       override def subscribe(s: Subscriber[_ >: IndexedValue[K, T]]): Unit = {
@@ -82,10 +83,11 @@ object IndexQuerySource {
         val snapshotResults = withLatest.query(criteria)
 
 
-
         var minSeqNoFound = -1L
-        snapshotResults.map { res =>
-
+        //        snapshotResults.map { res =>
+        //
+        //      }
+        snapshotResults
       }
     }
   }

@@ -4,7 +4,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 import com.typesafe.scalalogging.StrictLogging
 import lupin.data.HasKey
-import lupin.pub.sequenced.{DurableProcessorDao, DurableProcessorInstance}
+import lupin.pub.sequenced.{DurableProcessorDao, SequencedProcessorInstance}
 import lupin.sub.BaseSubscriber
 import org.reactivestreams.{Subscriber, Subscription}
 
@@ -33,7 +33,7 @@ class CollatingPublisherInstance[K, T](dao: DurableProcessorDao[(K, T)], propaga
     * This publisher will consume data sent from all our upstream subscriptions.
     *
     */
-  private class InternalPublisher extends DurableProcessorInstance[(K, T)](dao) {
+  private class InternalPublisher extends SequencedProcessorInstance[(K, T)](dao) {
 
     private object NextLock
 

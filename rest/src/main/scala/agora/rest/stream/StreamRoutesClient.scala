@@ -12,7 +12,7 @@ import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.{Encoder, Json}
 import lupin.pub.DurableProcessor
-import lupin.pub.sequenced.{DurableProcessor, DurableProcessorDao}
+import lupin.pub.sequenced.{SequencedProcessor, DurableProcessorDao}
 import org.reactivestreams.{Publisher, Subscriber}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -106,8 +106,8 @@ case class StreamRoutesClient(clientConf: ClientConfig = ClientConfig.load()) ex
     def list(): Future[Set[String]] = listVerb("publish")
 
     def create[E: Encoder](name: String,
-                           dao: DurableProcessorDao[E] = DurableProcessorDao(20)): Future[StreamPublisherWebsocketClient[E, DurableProcessor[E]]] = {
-      create[E, DurableProcessor[E]](name, DurableProcessor[E](dao))
+                           dao: DurableProcessorDao[E] = DurableProcessorDao(20)): Future[StreamPublisherWebsocketClient[E, SequencedProcessor[E]]] = {
+      create[E, SequencedProcessor[E]](name, SequencedProcessor[E](dao))
     }
 
     def create[E: Encoder, T <: Publisher[E]](name: String, publisher: T): Future[StreamPublisherWebsocketClient[E, T]] = {

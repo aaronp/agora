@@ -15,10 +15,10 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
   * @param currentIndexCounter                          the id (index) counter used to mark each element
   * @tparam T
   */
-class DurableProcessorInstance[T](val dao: DurableProcessorDao[T],
-                                  val propagateSubscriberRequestsToOurSubscription: Boolean = true,
-                                  currentIndexCounter: Long = -1L)(implicit execContext: ExecutionContext)
-    extends DurableProcessor[T]
+class SequencedProcessorInstance[T](val dao: DurableProcessorDao[T],
+                                    val propagateSubscriberRequestsToOurSubscription: Boolean = true,
+                                    currentIndexCounter: Long = -1L)(implicit execContext: ExecutionContext)
+    extends SequencedProcessor[T]
     with StrictLogging {
 
   type IndexSubscription = (Long, T)

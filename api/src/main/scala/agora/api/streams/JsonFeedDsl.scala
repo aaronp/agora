@@ -11,7 +11,7 @@ import agora.json.{JPath, JsonDiff, JsonDiffAsDataDiff, TypesByPath}
 import lupin.data.{HasPublisher, HasSubscriber}
 import lupin.pub.impl.HasSubscriber
 import lupin.pub.passthrough.{PassthroughProcessor, PassthroughProcessorInstance}
-import lupin.pub.sequenced.DurableProcessor
+import lupin.pub.sequenced.SequencedProcessor
 import lupin.pub.{BaseProcessor, FIFO}
 import lupin.sub.BaseSubscriber
 import org.reactivestreams.{Publisher, Subscriber}
@@ -152,11 +152,11 @@ object JsonFeedDsl {
     * @param initialRequest
     * @param newPublisherForKey the factory to use when creating a new publisher
     */
-  class IndexSubscriber(name: String, paths: List[JPath], initialRequest: Int, newPublisherForKey: (IndexSubscriber, List[Json]) => DurableProcessor[Json])
+  class IndexSubscriber(name: String, paths: List[JPath], initialRequest: Int, newPublisherForKey: (IndexSubscriber, List[Json]) => SequencedProcessor[Json])
       extends BaseSubscriber[Json] {
     type Key = List[Json]
     private val Lock                                          = new ReentrantLock()
-    private var publisherByKey: Map[Key, DurableProcessor[Json]] = Map.empty
+    private var publisherByKey: Map[Key, SequencedProcessor[Json]] = Map.empty
 
     def getPublisher[K: Encoder](key: K): Publisher[Json] = {
       getPublisher(List(key.asJson))
@@ -164,7 +164,7 @@ object JsonFeedDsl {
 
     def getPublisher(key: Key): Publisher[Json] = getOrCreateBasePublisher(key)
 
-    private def getOrCreateBasePublisher(key: Key): DurableProcessor[Json] = {
+    private def getOrCreateBasePublisher(key: Key): SequencedProcessor[Json] = {
       publisherByKey.get(key) match {
         case Some(p) => p
         case None =>

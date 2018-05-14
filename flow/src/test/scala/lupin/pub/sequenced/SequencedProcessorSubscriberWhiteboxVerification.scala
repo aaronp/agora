@@ -6,7 +6,7 @@ import org.reactivestreams.tck.SubscriberWhiteboxVerification
 import org.reactivestreams.{Subscriber, Subscription}
 import org.testng.annotations.AfterTest
 
-class DurableProcessorSubscriberWhiteboxVerification extends SubscriberWhiteboxVerification[String](DurableProcessorPublisherVerification.testEnv) {
+class SequencedProcessorSubscriberWhiteboxVerification extends SubscriberWhiteboxVerification[String](SequencedProcessorPublisherVerification.testEnv) {
 
   private val lazyCtxt = Lazy(newContextWithThreadPrefix(getClass.getSimpleName))
 
@@ -17,7 +17,7 @@ class DurableProcessorSubscriberWhiteboxVerification extends SubscriberWhiteboxV
     lazyCtxt.foreach(_.shutdown())
   }
   override def createSubscriber(probe: SubscriberWhiteboxVerification.WhiteboxSubscriberProbe[String]): Subscriber[String] = {
-    val dp = DurableProcessor[String]()
+    val dp = SequencedProcessor[String]()
     dp.valuesPublisher()
       .subscribe(new Subscriber[String] {
         override def onSubscribe(s: Subscription): Unit = {

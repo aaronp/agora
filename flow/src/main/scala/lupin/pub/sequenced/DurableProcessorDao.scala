@@ -9,7 +9,7 @@ import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}
 
 /**
-  * Represents the means to write down them messages (of type T) which are flowing through a [[DurableProcessor]]
+  * Represents the means to write down them messages (of type T) which are flowing through a [[SequencedProcessor]]
   *
   * @tparam T
   */

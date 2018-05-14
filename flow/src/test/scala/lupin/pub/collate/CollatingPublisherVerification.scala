@@ -2,8 +2,8 @@ package lupin.pub.collate
 
 import agora.io.Lazy
 import lupin.{Publishers, newContextWithThreadPrefix}
-import lupin.pub.sequenced.DurableProcessorPublisherVerification.{PUBLISHER_REFERENCE_CLEANUP_TIMEOUT_MILLIS, testEnv}
-import lupin.pub.sequenced.{DurableProcessor, DurableProcessorDao, DurableProcessorInstance}
+import lupin.pub.sequenced.SequencedProcessorPublisherVerification.{PUBLISHER_REFERENCE_CLEANUP_TIMEOUT_MILLIS, testEnv}
+import lupin.pub.sequenced.{SequencedProcessor, DurableProcessorDao, SequencedProcessorInstance}
 import org.reactivestreams.Publisher
 import org.reactivestreams.tck.PublisherVerification
 import org.testng.annotations.AfterTest
@@ -44,10 +44,10 @@ class CollatingPublisherVerification extends PublisherVerification[String](testE
   override def createPublisher(elements: Long): Publisher[String] = {
     val upstream = if (elements > 100) {
       val dao                                  = new RangeDao(elements)
-      val dp: DurableProcessorInstance[String] = DurableProcessor[String](dao)
+      val dp: SequencedProcessorInstance[String] = SequencedProcessor[String](dao)
       dp
     } else {
-      val dp = DurableProcessor[String]()
+      val dp = SequencedProcessor[String]()
       var i  = 0L
       while (i < elements) {
         i = i + 1
@@ -63,7 +63,7 @@ class CollatingPublisherVerification extends PublisherVerification[String](testE
   }
 
   override def createFailedPublisher(): Publisher[String] = {
-    val upstream = DurableProcessor[String]()
+    val upstream = SequencedProcessor[String]()
     val cp       = CollatingPublisher[String, String](fair = true)
     upstream.valuesPublisher().subscribe(cp.newSubscriber("test"))
     upstream.onError(new Exception("bang"))

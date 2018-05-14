@@ -3,7 +3,7 @@ package agora.api.streams
 import agora.json.{JsonDiff, JsonDiffIsEmpty, JsonDiffWithValues}
 import agora.core.{DataDiff, FieldSelector, IsEmpty}
 import io.circe.{Decoder, Encoder, Json}
-import lupin.sub.{BaseSubscriber, DelegateSubscriber}
+import lupin.sub.{BaseSubscriber, SubscriberDelegate}
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
 import scala.reflect.ClassTag
@@ -19,7 +19,7 @@ class PublisherOps[T: ClassTag](val publisher: Publisher[T]) {
 
   def map[A](f: T => A): Publisher[A] = new Publisher[A] {
     override def subscribe(s: Subscriber[_ >: A]): Unit = {
-      val aSubscriber = new DelegateSubscriber[T](s) {
+      val aSubscriber = new SubscriberDelegate[T](s) {
         override def onNext(t: T) = {
           s.onNext(f(t))
         }

@@ -8,7 +8,7 @@ import scala.concurrent.ExecutionContext
 import scala.util.{Success, Try}
 
 class DurableSubscription[T](override val key: Int,
-                             publisher: DurableProcessorInstance[T],
+                             publisher: SequencedProcessorInstance[T],
                              initialRequestedIndex: Long,
                              val subscriber: Subscriber[_ >: (Long, T)],
                              execContext: ExecutionContext,

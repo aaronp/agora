@@ -5,7 +5,7 @@ import lupin.newContextWithThreadPrefix
 import org.reactivestreams.tck.SubscriberBlackboxVerification
 import org.testng.annotations.AfterTest
 
-class DurableProcessorSubscriberBlackboxVerification extends SubscriberBlackboxVerification[Int](DurableProcessorPublisherVerification.testEnv) {
+class SequencedProcessorSubscriberBlackboxVerification extends SubscriberBlackboxVerification[Int](SequencedProcessorPublisherVerification.testEnv) {
 
   private val lazyCtxt = Lazy(newContextWithThreadPrefix(getClass.getSimpleName))
 
@@ -16,7 +16,7 @@ class DurableProcessorSubscriberBlackboxVerification extends SubscriberBlackboxV
     lazyCtxt.foreach(_.shutdown())
   }
   override def createSubscriber() = {
-    val dp: DurableProcessorInstance[Int] = DurableProcessor[Int]()
+    val dp: SequencedProcessorInstance[Int] = SequencedProcessor[Int]()
     dp.requestIndex(10)
     dp
   }

@@ -3,7 +3,7 @@ package lupin.pub.sequenced
 import lupin.BaseFlowSpec
 import lupin.pub.sequenced.DurableProcessorDao.InvalidIndexException
 
-class DurableProcessorDaoTest extends BaseFlowSpec {
+class SequencedProcessorDaoTest extends BaseFlowSpec {
 
   "DurableProcessorDao.finalIndex" should {
     "return the max persisted index" in {

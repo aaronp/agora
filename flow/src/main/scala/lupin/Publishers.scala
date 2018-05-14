@@ -4,7 +4,8 @@ import lupin.pub.FIFO
 import lupin.pub.collate.CollatingPublisher
 import lupin.pub.concat.ConcatPublisher
 import lupin.pub.join.{JoinPublisher, TupleUpdate}
-import lupin.pub.sequenced.{DurableProcessor, DurableProcessorDao, DurableProcessorInstance}
+import lupin.pub.sequenced.{DurableProcessorDao, SequencedProcessor, SequencedProcessorInstance}
+import lupin.sub.SubscriberDelegate
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
 import scala.concurrent.ExecutionContext
@@ -20,7 +21,7 @@ object Publishers {
     * @tparam T
     * @return a Publisher of the given elements
     */
-  def apply[T](iter: Iterator[T])(implicit ec: ExecutionContext) = {
+  def apply[T](iter: Iterator[T])(implicit ec: ExecutionContext): Publisher[T] = {
     unfold[T] {
       case _ =>
         if (!iter.hasNext) {
@@ -31,8 +32,8 @@ object Publishers {
     }
   }
 
-  def sequenced[T](dao: DurableProcessorDao[T] = DurableProcessorDao[T]())(implicit ec: ExecutionContext): DurableProcessorInstance[T] = {
-    DurableProcessor[T](dao)
+  def sequenced[T](dao: DurableProcessorDao[T] = DurableProcessorDao[T]())(implicit ec: ExecutionContext): SequencedProcessorInstance[T] = {
+    SequencedProcessor[T](dao)
   }
 
   def of[T](items: T*)(implicit ec: ExecutionContext) = apply(items.iterator)
@@ -48,9 +49,9 @@ object Publishers {
     * @return
     */
   def unfold[T](createNext: Option[T] => (Option[T], Boolean))(implicit ec: ExecutionContext): Publisher[T] = {
-    new DurableProcessorInstance[T](DurableProcessorDao[T]()) {
+    new SequencedProcessorInstance[T](DurableProcessorDao[T]()) {
       var currentlyRequested = 0L
-      var previous           = Option.empty[T]
+      var previous = Option.empty[T]
 
       override def onRequest(n: Long): Unit = {
         require(n > 0)
@@ -76,6 +77,7 @@ object Publishers {
 
   /**
     * Creates a publisher from a FIFO which uses 'None' to signal completion
+    *
     * @param queue
     * @param ec
     * @tparam T
@@ -129,28 +131,14 @@ object Publishers {
   def foldWith[A, B, T](underlying: Publisher[A], initialValue: B)(f: (B, A) => (B, T)): Publisher[T] = {
     new Publisher[T] {
       override def subscribe(mappedSubscriber: Subscriber[_ >: T]): Unit = {
-        object WrapperForA extends Subscriber[A] {
+        underlying.subscribe(new SubscriberDelegate[A](mappedSubscriber){
           var combinedValue = initialValue
-
-          override def onSubscribe(sInner: Subscription): Unit = {
-            mappedSubscriber.onSubscribe(sInner)
-          }
-
           override def onNext(t: A): Unit = {
             val (newCombined, next) = f(combinedValue, t)
             combinedValue = newCombined
             mappedSubscriber.onNext(next)
           }
-
-          override def onError(t: Throwable): Unit = {
-            mappedSubscriber.onError(t)
-          }
-
-          override def onComplete(): Unit = {
-            mappedSubscriber.onComplete()
-          }
-        }
-        underlying.subscribe(WrapperForA)
+        })
       }
     }
   }
@@ -166,7 +154,7 @@ object Publishers {
   def filter[A](underlying: Publisher[A])(f: A => Boolean): Publisher[A] = {
     new Publisher[A] {
       override def subscribe(mappedSubscriber: Subscriber[_ >: A]): Unit = {
-        object WrapperForA extends Subscriber[A] {
+        underlying.subscribe(new SubscriberDelegate[A](mappedSubscriber) {
           private var ourSubscription: Subscription = null
 
           override def onSubscribe(sInner: Subscription): Unit = {
@@ -181,42 +169,19 @@ object Publishers {
               ourSubscription.request(1)
             }
           }
-
-          override def onError(t: Throwable): Unit = {
-            mappedSubscriber.onError(t)
-          }
-
-          override def onComplete(): Unit = {
-            mappedSubscriber.onComplete()
-          }
-        }
-        underlying.subscribe(WrapperForA)
+        })
       }
     }
-
   }
 
   def map[A, B](underlying: Publisher[A])(f: A => B): Publisher[B] = {
     new Publisher[B] {
       override def subscribe(mappedSubscriber: Subscriber[_ >: B]): Unit = {
-        object WrapperForA extends Subscriber[A] {
-          override def onSubscribe(sInner: Subscription): Unit = {
-            mappedSubscriber.onSubscribe(sInner)
-          }
-
+        underlying.subscribe(new SubscriberDelegate[A](mappedSubscriber) {
           override def onNext(t: A): Unit = {
             mappedSubscriber.onNext(f(t))
           }
-
-          override def onError(t: Throwable): Unit = {
-            mappedSubscriber.onError(t)
-          }
-
-          override def onComplete(): Unit = {
-            mappedSubscriber.onComplete()
-          }
-        }
-        underlying.subscribe(WrapperForA)
+        })
       }
     }
   }

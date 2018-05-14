@@ -8,7 +8,7 @@ import com.typesafe.config.ConfigFactory
 import io.circe.Json
 import lupin.ListSubscriber
 import lupin.pub.DurableProcessor
-import lupin.pub.sequenced.{DurableProcessor, DurableProcessorDao}
+import lupin.pub.sequenced.{SequencedProcessor, DurableProcessorDao}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 
 import scala.concurrent.Future
@@ -29,10 +29,10 @@ class StreamRoutesClientTest extends BaseRestSpec with ScalaFutures with Eventua
       try {
         // use the client to create a publisher (or could wrap an existing publisher)
         val dao: DurableProcessorDao[String]                                            = DurableProcessorDao[String]()
-        val publisher: StreamPublisherWebsocketClient[String, DurableProcessor[String]] = client.publishers.create[String]("example", dao).futureValue
+        val publisher: StreamPublisherWebsocketClient[String, SequencedProcessor[String]] = client.publishers.create[String]("example", dao).futureValue
 
         // use the client to create a listener which can republish the data locally (or could wrap an existing subscriber)
-        val ffs           = DurableProcessor[Json]()
+        val ffs           = SequencedProcessor[Json]()
         val localListener = client.subscriptions.createSubscriber("example", ffs).futureValue
         localListener.subscriber.processorSubscription().get.request(1)
 
