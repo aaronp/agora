@@ -5,7 +5,13 @@
             <pattern>Flow: %d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
-    <root level="info">
+    <logger name="lupin.pub.sequenced.MaxRequest" level="debug"  additivity="false">
+        <!--
+        Updating to  -->
+
+        <appender-ref ref="STDOUT"/>
+    </logger>
+    <root level="warn" additivity="false">
         <appender-ref ref="STDOUT"/>
     </root>
 </configuration>

@@ -41,6 +41,17 @@ object Indexer {
     }
   }
 
+  /**
+    * The provided 'seqNoDataAndOp' will expose a stream of [index, Crud Op (with key), value].
+    *
+    * When we fold in an indexer, we can the enrich that feed to be 'IndexedValue' entries
+    *
+    * @param seqNoDataAndOp
+    * @param indexer
+    * @tparam K
+    * @tparam T
+    * @return
+    */
   def apply[K, T: Ordering](seqNoDataAndOp: Publisher[Sequenced[(CrudOperation[K], T)]], indexer: Indexer[K, T]): Publisher[IndexedValue[K, T]] = {
     seqNoDataAndOp.foldWith(indexer) {
       case (store, Sequenced(seqNo, (op, data))) => store.index(seqNo, data, op)
@@ -112,7 +123,7 @@ object Indexer {
           None
         } else {
           get(idx.toInt).map { entry =>
-            IndexQueryResult[K, T](entry.seqNo, entry.key, idx, entry.value)
+            IndexedEntry[K, T](entry.seqNo, idx, entry.key, entry.value)
           }
         }
       }

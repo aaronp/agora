@@ -46,13 +46,13 @@ class IndexerTest extends BaseFlowSpec with GivenWhenThen {
       import lupin.implicits._
       val results = querySource.query(IndexSelection(0, fields.size))
 
-      val updates: List[IndexQueryResult[Int, String]] = results.collect().futureValue
+      val updates: List[IndexedEntry[Int, String]] = results.collect().futureValue
       updates shouldBe List(
-        IndexQueryResult(0, 100, 0, "alpha"),
-        IndexQueryResult(1, 101, 1, "beta"),
-        IndexQueryResult(3, 103, 2, "delta"),
-        IndexQueryResult(4, 104, 3, "epsilon"),
-        IndexQueryResult(2, 102, 4, "gamma")
+        IndexedEntry(0, 100, 0, "alpha"),
+        IndexedEntry(1, 101, 1, "beta"),
+        IndexedEntry(3, 103, 2, "delta"),
+        IndexedEntry(4, 104, 3, "epsilon"),
+        IndexedEntry(2, 102, 4, "gamma")
       )
 
       // change 'delta' to 'zeta'
@@ -61,11 +61,11 @@ class IndexerTest extends BaseFlowSpec with GivenWhenThen {
 
       val updatedResults = newQuerySource.query(IndexSelection(0, fields.size)).collect().futureValue
       updatedResults shouldBe List(
-        IndexQueryResult(0, 100, 0, "alpha"),
-        IndexQueryResult(1, 101, 1, "beta"),
-        IndexQueryResult(4, 104, 2, "epsilon"),
-        IndexQueryResult(2, 102, 3, "gamma"),
-        IndexQueryResult(500, 103, 4, "zeta")
+        IndexedEntry(0, 100, 0, "alpha"),
+        IndexedEntry(1, 101, 1, "beta"),
+        IndexedEntry(4, 104, 2, "epsilon"),
+        IndexedEntry(2, 102, 3, "gamma"),
+        IndexedEntry(500, 103, 4, "zeta")
       )
     }
   }

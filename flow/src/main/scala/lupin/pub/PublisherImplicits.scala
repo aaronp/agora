@@ -1,7 +1,7 @@
 package lupin.pub
 
 import lupin.{Publishers, Subscribers}
-import org.reactivestreams.Publisher
+import org.reactivestreams.{Publisher, Subscriber}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -14,6 +14,12 @@ trait PublisherImplicits {
 object PublisherImplicits {
 
   class RichPublisher[T](val publisher: Publisher[T]) extends AnyVal {
+
+    def withSubscriber[A >: T, S <: Subscriber[A]](s : S) : S = {
+      publisher.subscribe(s)
+      s
+    }
+
     def map[A](f: T => A): Publisher[A] = Publishers.map[T, A](publisher)(f)
 
     def filter(p: T => Boolean): Publisher[T] = Publishers.filter(publisher)(p)
@@ -44,6 +50,10 @@ object PublisherImplicits {
       val sub = Subscribers.collect[T](limit)
       publisher.subscribe(sub)
       sub.result
+    }
+
+    def count(limit: Long = Long.MaxValue)(implicit executor: ExecutionContext): Future[Int] = {
+      collect(limit).map(_.size)
     }
   }
 
