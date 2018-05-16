@@ -1,5 +1,5 @@
 package lupin
 
-import lupin.pub.PublisherImplicits
+import lupin.pub.LowPriorityPublisherImplicits
 
-object implicits extends PublisherImplicits
+object implicits extends LowPriorityPublisherImplicits

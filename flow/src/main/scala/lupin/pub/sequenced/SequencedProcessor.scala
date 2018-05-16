@@ -1,7 +1,7 @@
 package lupin.pub.sequenced
 
 import com.typesafe.scalalogging.StrictLogging
-import org.reactivestreams.{Publisher, Subscriber}
+import org.reactivestreams.Subscriber
 
 import scala.concurrent.ExecutionContext
 
@@ -10,34 +10,7 @@ import scala.concurrent.ExecutionContext
   *
   * @tparam T
   */
-trait SequencedProcessor[T] extends Publisher[(Long, T)] with Subscriber[T] {
-
-  def subscribeFrom(index: Long, subscriber: Subscriber[_ >: (Long, T)]): Unit
-
-  /**
-    * The default is to start subscribing from the first available index
-    * @param subscriber
-    */
-  override def subscribe(subscriber: Subscriber[_ >: (Long, T)]) = subscribeFrom(firstIndex, subscriber)
-
-  /** @return the first index available to read from, or -1 if none
-    */
-  def firstIndex(): Long
-
-  /**
-    * @return the most-recently written index
-    */
-  def latestIndex: Option[Long]
-
-  /**
-    * Convenience to provide just the data values w/o the indices
-    * @return a publisher of the data w/o the indices
-    */
-  def valuesPublisher(): Publisher[T] = {
-    import lupin.implicits._
-    this.map(_._2)
-  }
-}
+trait SequencedProcessor[T] extends SequencedPublisher[T] with Subscriber[T]
 
 object SequencedProcessor extends StrictLogging {
 

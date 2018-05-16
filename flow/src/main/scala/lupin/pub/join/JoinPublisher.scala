@@ -1,6 +1,6 @@
 package lupin.pub.join
 
-import lupin.Publishers
+import cats.Functor
 import lupin.pub.FIFO
 import lupin.pub.collate.CollatingPublisher
 import lupin.pub.passthrough.PassthroughPublisher
@@ -29,7 +29,7 @@ object JoinPublisher {
     * @return a publisher which joins the two publishers
     */
   def apply[A, B](left: Publisher[A], right: Publisher[B], newLeftQueue: () => FIFO[LeftUpdate[A, B]], newRightQueue: () => FIFO[RightUpdate[A, B]])(
-      implicit ec: ExecutionContext): Publisher[TupleUpdate[A, B]] = {
+    implicit ec: ExecutionContext): Publisher[TupleUpdate[A, B]] = {
 
     //
     // first, create summat which will request from both publishers
@@ -37,10 +37,15 @@ object JoinPublisher {
     val collate = CollatingPublisher[Int, TupleUpdate[A, B]](fair = false)
 
     val fromLeft = collate.newSubscriber(1)
-    Publishers.map(left)(a => TupleUpdate.left[A, B](a)).subscribe(fromLeft)
+    import lupin.implicits._
+
+    asRichPublisher(left).map(a => TupleUpdate.left[A, B](a)).subscribe(fromLeft)
 
     val fromRight = collate.newSubscriber(2)
-    Publishers.map(right)(b => TupleUpdate.right[A, B](b)).subscribe(fromRight)
+
+    implicit val f: Functor[Publisher] = PublisherFlatMap
+
+    right.map(b => TupleUpdate.right[A, B](b)).subscribe(fromRight)
 
     //
     // now subscribe a subscriber-side passthrough publisher which will collate the values

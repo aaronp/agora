@@ -4,6 +4,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 import lupin.data.Accessor
 import lupin.pub.FIFO
+import lupin.pub.sequenced.SequencedProcessorInstance
 import lupin.{BaseFlowSpec, ListSubscriber, Publishers}
 import org.reactivestreams.Publisher
 import org.scalatest.GivenWhenThen
@@ -16,11 +17,13 @@ class IndexQuerySourceTest extends BaseFlowSpec with GivenWhenThen {
       case class Person(id: String, name: String, age: Int)
       type PersonUpdate = (CrudOperation[String], (Long, Person))
       val updates: FIFO[Option[PersonUpdate]] = FIFO[Option[PersonUpdate]]()
-      val data = Publishers(updates)
+      val data: Publisher[(CrudOperation[String], (Long, Person))] = Publishers(updates)
 
       import lupin.implicits._
 
-      val sequencedData: Publisher[Sequenced[(CrudOperation[String], String)]] = Sequenced.map(data)(_.name)
+      val sequencedData: Publisher[Sequenced[(CrudOperation[String], String)]] = data.map {
+        case (op: CrudOperation[String], (seqNo, person)) => Sequenced[(CrudOperation[String], String)](seqNo, op -> person.name)
+      }
       val nameIndexer: Publisher[IndexedValue[String, String]] with IndexQuerySource[String, String] = IndexQuerySource.fromSequencedUpdates(sequencedData)
 
       And("A query for an index selection of indices 1 and 2")
@@ -68,8 +71,8 @@ class IndexQuerySourceTest extends BaseFlowSpec with GivenWhenThen {
       import lupin.implicits._
 
       case class Foo(id: Int, name: String, someProperty: String, count: Int)
-      implicit object FooId extends Accessor[(Long, Foo), Int] {
-        override def get(value: (Long, Foo)): Int = value._2.id
+      implicit object FooId extends Accessor[Foo, Int] {
+        override def get(value: Foo): Int = value.id
       }
       def next(lastValue: Option[Foo]) = {
         val foo = lastValue.fold(Option(Foo(0, "first foo", "alpha!", 0))) {
@@ -83,11 +86,11 @@ class IndexQuerySourceTest extends BaseFlowSpec with GivenWhenThen {
         foo -> true
       }
 
-      val sequenced = Publishers.sequenced[Foo]()
+      val sequenced: SequencedProcessorInstance[Foo] = Publishers.sequenced[Foo]()
       Publishers.unfold(next).subscribe(sequenced)
 
       // create the query source under test
-      val indexedNamesSrc: IndexQuerySource[Int, String] = IndexQuerySource(sequenced) { foo =>
+      val indexedNamesSrc = IndexQuerySource(sequenced.sequencePublisher()) { foo =>
         foo.name
       }
 

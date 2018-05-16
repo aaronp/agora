@@ -1,7 +1,7 @@
 package lupin.pub.collate
 
-import lupin.Publishers
 import lupin.data.HasKey
+import lupin.pub.PublisherImplicits.RichPublisher
 import lupin.pub.sequenced.DurableProcessorDao
 import org.reactivestreams.{Publisher, Subscriber}
 
@@ -40,14 +40,19 @@ trait CollatingPublisher[K, T] extends Publisher[(K, T)] {
     *
     * @return a publisher of the values of type T
     */
-  def valuesPublisher: Publisher[T] = Publishers.map(this)(_._2)
+  def valuesPublisher: Publisher[T] = {
+    import lupin.implicits._
+    val x: RichPublisher[(K, T), Publisher] = asRichPublisher(this)
+    //val x : RichPublisher[(K, T), CollatingPublisher[K, T]] = asRichPublisher(this)
+    x.map(_._2)
+  }
 
 }
 
 object CollatingPublisher {
 
   def apply[K, T](dao: DurableProcessorDao[(K, T)] = DurableProcessorDao[(K, T)](), propagateOnError: Boolean = true, fair: Boolean)(
-      implicit execContext: ExecutionContext) = {
+    implicit execContext: ExecutionContext) = {
     new CollatingPublisherInstance[K, T](dao, propagateOnError, fair)
   }
 

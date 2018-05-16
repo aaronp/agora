@@ -70,7 +70,12 @@ object TableView {
       implicit ec: ExecutionContext): Publisher[TableView[ID, U]] = {
 
     val cells: CellFeed[ID, U] = CellUpdate.subscribeTo[T, ID, U](data, views)
-    Publishers.map(cells) { cellUpdate: CellUpdate[ID, U] =>
+
+    import lupin.implicits._
+
+    asRichPublisher(cells).map { cellUpdate =>
+
+      //: CellUpdate[ID, U]
       cellUpdate
     }
     ???

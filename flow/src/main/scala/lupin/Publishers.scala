@@ -108,7 +108,9 @@ object Publishers {
         pub.subscribe(sub)
     }
 
-    Publishers.map(combined)(_._2)
+    import lupin.implicits._
+
+    combined.mapP(_._2)
   }
 
   def join[A, B](left: Publisher[A], right: Publisher[B])(implicit ec: ExecutionContext): Publisher[TupleUpdate[A, B]] = {
@@ -131,8 +133,9 @@ object Publishers {
   def foldWith[A, B, T](underlying: Publisher[A], initialValue: B)(f: (B, A) => (B, T)): Publisher[T] = {
     new Publisher[T] {
       override def subscribe(mappedSubscriber: Subscriber[_ >: T]): Unit = {
-        underlying.subscribe(new SubscriberDelegate[A](mappedSubscriber){
+        underlying.subscribe(new SubscriberDelegate[A](mappedSubscriber) {
           var combinedValue = initialValue
+
           override def onNext(t: A): Unit = {
             val (newCombined, next) = f(combinedValue, t)
             combinedValue = newCombined
@@ -168,18 +171,6 @@ object Publishers {
             } else if (ourSubscription != null) {
               ourSubscription.request(1)
             }
-          }
-        })
-      }
-    }
-  }
-
-  def map[A, B](underlying: Publisher[A])(f: A => B): Publisher[B] = {
-    new Publisher[B] {
-      override def subscribe(mappedSubscriber: Subscriber[_ >: B]): Unit = {
-        underlying.subscribe(new SubscriberDelegate[A](mappedSubscriber) {
-          override def onNext(t: A): Unit = {
-            mappedSubscriber.onNext(f(t))
           }
         })
       }

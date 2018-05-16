@@ -80,7 +80,7 @@ class IndexerTest extends BaseFlowSpec with GivenWhenThen {
         Person(1, "George")
       )
 
-      val dao: Publisher[(CrudOperation[Int], Person)] = Indexer.crud(people)
+      val dao: Publisher[(CrudOperation[Int], Person)] = ??? //Indexer.crud(people)
 
       val initialLoadListener = new ListSubscriber[(CrudOperation[Int], Person)]
       dao.subscribe(initialLoadListener)
@@ -115,7 +115,7 @@ class IndexerTest extends BaseFlowSpec with GivenWhenThen {
       )
 
       When("we subscribe to the data w/ a CRUD publisher")
-      val dao: Publisher[(CrudOperation[Int], Person)] = Indexer.crud(people)
+      val dao: Publisher[(CrudOperation[Int], Person)] = ??? // Indexer.crud(people)
 
       And("observe the data through the DaoProcessor")
       val crudListener = new ListSubscriber[(CrudOperation[Int], Person)]

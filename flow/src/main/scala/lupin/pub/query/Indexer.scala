@@ -26,8 +26,6 @@ trait Indexer[K, T] {
 
 object Indexer {
 
-  import lupin.implicits._
-
   /**
     * Folds the data feed over the given [[SyncDao]] used to write them down and return a [[CrudOperation]] result
     *
@@ -39,18 +37,23 @@ object Indexer {
     * @tparam T
     * @return a publisher of the operations w/ the values flowing through it
     */
-  def crud[K, T](data: Publisher[T], inputDao: SyncDao[K, T] = null)(implicit accessor: Accessor[T, K],
-                                                                     execContext: ExecutionContext): Publisher[(CrudOperation[K], T)] = {
+  def crud[K, T](data: Publisher[(Long, T)], inputDao: SyncDao[K, T] = null)(implicit accessor: Accessor[T, K],
+                                                                             execContext: ExecutionContext): Publisher[(Long, (CrudOperation[K], T))] = {
     val dao = if (inputDao == null) {
       SyncDao[K, T](accessor)
     } else {
       inputDao
     }
 
-    data.foldWith[SyncDao[K, T], (CrudOperation[K], T)](dao) {
-      case (db, next) =>
+    // SequencedProcessor[(CrudOperation[K], T)]
+
+    lupin.implicits.asRichPublisher(data).foldWith[SyncDao[K, T], (Long, (CrudOperation[K], T))](dao) {
+
+      //    }
+      //    data.foldWith[SyncDao[K, T], (CrudOperation[K], T)](dao) {
+      case (db, (seqNo, next)) =>
         val (crudOp, newDao) = db.update(next)
-        newDao -> (crudOp, next)
+        newDao -> (seqNo, (crudOp, next))
     }
   }
 
@@ -66,14 +69,9 @@ object Indexer {
     * @return
     */
   def apply[K, T: Ordering](seqNoDataAndOp: Publisher[Sequenced[(CrudOperation[K], T)]], indexer: Indexer[K, T]): Publisher[IndexedValue[K, T]] = {
-    seqNoDataAndOp.foldWith(indexer) {
+    lupin.implicits.asRichPublisher(seqNoDataAndOp).foldWith(indexer) {
       case (store, Sequenced(seqNo, (op, data))) =>
-
-        val retVal = store.index(seqNo, data, op)
-
-        println(retVal)
-
-        retVal
+        store.index(seqNo, data, op)
     }
   }
 

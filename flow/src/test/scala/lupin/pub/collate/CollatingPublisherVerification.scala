@@ -8,6 +8,7 @@ import org.reactivestreams.Publisher
 import org.reactivestreams.tck.PublisherVerification
 import org.testng.annotations.AfterTest
 
+import lupin.implicits._
 import scala.util.{Failure, Success, Try}
 
 class CollatingPublisherVerification extends PublisherVerification[String](testEnv, PUBLISHER_REFERENCE_CLEANUP_TIMEOUT_MILLIS) {
@@ -59,7 +60,8 @@ class CollatingPublisherVerification extends PublisherVerification[String](testE
 
     val cp = CollatingPublisher[String, String](fair = true)
     upstream.valuesPublisher().subscribe(cp.newSubscriber("test"))
-    Publishers.map(cp)(_._2)
+
+    cp.map(_._2)
   }
 
   override def createFailedPublisher(): Publisher[String] = {
@@ -67,6 +69,6 @@ class CollatingPublisherVerification extends PublisherVerification[String](testE
     val cp       = CollatingPublisher[String, String](fair = true)
     upstream.valuesPublisher().subscribe(cp.newSubscriber("test"))
     upstream.onError(new Exception("bang"))
-    Publishers.map(cp)(_._2)
+    cp.map(_._2)
   }
 }

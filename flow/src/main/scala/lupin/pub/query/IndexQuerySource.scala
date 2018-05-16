@@ -52,11 +52,11 @@ object IndexQuerySource {
     * @tparam A
     * @return
     */
-  def apply[K, T, A: Ordering](data: Publisher[(Long, T)], inputDao: SyncDao[K, (Long, T)] = null)(
-    getter: T => A)(implicit getId: Accessor[(Long, T), K], execContext: ExecutionContext): Publisher[IndexedValue[K, A]] with IndexQuerySource[K, A] = {
-    val insert: Publisher[(CrudOperation[K], (Long, T))] = Indexer.crud(data, inputDao)
+  def apply[K, T, A: Ordering](data: Publisher[(Long, T)], inputDao: SyncDao[K, T] = null)(
+    getter: T => A)(implicit getId: Accessor[T, K], execContext: ExecutionContext): Publisher[IndexedValue[K, A]] with IndexQuerySource[K, A] = {
+    val insert = Indexer.crud[K, T](data, inputDao)
 
-    val mapped = Sequenced.map(insert)(getter)
+    val mapped: Publisher[Sequenced[(CrudOperation[K], A)]] = Sequenced.map(insert)(getter)
     fromSequencedUpdates(mapped)
   }
 
@@ -69,10 +69,10 @@ object IndexQuerySource {
     * @tparam T
     * @return an IndexQuerySource which can be used to read the data sent through it when used as an [[Indexer]]
     */
-  def fromSequencedUpdates[K, T: Ordering](sequencedUpdates: SequencedProcessor[Sequenced[(CrudOperation[K], T)]])(implicit execContext: ExecutionContext): Publisher[IndexedValue[K, T]] with IndexQuerySource[K, T] = {
+  def fromSequencedUpdates[K, T: Ordering](sequencedUpdates: Publisher[Sequenced[(CrudOperation[K], T)]])(implicit execContext: ExecutionContext): Publisher[IndexedValue[K, T]] with IndexQuerySource[K, T] = {
     val withLatest = keepLatest[K, T](Indexer.slowInMemoryIndexer)
 
-    val indexer = Indexer(sequencedUpdates.valuesPublisher(), withLatest)
+    val indexer = Indexer(sequencedUpdates, withLatest)
 
     new Publisher[IndexedValue[K, T]] with IndexQuerySource[K, T] {
       override def subscribe(s: Subscriber[_ >: IndexedValue[K, T]]): Unit = {
@@ -84,6 +84,7 @@ object IndexQuerySource {
 
 
         var minSeqNoFound = -1L
+        ???
         //        snapshotResults.map { res =>
         //
         //      }
