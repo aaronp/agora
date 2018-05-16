@@ -1,68 +1,116 @@
 package lupin.pub.flatmap
 
-import java.util.concurrent.atomic.AtomicLong
-
+import lupin.sub.SubscriberDelegate
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
-class FlatMapPublisher[A, B](underlying : Publisher[A], pubFromA : A => Publisher[B]) extends Publisher[B] {
 
-  override def subscribe(outerSubscriber: Subscriber[_ >: B]): Unit = {
+class FlatMapPublisher[A, B](underlyingPublisher: Publisher[A], mapFlat: A => Publisher[B]) extends Publisher[B] {
 
-    class WrappedSubscription(initialSubscription: Subscription) extends Subscription {
-      var currentSubscription: Subscription = initialSubscription
-      val requestCount = new AtomicLong(0)
+  override def subscribe(originalSubscriber: Subscriber[_ >: B]): Unit = {
 
-      def replace(newSubscription: Subscription) = {
-        currentSubscription = newSubscription
-        if (requestCount.get() > 0) {
-          currentSubscription.request(requestCount.get())
-          requestCount.set(0)
-        }
+    val delegate = new SubscriberWrapper(originalSubscriber)
+    underlyingPublisher.subscribe(new SubscriberDelegate[A](originalSubscriber) {
+      override def onNext(value: A): Unit = {
+        val newPublisher = mapFlat(value)
+        newPublisher.subscribe(delegate)
       }
 
-      override def request(n: Long): Unit = {
-        require(n > 0)
-        if (requestCount.addAndGet(n) < 0) {
-          requestCount.set(Long.MaxValue)
-        }
-        currentSubscription.request(n)
+      override def onComplete(): Unit = {
+        delegate.onCompleteInner()
       }
-
-      override def cancel(): Unit = currentSubscription.cancel()
-    }
-
-    object ResubscribingSubscriber extends Subscriber[A] {
-      var outstandingRequested = new AtomicLong(0)
-
-      var currentSubscription: WrappedSubscription = null
 
       override def onSubscribe(s: Subscription): Unit = {
-        currentSubscription = new WrappedSubscription(s)
-        outerSubscriber.onSubscribe(currentSubscription)
+        delegate.setOriginalSubscription(s)
       }
+    })
+  }
 
-      override def onNext(t: A): Unit = {
-        val newPublisher: Publisher[B] = pubFromA(t)
-        newPublisher.subscribe(new Subscriber[B] {
-          override def onSubscribe(s: Subscription): Unit = ???
+  private class SubscriberWrapper(originalSubscriber: Subscriber[_ >: B]) extends Subscriber[B] {
+    private var outerSubscription: Subscription = null
 
-          override def onNext(t: B): Unit = ???
+    // as we traverse the flatmapped publishers, we reuse this subscriber and just subscribe it to
+    // the new publishers as they appear
+    private var currentFlatmappedSubscription: Subscription = null
 
-          override def onError(t: Throwable): Unit = ???
+    // keep track of the amount requested across the flatmapped subscriptions
+    private object TotalRequestedLock
 
-          override def onComplete(): Unit = ???
-        })
+    private var totalRequested = 0L
 
-        import lupin.implicits._
-        //flatMap(newPublisher)(pubFromA)
-        ???
+    private var flatMappedPublisherComplete = false
+
+    def onCompleteInner() = {
+      currentFlatmappedSubscription = null
+      if (flatMappedPublisherComplete) {
+        originalSubscriber.onComplete()
+      } else {
+        val n = TotalRequestedLock.synchronized(totalRequested)
+        if (n > 0) {
+          outerSubscription.request(n)
+        }
       }
-
-      override def onError(t: Throwable): Unit = outerSubscriber.onError(t)
-
-      override def onComplete(): Unit = outerSubscriber.onComplete()
     }
 
-    underlying.subscribe(ResubscribingSubscriber)
+    def setOriginalSubscription(subscription: Subscription): Unit = {
+      require(outerSubscription == null)
+      outerSubscription = subscription
+      originalSubscriber.onSubscribe(new FlatmappedSubscription {
+        override def requestFromOuter(n: Long): Unit = {
+          outerSubscription.request(n)
+        }
+
+        override def request(n: Long): Unit = {
+          require(n > 0)
+          TotalRequestedLock.synchronized {
+            totalRequested = totalRequested + n
+            if (totalRequested < 0) {
+              totalRequested = Long.MaxValue
+            }
+          }
+          if (currentFlatmappedSubscription != null) {
+            currentFlatmappedSubscription.request(n)
+          } else {
+            requestFromOuter(n)
+          }
+        }
+
+        override def cancelOuter(): Unit = {
+          outerSubscription.cancel()
+        }
+
+        override def cancel(): Unit = {
+          if (currentFlatmappedSubscription != null) {
+            currentFlatmappedSubscription.cancel()
+          }
+          cancelOuter()
+        }
+      })
+    }
+
+    override def onSubscribe(s: Subscription): Unit = {
+      currentFlatmappedSubscription = s
+      val n = TotalRequestedLock.synchronized(totalRequested)
+      if (n > 0) {
+        currentFlatmappedSubscription.request(n)
+      }
+    }
+
+    override def onNext(value: B): Unit = {
+      TotalRequestedLock.synchronized {
+        totalRequested = (totalRequested - 1).max(0)
+      }
+      originalSubscriber.onNext(value)
+    }
+
+    override def onError(t: Throwable): Unit = originalSubscriber.onError(t)
+
+    override def onComplete(): Unit = {
+      // the outer, flatMapped subscription is complete, but that's not to say our current flatMapped one is
+      flatMappedPublisherComplete = true
+      if (currentFlatmappedSubscription == null) {
+        originalSubscriber.onComplete()
+      }
+    }
   }
+
 }

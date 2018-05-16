@@ -31,7 +31,7 @@ trait SequencedPublisher[T] extends Publisher[(Long, T)] {
     */
   final def valuesPublisher(): Publisher[T] = {
     import lupin.implicits._
-    asRichPublisher(sequencePublisher).map(_._2)
+    sequencePublisher.map(_._2)
   }
 
   /**

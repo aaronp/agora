@@ -73,7 +73,7 @@ object TableView {
 
     import lupin.implicits._
 
-    asRichPublisher(cells).map { cellUpdate =>
+    cells.map { cellUpdate =>
 
       //: CellUpdate[ID, U]
       cellUpdate

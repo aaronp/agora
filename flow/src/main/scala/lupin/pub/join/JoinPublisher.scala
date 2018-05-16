@@ -39,7 +39,7 @@ object JoinPublisher {
     val fromLeft = collate.newSubscriber(1)
     import lupin.implicits._
 
-    asRichPublisher(left).map(a => TupleUpdate.left[A, B](a)).subscribe(fromLeft)
+    left.map(a => TupleUpdate.left[A, B](a)).subscribe(fromLeft)
 
     val fromRight = collate.newSubscriber(2)
 

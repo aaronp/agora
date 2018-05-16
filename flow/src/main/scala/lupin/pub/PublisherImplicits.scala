@@ -1,48 +1,43 @@
 package lupin.pub
 
 import cats.{FlatMap, Functor}
-import lupin.pub.flatmap.FlatMapPublisher
-import lupin.sub.SubscriberDelegate
+import lupin.pub.flatmap.PublisherFlatMap
 import lupin.{Publishers, Subscribers}
 import org.reactivestreams.{Publisher, Subscriber}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-trait LowPriorityPublisherImplicits {
+/**
+  * This keeps the typeclass instances separate from the conversions which require them, just to hopefully
+  * make things easier to provide alternative impls (by excluding this trait to take things out of scope)
+  * while still bringing in the conversions
+  */
+trait LowPriorityInstances {
+  implicit def asFlatMap: FlatMap[Publisher] = PublisherFlatMap
+}
 
+trait LowPriorityPublisherConversions {
+
+  /**
+    * Publisher is invariant in T, so we need to expose an explicit conversion to ensure mapping/flatMapping
+    * specific subclasses of Publisher 'P' still return the same type and not just a generic Publisher[T]
+    *
+    * @param pub the subclassed publisher
+    * @tparam T the parameter type for the Publisher subclass
+    * @tparam P the publisher subclass type
+    * @return a RichPublisher
+    */
   implicit def asRichPublisher[T, P[_] <: Publisher[_]](pub: P[T]): PublisherImplicits.RichPublisher[T, P] = new PublisherImplicits.RichPublisher[T, P](pub)
 
   implicit def asRichPublisher2[T](pub: Publisher[T]): PublisherImplicits.RichPublisher[T, Publisher] = {
     asRichPublisher(pub)
   }
 
-  object PublisherFlatMap extends FlatMap[Publisher] {
-    override def flatMap[A, B](underlying: Publisher[A])(f: A => Publisher[B]): Publisher[B] = {
-
-      new FlatMapPublisher[A, B](underlying, f)
-    }
-
-    override def tailRecM[A, B](a: A)(f: A => Publisher[Either[A, B]]): Publisher[B] = ???
-
-    override def map[A, B](underlying: Publisher[A])(f: A => B): Publisher[B] = {
-      new Publisher[B] {
-        override def subscribe(mappedSubscriber: Subscriber[_ >: B]): Unit = {
-          underlying.subscribe(new SubscriberDelegate[A](mappedSubscriber) {
-            override def onNext(t: A): Unit = {
-              mappedSubscriber.onNext(f(t))
-            }
-          })
-        }
-      }
-    }
-  }
-
-  //  implicit def asFunctor: Functor[Publisher] = PublisherFlatMap
-
-  implicit def asFlatMap: FlatMap[Publisher] = PublisherFlatMap
 }
 
-object PublisherImplicits extends LowPriorityPublisherImplicits {
+trait LowPriorityPublisherImplicits extends LowPriorityPublisherConversions with LowPriorityInstances
+
+object PublisherImplicits extends LowPriorityPublisherImplicits with LowPriorityInstances {
 
   class RichPublisher[T, P[_] <: Publisher[_]](val underlying: P[T]) extends AnyVal {
 
@@ -54,10 +49,9 @@ object PublisherImplicits extends LowPriorityPublisherImplicits {
     }
 
     def map[A](f: T => A)(implicit func: Functor[P]): P[A] = func.map(underlying)(f)
-    def mapP[A](f: T => A)(implicit func: Functor[Publisher]): Publisher[A] = func.map(publisher)(f)
 
-    def flatMap[A](f: T => P[A])(implicit semi: FlatMap[P]): P[A] = {
-      semi.flatMap(underlying)(f)
+    def flatMap[A](f: T => P[A])(implicit mapFlat: FlatMap[P]): P[A] = {
+      mapFlat.flatMap(underlying)(f)
     }
 
     def fmap[A](f: T => A)(implicit func: Functor[P]): P[A] = func.map(underlying)(f)

@@ -47,7 +47,9 @@ object Indexer {
 
     // SequencedProcessor[(CrudOperation[K], T)]
 
-    lupin.implicits.asRichPublisher(data).foldWith[SyncDao[K, T], (Long, (CrudOperation[K], T))](dao) {
+    import lupin.implicits._
+
+    data.foldWith[SyncDao[K, T], (Long, (CrudOperation[K], T))](dao) {
 
       //    }
       //    data.foldWith[SyncDao[K, T], (CrudOperation[K], T)](dao) {

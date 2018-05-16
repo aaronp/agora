@@ -42,9 +42,7 @@ trait CollatingPublisher[K, T] extends Publisher[(K, T)] {
     */
   def valuesPublisher: Publisher[T] = {
     import lupin.implicits._
-    val x: RichPublisher[(K, T), Publisher] = asRichPublisher(this)
-    //val x : RichPublisher[(K, T), CollatingPublisher[K, T]] = asRichPublisher(this)
-    x.map(_._2)
+    this.map(_._2)
   }
 
 }

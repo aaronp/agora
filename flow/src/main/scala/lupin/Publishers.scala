@@ -110,7 +110,7 @@ object Publishers {
 
     import lupin.implicits._
 
-    combined.mapP(_._2)
+    combined.map(_._2)
   }
 
   def join[A, B](left: Publisher[A], right: Publisher[B])(implicit ec: ExecutionContext): Publisher[TupleUpdate[A, B]] = {

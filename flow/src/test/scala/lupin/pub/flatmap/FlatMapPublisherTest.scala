@@ -1,9 +1,9 @@
-package lupin.pub
+package lupin.pub.flatmap
 
 import lupin.{BaseFlowSpec, Publishers}
 import org.reactivestreams.Publisher
 
-class PublisherImplicitsTest extends BaseFlowSpec {
+class FlatMapPublisherTest extends BaseFlowSpec {
 
   "PublisherImplicits.flatMap" should {
     "flatMap publishers" in {
