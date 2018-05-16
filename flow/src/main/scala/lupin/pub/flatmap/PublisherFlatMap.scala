@@ -5,6 +5,8 @@ import lupin.Publishers
 import lupin.sub.SubscriberDelegate
 import org.reactivestreams.{Publisher, Subscriber}
 
+import scala.concurrent.ExecutionContext
+
 /**
   * An implementation of FlatMap for a [[Publisher]]
   */
@@ -18,7 +20,7 @@ object PublisherFlatMap extends FlatMap[Publisher] {
     import lupin.implicits._
     eitherPub.flatMap {
       case Left(a) => tailRecM(a)(f)
-      case Right(b) => Publishers.of(b)
+      case Right(b) => Publishers.of(b)(ExecutionContext.Implicits.global)
     }
   }
 

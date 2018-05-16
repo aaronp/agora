@@ -1,6 +1,5 @@
 package lupin.pub.join
 
-import cats.Functor
 import lupin.pub.FIFO
 import lupin.pub.collate.CollatingPublisher
 import lupin.pub.passthrough.PassthroughPublisher
@@ -42,8 +41,6 @@ object JoinPublisher {
     left.map(a => TupleUpdate.left[A, B](a)).subscribe(fromLeft)
 
     val fromRight = collate.newSubscriber(2)
-
-    implicit val f: Functor[Publisher] = PublisherFlatMap
 
     right.map(b => TupleUpdate.right[A, B](b)).subscribe(fromRight)
 

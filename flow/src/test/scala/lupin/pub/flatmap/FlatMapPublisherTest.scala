@@ -3,6 +3,8 @@ package lupin.pub.flatmap
 import lupin.{BaseFlowSpec, Publishers}
 import org.reactivestreams.Publisher
 
+import scala.concurrent.Future
+
 class FlatMapPublisherTest extends BaseFlowSpec {
 
   "PublisherImplicits.flatMap" should {
@@ -11,10 +13,13 @@ class FlatMapPublisherTest extends BaseFlowSpec {
       val pubs: Publisher[Int] = Publishers.of(1, 2, 3, 4)
 
       val flatMapped: Publisher[Int] = pubs.flatMap { i =>
-        Publishers.forValues(List(100, 200, 300).map(_ + i))
+        val newList: List[Int] = List(100, 200, 300).map(_ + i)
+        Publishers.forValues(newList)
       }
 
-      flatMapped.collect().futureValue shouldBe List(101, 102, 103, 201.202, 203, 301, 302, 303, 401, 402, 403)
+      val fut: Future[List[Int]] = flatMapped.collect()
+      val expected: List[Int] = List(101, 201, 301, 102, 202, 302, 103, 203, 303, 104, 204, 304)
+      fut.futureValue shouldBe expected
     }
   }
 }

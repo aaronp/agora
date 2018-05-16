@@ -3,7 +3,14 @@ package lupin.pub.flatmap
 import lupin.sub.SubscriberDelegate
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
-
+/**
+  * A publisher which persists a subscription across the Publishers produced by 'mapFlat'
+  *
+  * @param underlyingPublisher
+  * @param mapFlat
+  * @tparam A
+  * @tparam B
+  */
 class FlatMapPublisher[A, B](underlyingPublisher: Publisher[A], mapFlat: A => Publisher[B]) extends Publisher[B] {
 
   override def subscribe(originalSubscriber: Subscriber[_ >: B]): Unit = {
@@ -16,7 +23,7 @@ class FlatMapPublisher[A, B](underlyingPublisher: Publisher[A], mapFlat: A => Pu
       }
 
       override def onComplete(): Unit = {
-        delegate.onCompleteInner()
+        delegate.onFlatMappedPublisherComplete()
       }
 
       override def onSubscribe(s: Subscription): Unit = {
@@ -37,17 +44,44 @@ class FlatMapPublisher[A, B](underlyingPublisher: Publisher[A], mapFlat: A => Pu
 
     private var totalRequested = 0L
 
+
     private var flatMappedPublisherComplete = false
 
-    def onCompleteInner() = {
+
+    /**
+      * a flatmapped publisher is done - either we're "done" done or we should see if we can request 1 more
+      */
+    override def onComplete(): Unit = {
       currentFlatmappedSubscription = null
       if (flatMappedPublisherComplete) {
         originalSubscriber.onComplete()
       } else {
-        val n = TotalRequestedLock.synchronized(totalRequested)
-        if (n > 0) {
-          outerSubscription.request(n)
+        val prev = updateTotalRequestedBy(-1)
+        if (prev > 0) {
+          outerSubscription.request(1)
         }
+      }
+    }
+
+    /**
+      * There will be no more publishers of B produced
+      */
+    def onFlatMappedPublisherComplete() = {
+      // the outer, flatMapped subscription is complete, but that's not to say our current flatMapped one is
+      flatMappedPublisherComplete = true
+      if (currentFlatmappedSubscription == null) {
+        originalSubscriber.onComplete()
+      }
+    }
+
+    private def updateTotalRequestedBy(n: Long) = {
+      TotalRequestedLock.synchronized {
+        val prev = totalRequested
+        totalRequested = (totalRequested + n).max(0)
+        if (totalRequested < 0) {
+          totalRequested = Long.MaxValue
+        }
+        prev
       }
     }
 
@@ -61,16 +95,13 @@ class FlatMapPublisher[A, B](underlyingPublisher: Publisher[A], mapFlat: A => Pu
 
         override def request(n: Long): Unit = {
           require(n > 0)
-          TotalRequestedLock.synchronized {
-            totalRequested = totalRequested + n
-            if (totalRequested < 0) {
-              totalRequested = Long.MaxValue
-            }
-          }
+
           if (currentFlatmappedSubscription != null) {
+            updateTotalRequestedBy(n)
             currentFlatmappedSubscription.request(n)
           } else {
-            requestFromOuter(n)
+            updateTotalRequestedBy(n - 1)
+            requestFromOuter(1)
           }
         }
 
@@ -87,30 +118,26 @@ class FlatMapPublisher[A, B](underlyingPublisher: Publisher[A], mapFlat: A => Pu
       })
     }
 
+    /**
+      * This is called when we've subscribed to a new Publisher of B produced from a flatMap
+      *
+      * @param s
+      */
     override def onSubscribe(s: Subscription): Unit = {
       currentFlatmappedSubscription = s
-      val n = TotalRequestedLock.synchronized(totalRequested)
-      if (n > 0) {
-        currentFlatmappedSubscription.request(n)
+
+      val n = updateTotalRequestedBy(-1)
+      if (n > 1) {
+        currentFlatmappedSubscription.request(n - 1)
       }
     }
 
     override def onNext(value: B): Unit = {
-      TotalRequestedLock.synchronized {
-        totalRequested = (totalRequested - 1).max(0)
-      }
+      updateTotalRequestedBy(-1)
       originalSubscriber.onNext(value)
     }
 
     override def onError(t: Throwable): Unit = originalSubscriber.onError(t)
-
-    override def onComplete(): Unit = {
-      // the outer, flatMapped subscription is complete, but that's not to say our current flatMapped one is
-      flatMappedPublisherComplete = true
-      if (currentFlatmappedSubscription == null) {
-        originalSubscriber.onComplete()
-      }
-    }
   }
 
 }
