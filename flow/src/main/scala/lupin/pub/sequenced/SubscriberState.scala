@@ -55,9 +55,9 @@ class SubscriberState[T](subscription: Subscriber[_ >: (Long, T)], dao: DurableP
 
         pushValues()
       case OnNewIndexAvailable(index) =>
-        require(index >= maxIndexAvailable, s"Max index should never be decremented $maxIndexAvailable to $index")
+        //require(index >= maxIndexAvailable, s"Max index should never be decremented $maxIndexAvailable to $index")
         if (!complete) {
-          maxIndexAvailable = index
+          maxIndexAvailable = index.max(maxIndexAvailable)
           pushValues()
         } else {
           CancelResult
