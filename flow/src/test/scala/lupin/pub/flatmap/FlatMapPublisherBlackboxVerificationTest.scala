@@ -47,7 +47,7 @@ class FlatMapPublisherBlackboxVerificationTest extends PublisherVerification[Str
 
     if (numParts < 2) {
       println(elements)
-      Publishers.forValues("hi").flatMap { _ =>
+      Publishers.of("hi").flatMap { _ =>
         sv.createPublisher(elements)
       }
     } else {

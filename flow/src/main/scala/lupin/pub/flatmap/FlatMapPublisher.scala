@@ -43,7 +43,7 @@ class FlatMapPublisher[A, B](underlyingPublisher: Publisher[A], mapFlat: A => Pu
     // as we traverse the flatmapped publishers, we reuse this subscriber and just subscribe it to
     // the new publishers as they appear
     private var currentFlatMappedSubscription: Subscription = null
-    private var currentFlatMappedSubscriptionComplete = false
+    @volatile private var currentFlatMappedSubscriptionComplete = false
 
     // keep track of the amount requested across the flatmapped subscriptions
     private object TotalRequestedLock
@@ -58,11 +58,12 @@ class FlatMapPublisher[A, B](underlyingPublisher: Publisher[A], mapFlat: A => Pu
       */
     override def onComplete(): Unit = {
 
-      logger.debug(s"flat-mapped subscriber complete w/ $totalRequested totalRequested, " +
+      logger.debug(s"inner subscriber complete w/ $totalRequested totalRequested, " +
         s"flatMappedPublisherComplete=$flatMappedPublisherComplete, " +
         s"currentFlatMappedSubscription is $currentFlatMappedSubscription")
 
-      //currentFlatMappedSubscription = null
+      currentFlatMappedSubscription = null
+      currentFlatMappedSubscriptionComplete = true
       if (flatMappedPublisherComplete) {
         originalSubscriber.onComplete()
       } else {
@@ -75,6 +76,7 @@ class FlatMapPublisher[A, B](underlyingPublisher: Publisher[A], mapFlat: A => Pu
       currentFlatMappedSubscription == null || currentFlatMappedSubscriptionComplete == true
 
     }
+
     /**
       * There will be no more publishers of B produced
       */
@@ -119,15 +121,15 @@ class FlatMapPublisher[A, B](underlyingPublisher: Publisher[A], mapFlat: A => Pu
         override def request(n: Long): Unit = {
           logger.debug(s"subscriber.request($n)")
           if (n <= 0) {
-            throw new IllegalArgumentException(s"$n must be > 0")
-          }
-
-          updateTotalRequestedBy(n)
-
-          if (currentFlatMappedSubscription != null) {
-            currentFlatMappedSubscription.request(n)
+            originalSubscriber.onError(new IllegalArgumentException(s"$n must be > 0"))
           } else {
-            requestFromOuter(1)
+            updateTotalRequestedBy(n)
+
+            if (currentFlatMappedSubscription != null) {
+              currentFlatMappedSubscription.request(n)
+            } else {
+              requestFromOuter(1)
+            }
           }
         }
 

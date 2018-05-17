@@ -64,7 +64,7 @@ object SequencedProcessorPublisherVerification {
     override def maxIndex: Option[Long]   = finalIndex()
   }
 
-  val DEFAULT_TIMEOUT_MILLIS                     = 100L
+  val DEFAULT_TIMEOUT_MILLIS                     = 5100L
   val DEFAULT_NO_SIGNALS_TIMEOUT_MILLIS: Long    = DEFAULT_TIMEOUT_MILLIS
   val PUBLISHER_REFERENCE_CLEANUP_TIMEOUT_MILLIS = 500L
 
