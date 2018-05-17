@@ -43,7 +43,7 @@ object PublisherImplicits extends LowPriorityPublisherImplicits with LowPriority
 
     private def publisher = underlying.asInstanceOf[Publisher[T]]
 
-    def withSubscriber[A >: T, S <: Subscriber[A]](s: S): S = {
+    def subscribeWith[A >: T, S <: Subscriber[A]](s: S): S = {
       publisher.subscribe(s)
       s
     }
@@ -84,10 +84,10 @@ object PublisherImplicits extends LowPriorityPublisherImplicits with LowPriority
       sub.result
     }
 
+    def head(): Future[T] = publisher.subscribeWith(Subscribers.head[T]()).result
+
     def collect(limit: Long = Long.MaxValue): Future[List[T]] = {
-      val sub = Subscribers.collect[T](limit)
-      publisher.subscribe(sub)
-      sub.result
+      publisher.subscribeWith(Subscribers.collect[T](limit)).result
     }
 
     def count(limit: Long = Long.MaxValue)(implicit executor: ExecutionContext): Future[Int] = {

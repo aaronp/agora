@@ -29,9 +29,9 @@ class IndexQuerySourceTest extends BaseFlowSpec with GivenWhenThen {
       And("A query for an index selection of indices 1 and 2")
       val firstTwoNames: Publisher[IndexedEntry[String, String]] = nameIndexer.between(1, 2)
 
-      val indexListener = nameIndexer.withSubscriber(new ListSubscriber[IndexedValue[String, String]]())
+      val indexListener = nameIndexer.subscribeWith(new ListSubscriber[IndexedValue[String, String]]())
       indexListener.request(10)
-      val updateListener = firstTwoNames.withSubscriber(new ListSubscriber[IndexedEntry[String, String]]())
+      val updateListener = firstTwoNames.subscribeWith(new ListSubscriber[IndexedEntry[String, String]]())
       updateListener.request(10)
 
       When("The first value is inserted")
