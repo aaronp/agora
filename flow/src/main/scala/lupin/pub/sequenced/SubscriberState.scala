@@ -17,10 +17,10 @@ import scala.util.{Failure, Success, Try}
   */
 class SubscriberState[T](subscription: Subscriber[_ >: (Long, T)], dao: DurableProcessorReader[T], initialRequestedIndex: Long) extends StrictLogging {
 
-  private var maxIndexAvailable: Long           = -1L
+  private var maxIndexAvailable: Long = -1L
   @volatile private var maxIndexRequested: Long = initialRequestedIndex
-  private var lastIndexPushed: Long             = initialRequestedIndex
-  private var complete                          = false
+  private var lastIndexPushed: Long = initialRequestedIndex
+  private var complete = false
 
   private[sequenced] def maxRequestedIndex() = maxIndexRequested
 
@@ -56,9 +56,12 @@ class SubscriberState[T](subscription: Subscriber[_ >: (Long, T)], dao: DurableP
         pushValues()
       case OnNewIndexAvailable(index) =>
         require(index >= maxIndexAvailable, s"Max index should never be decremented $maxIndexAvailable to $index")
-        require(!complete, "OnNewIndexAvailable after complete")
-        maxIndexAvailable = index
-        pushValues()
+        if (!complete) {
+          maxIndexAvailable = index
+          pushValues()
+        } else {
+          CancelResult
+        }
       case OnCancel => CancelResult
       case OnError(err) =>
         subscription.onError(err)

@@ -1,5 +1,7 @@
 package lupin.pub.flatmap
 
+import java.util.concurrent.atomic.AtomicBoolean
+
 import com.typesafe.scalalogging.StrictLogging
 import lupin.sub.SubscriberDelegate
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
@@ -42,6 +44,7 @@ class FlatMapPublisher[A, B](underlyingPublisher: Publisher[A], mapFlat: A => Pu
 
     // as we traverse the flatmapped publishers, we reuse this subscriber and just subscribe it to
     // the new publishers as they appear
+    @volatile private var cancelled = false
     private var currentFlatMappedSubscription: Subscription = null
     @volatile private var currentFlatMappedSubscriptionComplete = false
 
@@ -52,6 +55,14 @@ class FlatMapPublisher[A, B](underlyingPublisher: Publisher[A], mapFlat: A => Pu
 
 
     private var flatMappedPublisherComplete = false
+
+    private val completedCalled = new AtomicBoolean(false)
+
+    def markComplete() = {
+      if (completedCalled.compareAndSet(false, true)) {
+        originalSubscriber.onComplete()
+      }
+    }
 
     /**
       * a flatmapped publisher is done - either we're "done" done or we should see if we can request 1 more
@@ -65,7 +76,7 @@ class FlatMapPublisher[A, B](underlyingPublisher: Publisher[A], mapFlat: A => Pu
       currentFlatMappedSubscription = null
       currentFlatMappedSubscriptionComplete = true
       if (flatMappedPublisherComplete) {
-        originalSubscriber.onComplete()
+        markComplete()
       } else {
         outerSubscription.request(1)
       }
@@ -89,7 +100,7 @@ class FlatMapPublisher[A, B](underlyingPublisher: Publisher[A], mapFlat: A => Pu
 
       // we may get this while still consuming a flat-mapped subscription
       if (innerPublisherComplete()) {
-        originalSubscriber.onComplete()
+        markComplete()
       } else {
         logger.debug("Waiting for inner publisher to complete")
       }
@@ -98,9 +109,11 @@ class FlatMapPublisher[A, B](underlyingPublisher: Publisher[A], mapFlat: A => Pu
     private def updateTotalRequestedBy(n: Long) = {
       TotalRequestedLock.synchronized {
         val prev = totalRequested
-        totalRequested = (totalRequested + n).max(0)
-        if (totalRequested < 0) {
-          totalRequested = Long.MaxValue
+        if (totalRequested != Long.MaxValue) {
+          totalRequested = (totalRequested + n).max(0)
+          if (totalRequested < 0) {
+            totalRequested = Long.MaxValue
+          }
         }
 
         logger.debug(s"updateTotalRequestedBy($n) from $prev, totalRequested is $totalRequested")
@@ -139,13 +152,17 @@ class FlatMapPublisher[A, B](underlyingPublisher: Publisher[A], mapFlat: A => Pu
         }
 
         override def cancel(): Unit = {
-          logger.debug(s"subscriber.cancel()")
-          if (currentFlatMappedSubscription != null) {
-            currentFlatMappedSubscription.cancel()
-            currentFlatMappedSubscription = null
-            currentFlatMappedSubscriptionComplete = true
+          val wasCancelled = cancelled
+          cancelled = true
+          if (!wasCancelled) {
+            logger.debug(s"subscriber.cancel()")
+            if (currentFlatMappedSubscription != null) {
+              //currentFlatMappedSubscription.cancel()
+              currentFlatMappedSubscription = null
+              currentFlatMappedSubscriptionComplete = true
+            }
+            cancelOuter()
           }
-          cancelOuter()
         }
       })
     }
@@ -158,6 +175,9 @@ class FlatMapPublisher[A, B](underlyingPublisher: Publisher[A], mapFlat: A => Pu
     override def onSubscribe(s: Subscription): Unit = {
       val n = TotalRequestedLock.synchronized(totalRequested)
       logger.debug(s"inner subscriber.onSubscribe($s) while currently requested is $n")
+      if (currentFlatMappedSubscription != null) {
+        currentFlatMappedSubscription.cancel()
+      }
       currentFlatMappedSubscription = s
       currentFlatMappedSubscriptionComplete = false
 
@@ -167,8 +187,11 @@ class FlatMapPublisher[A, B](underlyingPublisher: Publisher[A], mapFlat: A => Pu
     }
 
     override def onNext(value: B): Unit = {
-      val oldRequested = updateTotalRequestedBy(-1)
-      logger.debug(s"inner subscriber.onNext($value), requested is now ${oldRequested - 1}")
+
+      if (!cancelled) {
+        val oldRequested = updateTotalRequestedBy(-1)
+        logger.debug(s"inner subscriber.onNext($value), requested is now ${oldRequested - 1}")
+      }
       originalSubscriber.onNext(value)
     }
 

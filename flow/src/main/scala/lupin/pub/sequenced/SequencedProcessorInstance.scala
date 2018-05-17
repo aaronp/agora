@@ -252,7 +252,7 @@ class SequencedProcessorInstance[T](val dao: DurableProcessorDao[T],
     val idx = nextIndexCounter.get()
     dao.markComplete(idx)
     val lastIdxOpt = dao.finalIndex()
-    require(lastIdxOpt == Option(idx), s"dao.finalIndex() returned ${lastIdxOpt}")
+    require(lastIdxOpt == Option(idx), s"dao.finalIndex() returned ${lastIdxOpt}, though it was marked complete w/ $idx")
     foreachSubscriber(_.notifyComplete(idx))
     clearSubscription()
   }
