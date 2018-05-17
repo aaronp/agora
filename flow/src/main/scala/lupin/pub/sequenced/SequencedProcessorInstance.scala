@@ -21,7 +21,7 @@ class SequencedProcessorInstance[T](val dao: DurableProcessorDao[T],
     extends SequencedProcessor[T]
     with StrictLogging {
 
-  type IndexSubscription = (Long, T)
+  type IndexSubscription = (T, Long)
 
   //  protected[sequenced] val dao: DurableProcessorDao[T] = args.dao
   //  val propagateSubscriberRequestsToOurSubscription = args.propagateSubscriberRequestsToOurSubscription

@@ -7,9 +7,9 @@ class PublishersTest extends BaseFlowSpec with GivenWhenThen {
 
   "Publishers.apply(fifo queue)" should {
     "push elements as they're enqueued" in {
-      val queue = FIFO[Option[Int]]()
+      val queue     = FIFO[Option[Int]]()
       val publisher = Publishers(queue)
-      val list = new ListSubscriber[Int]
+      val list      = new ListSubscriber[Int]
       publisher.subscribe(list)
       list.request(3)
       Thread.sleep(testNegativeTimeout.toMillis)

@@ -8,10 +8,11 @@ case class Sequenced[T](seqNo: Long, data: T)
 
 object Sequenced {
 
-  def map[K, T, A](sequencedDataFeed: Publisher[(Long, (CrudOperation[K], T))])(getter: T => A)(implicit execContext: ExecutionContext): Publisher[Sequenced[(CrudOperation[K], A)]] = {
+  def map[K, T, A](sequencedDataFeed: Publisher[((CrudOperation[K], T), Long)])(getter: T => A)(
+      implicit execContext: ExecutionContext): Publisher[Sequenced[(CrudOperation[K], A)]] = {
     import lupin.implicits._
     sequencedDataFeed.map {
-      case (seqNo, (crudOp, input)) => Sequenced(seqNo, (crudOp, getter(input)))
+      case ((crudOp, input), seqNo) => Sequenced(seqNo, (crudOp, getter(input)))
     }
   }
 }

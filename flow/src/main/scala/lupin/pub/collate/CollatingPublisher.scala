@@ -50,7 +50,7 @@ trait CollatingPublisher[K, T] extends Publisher[(K, T)] {
 object CollatingPublisher {
 
   def apply[K, T](dao: DurableProcessorDao[(K, T)] = DurableProcessorDao[(K, T)](), propagateOnError: Boolean = true, fair: Boolean)(
-    implicit execContext: ExecutionContext) = {
+      implicit execContext: ExecutionContext) = {
     new CollatingPublisherInstance[K, T](dao, propagateOnError, fair)
   }
 

@@ -74,7 +74,6 @@ object TableView {
     import lupin.implicits._
 
     cells.map { cellUpdate =>
-
       //: CellUpdate[ID, U]
       cellUpdate
     }

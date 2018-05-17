@@ -22,7 +22,6 @@ class FlatMapPublisherBlackboxVerificationTest extends PublisherVerification[Str
   override def createPublisher(elements: Long): Publisher[String] = {
     import lupin.implicits._
 
-
     val numParts = if (elements < 2) {
       1
     } else if (elements < 3) {
@@ -34,7 +33,7 @@ class FlatMapPublisherBlackboxVerificationTest extends PublisherVerification[Str
     }
 
     val partSize: Long = elements / numParts
-    val remainder = elements % numParts
+    val remainder      = elements % numParts
 
     val sv = new SequencedProcessorPublisherVerification
 
@@ -43,7 +42,6 @@ class FlatMapPublisherBlackboxVerificationTest extends PublisherVerification[Str
     if (check != elements) {
       logger.error("" + check)
     }
-
 
     if (numParts < 2) {
       Publishers.of("hi").flatMap { _ =>
@@ -65,7 +63,7 @@ class FlatMapPublisherBlackboxVerificationTest extends PublisherVerification[Str
 
   override def createFailedPublisher(): Publisher[String] = {
     val dp: SequencedProcessorInstance[String] = SequencedProcessor[String]
-    val pub = new FlatMapPublisher[String, String](dp.valuesPublisher(), _ => ???)
+    val pub                                    = new FlatMapPublisher[String, String](dp.valuesPublisher(), _ => ???)
     dp.onError(new Exception("bang"))
     pub
   }

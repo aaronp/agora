@@ -73,16 +73,17 @@ class IndexerTest extends BaseFlowSpec with GivenWhenThen {
   "Indexer.crud" should {
     "publish initial elements meeting the criteria" in {
 
-      val people = Publishers.of(
+      val people: Publisher[Person] = Publishers.of(
         Person(1, "Georgina"),
         Person(2, "Eleanor"),
         Person(3, "Jayne"),
         Person(1, "George")
       )
 
-      val dao: Publisher[(CrudOperation[Int], Person)] = ??? //Indexer.crud(people)
+      import lupin.implicits._
+      val dao: Publisher[Sequenced[(CrudOperation[Int], Person)]] =  Indexer.crud(people.zipWithIndex)
 
-      val initialLoadListener = new ListSubscriber[(CrudOperation[Int], Person)]
+      val initialLoadListener = new ListSubscriber[Sequenced[(CrudOperation[Int], Person)]]
       dao.subscribe(initialLoadListener)
 
       initialLoadListener.request(10) // load up our DAO prior to any new subscriptions
@@ -90,9 +91,14 @@ class IndexerTest extends BaseFlowSpec with GivenWhenThen {
         initialLoadListener.receivedInOrderReceived().size shouldBe 4
       }
 
-      val crudListener = new ListSubscriber[(CrudOperation[Int], Person)]
+      val crudListener = new ListSubscriber[Sequenced[(CrudOperation[Int], Person)]]
       import lupin.implicits._
-      dao.filter(p => Set(1, 3).contains(p._1.key)).subscribe(crudListener)
+      dao.filter{ p =>
+
+        val x: Sequenced[(CrudOperation[Int], Person)] = p
+        Set(1, 3).contains(p.data._1.key)
+
+      }.subscribe(crudListener)
 
       crudListener.request(5)
       eventually {

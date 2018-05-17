@@ -44,7 +44,7 @@ class CollatingPublisherVerification extends PublisherVerification[String](testE
 
   override def createPublisher(elements: Long): Publisher[String] = {
     val upstream = if (elements > 100) {
-      val dao                                  = new RangeDao(elements)
+      val dao                                    = new RangeDao(elements)
       val dp: SequencedProcessorInstance[String] = SequencedProcessor[String](dao)
       dp
     } else {

@@ -52,14 +52,15 @@ object IndexQuerySource {
     * @tparam A
     * @return
     */
-  def apply[K, T, A: Ordering](data: Publisher[(Long, T)], inputDao: SyncDao[K, T] = null)(
-    getter: T => A)(implicit getId: Accessor[T, K], execContext: ExecutionContext): Publisher[IndexedValue[K, A]] with IndexQuerySource[K, A] = {
+  def apply[K, T, A: Ordering](data: Publisher[(T, Long)], inputDao: SyncDao[K, T] = null)(
+      getter: T => A)(implicit getId: Accessor[T, K], execContext: ExecutionContext): Publisher[IndexedValue[K, A]] with IndexQuerySource[K, A] = {
     val insert = Indexer.crud[K, T](data, inputDao)
-
-    val mapped: Publisher[Sequenced[(CrudOperation[K], A)]] = Sequenced.map(insert)(getter)
+    import lupin.implicits._
+    val mapped = insert.map {
+      case Sequenced(idx, (op, value)) => Sequenced(idx, (op, getter(value)))
+    }
     fromSequencedUpdates(mapped)
   }
-
 
   /**
     *
@@ -69,7 +70,8 @@ object IndexQuerySource {
     * @tparam T
     * @return an IndexQuerySource which can be used to read the data sent through it when used as an [[Indexer]]
     */
-  def fromSequencedUpdates[K, T: Ordering](sequencedUpdates: Publisher[Sequenced[(CrudOperation[K], T)]])(implicit execContext: ExecutionContext): Publisher[IndexedValue[K, T]] with IndexQuerySource[K, T] = {
+  def fromSequencedUpdates[K, T: Ordering](sequencedUpdates: Publisher[Sequenced[(CrudOperation[K], T)]])(
+      implicit execContext: ExecutionContext): Publisher[IndexedValue[K, T]] with IndexQuerySource[K, T] = {
     val withLatest = keepLatest[K, T](Indexer.slowInMemoryIndexer)
 
     val indexer = Indexer(sequencedUpdates, withLatest)
@@ -81,7 +83,6 @@ object IndexQuerySource {
 
       override def query(criteria: IndexSelection): Publisher[IndexedEntry[K, T]] = {
         val snapshotResults = withLatest.query(criteria)
-
 
         var minSeqNoFound = -1L
         ???
@@ -129,7 +130,7 @@ object IndexQuerySource {
 
       override def index(seqNo: Long, data: T, op: CrudOperation[K]) = {
         val (newInst, indexedValue) = current.index(seqNo, data, op)
-        val casted = newInst.asInstanceOf[IndexQuerySource[K, T] with Indexer[K, T]]
+        val casted                  = newInst.asInstanceOf[IndexQuerySource[K, T] with Indexer[K, T]]
         current = casted
         (this, indexedValue)
       }

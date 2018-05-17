@@ -44,7 +44,6 @@ class FlatMapPublisherTest extends BaseFlowSpec {
         Publishers.forValues(newList)
       }
 
-
       val sub = flatMapped.subscribeWith(new ListSubscriber[Int]())
       expected.inits.toList.reverse.tail.foreach { list =>
         println(list)

@@ -15,12 +15,12 @@ import scala.util.{Failure, Success, Try}
   * This state could be embedded in an actor which accepts [[SubscriberStateCommand]]
   * messages, or a simple Runnable which pulls commands from a queue
   */
-class SubscriberState[T](subscription: Subscriber[_ >: (Long, T)], dao: DurableProcessorReader[T], initialRequestedIndex: Long) extends StrictLogging {
+class SubscriberState[T](subscription: Subscriber[_ >: (T, Long)], dao: DurableProcessorReader[T], initialRequestedIndex: Long) extends StrictLogging {
 
-  private var maxIndexAvailable: Long = -1L
+  private var maxIndexAvailable: Long           = -1L
   @volatile private var maxIndexRequested: Long = initialRequestedIndex
-  private var lastIndexPushed: Long = initialRequestedIndex
-  private var complete = false
+  private var lastIndexPushed: Long             = initialRequestedIndex
+  private var complete                          = false
 
   private[sequenced] def maxRequestedIndex() = maxIndexRequested
 
@@ -85,7 +85,7 @@ class SubscriberState[T](subscription: Subscriber[_ >: (Long, T)], dao: DurableP
       // TODO - request ranges
       dao.at(lastIndexPushed) match {
         case Success(value) =>
-          subscription.onNext(lastIndexPushed -> value)
+          subscription.onNext(value -> lastIndexPushed)
         case Failure(err) =>
           logger.error(s"subscriber was naughty and threw an exception on onNext for $lastIndexPushed: $err")
           subscription.onError(err)

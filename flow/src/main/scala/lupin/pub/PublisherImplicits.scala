@@ -48,6 +48,14 @@ object PublisherImplicits extends LowPriorityPublisherImplicits with LowPriority
       s
     }
 
+    def zipWithIndex: Publisher[(T, Long)] = {
+      foldWith[Long, (T, Long)](0L) {
+        case entry@(lastIdx, _) =>
+          val nextIndex = lastIdx + 1
+          nextIndex -> entry.swap
+      }
+    }
+
     def map[A](f: T => A)(implicit func: Functor[P]): P[A] = func.map(underlying)(f)
 
     def flatMap[A](f: T => P[A])(implicit mapFlat: FlatMap[P]): P[A] = {

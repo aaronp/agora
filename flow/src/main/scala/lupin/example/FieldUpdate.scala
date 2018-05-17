@@ -1,5 +1,9 @@
 package lupin.example
 
+/**
+  * Represents an update to a value
+  * @tparam ID
+  */
 trait FieldUpdate[ID] {
   type FieldType
 

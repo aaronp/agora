@@ -6,10 +6,10 @@ import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
 class SequencedProcessorTest extends BaseFlowSpec {
 
-  implicit def asRichListSubscriber[T](subscriber: ListSubscriber[(Long, T)]) = new {
+  implicit def asRichListSubscriber[T](subscriber: ListSubscriber[(T, Long)]) = new {
     def verifyReceived(expected: String*) = {
       eventually {
-        subscriber.receivedInOrderReceived().map(_._2) shouldBe expected.toList
+        subscriber.receivedInOrderReceived().map(_._1) shouldBe expected.toList
       }
     }
   }
@@ -66,7 +66,7 @@ class SequencedProcessorTest extends BaseFlowSpec {
       processorUnderTest.onNext("only element")
       processorUnderTest.onComplete()
 
-      val sub1 = new ListSubscriber[(Long, String)]
+      val sub1 = new ListSubscriber[(String, Long)]
       processorUnderTest.subscribe(sub1)
       sub1.receivedInOrderReceived() shouldBe Nil
       sub1.isCompleted() shouldBe false
@@ -123,7 +123,7 @@ class SequencedProcessorTest extends BaseFlowSpec {
       processorUnderTest.onNext(1)
       processorUnderTest.onComplete()
 
-      val sub = new ListSubscriber[(Long, Int)]
+      val sub = new ListSubscriber[(Int, Long)]
       sub.request(10)
       processorUnderTest.subscribeFrom(1, sub)
       eventually {
@@ -133,7 +133,7 @@ class SequencedProcessorTest extends BaseFlowSpec {
         sub.receivedInOrderReceived() shouldBe Nil
       }
 
-      val sub2 = new ListSubscriber[(Long, Int)]
+      val sub2 = new ListSubscriber[(Int, Long)]
       sub2.request(10)
       processorUnderTest.subscribeFrom(0, sub2)
       eventually {
@@ -146,7 +146,7 @@ class SequencedProcessorTest extends BaseFlowSpec {
       //      processor.firstIndex shouldBe 0
       processor.latestIndex shouldBe None
 
-      val startAtThree = new ListSubscriber[(Long, String)]
+      val startAtThree = new ListSubscriber[(String, Long)]
       startAtThree.request(2)
       processor.subscribeFrom(2, startAtThree)
 
@@ -157,7 +157,7 @@ class SequencedProcessorTest extends BaseFlowSpec {
       processor.onNext("c") // 2
       startAtThree.verifyReceived("c")
 
-      val startAtTwo = new ListSubscriber[(Long, String)]
+      val startAtTwo = new ListSubscriber[(String, Long)]
       startAtTwo.request(1)
       processor.subscribeFrom(1, startAtTwo)
       startAtTwo.verifyReceived("b")
@@ -168,14 +168,14 @@ class SequencedProcessorTest extends BaseFlowSpec {
     "support multiple subscriptions" in {
       val processor = SequencedProcessor[String]()
 
-      val firstSubscriber = new ListSubscriber[(Long, String)]
+      val firstSubscriber = new ListSubscriber[(String, Long)]
       firstSubscriber.request(2)
       processor.subscribe(firstSubscriber)
 
       processor.onNext("a")
       firstSubscriber.verifyReceived("a")
 
-      val secondSubscriber = new ListSubscriber[(Long, String)]
+      val secondSubscriber = new ListSubscriber[(String, Long)]
       processor.subscribe(secondSubscriber)
       secondSubscriber.receivedInOrderReceived() shouldBe Nil
 
@@ -222,7 +222,7 @@ class SequencedProcessorTest extends BaseFlowSpec {
         processor.latestIndex shouldBe Option(2)
       }
 
-      val subscriber = new ListSubscriber[(Long, String)]
+      val subscriber = new ListSubscriber[(String, Long)]
       processor.subscribe(subscriber)
       subscriber.isSubscribed() shouldBe true
       val subscription = subscriber.subscription().asInstanceOf[DurableSubscription[_]]

@@ -16,7 +16,6 @@ object CellUpdate {
       case (cellUpdate, RightUpdate(viewPort))        => cellUpdate
       case (cellUpdate, BothUpdated(value, viewPort)) => cellUpdate
     }
-    ???
   }
 }
 

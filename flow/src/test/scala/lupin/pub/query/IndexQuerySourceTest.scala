@@ -16,7 +16,7 @@ class IndexQuerySourceTest extends BaseFlowSpec with GivenWhenThen {
       Given("An IndexQuerySource created from a CRUD data feed")
       case class Person(id: String, name: String, age: Int)
       type PersonUpdate = (CrudOperation[String], (Long, Person))
-      val updates: FIFO[Option[PersonUpdate]] = FIFO[Option[PersonUpdate]]()
+      val updates: FIFO[Option[PersonUpdate]]                      = FIFO[Option[PersonUpdate]]()
       val data: Publisher[(CrudOperation[String], (Long, Person))] = Publishers(updates)
 
       import lupin.implicits._
@@ -38,7 +38,6 @@ class IndexQuerySourceTest extends BaseFlowSpec with GivenWhenThen {
       val seqNo = new AtomicLong(0)
       updates.enqueue(Option(CrudOperation.create("uuid-1") -> (seqNo.incrementAndGet(), Person("uuid-1", "Henry", 3))))
       // pull some data through the indexer
-
 
       Then("A value should be indexed, but the queried indices (1 to 2) shouldn't be available yet as it is outside the queried index range")
       eventually {
@@ -64,7 +63,6 @@ class IndexQuerySourceTest extends BaseFlowSpec with GivenWhenThen {
     }
   }
 
-
   "IndexQuerySource" should {
     "return the latest values as well as any updates for an index query" in {
 
@@ -78,8 +76,8 @@ class IndexQuerySourceTest extends BaseFlowSpec with GivenWhenThen {
         val foo = lastValue.fold(Option(Foo(0, "first foo", "alpha!", 0))) {
           case Foo(_, _, _, 20) => None
           case previous =>
-            val x = previous.id
-            val newID = (x + 1) % 5
+            val x      = previous.id
+            val newID  = (x + 1) % 5
             val newIdx = previous.count + 1
             Option(Foo(newID, s"$newIdx w/ ${x % 7} for id $newID", "property" + x, newIdx))
         }

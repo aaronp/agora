@@ -44,15 +44,14 @@ class FlatMapPublisher[A, B](underlyingPublisher: Publisher[A], mapFlat: A => Pu
 
     // as we traverse the flatmapped publishers, we reuse this subscriber and just subscribe it to
     // the new publishers as they appear
-    @volatile private var cancelled = false
-    private var currentFlatMappedSubscription: Subscription = null
+    @volatile private var cancelled                             = false
+    private var currentFlatMappedSubscription: Subscription     = null
     @volatile private var currentFlatMappedSubscriptionComplete = false
 
     // keep track of the amount requested across the flatmapped subscriptions
     private object TotalRequestedLock
 
     private var totalRequested = 0L
-
 
     private var flatMappedPublisherComplete = false
 
@@ -69,9 +68,10 @@ class FlatMapPublisher[A, B](underlyingPublisher: Publisher[A], mapFlat: A => Pu
       */
     override def onComplete(): Unit = {
 
-      logger.debug(s"inner subscriber complete w/ $totalRequested totalRequested, " +
-        s"flatMappedPublisherComplete=$flatMappedPublisherComplete, " +
-        s"currentFlatMappedSubscription is $currentFlatMappedSubscription")
+      logger.debug(
+        s"inner subscriber complete w/ $totalRequested totalRequested, " +
+          s"flatMappedPublisherComplete=$flatMappedPublisherComplete, " +
+          s"currentFlatMappedSubscription is $currentFlatMappedSubscription")
 
       currentFlatMappedSubscription = null
       currentFlatMappedSubscriptionComplete = true
@@ -83,7 +83,8 @@ class FlatMapPublisher[A, B](underlyingPublisher: Publisher[A], mapFlat: A => Pu
     }
 
     def innerPublisherComplete() = {
-      logger.debug(s"\tinnerPublisherComplete yields .. currentFlatMappedSubscriptionComplete =$currentFlatMappedSubscriptionComplete, isNull = ${currentFlatMappedSubscription == null}")
+      logger.debug(
+        s"\tinnerPublisherComplete yields .. currentFlatMappedSubscriptionComplete =$currentFlatMappedSubscriptionComplete, isNull = ${currentFlatMappedSubscription == null}")
       currentFlatMappedSubscription == null || currentFlatMappedSubscriptionComplete == true
 
     }
@@ -92,9 +93,10 @@ class FlatMapPublisher[A, B](underlyingPublisher: Publisher[A], mapFlat: A => Pu
       * There will be no more publishers of B produced
       */
     def onFlatMappedPublisherComplete() = {
-      logger.debug(s"Inner Publisher Complete w/ $totalRequested totalRequested, " +
-        s"flatMappedPublisherComplete=$flatMappedPublisherComplete, " +
-        s"currentFlatMappedSubscription is $currentFlatMappedSubscription")
+      logger.debug(
+        s"Inner Publisher Complete w/ $totalRequested totalRequested, " +
+          s"flatMappedPublisherComplete=$flatMappedPublisherComplete, " +
+          s"currentFlatMappedSubscription is $currentFlatMappedSubscription")
       // the outer, flatMapped subscription is complete, but that's not to say our current flatMapped one is
       flatMappedPublisherComplete = true
 

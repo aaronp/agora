@@ -28,7 +28,7 @@ object JoinPublisher {
     * @return a publisher which joins the two publishers
     */
   def apply[A, B](left: Publisher[A], right: Publisher[B], newLeftQueue: () => FIFO[LeftUpdate[A, B]], newRightQueue: () => FIFO[RightUpdate[A, B]])(
-    implicit ec: ExecutionContext): Publisher[TupleUpdate[A, B]] = {
+      implicit ec: ExecutionContext): Publisher[TupleUpdate[A, B]] = {
 
     //
     // first, create summat which will request from both publishers

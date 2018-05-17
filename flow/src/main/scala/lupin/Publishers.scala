@@ -51,7 +51,7 @@ object Publishers {
   def unfold[T](createNext: Option[T] => (Option[T], Boolean))(implicit ec: ExecutionContext): Publisher[T] = {
     new SequencedProcessorInstance[T](DurableProcessorDao[T]()) {
       var currentlyRequested = 0L
-      var previous = Option.empty[T]
+      var previous           = Option.empty[T]
 
       override def onRequest(n: Long): Unit = {
         require(n > 0)

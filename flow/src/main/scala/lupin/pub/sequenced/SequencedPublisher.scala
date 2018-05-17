@@ -1,19 +1,18 @@
 package lupin.pub.sequenced
 
 import cats.Functor
-import lupin.pub.PublisherImplicits
 import lupin.sub.SubscriberDelegate
 import org.reactivestreams.{Publisher, Subscriber}
 
-trait SequencedPublisher[T] extends Publisher[(Long, T)] {
-  def subscribeFrom(index: Long, subscriber: Subscriber[_ >: (Long, T)]): Unit
+trait SequencedPublisher[T] extends Publisher[(T, Long)] {
+  def subscribeFrom(index: Long, subscriber: Subscriber[_ >: (T, Long)]): Unit
 
   /**
     * The default is to start subscribing from the first available index
     *
     * @param subscriber
     */
-  override def subscribe(subscriber: Subscriber[_ >: (Long, T)]) = subscribeFrom(firstIndex, subscriber)
+  override def subscribe(subscriber: Subscriber[_ >: (T, Long)]) = subscribeFrom(firstIndex, subscriber)
 
   /** @return the first index available to read from, or -1 if none
     */
@@ -31,14 +30,14 @@ trait SequencedPublisher[T] extends Publisher[(Long, T)] {
     */
   final def valuesPublisher(): Publisher[T] = {
     import lupin.implicits._
-    sequencePublisher.map(_._2)
+    sequencePublisher.map(_._1)
   }
 
   /**
     * Required so the more specific SequencedPublisher Functor/FlatMap is not chosen
     * @return
     */
-  final def sequencePublisher(): Publisher[(Long, T)] = this
+  final def sequencePublisher(): Publisher[(T, Long)] = this
 }
 
 object SequencedPublisher {
@@ -46,13 +45,16 @@ object SequencedPublisher {
   implicit object SequencedPublisherFunctor extends Functor[SequencedPublisher] {
     override def map[A, B](underlying: SequencedPublisher[A])(f: A => B): SequencedPublisher[B] = {
       new SequencedPublisher[B] {
-        override def subscribeFrom(index: Long, subscriber: Subscriber[_ >: (Long, B)]): Unit = {
-          underlying.subscribeFrom(index, new SubscriberDelegate[(Long, A)](subscriber) {
-            override def onNext(value: (Long, A)): Unit = {
-              val newValue = (value._1, f(value._2))
-              subscriber.onNext(newValue)
+        override def subscribeFrom(index: Long, subscriber: Subscriber[_ >: (B, Long)]): Unit = {
+          underlying.subscribeFrom(
+            index,
+            new SubscriberDelegate[(A, Long)](subscriber) {
+              override def onNext(value: (A, Long)): Unit = {
+                val newValue: (B, Long) = (f(value._1), value._2)
+                subscriber.onNext(newValue)
+              }
             }
-          })
+          )
         }
 
         override def firstIndex(): Long = underlying.firstIndex()

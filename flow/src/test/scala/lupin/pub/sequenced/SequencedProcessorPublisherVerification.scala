@@ -20,7 +20,7 @@ class SequencedProcessorPublisherVerification extends PublisherVerification[Stri
 
   override def createPublisher(elements: Long): Publisher[String] = {
     if (elements > 100) {
-      val dao                                  = new RangeDao(elements)
+      val dao                                    = new RangeDao(elements)
       val dp: SequencedProcessorInstance[String] = SequencedProcessor[String](dao)
       dp.valuesPublisher()
     } else {

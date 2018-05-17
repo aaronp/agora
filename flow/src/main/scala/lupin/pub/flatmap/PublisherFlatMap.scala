@@ -19,7 +19,7 @@ object PublisherFlatMap extends FlatMap[Publisher] {
     val eitherPub: Publisher[Either[A, B]] = f(a)
     import lupin.implicits._
     eitherPub.flatMap {
-      case Left(a) => tailRecM(a)(f)
+      case Left(a)  => tailRecM(a)(f)
       case Right(b) => Publishers.of(b)(ExecutionContext.Implicits.global)
     }
   }
