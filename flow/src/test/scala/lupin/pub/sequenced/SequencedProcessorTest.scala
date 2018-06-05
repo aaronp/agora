@@ -74,7 +74,7 @@ class SequencedProcessorTest extends BaseFlowSpec {
       sub1.request(1)
       eventually {
         sub1.isCompleted() shouldBe true
-        sub1.receivedInOrderReceived().map(_._2) shouldBe List("only element")
+        sub1.receivedInOrderReceived().map(_._1) shouldBe List("only element")
       }
 
       val sub2 = new ListSubscriber[String]
@@ -138,7 +138,7 @@ class SequencedProcessorTest extends BaseFlowSpec {
       processorUnderTest.subscribeFrom(0, sub2)
       eventually {
         sub2.isCompleted() shouldBe true
-        sub2.receivedInOrderReceived().map(_._2) shouldBe List(1)
+        sub2.receivedInOrderReceived().map(_._1) shouldBe List(1)
       }
     }
     "Allow subscriptions to receive already published values" in {

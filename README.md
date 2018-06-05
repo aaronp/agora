@@ -1,3 +1,5 @@
+# Agora
+
 ![sbt test cucumber](https://travis-ci.org/aaronp/agora.svg?branch=master)
 
 'Agora' is a reactive, distributed work-exchange for pairing work items with workers requesting work.

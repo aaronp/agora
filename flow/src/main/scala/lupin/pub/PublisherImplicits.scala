@@ -50,7 +50,7 @@ object PublisherImplicits extends LowPriorityPublisherImplicits with LowPriority
 
     def zipWithIndex: Publisher[(T, Long)] = {
       foldWith[Long, (T, Long)](0L) {
-        case entry@(lastIdx, _) =>
+        case entry @ (lastIdx, _) =>
           val nextIndex = lastIdx + 1
           nextIndex -> entry.swap
       }

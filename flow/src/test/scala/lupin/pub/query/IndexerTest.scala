@@ -81,7 +81,7 @@ class IndexerTest extends BaseFlowSpec with GivenWhenThen {
       )
 
       import lupin.implicits._
-      val dao: Publisher[Sequenced[(CrudOperation[Int], Person)]] =  Indexer.crud(people.zipWithIndex)
+      val dao: Publisher[Sequenced[(CrudOperation[Int], Person)]] = Indexer.crud(people.zipWithIndex)
 
       val initialLoadListener = new ListSubscriber[Sequenced[(CrudOperation[Int], Person)]]
       dao.subscribe(initialLoadListener)
@@ -93,12 +93,13 @@ class IndexerTest extends BaseFlowSpec with GivenWhenThen {
 
       val crudListener = new ListSubscriber[Sequenced[(CrudOperation[Int], Person)]]
       import lupin.implicits._
-      dao.filter{ p =>
+      dao
+        .filter { p =>
+          val x: Sequenced[(CrudOperation[Int], Person)] = p
+          Set(1, 3).contains(p.data._1.key)
 
-        val x: Sequenced[(CrudOperation[Int], Person)] = p
-        Set(1, 3).contains(p.data._1.key)
-
-      }.subscribe(crudListener)
+        }
+        .subscribe(crudListener)
 
       crudListener.request(5)
       eventually {

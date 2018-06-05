@@ -48,8 +48,14 @@ object Dependencies {
   val Rest: List[ModuleID] = Api ::: akkaHttp ::: cucumber ::: List(pprint, swagger, cors) ::: streamsTck
   val RestApi: List[ModuleID] = Api ::: akkaHttp
 
-  val mongoDriver = "org.mongodb.scala" %% "mongo-scala-driver" % "2.3.0"
+  val mongoDriver = List(
+    "org.mongodb.scala" %% "mongo-scala-driver" % "2.3.0",
+    "org.mongodb.scala" %% "mongodb-driver-reactivestreams" % "1.8.0"
+  )
+  val monix = List("monix", "monix-execution",  "monix-eval", "monix-reactive", "monix-tail").map { art =>
+    "io.monix" %% art % "3.0.0-RC1"
+  }
 
-  val Flow: List[ModuleID] = mongoDriver :: reactiveStreams :: cats :: logging ::: testDependencies ::: streamsTck
+  val Flow: List[ModuleID] = reactiveStreams :: cats :: logging ::: testDependencies ::: streamsTck ::: monix ::: mongoDriver
   val Json: List[ModuleID] = config :: circe ::: testDependencies
 }
