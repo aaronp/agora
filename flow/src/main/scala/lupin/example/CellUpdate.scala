@@ -1,21 +1,21 @@
 package lupin.example
 
-import lupin.Publishers
-import lupin.pub.join.{BothUpdated, LeftUpdate, RightUpdate, TupleUpdate}
 import org.reactivestreams.Publisher
 
 import scala.concurrent.ExecutionContext
 
 object CellUpdate {
   def subscribeTo[T, ID, U <: FieldUpdate[ID]](data: Publisher[T], views: Publisher[ViewPort])(implicit ec: ExecutionContext): CellFeed[ID, U] = {
-    val joined: Publisher[TupleUpdate[T, ViewPort]] = Publishers.join(data, views)
+//    val joined: Publisher[TupleUpdate[T, ViewPort]] = Publishers.join(data, views)
+//
+//    val first: CellUpdate[ID, U] = CellUpdate(Map.empty)
+//    Publishers.foldLeft(joined, first) {
+//      case (cellUpdate, LeftUpdate(value))            => cellUpdate
+//      case (cellUpdate, RightUpdate(viewPort))        => cellUpdate
+//      case (cellUpdate, BothUpdated(value, viewPort)) => cellUpdate
+//    }
 
-    val first: CellUpdate[ID, U] = CellUpdate(Map.empty)
-    Publishers.foldLeft(joined, first) {
-      case (cellUpdate, LeftUpdate(value))            => cellUpdate
-      case (cellUpdate, RightUpdate(viewPort))        => cellUpdate
-      case (cellUpdate, BothUpdated(value, viewPort)) => cellUpdate
-    }
+    ???
   }
 }
 

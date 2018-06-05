@@ -1,9 +1,5 @@
 package lupin.example
 
-import lupin.{Publishers, Subscribers}
-import lupin.pub.collate.CollatingPublisher
-import lupin.pub.sequenced.{SequencedProcessor, SequencedProcessorInstance}
-import lupin.sub.BaseSubscriber
 import org.reactivestreams.{Publisher, Subscription}
 
 import scala.collection.immutable
@@ -104,95 +100,95 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 class ViewState[ID] private (availableFieldsByName: Map[String, FieldFeed[ID]], initialSubscribedFieldsByName: Map[FieldAndRange, Subscription] = Map.empty)(
     implicit ec: ExecutionContext,
     timeout: FiniteDuration) {
-
-  // exposes a publisher/subscriber for ViewPort updates
-  val viewSubscription: SequencedProcessorInstance[ViewPort] = SequencedProcessor[ViewPort]()
-
-  private val viewUpdateListener = BaseSubscriber[ViewPort](1) {
-    case (s, viewPort) =>
-      updateSubscriptionsBasedOnViewPort(viewPort)
-      s.request(1)
-  }
-
-  viewUpdateListener.request(1)
-  viewSubscription.valuesPublisher().subscribe(viewUpdateListener)
-
-  // exposes a publisher of 'CellUpdate[ID, FieldUpdate[ID]]' -- notifications when
-  // a 'cell' is updated in the current ViewPort
-  val cellPublisher: CollatingPublisher[FieldAndRange, CellUpdate[ID, FieldUpdate[ID]]] = {
-    CollatingPublisher[FieldAndRange, CellUpdate[ID, FieldUpdate[ID]]](fair = true)
-  }
-
-  var subscribedFieldsByName: Map[FieldAndRange, Subscription] = initialSubscribedFieldsByName
-
-  private[example] def updateSubscriptionsBasedOnViewPort(currentView: ViewPort)(implicit timeout: FiniteDuration): ViewState[ID] = {
-
-    // TODO - we also have to know what feed ranges we need to update/change.
-    // if the indices moved from e.g. (0 - 100) to (10 - 110), we can create a new subscription for e.g. (100 - 200)
-    // as well as re-using the (0 - 100) one.
-    // Alternatively we could completely cancel/resubscribe for the new indices.
-    // or get even more complicated and introduce a specific indices subscription.
-
-    //
-    // 1) cancel subscriptions to fields which we no longer care about
-    //
-    // decide what new subscriptions to make/keep, and which index ranges to filter for each field feed
-    //
-    val (keepFields: Map[FieldAndRange, Subscription], cancelFields) = subscribedFieldsByName.partition {
-      case (fieldAndCol, s) =>
-        //TODO -  also add to the criteria index ranges which we no longer care about
-        currentView.cols.contains(fieldAndCol.field)
-    }
-    cancelFields.foreach {
-      case (field, subscription) =>
-        cellPublisher.cancelSubscriber(field)
-        subscription.cancel()
-    }
-
-    //
-    // 2) Subscribe to new field feeds
-    //
-    val requiredNewSubscriptions: List[String] = currentView.cols.filterNot { field: String =>
-      ???
-      keepFields.exists(_._1.field == field)
-    }
-
-    val futureSubscriptions: immutable.Iterable[(String, Publisher[CellUpdate[ID, FieldUpdate[ID]]], Future[Subscription])] = availableFieldsByName.collect {
-      case (fieldName, fieldPublisher) if requiredNewSubscriptions.contains(fieldName) =>
-        // subscribe from the given indices
-        val newFieldSubscription = SequencedProcessor[FieldUpdate[ID]]()
-//        fieldPublisher.subscribeWith(currentView.indices, newFieldSubscription)
-
-//        val cellFeed: Publisher[CellUpdate[ID, FieldUpdate[ID]]] = Publishers.map(newFieldSubscription) { next: FieldUpdate[ID] =>
-//          asCellUpdate(fieldName, currentView, next)
-//        }
-
-        val fieldAndRange: FieldAndRange = ??? //()
-//        cellFeed.subscribe(cellPublisher.newSubscriber(fieldAndRange))
-
-//        (fieldName, cellFeed, newFieldSubscription.subscriptionFuture)
-
-        ???
-    }
-
-    //
-    // connect the new cell publishers with the existing cell publisher
-    //
-    val newCellPublisher: Publisher[CellUpdate[ID, FieldUpdate[ID]]] = Publishers.combine[CellUpdate[ID, FieldUpdate[ID]]] {
-      futureSubscriptions.map {
-        case (_, pub, _) => pub
-      }
-    }
-    //cellPublisher.switchSubscriptionTo(newCellPublisher)
-
-    val newSubscriptions = futureSubscriptions.map {
-      case (field, _, future) => field -> Await.result(future, timeout)
-    }.toMap
-
-    //      val newSubscribed = keepFields ++ newSubscriptions
-    //      copy(subscribedFieldsByName = newSubscribed)
-    ???
-  }
+//
+//  // exposes a publisher/subscriber for ViewPort updates
+//  val viewSubscription: SequencedProcessorInstance[ViewPort] = SequencedProcessor[ViewPort]()
+//
+//  private val viewUpdateListener = BaseSubscriber[ViewPort](1) {
+//    case (s, viewPort) =>
+//      updateSubscriptionsBasedOnViewPort(viewPort)
+//      s.request(1)
+//  }
+//
+//  viewUpdateListener.request(1)
+//  viewSubscription.valuesPublisher().subscribe(viewUpdateListener)
+//
+//  // exposes a publisher of 'CellUpdate[ID, FieldUpdate[ID]]' -- notifications when
+//  // a 'cell' is updated in the current ViewPort
+//  val cellPublisher: CollatingPublisher[FieldAndRange, CellUpdate[ID, FieldUpdate[ID]]] = {
+//    CollatingPublisher[FieldAndRange, CellUpdate[ID, FieldUpdate[ID]]](fair = true)
+//  }
+//
+//  var subscribedFieldsByName: Map[FieldAndRange, Subscription] = initialSubscribedFieldsByName
+//
+//  private[example] def updateSubscriptionsBasedOnViewPort(currentView: ViewPort)(implicit timeout: FiniteDuration): ViewState[ID] = {
+//
+//    // TODO - we also have to know what feed ranges we need to update/change.
+//    // if the indices moved from e.g. (0 - 100) to (10 - 110), we can create a new subscription for e.g. (100 - 200)
+//    // as well as re-using the (0 - 100) one.
+//    // Alternatively we could completely cancel/resubscribe for the new indices.
+//    // or get even more complicated and introduce a specific indices subscription.
+//
+//    //
+//    // 1) cancel subscriptions to fields which we no longer care about
+//    //
+//    // decide what new subscriptions to make/keep, and which index ranges to filter for each field feed
+//    //
+//    val (keepFields: Map[FieldAndRange, Subscription], cancelFields) = subscribedFieldsByName.partition {
+//      case (fieldAndCol, s) =>
+//        //TODO -  also add to the criteria index ranges which we no longer care about
+//        currentView.cols.contains(fieldAndCol.field)
+//    }
+//    cancelFields.foreach {
+//      case (field, subscription) =>
+//        cellPublisher.cancelSubscriber(field)
+//        subscription.cancel()
+//    }
+//
+//    //
+//    // 2) Subscribe to new field feeds
+//    //
+//    val requiredNewSubscriptions: List[String] = currentView.cols.filterNot { field: String =>
+//      ???
+//      keepFields.exists(_._1.field == field)
+//    }
+//
+//    val futureSubscriptions: immutable.Iterable[(String, Publisher[CellUpdate[ID, FieldUpdate[ID]]], Future[Subscription])] = availableFieldsByName.collect {
+//      case (fieldName, fieldPublisher) if requiredNewSubscriptions.contains(fieldName) =>
+//        // subscribe from the given indices
+//        val newFieldSubscription = SequencedProcessor[FieldUpdate[ID]]()
+////        fieldPublisher.subscribeWith(currentView.indices, newFieldSubscription)
+//
+////        val cellFeed: Publisher[CellUpdate[ID, FieldUpdate[ID]]] = Publishers.map(newFieldSubscription) { next: FieldUpdate[ID] =>
+////          asCellUpdate(fieldName, currentView, next)
+////        }
+//
+//        val fieldAndRange: FieldAndRange = ??? //()
+////        cellFeed.subscribe(cellPublisher.newSubscriber(fieldAndRange))
+//
+////        (fieldName, cellFeed, newFieldSubscription.subscriptionFuture)
+//
+//        ???
+//    }
+//
+//    //
+//    // connect the new cell publishers with the existing cell publisher
+//    //
+//    val newCellPublisher: Publisher[CellUpdate[ID, FieldUpdate[ID]]] = Publishers.combine[CellUpdate[ID, FieldUpdate[ID]]] {
+//      futureSubscriptions.map {
+//        case (_, pub, _) => pub
+//      }
+//    }
+//    //cellPublisher.switchSubscriptionTo(newCellPublisher)
+//
+//    val newSubscriptions = futureSubscriptions.map {
+//      case (field, _, future) => field -> Await.result(future, timeout)
+//    }.toMap
+//
+//    //      val newSubscribed = keepFields ++ newSubscriptions
+//    //      copy(subscribedFieldsByName = newSubscribed)
+//    ???
+//  }
 
   def asCellUpdate(field: String, currentView: ViewPort, fieldUpdate: FieldUpdate[ID]): CellUpdate[ID, FieldUpdate[ID]] = {
     val cellUpdate: CellUpdate[ID, FieldUpdate[ID]] =
@@ -205,8 +201,9 @@ object ViewState {
   def subscribeTo[ID](viewPort: Publisher[ViewPort], availableFieldsByName: Map[String, FieldFeed[ID]])(implicit ec: ExecutionContext,
                                                                                                         timeout: FiniteDuration) = {
 
-    val state = new ViewState[ID](availableFieldsByName, Map.empty)
-    viewPort.subscribe(state.viewSubscription)
-    state.cellPublisher
+//    val state = new ViewState[ID](availableFieldsByName, Map.empty)
+//    viewPort.subscribe(state.viewSubscription)
+//    state.cellPublisher
+    ???
   }
 }

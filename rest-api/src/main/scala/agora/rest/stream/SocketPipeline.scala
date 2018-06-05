@@ -10,8 +10,6 @@ import io.circe.syntax._
 import io.circe.{Decoder, Encoder}
 import lupin._
 import lupin.data.HasName
-import lupin.pub.sequenced.{SequencedProcessor, DurableProcessorDao, SequencedProcessorInstance}
-import lupin.sub.BaseSubscriber
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
 import scala.concurrent.ExecutionContext

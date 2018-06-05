@@ -13,11 +13,11 @@ import scala.language.{implicitConversions, postfixOps}
   */
 abstract class BaseFlowSpec extends BaseIOSpec with Eventually {
 
-  private val lazyCtxt = Lazy(newContextWithThreadPrefix(getClass.getSimpleName))
-  implicit def ctxt    = lazyCtxt.value
+//  private val lazyCtxt = Lazy(newContextWithThreadPrefix(getClass.getSimpleName))
+//  implicit def ctxt    = lazyCtxt.value
 
-  override def afterAll(): Unit = {
-    super.afterAll()
-    lazyCtxt.foreach(_.shutdown())
-  }
+//  override def afterAll(): Unit = {
+//    super.afterAll()
+//    lazyCtxt.foreach(_.shutdown())
+//  }
 }

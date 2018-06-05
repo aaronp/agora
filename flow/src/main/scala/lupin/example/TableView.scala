@@ -1,6 +1,5 @@
 package lupin.example
 
-import lupin.Publishers
 import org.reactivestreams.Publisher
 
 import scala.collection.immutable
@@ -71,12 +70,10 @@ object TableView {
 
     val cells: CellFeed[ID, U] = CellUpdate.subscribeTo[T, ID, U](data, views)
 
-    import lupin.implicits._
-
-    cells.map { cellUpdate =>
-      //: CellUpdate[ID, U]
-      cellUpdate
-    }
+//    cells.map { cellUpdate =>
+//      //: CellUpdate[ID, U]
+//      cellUpdate
+//    }
     ???
   }
 }

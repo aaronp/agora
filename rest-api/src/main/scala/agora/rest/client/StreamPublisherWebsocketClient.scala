@@ -1,6 +1,5 @@
 package agora.rest.client
 
-import agora.flow._
 import agora.rest.stream.SocketPipeline
 import akka.http.scaladsl.HttpExt
 import akka.http.scaladsl.model.ws.WebSocketRequest

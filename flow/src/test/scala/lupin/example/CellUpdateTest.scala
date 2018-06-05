@@ -1,10 +1,11 @@
 package lupin.example
 
-import lupin.{BaseFlowSpec, ListSubscriber, Publishers}
-import org.reactivestreams.Publisher
+import lupin.BaseFlowSpec
+import monix.eval.Task
+import monix.execution.Scheduler.Implicits.global
+import monix.reactive.Observable
+import monix.reactive.subjects.ConcurrentSubject
 import org.scalatest.GivenWhenThen
-
-import scala.concurrent.ExecutionContext.Implicits._
 
 class CellUpdateTest extends BaseFlowSpec with GivenWhenThen {
 
@@ -14,7 +15,7 @@ class CellUpdateTest extends BaseFlowSpec with GivenWhenThen {
 
       Given("Some data source")
       // create some data source
-      val pub = Publishers.of(
+      val pub: Observable[Person] = Observable(
         Person(1, "dave", "smith", "yellow"),
         Person(2, "fizz", "bar", "green"),
         Person(3, "foo", "bizz", "green"),
@@ -24,34 +25,41 @@ class CellUpdateTest extends BaseFlowSpec with GivenWhenThen {
       )
 
       And("A ViewPort feed")
-      val viewUpdates = Publishers.sequenced[ViewPort]()
+      val viewUpdates = ConcurrentSubject.publishToOne[ViewPort]
+      val viewUpdates1: Observable[ViewPort] = viewUpdates // Observable[ViewPort]()
 
       When("the two are joined in a table view")
-      val tables = TableView.subscribeTo(pub, viewUpdates.valuesPublisher())
+      val tables: RawFeed[TableView[Int, RenderableFieldUpdate[Int, Person]]] = TableView.subscribeTo[Person, Int, RenderableFieldUpdate[Int, Person]](pub.toReactivePublisher, viewUpdates.toReactivePublisher)
+
 
       Then("we should be able to observe the data flowing through the data source via the view port")
+
       // now create a table view based on the data and views
-      val updates = new ListSubscriber[TableView[_, _]]
-      tables.subscribe(updates)
+      //      val updates = new ListSubscriber[TableView[_, _]]
+      def updates(): List[TableView[Int, RenderableFieldUpdate[Int, Person]]] = {
+        val values: Task[List[TableView[Int, RenderableFieldUpdate[Int, Person]]]] = Observable.fromReactivePublisher(tables).toListL
+        val list = values.runAsync.futureValue
+        list
+      }
 
       // send our first view update
       val firstView = ViewPort(1, 2, SortCriteria("name"), List("lastName", "id"))
-      viewUpdates.onNext(firstView)
+      //val p: ConnectableObservable[ViewPort] = viewUpdates.publish
 
       //val table =
       eventually {
-        val List(firstTable) = updates.received()
-//        firstTable.view shouldBe firstView
+        val List(firstTable) = updates()
+        //        firstTable.view shouldBe firstView
         //        firstTable
       }
-//      table.render() shouldBe
-//        """
-//          >+------+---+
-//          >| fizz | 2 |
-//          >+------+---+
-//          >| foo  | 3 |
-//          >+------+---+
-//        """.stripMargin('>')
+      //      table.render() shouldBe
+      //        """
+      //          >+------+---+
+      //          >| fizz | 2 |
+      //          >+------+---+
+      //          >| foo  | 3 |
+      //          >+------+---+
+      //        """.stripMargin('>')
 
     }
   }
