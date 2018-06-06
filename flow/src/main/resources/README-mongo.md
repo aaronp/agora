@@ -30,3 +30,6 @@ db.createUser(
    }
 )
 ```
+
+# Set up a replica set
+follow [this][https://www.sohamkamani.com/blog/2016/06/30/docker-mongo-replica-set/]
