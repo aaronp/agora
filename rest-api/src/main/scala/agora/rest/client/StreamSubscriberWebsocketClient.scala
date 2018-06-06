@@ -1,14 +1,13 @@
 package agora.rest.client
 
-import agora.flow.{HasPublisher, _}
-import agora.rest.stream.SocketPipeline
+import akka.NotUsed
 import akka.http.scaladsl.HttpExt
-import akka.http.scaladsl.model.ws.WebSocketRequest
+import akka.http.scaladsl.model.ws.{Message, WebSocketRequest}
 import akka.http.scaladsl.settings.ClientConnectionSettings
 import akka.stream.Materializer
+import akka.stream.scaladsl.Flow
 import com.typesafe.scalalogging.StrictLogging
 import io.circe.Json
-import lupin.AsConsumerQueue
 import lupin.data.HasPublisher
 import org.reactivestreams.{Publisher, Subscriber}
 
@@ -24,21 +23,21 @@ class StreamSubscriberWebsocketClient[NewQ[_], S <: Subscriber[Json]](val subscr
     extends HasPublisher[Json]
     with StrictLogging { self =>
 
-  val dataSubscriber: SocketPipeline.DataSubscriber[Json] = SocketPipeline.DataSubscriber[Json]()
-  dataSubscriber.republishingDataConsumer.subscribe(subscriber)
+//  val dataSubscriber: SocketPipeline.DataSubscriber[Json] = SocketPipeline.DataSubscriber[Json]()
+//  dataSubscriber.republishingDataConsumer.subscribe(subscriber)
 
-  def flow = dataSubscriber.flow
+  def flow : Flow[Message, Message, NotUsed] = ??? //dataSubscriber.flow
 
   override protected def underlyingPublisher: Publisher[Json] = {
-    dataSubscriber.republishingDataConsumer
+    //dataSubscriber.republishingDataConsumer
+    ???
   }
 }
 
 object StreamSubscriberWebsocketClient extends StrictLogging {
   def openConnection[NewQ[_], S <: Subscriber[Json]](address: String, subscriber: S, newQueueArgs: NewQ[Json])(
       implicit httpExp: HttpExt,
-      mat: Materializer,
-      asQ: AsConsumerQueue[NewQ]): Future[StreamSubscriberWebsocketClient[NewQ, S]] = {
+      mat: Materializer): Future[StreamSubscriberWebsocketClient[NewQ, S]] = {
     import mat.executionContext
 
     val client = new StreamSubscriberWebsocketClient(subscriber, newQueueArgs)

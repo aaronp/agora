@@ -24,7 +24,7 @@ object Dependencies {
   )
 
   val akkaCirce = "de.heikoseeberger" %% "akka-http-circe" % "1.19.0"
-  val circe = List("core", "generic", "parser", "optics", "java8").map(name => "io.circe" %% s"circe-$name" % "0.9.1")
+  val circe: List[ModuleID] = List("core", "generic", "parser", "optics", "java8").map(name => "io.circe" %% s"circe-$name" % "0.9.1")
 
   val akkaHttp = List("", "-core").map { suffix =>
     "com.typesafe.akka" %% s"akka-http$suffix" % "10.0.10"
@@ -49,13 +49,14 @@ object Dependencies {
   val RestApi: List[ModuleID] = Api ::: akkaHttp
 
   val mongoDriver = List(
-    "org.mongodb.scala" %% "mongo-scala-driver" % "2.3.0",
-    "org.mongodb.scala" %% "mongodb-driver-reactivestreams" % "1.8.0"
+    "org.mongodb.scala" %% "mongo-scala-driver" % "2.3.0" //,
+//    "org.mongodb.scala" %% "mongodb-driver-reactivestreams" % "1.8.0"
   )
   val monix = List("monix", "monix-execution",  "monix-eval", "monix-reactive", "monix-tail").map { art =>
     "io.monix" %% art % "3.0.0-RC1"
   }
 
-  val Flow: List[ModuleID] = reactiveStreams :: cats :: logging ::: testDependencies ::: streamsTck ::: monix ::: mongoDriver
+  val FlowBase: List[ModuleID] = reactiveStreams :: cats :: logging ::: testDependencies ::: streamsTck ::: monix ::: mongoDriver // ::: circe
+  val Flow: List[ModuleID] = circe ::: FlowBase
   val Json: List[ModuleID] = config :: circe ::: testDependencies
 }

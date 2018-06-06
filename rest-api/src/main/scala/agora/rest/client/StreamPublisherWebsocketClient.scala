@@ -1,9 +1,10 @@
 package agora.rest.client
 
-import agora.rest.stream.SocketPipeline
+import akka.NotUsed
 import akka.http.scaladsl.HttpExt
-import akka.http.scaladsl.model.ws.WebSocketRequest
+import akka.http.scaladsl.model.ws.{Message, WebSocketRequest}
 import akka.stream.Materializer
+import akka.stream.scaladsl.Flow
 import com.typesafe.scalalogging.StrictLogging
 import io.circe.Encoder
 import lupin.data.HasPublisher
@@ -27,8 +28,8 @@ class StreamPublisherWebsocketClient[E: Encoder, P <: Publisher[E]](override val
     extends HasPublisher[E]
     with StrictLogging {
 
-  val pipeline = SocketPipeline.DataPublisher[E](underlyingPublisher)
-  def flow     = pipeline.flow
+//  val pipeline = SocketPipeline.DataPublisher[E](underlyingPublisher)
+  def flow    : Flow[Message, Message, NotUsed] = ??? //pipeline.flow
 }
 
 object StreamPublisherWebsocketClient extends StrictLogging {

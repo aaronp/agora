@@ -26,11 +26,20 @@ object adapters {
   }
 
   def subscriberAsObserver[T](obs: ReactiveSubscriber[T]): org.mongodb.scala.Observer[T] = new org.mongodb.scala.Observer[T] {
-    override def onNext(result: T): Unit = obs.onNext(result)
+
+    override def onSubscribe(subscription: MongoSubscription) = {
+      obs.onSubscribe(mongoSubscriptionAsSubscription(subscription))
+    }
+
+    override def onNext(result: T): Unit = {
+      obs.onNext(result)
+    }
 
     override def onError(e: Throwable): Unit = obs.onError(e)
 
-    override def onComplete(): Unit = obs.onComplete()
+    override def onComplete(): Unit = {
+      obs.onComplete()
+    }
   }
 
 
