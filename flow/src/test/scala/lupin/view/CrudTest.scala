@@ -39,9 +39,7 @@ class CrudTest extends BaseFlowSpec with BeforeAndAfterAll with StrictLogging {
       val coll = db.getOrCreateCollection("basic", testDB, opts)
 
       import lupin.mongo.implicits._
-      coll.createIndex("data".asBson).foreach(r => logger.info(s"Created $r"))
-      val b = "name".asBson
-      println(b)
+      val b = Map("name" -> -1).asBson
       coll.createIndex(b).foreach(r => logger.info(s"Created $r"))
 
       val crud: Crud[String, Json] = Crud[Json](coll)
