@@ -14,6 +14,10 @@ exportJars := false
 javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-XX:MaxMetaspaceSize=1g")
 git.useGitDescribe := false
 
+scalacOptions += "-Ypartial-unification"
+
+addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.3")
+
 git.gitTagToVersionNumber := { tag: String =>
   if (tag matches "v?[0-9]+\\..*") {
     Some(tag)
@@ -64,7 +68,23 @@ lazy val agora = (project in file("."))
   .enablePlugins(SiteScaladocPlugin)
   .enablePlugins(PamfletPlugin)
   .enablePlugins(ScalaUnidocPlugin)
-  .aggregate(io, configProject, api, restApi, rest, execApi, exec, execTest, flow)
+  .aggregate(io,
+             crudApi,
+             crudMongo,
+             crudMonix,
+             crudHttp4s,
+             crudAkkaHttp,
+             crudVertx,
+             crudUndertow,
+             crudFinch,
+             configProject,
+             api,
+             restApi,
+             rest,
+             execApi,
+             exec,
+             execTest,
+             flow)
   .settings(
     sourceDirectory in Pamflet := sourceDirectory.value / "site",
     siteSubdirName in ScalaUnidoc := "api/latest",
@@ -157,6 +177,62 @@ val commonSettings: Seq[Def.Setting[_]] = Seq(
 test in assembly := {}
 
 publishMavenStyle := true
+
+lazy val crudApi = project
+  .in(file("crud-api"))
+  .dependsOn(io % "compile->compile;test->test", configProject % "compile->compile;test->test")
+  .settings(name := s"${repo}-crud-api")
+  .settings(commonSettings: _*)
+  .settings(libraryDependencies ++= Dependencies.CrudApi)
+
+lazy val crudMongo = project
+  .in(file("crud-mongo"))
+  .dependsOn(crudApi % "compile->compile;test->test")
+  .settings(name := s"${repo}-crud-mongo")
+  .settings(commonSettings: _*)
+  .settings(libraryDependencies ++= Dependencies.CrudMongo)
+
+lazy val crudHttp4s = project
+  .in(file("crud-http4s"))
+  .dependsOn(crudApi % "compile->compile;test->test")
+  .settings(name := s"${repo}-crud-http4s")
+  .settings(commonSettings: _*)
+  .settings(libraryDependencies ++= Dependencies.CrudHttp4s)
+
+lazy val crudUndertow = project
+  .in(file("crud-undertow"))
+  .dependsOn(crudApi % "compile->compile;test->test")
+  .settings(name := s"${repo}-crud-undertow")
+  .settings(commonSettings: _*)
+  .settings(libraryDependencies ++= Dependencies.CrudUndertow)
+
+lazy val crudAkkaHttp = project
+  .in(file("crud-akkahttp"))
+  .dependsOn(crudApi % "compile->compile;test->test")
+  .settings(name := s"${repo}-crud-akkahttp")
+  .settings(commonSettings: _*)
+  .settings(libraryDependencies ++= Dependencies.CrudAkkaHttp)
+
+lazy val crudFinch = project
+  .in(file("crud-finch"))
+  .dependsOn(crudApi % "compile->compile;test->test")
+  .settings(name := s"${repo}-crud-finch")
+  .settings(commonSettings: _*)
+  .settings(libraryDependencies ++= Dependencies.CrudFinch)
+
+lazy val crudVertx = project
+  .in(file("crud-vertx"))
+  .dependsOn(crudApi % "compile->compile;test->test")
+  .settings(name := s"${repo}-crud-vertx")
+  .settings(commonSettings: _*)
+  .settings(libraryDependencies ++= Dependencies.CrudVertx)
+
+lazy val crudMonix = project
+  .in(file("crud-monix"))
+  .dependsOn(crudApi % "compile->compile;test->test")
+  .settings(name := s"${repo}-crud-monix")
+  .settings(commonSettings: _*)
+  .settings(libraryDependencies ++= Dependencies.CrudMonix)
 
 lazy val configProject = project
   .in(file("config"))

@@ -1,11 +1,13 @@
 package agora.io
 
+import simulacrum._
+
 /**
   * Typeclass to serialize a type to bytes
   *
   * @tparam T the value to convert
   */
-trait ToBytes[T] {
+@typeclass trait ToBytes[T] {
 
   /**
     * Converts the T to bytes

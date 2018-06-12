@@ -37,11 +37,18 @@ object Dependencies {
 
   val swagger = "com.github.swagger-akka-http" %% "swagger-akka-http" % "0.11.0"
   val cors = "ch.megard" %% "akka-http-cors" % "0.2.2"
-  val cats = "org.typelevel" %% "cats-core" % "1.0.1"
+  val cats = List("cats-core", "cats-free").map { art =>
+    "org.typelevel" %% art % "1.1.0"
+  } ++ List(
+    // "com.codecommit" %% "emm-cats" % "0.2.1", // https://github.com/djspiewak/emm and http://okmij.org/ftp/Haskell/extensible/
+    "org.typelevel" %% "cats-effect" % "1.0.0-RC2"
+   )
+
   val sourcecode = "com.lihaoyi" %% "sourcecode" % "0.1.4"
 
   val reactiveStreams = "org.reactivestreams" % "reactive-streams" % "1.0.1"
 
+  val Http4s = ""
   val Config: List[ModuleID] = config :: testDependencies
   val IO: List[ModuleID] = logging ::: testDependencies
   val Api: List[ModuleID] = reactiveStreams :: logging ::: testDependencies ::: circe
@@ -54,9 +61,29 @@ object Dependencies {
   )
   val monix = List("monix", "monix-execution",  "monix-eval", "monix-reactive", "monix-tail").map { art =>
     "io.monix" %% art % "3.0.0-RC1"
-  }
+  } ++ List(
+    "org.atnos" %% "eff" % "5.2.0", // http://atnos-org.github.io/eff/org.atnos.site.Installation.html
+    "org.atnos" %% "eff-monix" % "5.2.0"
+  )
 
-  val FlowBase: List[ModuleID] = reactiveStreams :: cats :: logging ::: testDependencies ::: streamsTck ::: monix ::: mongoDriver // ::: circe
+  val FlowBase: List[ModuleID] = reactiveStreams :: cats ::: logging ::: testDependencies ::: streamsTck ::: monix ::: mongoDriver // ::: circe
   val Flow: List[ModuleID] = circe ::: FlowBase
   val Json: List[ModuleID] = config :: circe ::: testDependencies
+
+  val http4s = List("http4s-blaze-server", "http4s-circe", "http4s-dsl").map { art =>
+    "org.http4s"      %% art  % "0.18.12"
+  }
+
+  val finch = List("finch-core", "finch-circe").map { art =>
+    "com.github.finagle" %% art % "0.20.0"
+  }
+
+  val CrudApi = monix ::: cats ::: logging ::: testDependencies
+  val CrudMongo = mongoDriver ::: testDependencies
+  val CrudAkkaHttp = akkaHttp ::: testDependencies
+  val CrudMonix = monix ::: testDependencies
+  val CrudHttp4s = http4s ::: testDependencies
+  val CrudUndertow = mongoDriver ::: testDependencies
+  val CrudVertx = mongoDriver ::: testDependencies
+  val CrudFinch  = finch ::: testDependencies
 }

@@ -8,6 +8,17 @@ import org.mongodb.scala.model.Filters._
 import org.mongodb.scala.model.Updates
 import org.mongodb.scala.result.{DeleteResult, UpdateResult}
 import org.mongodb.scala.{Completed, Document, MongoCollection, SingleObservable}
+
+
+object CrudLanguage {
+
+  sealed trait CrudOp[Result]
+
+  case class CreateWithId[Id, T, Result](id : Id, value: T) extends CrudOp[Result]
+  case class Create[T, Result](value: T) extends CrudOp[Result]
+
+}
+
 trait Create[K, T] {
   type CreateResultType
 

@@ -71,7 +71,6 @@ class CrudTest extends BaseFlowSpec with BeforeAndAfterAll with StrictLogging {
         println("doc: " + update.getFullDocument)
       }
 
-
       println("Creating...")
       val credRes = crud.create(id, Json.fromString("Hello")).toFuture().futureValue
       println(credRes)
