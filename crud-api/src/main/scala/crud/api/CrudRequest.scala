@@ -42,17 +42,15 @@ object CrudRequest {
     private class LazyInterpreter[F[_]: Lift] extends (CrudRequest ~> F) {
       override def apply[A](fa: CrudRequest[A]): F[A] = {
         fa match {
-          case Create(id: ID, value: T) =>
-            val key: ID = id
-            import cats.syntax.show._
+          case Create(id, value) =>
             Lift[F].lift {
               import ToBytes.ops._
-              root.resolve(toShow(key).show).bytes = toAllToBytesOps(value).bytes
+              root.resolve(id.asInstanceOf[ID].show).bytes = toAllToBytesOps(value.asInstanceOf[T]).bytes
               id.asInstanceOf[A] // it seems we have to cast to A :-(
             }
-          case Delete(id: ID) =>
+          case Delete(id) =>
             Lift[F].lift {
-              val file    = root.resolve(toShow(id).show)
+              val file    = root.resolve(toShow(id.asInstanceOf[ID]).show)
               val existed = file.exists()
               val deleted = existed && !file.delete(true).exists()
               deleted.asInstanceOf[A] // it seems we have to cast to A :-(
@@ -65,8 +63,8 @@ object CrudRequest {
   object DocInterpreter extends (CrudRequest ~> Print) {
     override def apply[A](fa: CrudRequest[A]): Print[A] = {
       fa match {
-        case Create(id: A, value) => Print[A](s"create $id w/ $value", id)
-        case Delete(id) => Print[Boolean](s"delete $id", true).asInstanceOf[Print[A]]
+        case Create(id, value) => Print[A](s"create $id w/ $value", id)
+        case Delete(id)        => Print[Boolean](s"delete $id", true).asInstanceOf[Print[A]]
       }
     }
   }

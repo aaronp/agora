@@ -21,9 +21,9 @@ class CrudDslTest extends BaseIOSpec {
 
         val program: Free[CrudRequest, (Boolean, Boolean)] = {
           for {
-            sue <- personDsl.create(1, Person("Sue", 8))
-            martha <- personDsl.create(2, Person("MArtha", 9))
-            alex <- personDsl.create(3, Person("Alex", 10))
+            sue            <- personDsl.create(1, Person("Sue", 8))
+            martha         <- personDsl.create(2, Person("MArtha", 9))
+            alex           <- personDsl.create(3, Person("Alex", 10))
             marthaDeleted1 <- personDsl.delete(martha)
             marthaDeleted2 <- personDsl.delete(martha)
           } yield (marthaDeleted1, marthaDeleted2)
@@ -42,10 +42,10 @@ class CrudDslTest extends BaseIOSpec {
         )
 
         val performedInTask: Task[(Boolean, Boolean)] = program.foldMap(personDsl.TaskInterpreter)
-        performedInTask.runAsync(Scheduler.global).futureValue shouldBe(true, false)
+        performedInTask.runAsync(Scheduler.global).futureValue shouldBe (true, false)
 
         val performedInIO: IO[(Boolean, Boolean)] = program.foldMap(personDsl.IOInterpreter)
-        performedInIO.unsafeRunSync() shouldBe(true, false)
+        performedInIO.unsafeRunSync() shouldBe (true, false)
       }
     }
   }
