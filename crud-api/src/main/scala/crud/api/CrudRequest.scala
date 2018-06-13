@@ -8,7 +8,6 @@ import cats.free.Free
 import cats.free.Free._
 import cats.{Functor, Show, ~>}
 import com.typesafe.scalalogging.StrictLogging
-import crud.api.CrudRequest.{DocInterpreter, LogInterpreter, Print}
 import monix.eval.Task
 
 import scala.language.{higherKinds, implicitConversions, postfixOps}
@@ -21,42 +20,7 @@ case class Create[ID, T](id: ID, value: T) extends CrudRequest[ID]
 
 case class Delete[ID](id: ID) extends CrudRequest[Boolean]
 
-trait CrudDsl[F[_]] {
-  def run[A](req: CrudRequest[A]): F[A]
-}
-
-object CrudDsl {
-
-  def io[T: ToBytes](root: Path, logging: Boolean = false): CrudDsl[IO] = new CrudDsl[IO] {
-    private val compiled: CrudRequest ~> IO = {
-      val specializedForStringKeys = CrudRequest.For[String, T](root)
-      if (logging) {
-        specializedForStringKeys.IOInterpreter.andThen(new LogInterpreter)
-      } else {
-        specializedForStringKeys.IOInterpreter
-      }
-    }
-
-    override def run[A](req: CrudRequest[A]) = compiled(req)
-  }
-
-  def task[T: ToBytes](root: Path): CrudDsl[Task] = new CrudDsl[Task] {
-    private val compiled: CrudRequest.For[String, T] = CrudRequest.For[String, T](root)
-
-    override def run[A](req: CrudRequest[A]) = compiled.TaskInterpreter(req)
-  }
-
-  def explain(): CrudDsl[Print] = new CrudDsl[Print] {
-    override def run[A](req: CrudRequest[A]) = DocInterpreter(req)
-  }
-
-}
-
 object CrudRequest {
-
-  type Print[A] = String
-
-  type Log[A] = Unit
 
   final case class For[ID: Show, T: ToBytes](root: Path) {
 
@@ -65,24 +29,30 @@ object CrudRequest {
 
     def create(id: ID, value: T): Free[CrudRequest, ID] = liftF[CrudRequest, ID](Create[ID, T](id, value))
 
-    def delete(id: ID, value: T): Free[CrudRequest, Boolean] = liftF[CrudRequest, Boolean](Delete[ID](id))
+    def delete(id: ID): Free[CrudRequest, Boolean] = liftF[CrudRequest, Boolean](Delete[ID](id))
 
-    object IOInterpreter extends LazyInterpreter[IO]
+    private object IOInterpreterInst extends LazyInterpreter[IO]
 
-    object TaskInterpreter extends LazyInterpreter[Task]
+    def IOInterpreter: CrudRequest ~> IO = IOInterpreterInst
 
-    private class LazyInterpreter[F[_] : Lift] extends (CrudRequest ~> F) {
+    private object TaskInterpreterInst extends LazyInterpreter[Task]
+
+    def TaskInterpreter: CrudRequest ~> Task = TaskInterpreterInst
+
+    private class LazyInterpreter[F[_]: Lift] extends (CrudRequest ~> F) {
       override def apply[A](fa: CrudRequest[A]): F[A] = {
         fa match {
-          case Create(id, value) =>
+          case Create(id: ID, value: T) =>
+            val key: ID = id
+            import cats.syntax.show._
             Lift[F].lift {
               import ToBytes.ops._
-              root.resolve(toShow(id).show).bytes = toAllToBytesOps(value).bytes
-              id
+              root.resolve(toShow(key).show).bytes = toAllToBytesOps(value).bytes
+              id.asInstanceOf[A] // it seems we have to cast to A :-(
             }
-          case Delete(id) =>
+          case Delete(id: ID) =>
             Lift[F].lift {
-              val file = root.resolve(toShow(id).show)
+              val file    = root.resolve(toShow(id).show)
               val existed = file.exists()
               val deleted = existed && !file.delete(true).exists()
               deleted.asInstanceOf[A] // it seems we have to cast to A :-(
@@ -90,19 +60,18 @@ object CrudRequest {
         }
       }
     }
-
   }
 
   object DocInterpreter extends (CrudRequest ~> Print) {
     override def apply[A](fa: CrudRequest[A]): Print[A] = {
       fa match {
-        case Create(id, value) => s"create $id w/ $value"
-        case Delete(id) => s"delete $id"
+        case Create(id: A, value) => Print[A](s"create $id w/ $value", id)
+        case Delete(id) => Print[Boolean](s"delete $id", true).asInstanceOf[Print[A]]
       }
     }
   }
 
-  class LogInterpreter[F[_] : Functor] extends (F ~> F) with StrictLogging {
+  class LogInterpreter[F[_]: Functor] extends (F ~> F) with StrictLogging {
     override def apply[A](fa: F[A]): F[A] = {
       Functor[F].map(fa) { a =>
         logger.info(s"$fa returned $a")

@@ -3,12 +3,11 @@ package crud.api
 import cats.effect.IO
 import monix.eval.Task
 
-
 private[api] sealed trait Lift[F[_]] {
-  def lift[A](a : => A) : F[A]
+  def lift[A](a: => A): F[A]
 }
 private[api] object Lift {
-  def apply[F[_]](implicit lift :Lift[F]) = lift
+  def apply[F[_]](implicit lift: Lift[F]) = lift
   implicit object TaskLift extends Lift[Task] {
     override def lift[A](a: => A): Task[A] = Task(a)
   }

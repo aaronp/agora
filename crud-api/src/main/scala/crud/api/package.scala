@@ -1,9 +1,13 @@
 package crud
 
-import cats.free.Free
+import cats.Show
+import cats.data.Writer
 
 package object api {
 
-  type CrudFree[A] = Free[CrudFree, A]
+  type Print[A] = Writer[List[String], A]
 
+  def Print[A: Show](value: A): Print[A] = Writer(Show[A].show(value) :: Nil, value)
+
+  def Print[A](toString: String, value: A): Print[A] = Writer[List[String], A](toString :: Nil, value)
 }
