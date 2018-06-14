@@ -14,18 +14,19 @@ import monix.eval.Task
   *
   * @tparam F
   */
-trait CrudDsl[F[_]] {
+trait CrudDsl[F[_], ID, T] {
   def run[A](req: CrudRequest[A]): F[A]
 
-  final def create[ID, T](id: ID, value: T): F[ID] = run(Create[ID, T](id, value))
+  final def create(id: ID, value: T): F[ID] = run(Create[ID, T](id, value))
 
-  final def delete[ID, T](id: ID): F[Boolean] = run(Delete[ID](id))
+  final def delete(id: ID): F[Boolean] = run(Delete[ID](id))
 }
 
 object CrudDsl {
   import cats.instances.string._
 
-  def io[T: ToBytes](root: Path, logging: Boolean = false): CrudDsl[IO] = new CrudDsl[IO] {
+  def io[ID, T: ToBytes](root: Path, logging: Boolean = false): CrudDsl[IO, ID, T] = new CrudDsl[IO, ID, T] {
+    // an example which mixes in logging based on a flag
     private val compiled: CrudRequest ~> IO = {
       val specializedForStringKeys = CrudRequest.For[String, T](root)
       if (logging) {
@@ -34,18 +35,16 @@ object CrudDsl {
         specializedForStringKeys.IOInterpreter
       }
     }
-
-    override def run[A](req: CrudRequest[A]) = compiled(req)
+    override def run[A](req: CrudRequest[A]): IO[A] = compiled(req)
   }
 
-  def task[T: ToBytes](root: Path): CrudDsl[Task] = new CrudDsl[Task] {
+  def task[ID, T: ToBytes](root: Path): CrudDsl[Task, ID, T] = new CrudDsl[Task, ID, T] {
     private val compiled: CrudRequest.For[String, T] = CrudRequest.For[String, T](root)
-
-    override def run[A](req: CrudRequest[A]) = compiled.TaskInterpreter(req)
+    override def run[A](req: CrudRequest[A]): Task[A] = compiled.TaskInterpreter(req)
   }
 
-  object explain extends CrudDsl[Print] {
-    override def run[A](req: CrudRequest[A]) = DocInterpreter(req)
+  object explain extends CrudDsl[Print, Nothing, Nothing] {
+    override def run[A](req: CrudRequest[A]): Print[A] = DocInterpreter(req)
   }
 
 }

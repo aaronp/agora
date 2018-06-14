@@ -60,6 +60,9 @@ object CrudRequest {
     }
   }
 
+  /**
+    * An interpreter which will print out what the program will do
+    */
   object DocInterpreter extends (CrudRequest ~> Print) {
     override def apply[A](fa: CrudRequest[A]): Print[A] = {
       fa match {
@@ -69,6 +72,9 @@ object CrudRequest {
     }
   }
 
+  /**
+    * An interpreter which can be composed to add logging
+    */
   class LogInterpreter[F[_]: Functor] extends (F ~> F) with StrictLogging {
     override def apply[A](fa: F[A]): F[A] = {
       Functor[F].map(fa) { a =>

@@ -23,7 +23,7 @@ abstract class BaseIOSpec extends WordSpec with Matchers with ScalaFutures with 
   /**
     * All the timeouts!
     */
-  implicit def testTimeout: FiniteDuration = 6.seconds
+  implicit def testTimeout: FiniteDuration = 2.seconds
 
   /**
     * @return the timeout for something NOT to happen
