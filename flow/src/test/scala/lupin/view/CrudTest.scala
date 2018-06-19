@@ -41,11 +41,9 @@ class CrudTest extends BaseFlowSpec with BeforeAndAfterAll with StrictLogging {
       createIndex(coll)
 
       val crud = Crud[Json](coll)
-      val id = UUID.randomUUID().toString
+      val id   = UUID.randomUUID().toString
 
       crud.create(id, Json.fromString("Dave")).toFuture().futureValue
-
-
       //      val completedResults = Observable.fromReactivePublisher(dave).toListL.runAsync.futureValue
       //      completedResults.size shouldBe 1
     }
@@ -57,7 +55,7 @@ class CrudTest extends BaseFlowSpec with BeforeAndAfterAll with StrictLogging {
       val coll = db.getOrCreateCollection("basic", testDB)
 
       val crud = Crud[Json](coll)
-      val id = UUID.randomUUID().toString
+      val id   = UUID.randomUUID().toString
       import io.circe.syntax._
 
       // ensure the collection exists before we try to watch it
@@ -75,12 +73,9 @@ class CrudTest extends BaseFlowSpec with BeforeAndAfterAll with StrictLogging {
       val credRes = crud.create(id, Json.fromString("Hello")).toFuture().futureValue
       println(credRes)
 
-
       val allResults: Seq[Document] = coll.find().collect().toFuture().futureValue
 
-      println(allResults.mkString(s"Found ${allResults.size} results:\n","\n\n","\n\n"))
-
-
+      println(allResults.mkString(s"Found ${allResults.size} results:\n", "\n\n", "\n\n"))
 
       println("Updating...")
       val u = crud.update(id, Json.fromString("World")).toFuture().futureValue

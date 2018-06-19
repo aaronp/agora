@@ -68,23 +68,27 @@ lazy val agora = (project in file("."))
   .enablePlugins(SiteScaladocPlugin)
   .enablePlugins(PamfletPlugin)
   .enablePlugins(ScalaUnidocPlugin)
-  .aggregate(io,
-             crudApi,
-             crudMongo,
-             crudMonix,
-             crudHttp4s,
-             crudAkkaHttp,
-             crudVertx,
-             crudUndertow,
-             crudFinch,
-             configProject,
-             api,
-             restApi,
-             rest,
-             execApi,
-             exec,
-             execTest,
-             flow)
+  .aggregate(
+    io,
+    crudApi,
+    crudFree,
+    crudMongo,
+    crudMonix,
+    crudHttp4s,
+    crudAkkaHttp,
+    crudVertx,
+    crudUndertow,
+    crudFinch,
+    configProject,
+    riff,
+    api,
+    restApi,
+    rest,
+    execApi,
+    exec,
+    execTest,
+    flow
+  )
   .settings(
     sourceDirectory in Pamflet := sourceDirectory.value / "site",
     siteSubdirName in ScalaUnidoc := "api/latest",
@@ -185,6 +189,14 @@ lazy val crudApi = project
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.CrudApi)
 
+lazy val crudFree = project
+  .in(file("crud-free"))
+  .dependsOn(io % "compile->compile;test->test",
+    crudApi % "compile->compile;test->test")
+  .settings(name := s"${repo}-crud-free")
+  .settings(commonSettings: _*)
+  .settings(libraryDependencies ++= Dependencies.CrudFree)
+
 lazy val crudMongo = project
   .in(file("crud-mongo"))
   .dependsOn(crudApi % "compile->compile;test->test")
@@ -246,6 +258,12 @@ lazy val flow = project
   .settings(name := s"${repo}-flow")
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.Flow)
+
+lazy val riff = project
+  .in(file("riff"))
+  .settings(name := s"${repo}-riff")
+  .settings(commonSettings: _*)
+  .settings(libraryDependencies ++= Dependencies.Riff)
 
 lazy val json = project
   .in(file("json"))

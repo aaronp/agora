@@ -12,11 +12,11 @@ case class ParsedMongo(client: MongoClient, config: Config) extends AutoCloseabl
 
   lazy val db: MongoDatabase = databaseForName(config.getString("database"))
 
-  def databaseForName(name : String) = client.getDatabase(name)
+  def databaseForName(name: String) = client.getDatabase(name)
 
-  def dropDatabase(name : String) = databaseForName(name).drop()
+  def dropDatabase(name: String) = databaseForName(name).drop()
 
-  def collectionFor[T: ClassTag](database: MongoDatabase = db, options : CreateCollectionOptions = CreateCollectionOptions()): MongoCollection[Document] = {
+  def collectionFor[T: ClassTag](database: MongoDatabase = db, options: CreateCollectionOptions = CreateCollectionOptions()): MongoCollection[Document] = {
     val name = collectionName[T]
     getOrCreateCollection(name, database, options)
   }
@@ -31,7 +31,9 @@ case class ParsedMongo(client: MongoClient, config: Config) extends AutoCloseabl
     getOrCreateCollection(collectionName)
   }
 
-  def getOrCreateCollection(name: String, database: MongoDatabase = db, options : CreateCollectionOptions = CreateCollectionOptions()): MongoCollection[Document] = {
+  def getOrCreateCollection(name: String,
+                            database: MongoDatabase = db,
+                            options: CreateCollectionOptions = CreateCollectionOptions()): MongoCollection[Document] = {
     database.createCollection(name, options)
     val coll = database.getCollection(name)
     coll
@@ -49,7 +51,7 @@ object ParsedMongo extends StrictLogging {
     * @return
     */
   def apply(config: Config): ParsedMongo = {
-    val url = config.getString("url")
+    val url      = config.getString("url")
     val hostPort = url.split("@").lastOption
     logger.info(s"Connecting mongo client to ${hostPort.getOrElse("<invalid url>")}")
     val client = MongoClient(url)

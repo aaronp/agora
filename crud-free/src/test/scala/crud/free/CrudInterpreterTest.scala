@@ -1,14 +1,15 @@
-package crud.api
+package crud.free
 
 import agora.BaseIOSpec
 import agora.io.ToBytes
 import cats.effect.IO
+import crud.api.CrudRequest
 import monix.eval.Task
 import monix.execution.Scheduler
 
-class CrudDslTest extends BaseIOSpec {
+class CrudInterpreterTest extends BaseIOSpec {
 
-  "CrudDsl" should {
+  "CrudInterpreter" should {
     "explain operations" in {
       case class Person(name: String, age: Int)
 
@@ -17,7 +18,7 @@ class CrudDslTest extends BaseIOSpec {
       implicit val personToBytes = ToBytes.lift[Person](_.toString.getBytes)
 
       BaseIOSpec.withDir("CrudDslTest") { tmpDir =>
-        val personDsl = CrudRequest.For[Int, Person](tmpDir)
+        val personDsl = CrudFree.For[Int, Person](tmpDir)
 
         val program: Free[CrudRequest, (Boolean, Boolean)] = {
           for {
@@ -29,7 +30,7 @@ class CrudDslTest extends BaseIOSpec {
           } yield (marthaDeleted1, marthaDeleted2)
         }
 
-        import CrudRequest._
+        import CrudFree._
         import cats.instances.all._
 
         val (explained, _) = program.foldMap(DocInterpreter).run

@@ -9,13 +9,12 @@ import org.mongodb.scala.model.Updates
 import org.mongodb.scala.result.{DeleteResult, UpdateResult}
 import org.mongodb.scala.{Completed, Document, MongoCollection, SingleObservable}
 
-
 object CrudLanguage {
 
   sealed trait CrudOp[Result]
 
-  case class CreateWithId[Id, T, Result](id : Id, value: T) extends CrudOp[Result]
-  case class Create[T, Result](value: T) extends CrudOp[Result]
+  case class CreateWithId[Id, T, Result](id: Id, value: T) extends CrudOp[Result]
+  case class Create[T, Result](value: T)                   extends CrudOp[Result]
 
 }
 
@@ -38,7 +37,6 @@ trait Delete[K] {
 }
 
 trait Crud[K, T] extends Create[K, T] with Update[K, T] with Delete[K]
-
 
 object Crud {
 
@@ -63,7 +61,6 @@ object Crud {
         CirceToBson(value) match {
           case doc: BsonDocument => doc
           case bson =>
-
             BsonDocument(List("data" -> bson))
         }
       }
@@ -86,11 +83,11 @@ object Crud {
     }
   }
 
-  def apply[K, T](implicit sched : Scheduler) = new InMemoryCrud[K, T]()
+  def apply[K, T](implicit sched: Scheduler) = new InMemoryCrud[K, T]()
 
   def apply[T: AsBson](mongo: MongoCollection[Document]) = new MongoCrud[T](mongo)
 
-  class InMemoryCrud[K, T](implicit sched : Scheduler) extends Crud[K, T] {
+  class InMemoryCrud[K, T](implicit sched: Scheduler) extends Crud[K, T] {
     override type CreateResultType = Option[T]
     override type UpdateResultType = Option[T]
     override type DeleteResultType = Boolean
@@ -121,7 +118,7 @@ object Crud {
     override type UpdateResultType = SingleObservable[UpdateResult]
     override type DeleteResultType = SingleObservable[DeleteResult]
 
-      //adapters.observableAsPublisher(mongoRes)
+    //adapters.observableAsPublisher(mongoRes)
     override def create(key: String, value: T): CreateResultType = {
       val bson = bsonConverter.asBsonWithKey(value, key)
       mongo.insertOne(bson)

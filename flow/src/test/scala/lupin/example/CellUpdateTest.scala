@@ -25,12 +25,12 @@ class CellUpdateTest extends BaseFlowSpec with GivenWhenThen {
       )
 
       And("A ViewPort feed")
-      val viewUpdates = ConcurrentSubject.publishToOne[ViewPort]
+      val viewUpdates                        = ConcurrentSubject.publishToOne[ViewPort]
       val viewUpdates1: Observable[ViewPort] = viewUpdates // Observable[ViewPort]()
 
       When("the two are joined in a table view")
-      val tables: RawFeed[TableView[Int, RenderableFieldUpdate[Int, Person]]] = TableView.subscribeTo[Person, Int, RenderableFieldUpdate[Int, Person]](pub.toReactivePublisher, viewUpdates.toReactivePublisher)
-
+      val tables: RawFeed[TableView[Int, RenderableFieldUpdate[Int, Person]]] =
+        TableView.subscribeTo[Person, Int, RenderableFieldUpdate[Int, Person]](pub.toReactivePublisher, viewUpdates.toReactivePublisher)
 
       Then("we should be able to observe the data flowing through the data source via the view port")
 
@@ -38,7 +38,7 @@ class CellUpdateTest extends BaseFlowSpec with GivenWhenThen {
       //      val updates = new ListSubscriber[TableView[_, _]]
       def updates(): List[TableView[Int, RenderableFieldUpdate[Int, Person]]] = {
         val values: Task[List[TableView[Int, RenderableFieldUpdate[Int, Person]]]] = Observable.fromReactivePublisher(tables).toListL
-        val list = values.runAsync.futureValue
+        val list                                                                   = values.runAsync.futureValue
         list
       }
 

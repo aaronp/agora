@@ -27,7 +27,7 @@ import simulacrum._
   }
 }
 
-object ToBytes extends LowPriorityIOImplicits{
+object ToBytes extends LowPriorityIOImplicits {
 
   def instance[T: ToBytes] = implicitly[ToBytes[T]]
 
@@ -39,9 +39,8 @@ object ToBytes extends LowPriorityIOImplicits{
     override def bytes(value: String): Array[Byte] = value.getBytes("UTF-8")
   }
 
-
   implicit object IntToBytes extends ToBytes[Int] {
-    def toInt(bytes : Array[Byte]) : Int = {
+    def toInt(bytes: Array[Byte]): Int = {
       val (result, _) = bytes.foldRight((0, 0)) {
         case (nextByte, (builder, shift)) =>
           val x: Int = nextByte << shift
@@ -52,7 +51,7 @@ object ToBytes extends LowPriorityIOImplicits{
     override def bytes(value: Int): Array[Byte] = {
       val (list, x) = (0 until 8).foldLeft((List[Byte]() -> value)) {
         case ((array, remaining), _) =>
-          val value = remaining.toByte
+          val value        = remaining.toByte
           val newRemaining = remaining >> 4
           (value :: array, newRemaining)
       }

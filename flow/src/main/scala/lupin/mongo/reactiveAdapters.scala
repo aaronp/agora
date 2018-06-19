@@ -42,7 +42,6 @@ object adapters {
     }
   }
 
-
   def mongoSubscriptionAsSubscription(mongoSubscription: MongoSubscription): ReactiveSubscription = {
     new ReactiveSubscription {
       override def request(n: Long): Unit = mongoSubscription.request(n)
@@ -57,7 +56,7 @@ object adapters {
 
       override def request(n: Long): Unit = reactiveSubscription.request(n)
 
-      override def unsubscribe(): Unit = if (unsubscribed.compareAndExchange(false, true)) {
+      override def unsubscribe(): Unit = if (unsubscribed.CcompareAndExchange(false, true)) {
         reactiveSubscription.cancel()
       }
 

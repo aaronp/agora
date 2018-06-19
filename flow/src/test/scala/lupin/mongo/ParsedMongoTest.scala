@@ -8,7 +8,7 @@ class ParsedMongoTest extends BaseFlowSpec {
     "connect to a locally running mongo" in {
       val pm = ParsedMongo.load()
       try {
-        val c = pm.defaultCollection
+        val c     = pm.defaultCollection
         val total = c.count().headOption().futureValue
         total should not be empty
 

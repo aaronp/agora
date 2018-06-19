@@ -1,5 +1,3 @@
 package lupin.view
 
-class ViewPortUpdate {
-
-}
+class ViewPortUpdate {}
