@@ -1,12 +1,5 @@
 package crud.api
 
-import java.nio.file.Path
-
-import agora.io.ToBytes
-import cats.effect.IO
-import cats.~>
-import monix.eval.Task
-
 /**
   * Provides a typical "service" for our Crud algebra, parameterized on F
   * (e.g. more of a tagless final approach)
