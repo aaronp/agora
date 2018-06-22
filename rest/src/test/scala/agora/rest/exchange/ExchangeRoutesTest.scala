@@ -2,10 +2,11 @@ package agora.rest.exchange
 
 import akka.http.scaladsl.server.Route
 import agora.api.Implicits._
+import agora.api.config.HostLocation
 import agora.api.exchange.observer.{ExchangeObserver, ExchangeObserverDelegate}
 import agora.api.nextJobId
 import agora.api.exchange.{QueueStateResponse, UpdateSubscriptionAck, _}
-import agora.api.worker.{HostLocation, SubscriptionKey, WorkerDetails}
+import agora.api.worker.{SubscriptionKey, WorkerDetails}
 import agora.rest.BaseRoutesSpec
 import io.circe.Json
 import io.circe.generic.auto._

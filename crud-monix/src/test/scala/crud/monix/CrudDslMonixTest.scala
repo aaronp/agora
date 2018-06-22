@@ -2,6 +2,7 @@ package crud.monix
 
 import agora.BaseIOSpec
 import crud.api.{CrudDsl, CrudRequest}
+import crud.free.CrudInterpreter
 import monix.execution.Scheduler.Implicits.global
 import monix.reactive._
 import org.scalatest.GivenWhenThen
@@ -19,7 +20,7 @@ class CrudDslMonixTest extends BaseIOSpec with GivenWhenThen {
 
         And("a pipe to execute commands which flow through them")
         // pipe those commands through something which can execute them (and apply back-pressure via Task)
-        val runTask = CrudDsl.task[String, Int](dir)
+        val runTask = CrudInterpreter.task[String, Int](dir)
         val results: Observable[Any] = commandStream.mapTask { request =>
           runTask.run(request)
         }

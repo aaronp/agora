@@ -1,9 +1,9 @@
 package agora.rest.worker
 
-import agora.api.config.JsonConfig
+import agora.api.config.{HostLocation, JsonConfig}
 import agora.api.exchange.WorkSubscription
 import agora.json.JPredicate
-import agora.api.worker.{HostLocation, WorkerDetails}
+import agora.api.worker.WorkerDetails
 import com.typesafe.config.{Config, ConfigRenderOptions}
 import io.circe
 import agora.config.implicits._

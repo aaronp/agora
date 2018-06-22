@@ -1,4 +1,4 @@
-package agora.api.worker
+package agora.api.config
 
 case class HostLocation(host: String, port: Int, secure: Boolean = false) {
   def asHostPort = s"$host:$port"

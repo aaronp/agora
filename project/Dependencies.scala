@@ -79,14 +79,23 @@ object Dependencies {
 
   val Riff = monix ::: cats ::: logging ::: testDependencies
 
+  val vertx = "io.vertx" %% "vertx-lang-scala" % "3.5.2"
+
+  val javaxWSClient = List(
+    "javax.websocket" % "javax.websocket-client-api" % "1.1",
+    "org.glassfish.tyrus" % "tyrus-client" % "1.1",
+    "org.glassfish.tyrus" % "tyrus-container-grizzly" % "1.1"
+  )
+
   //cats :::
   val CrudApi = monix ::: logging ::: testDependencies
+  val CrudTyrus = javaxWSClient ::: logging ::: testDependencies
   val CrudFree = catsEffect :: cats ::: logging ::: testDependencies
   val CrudMongo = mongoDriver ::: testDependencies
   val CrudAkkaHttp = akkaHttp ::: testDependencies
   val CrudMonix = monix ::: testDependencies
   val CrudHttp4s = http4s ::: testDependencies
   val CrudUndertow = mongoDriver ::: testDependencies
-  val CrudVertx = mongoDriver ::: testDependencies
+  val CrudVertx = vertx :: logging ::: testDependencies
   val CrudFinch  = finch ::: testDependencies
 }

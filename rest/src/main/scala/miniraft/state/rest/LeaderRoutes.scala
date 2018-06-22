@@ -1,5 +1,6 @@
 package miniraft.state.rest
 
+import agora.api.config.HostLocation
 import akka.http.scaladsl.model.headers.Location
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes, Uri}
 import akka.http.scaladsl.server.Directives.{path, _}
@@ -7,7 +8,6 @@ import akka.http.scaladsl.server.Route
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.{Decoder, Encoder}
 import io.circe.parser._
-import agora.api.worker.HostLocation
 import miniraft.LeaderApi
 import miniraft.state._
 

@@ -1,7 +1,7 @@
 package miniraft.state
 
 import agora.BaseRestSpec
-import agora.api.worker.HostLocation
+import agora.api.config.HostLocation
 import agora.rest.RunningService
 import miniraft.state.rest.{LeaderClient, NodeStateSummary}
 import org.scalatest.concurrent.Eventually

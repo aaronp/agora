@@ -2,8 +2,8 @@ package agora.rest
 
 import java.util.concurrent.atomic.AtomicInteger
 
+import agora.api.config.HostLocation
 import agora.io.Lazy
-import agora.api.worker.HostLocation
 import agora.config.{RichConfigOps, configForArgs}
 import com.typesafe.config.{Config, ConfigFactory}
 

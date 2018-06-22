@@ -1,9 +1,10 @@
 package agora.rest.worker
 
 import agora.api.`match`.MatchDetails
+import agora.api.config.HostLocation
 import agora.api.exchange.WorkSubscription
 import agora.api.health.HealthDto
-import agora.api.worker.{HostLocation, WorkerDetails}
+import agora.api.worker.WorkerDetails
 import agora.rest.BaseRoutesSpec
 
 class WorkerClientTest extends BaseRoutesSpec {

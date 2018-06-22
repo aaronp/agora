@@ -1,7 +1,7 @@
 package agora.api.exchange
 
 import agora.BaseApiSpec
-import agora.api.worker.HostLocation
+import agora.api.config.HostLocation
 
 import scala.language.reflectiveCalls
 

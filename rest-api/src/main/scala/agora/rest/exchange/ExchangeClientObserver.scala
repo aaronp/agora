@@ -1,7 +1,7 @@
 package agora.rest.exchange
 
+import agora.api.config.HostLocation
 import agora.api.exchange.observer._
-import agora.api.worker.HostLocation
 import akka.NotUsed
 import akka.http.scaladsl.HttpExt
 import akka.http.scaladsl.model.ws._

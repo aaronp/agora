@@ -2,8 +2,8 @@ package agora.exec
 
 import java.util.concurrent.TimeUnit
 
+import agora.api.config.HostLocation
 import agora.api.exchange.WorkSubscription
-import agora.api.worker.HostLocation
 import agora.config.configForArgs
 import agora.exec.client.{ExecutionClient, ProcessRunner, QueryClient, RemoteRunner}
 import agora.exec.events.{HousekeepingConfig, SystemEventMonitor}

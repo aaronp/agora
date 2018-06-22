@@ -2,10 +2,11 @@ package agora.api.exchange
 
 import agora.BaseApiSpec
 import agora.api.Implicits._
+import agora.api.config.HostLocation
 import agora.api.exchange.bucket.{BucketKey, BucketValueKey}
 import agora.api.exchange.instances.ExchangeState
 import agora.api.exchange.observer.{ExchangeObserver, OnMatch, TestObserver}
-import agora.api.worker.{HostLocation, SubscriptionKey, WorkerDetails}
+import agora.api.worker.{SubscriptionKey, WorkerDetails}
 import agora.json.{JPath, JPredicate, MatchNone}
 import io.circe.Json
 

@@ -2,9 +2,10 @@ package agora.api.exchange
 
 import agora.BaseIOSpec
 import agora.api.Implicits
+import agora.api.config.HostLocation
 import agora.api.exchange.observer.{ExchangeObserver, ExchangeObserverDelegate, OnMatch}
 import agora.json.JPredicate
-import agora.api.worker.{HostLocation, WorkerDetails, WorkerRedirectCoords}
+import agora.api.worker.{WorkerDetails, WorkerRedirectCoords}
 import io.circe.generic.auto._
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.{Millis, Seconds, Span}

@@ -1,30 +1,44 @@
 package crud.http4s
 
+import java.io.File
+
+import cats.data.OptionT
 import cats.effect.{Effect, IO}
 import fs2.StreamApp
 import io.circe.Json
-import org.http4s.HttpService
+import monix.eval.Task
+import org.http4s.{HttpService, Request, Response, StaticFile}
 import org.http4s.dsl.Http4sDsl
 import org.http4s.server.blaze.BlazeBuilder
+import org.http4s.server.websocket._
 
 import scala.concurrent.ExecutionContext
-
 import org.http4s.circe._
 
 class HelloWorldService[F[_]: Effect] extends Http4sDsl[F] {
+
+  def static(file: String, request: Request[F]) =
+    StaticFile.fromResource("/" + file, Some(request)).map(Task.now).getOrElse(NotFound())
 
   val service: HttpService[F] = {
     HttpService[F] {
       case GET -> Root / "hello" / name =>
         Ok(Json.obj("message" -> Json.fromString(s"Hello, ${name}")))
+
+      case request @ GET -> Root / "index.html" =>
+        val filestream: OptionT[F, Response[F]] = StaticFile
+          .fromFile(new File("relative/path/to/index.html"), Some(request))
+
+
+        def notFound : Response[F] = {
+          NotFound()
+          ???
+        }
+        filestream//.map(Task.now) // This one is require to make the types match up
+          .getOrElse(notFound) // In case the file doesn't exist
+
     }
   }
-}
-
-object Main extends StreamApp[IO] {
-
-  import scala.concurrent.ExecutionContext.Implicits.global
-  override def stream(args: List[String], requestShutdown: IO[Unit]) = Https4sEndpoint.stream[IO]
 }
 
 object Https4sEndpoint {

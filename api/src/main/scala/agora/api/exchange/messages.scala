@@ -2,9 +2,10 @@ package agora.api.exchange
 
 import java.time.LocalDateTime
 
+import agora.api.config.HostLocation
 import agora.api.exchange.bucket.WorkerMatchBucket
 import agora.json.{JPath, JPredicate, JsonDelta, MatchAll}
-import agora.api.worker.{HostLocation, SubscriptionKey, WorkerDetails, WorkerRedirectCoords}
+import agora.api.worker.{SubscriptionKey, WorkerDetails, WorkerRedirectCoords}
 import agora.api.{JobId, MatchId}
 import io.circe.Decoder.Result
 import io.circe.generic.auto._

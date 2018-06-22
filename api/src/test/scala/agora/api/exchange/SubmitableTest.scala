@@ -4,7 +4,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import agora.BaseApiSpec
 import agora.api.Implicits._
-import agora.api.worker.HostLocation
+import agora.api.config.HostLocation
 import io.circe.generic.auto._
 
 import scala.collection.mutable

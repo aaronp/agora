@@ -1,6 +1,7 @@
 package agora.api.worker
 
 import agora.BaseApiSpec
+import agora.api.config.HostLocation
 import agora.json.JsonDelta
 import io.circe.Json
 import io.circe.optics.JsonPath

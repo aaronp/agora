@@ -1,8 +1,8 @@
 package agora.exec
 
 import agora.BaseExecSpec
+import agora.api.config.HostLocation
 import agora.api.exchange.{Exchange, JobPredicate}
-import agora.api.worker.HostLocation
 import agora.exec.client.RemoteRunner
 import agora.exec.model.RunProcess
 import com.typesafe.config.ConfigFactory

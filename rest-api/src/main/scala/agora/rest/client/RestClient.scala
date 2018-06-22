@@ -2,7 +2,7 @@ package agora.rest.client
 
 import java.io.Closeable
 
-import agora.api.worker.HostLocation
+import agora.api.config.HostLocation
 import agora.rest.AkkaImplicits
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.stream.Materializer

@@ -1,9 +1,6 @@
 package agora.api.worker
 
-import io.circe.{Json, ParsingFailure}
-
-import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.ExecutionContext
 
 case class CompletedWork[T](work: List[(WorkerRedirectCoords, T)])(implicit executionContext: ExecutionContext) {
 

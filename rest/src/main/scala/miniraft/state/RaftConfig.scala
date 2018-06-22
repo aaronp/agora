@@ -2,7 +2,7 @@ package miniraft.state
 
 import java.nio.file.Path
 
-import agora.api.worker.HostLocation
+import agora.api.config.HostLocation
 import agora.config.configForArgs
 import agora.rest.ServerConfig
 import agora.rest.client.RestClient

@@ -76,9 +76,10 @@ lazy val agora = (project in file("."))
     crudMonix,
     crudHttp4s,
     crudAkkaHttp,
-    crudVertx,
     crudUndertow,
     crudFinch,
+    crudTyrus,
+    crudVertx,
     configProject,
     riff,
     api,
@@ -189,10 +190,16 @@ lazy val crudApi = project
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.CrudApi)
 
+lazy val crudTyrus = project
+  .in(file("crud-tyrus"))
+  .dependsOn(crudApi % "compile->compile;test->test")
+  .settings(name := s"${repo}-crud-tyrus")
+  .settings(commonSettings: _*)
+  .settings(libraryDependencies ++= Dependencies.CrudTyrus)
+
 lazy val crudFree = project
   .in(file("crud-free"))
-  .dependsOn(io % "compile->compile;test->test",
-    crudApi % "compile->compile;test->test")
+  .dependsOn(io % "compile->compile;test->test", crudApi % "compile->compile;test->test")
   .settings(name := s"${repo}-crud-free")
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.CrudFree)
@@ -241,7 +248,7 @@ lazy val crudVertx = project
 
 lazy val crudMonix = project
   .in(file("crud-monix"))
-  .dependsOn(crudApi % "compile->compile;test->test")
+  .dependsOn(crudApi % "compile->compile;test->test", crudFree % "compile->compile;test->test")
   .settings(name := s"${repo}-crud-monix")
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.CrudMonix)
@@ -337,10 +344,7 @@ pomIncludeRepository := (_ => false)
 
 // To sync with Maven central, you need to supply the following information:
 pomExtra in Global := {
-  <url>https://github.com/
-    {username}
-    /
-    {}
+  <url>https://github.com/${username}/${repo}
   </url>
     <licenses>
       <license>
@@ -351,13 +355,10 @@ pomExtra in Global := {
     <developers>
       <developer>
         <id>
-          {username}
+          ${username}
         </id>
         <name>Aaron Pritzlaff</name>
-        <url>https://github.com/
-          {username}
-          /
-          {repo}
+        <url>https://github.com/${username}/${repo}
         </url>
       </developer>
     </developers>

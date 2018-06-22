@@ -2,8 +2,8 @@ package miniraft.state
 
 import java.nio.file.Path
 
+import agora.api.config.HostLocation
 import agora.io.implicits._
-import agora.api.worker.HostLocation
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import com.typesafe.scalalogging.StrictLogging

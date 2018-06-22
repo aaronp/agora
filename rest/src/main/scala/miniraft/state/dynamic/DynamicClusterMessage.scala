@@ -1,6 +1,6 @@
 package miniraft.state
 
-import agora.api.worker.HostLocation
+import agora.api.config.HostLocation
 
 sealed trait DynamicClusterMessage
 

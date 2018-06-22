@@ -1,7 +1,7 @@
 package crud.monix
 
 import crud.api.{CrudDsl, CrudRequest}
-import monix.execution.{Cancelable, Scheduler}
+import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Observer, _}
 
@@ -30,7 +30,7 @@ class CrudDslMonix[ID, T](val sync: Observer.Sync[CrudRequest[_]],
 
   override def close(): Unit = onComplete()
 
-  override def onNext(elem: CrudRequest[_]) = sync.onNext(elem)
+  override def onNext(elem: CrudRequest[_]): Ack = sync.onNext(elem)
 
   override def onError(ex: Throwable): Unit = sync.onError(ex)
 

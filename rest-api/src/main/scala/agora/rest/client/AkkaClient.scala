@@ -1,6 +1,6 @@
 package agora.rest.client
 
-import agora.api.worker.HostLocation
+import agora.api.config.HostLocation
 import agora.rest.AkkaImplicits
 import akka.actor.{ActorSystem, Terminated}
 import akka.http.scaladsl.Http

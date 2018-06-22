@@ -2,7 +2,7 @@ package agora.rest
 
 import java.net.{InetAddress, InetSocketAddress}
 
-import agora.api.worker.HostLocation
+import agora.api.config.HostLocation
 import com.typesafe.scalalogging.StrictLogging
 
 import scala.util.Properties

@@ -1,7 +1,7 @@
 package miniraft.state
 
 import agora.BaseRestSpec
-import agora.api.worker.HostLocation
+import agora.api.config.HostLocation
 import org.scalatest.concurrent.Eventually
 
 import scala.concurrent.duration._

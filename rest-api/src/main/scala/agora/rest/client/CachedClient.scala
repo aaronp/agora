@@ -1,6 +1,6 @@
 package agora.rest.client
 
-import agora.api.worker.HostLocation
+import agora.api.config.HostLocation
 
 import scala.concurrent.{ExecutionContext, Future}
 

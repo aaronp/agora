@@ -4,7 +4,7 @@ import java.net.InetSocketAddress
 import java.util.UUID
 
 import agora.BaseRestApiSpec
-import agora.api.worker.HostLocation
+import agora.api.config.HostLocation
 import com.typesafe.scalalogging.StrictLogging
 
 import scala.sys.SystemProperties

@@ -2,9 +2,9 @@ package agora.rest
 
 import java.util.concurrent.atomic.AtomicInteger
 
+import agora.api.config.HostLocation
 import agora.api.exchange.{SelectionMode, SubmissionDetails, WorkMatcher}
 import agora.json.JPredicate
-import agora.api.worker.HostLocation
 import agora.rest.client._
 import agora.rest.worker.SubscriptionConfig
 import akka.http.scaladsl.model.Uri

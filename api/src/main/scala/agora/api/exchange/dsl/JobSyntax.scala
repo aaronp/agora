@@ -107,7 +107,7 @@ trait JobSyntax extends StrictLogging {
   }
 
   /**
-    * eventually we'll get a collection of all the response futures (hence Future[List[Future]])
+    * eventually we'll get a collection of all the response futures (hence {{{Future[List[Future]]}}})
     *
     * @return an eventual collection of all the response futures
     */

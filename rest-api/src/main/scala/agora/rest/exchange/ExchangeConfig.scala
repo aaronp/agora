@@ -1,8 +1,8 @@
 package agora.rest.exchange
 
+import agora.api.config.HostLocation
 import agora.api.exchange.observer.{ExchangeObserver, ExchangeObserverDelegate}
 import agora.api.exchange.{Exchange, JobPredicate, ServerSideExchange}
-import agora.api.worker.HostLocation
 import agora.config._
 import agora.rest._
 import akka.http.scaladsl.HttpExt

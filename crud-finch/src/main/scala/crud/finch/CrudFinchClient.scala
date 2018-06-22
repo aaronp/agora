@@ -1,5 +1,10 @@
 package crud.finch
 
-class CrudFinchClient {
+object CrudFinchClient {
+
+
+  def example = {
+//    Http2Client.defaultH2Client.
+  }
 
 }

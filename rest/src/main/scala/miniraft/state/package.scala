@@ -1,6 +1,6 @@
 package miniraft
 
-import agora.api.worker.HostLocation
+import agora.api.config.HostLocation
 
 package object state {
 
