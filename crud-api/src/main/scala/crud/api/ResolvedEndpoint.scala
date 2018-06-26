@@ -9,5 +9,5 @@ case class ResolvedEndpoint(location: HostPort, uri: String) {
 }
 
 object ResolvedEndpoint {
-  def apply(port : Int, uri : String): ResolvedEndpoint = ResolvedEndpoint(HostPort.localhost(port), uri)
+  def apply(port: Int, uri: String): ResolvedEndpoint = ResolvedEndpoint(HostPort.localhost(port), uri)
 }

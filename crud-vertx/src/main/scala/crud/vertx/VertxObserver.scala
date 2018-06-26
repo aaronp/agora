@@ -1,6 +1,5 @@
 package crud.vertx
 
-import com.typesafe.scalalogging.StrictLogging
 import io.vertx.core.Handler
 import io.vertx.scala.core.http.{WebSocket, WebSocketFrame}
 import monix.reactive.Observer
@@ -40,21 +39,4 @@ class VertxObserver(socketObserver: WebSocket => Observer[WebSocketFrame]) {
     }
   }
 
-}
-
-object VertxObserver extends StrictLogging {
-
-  def logOnError(err: Throwable) = logger.error(s"got: $err")
-//
-//  def apply(onFrame: WebSocketFrame => Ack, onErr: Throwable => Unit = logOnError) = {
-//    new VertxObserver(new Observer.Sync[WebSocketFrame] {
-//      override def onNext(elem: WebSocketFrame) = onFrame(elem)
-//
-//      override def onError(ex: Throwable): Unit = onErr(ex)
-//
-//      override def onComplete(): Unit = {
-//        logger.info("Complete")
-//      }
-//    })
-//  }
 }

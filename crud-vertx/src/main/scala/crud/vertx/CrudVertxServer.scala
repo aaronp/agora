@@ -40,14 +40,13 @@ object CrudVertxServer {
   }
 
   def start(hostPort: HostPort, socketHandler: Handler[ServerWebSocket]): ScalaVerticle = {
-    //    val options = HttpServerOptions().setHost(hostPort.host).setPort(hostPort.port)
 
     object Server extends ScalaVerticle {
       vertx = Vertx.vertx()
       override def start(): Unit = {
         vertx
           .createHttpServer()
-          //          .requestHandler(handler)
+//                    .requestHandler(handler)
           .websocketHandler(socketHandler)
           .listen(hostPort.port, hostPort.host)
       }

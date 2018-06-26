@@ -29,6 +29,8 @@ class CrudVertxClientTest extends BaseCrudApiSpec {
           println(s"$name done")
         }
       }
+
+      // start the server
       val started: ScalaVerticle = CrudVertxServer.start(port) { socket =>
         socket.writeTextMessage("hello from the server")
         SocketHandler("server")
