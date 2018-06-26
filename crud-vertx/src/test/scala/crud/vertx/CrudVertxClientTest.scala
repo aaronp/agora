@@ -1,5 +1,7 @@
 package crud.vertx
 
+import java.util.concurrent.{CountDownLatch, TimeUnit}
+
 import crud.api.{BaseCrudApiSpec, ResolvedEndpoint}
 import io.vertx.lang.scala.ScalaVerticle
 import io.vertx.scala.core.http.{WebSocket, WebSocketFrame}
@@ -15,9 +17,10 @@ class CrudVertxClientTest extends BaseCrudApiSpec {
 
       val port = 1234
 
-      case class SocketHandler(name: String) extends Observer[WebSocketFrame] {
+      case class SocketHandler(name: String)(textHandler: String => Unit) extends Observer[WebSocketFrame] {
         override def onNext(elem: WebSocketFrame): Future[Ack] = {
           println(s"$name got : " + elem.textData())
+          textHandler(elem.textData())
           Ack.Continue
         }
 
@@ -29,20 +32,42 @@ class CrudVertxClientTest extends BaseCrudApiSpec {
           println(s"$name done")
         }
       }
+      val receivedFromServer = new CountDownLatch(1)
+      var fromServer = ""
+      val receivedFromClient = new CountDownLatch(1)
+      var fromClient = ""
 
       // start the server
       val started: ScalaVerticle = CrudVertxServer.start(port) { socket =>
-        socket.writeTextMessage("hello from the server")
-        SocketHandler("server")
+        socket.writeTextMessage(s"hello from the server at ${socket.path}")
+        println(
+          s"""
+             |  uri=${socket.uri}
+             | path=${socket.path}
+             |query=${socket.query}
+          """.stripMargin)
+        SocketHandler("server") { msg =>
+          receivedFromClient.countDown()
+          fromClient = msg
+        }
       }
 
       val c: CrudVertxClient = CrudVertxClient.start(ResolvedEndpoint(port, "/some/path")) { socket: WebSocket =>
-        socket.writeTextMessage("from the client")
-        SocketHandler("client")
+        socket.writeTextMessage(s"from the client")
+        SocketHandler("client") { msg =>
+          receivedFromServer.countDown()
+          fromServer = msg
+        }
       }
 
-      Thread.sleep(1000)
-      println("done")
+      receivedFromServer.await(testTimeout.toMillis, TimeUnit.MILLISECONDS)
+      receivedFromClient.await(testTimeout.toMillis, TimeUnit.MILLISECONDS)
+
+      fromServer shouldBe "hello from the server at /some/path"
+      fromClient shouldBe "from the client"
+
+      c.stop()
+      started.stop()
     }
   }
 
