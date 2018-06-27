@@ -5,12 +5,13 @@ import java.util.concurrent.{CountDownLatch, TimeUnit}
 import crud.api.BaseCrudApiSpec
 import io.vertx.lang.scala.ScalaVerticle
 import io.vertx.scala.core.http.{WebSocket, WebSocketFrame}
-import monix.execution.Ack
+import monix.execution.{Ack, CancelableFuture}
 import monix.reactive.Observer
 import streaming.api.{EndpointCoords, WebFrame}
 import streaming.vertx.client.StreamingVertxClient
 import streaming.vertx.server.{StreamingVertxServer, VertxWebSocketEndpoint}
 import monix.execution.Scheduler.Implicits.global
+
 import scala.concurrent.Future
 
 class StreamingVertxClientTest extends BaseCrudApiSpec {
@@ -55,7 +56,9 @@ class StreamingVertxClientTest extends BaseCrudApiSpec {
         val text: WebFrame = WebFrame.text(s"hello from the server at ${endpoint.socket.path}")
         endpoint.toRemote.onNext(text)
 
-        endpoint.fromRemote.foreach { msg: WebFrame =>
+        val fe: CancelableFuture[Unit] =  endpoint.fromRemote.foreach { msg: WebFrame =>
+
+          println(s"server got $msg from the client")
           receivedFromClient.countDown()
           msg.asText.foreach(fromClient = _)
         }
@@ -63,6 +66,7 @@ class StreamingVertxClientTest extends BaseCrudApiSpec {
       }
 
       val c: StreamingVertxClient = StreamingVertxClient.start(EndpointCoords(port, "/some/path")) { socket: WebSocket =>
+        println("Sending a message from the client....")
         socket.writeTextMessage(s"from the client")
         SocketHandler("client") { msg =>
           receivedFromServer.countDown()
