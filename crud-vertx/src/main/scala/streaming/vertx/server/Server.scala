@@ -11,7 +11,7 @@ import streaming.api.HostPort
 
 import scala.concurrent.duration.Duration
 
-object StreamingVertxServer {
+object Server {
 
   object LoggingHandler extends Handler[HttpServerRequest] with StrictLogging {
     override def handle(event: HttpServerRequest): Unit = {
@@ -22,11 +22,6 @@ object StreamingVertxServer {
   def start(port: Int)(onConnect: VertxWebSocketEndpoint => Unit)(implicit timeout: Duration, scheduler: Scheduler): ScalaVerticle = {
     val websocketHandler = new ServerWebSocketHandler(onConnect)
     start(HostPort.localhost(port), LoggingHandler, websocketHandler)
-  }
-
-  def startup(port: Int, requestHandler: Handler[HttpServerRequest] = LoggingHandler)(frameHandler: ServerWebSocket => Observer[WebSocketFrame]): ScalaVerticle = {
-    val websocketHandler = new SocketHandler(frameHandler)
-    start(HostPort.localhost(port), requestHandler, websocketHandler)
   }
 
   def start(hostPort: HostPort,

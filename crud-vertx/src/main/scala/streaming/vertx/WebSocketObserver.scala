@@ -1,7 +1,7 @@
-package streaming.vertx.server
+package streaming.vertx
 
 import io.vertx.core.buffer.Buffer
-import io.vertx.scala.core.http.ServerWebSocket
+import io.vertx.scala.core.http.WebSocketBase
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.reactive.Observer
@@ -9,7 +9,7 @@ import streaming.api._
 
 import scala.concurrent.Future
 
-final case class ServerWebSocketObserver(socket: ServerWebSocket) extends Observer[WebFrame] {
+private[vertx] final case class WebSocketObserver(socket: WebSocketBase) extends Observer[WebFrame] {
   override def onNext(elem: WebFrame): Future[Ack] = elem match {
     case TextFrame(text) =>
       socket.writeTextMessage(text)
