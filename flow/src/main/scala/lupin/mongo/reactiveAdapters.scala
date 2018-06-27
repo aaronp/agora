@@ -56,7 +56,7 @@ object adapters {
 
       override def request(n: Long): Unit = reactiveSubscription.request(n)
 
-      override def unsubscribe(): Unit = if (unsubscribed.compareAndExchange(false, true)) {
+      override def unsubscribe(): Unit = if (unsubscribed.compareAndSet(false, true)) {
         reactiveSubscription.cancel()
       }
 

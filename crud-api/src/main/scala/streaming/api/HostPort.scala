@@ -1,4 +1,4 @@
-package crud.api
+package streaming.api
 
 case class HostPort(host: String, port: Int, secure: Boolean = false) {
   def hostPort = s"$host:$port"

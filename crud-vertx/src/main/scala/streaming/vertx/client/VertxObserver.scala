@@ -1,4 +1,4 @@
-package crud.vertx
+package streaming.vertx.client
 
 import io.vertx.core.Handler
 import io.vertx.scala.core.http.{WebSocket, WebSocketFrame}
