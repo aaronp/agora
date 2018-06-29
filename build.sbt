@@ -70,16 +70,16 @@ lazy val agora = (project in file("."))
   .enablePlugins(ScalaUnidocPlugin)
   .aggregate(
     io,
-    crudApi,
-    crudFree,
-    crudMongo,
-    crudMonix,
-    crudHttp4s,
-    crudAkkaHttp,
-    crudUndertow,
-    crudFinch,
-    crudTyrus,
-    crudVertx,
+    streamingApi,
+    streamingFree,
+    streamingMongo,
+    streamingMonix,
+    streamingHttp4s,
+    streamingAkkaHttp,
+    streamingUndertow,
+    streamingFinch,
+    streamingTyrus,
+    streamingVertx,
     configProject,
     riff,
     api,
@@ -183,73 +183,73 @@ test in assembly := {}
 
 publishMavenStyle := true
 
-lazy val crudApi = project
-  .in(file("crud-api"))
+lazy val streamingApi = project
+  .in(file("streaming-api"))
   .dependsOn(io % "compile->compile;test->test", configProject % "compile->compile;test->test")
-  .settings(name := s"${repo}-crud-api")
+  .settings(name := s"${repo}-streaming-api")
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.CrudApi)
 
-lazy val crudTyrus = project
-  .in(file("crud-tyrus"))
-  .dependsOn(crudApi % "compile->compile;test->test")
-  .settings(name := s"${repo}-crud-tyrus")
+lazy val streamingTyrus = project
+  .in(file("streaming-tyrus"))
+  .dependsOn(streamingApi % "compile->compile;test->test")
+  .settings(name := s"${repo}-streaming-tyrus")
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.CrudTyrus)
 
-lazy val crudFree = project
-  .in(file("crud-free"))
-  .dependsOn(io % "compile->compile;test->test", crudApi % "compile->compile;test->test")
-  .settings(name := s"${repo}-crud-free")
+lazy val streamingFree = project
+  .in(file("streaming-free"))
+  .dependsOn(io % "compile->compile;test->test", streamingApi % "compile->compile;test->test")
+  .settings(name := s"${repo}-streaming-free")
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.CrudFree)
 
-lazy val crudMongo = project
-  .in(file("crud-mongo"))
-  .dependsOn(crudApi % "compile->compile;test->test")
-  .settings(name := s"${repo}-crud-mongo")
+lazy val streamingMongo = project
+  .in(file("streaming-mongo"))
+  .dependsOn(streamingApi % "compile->compile;test->test")
+  .settings(name := s"${repo}-streaming-mongo")
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.CrudMongo)
 
-lazy val crudHttp4s = project
-  .in(file("crud-http4s"))
-  .dependsOn(crudApi % "compile->compile;test->test")
-  .settings(name := s"${repo}-crud-http4s")
+lazy val streamingHttp4s = project
+  .in(file("streaming-http4s"))
+  .dependsOn(streamingApi % "compile->compile;test->test")
+  .settings(name := s"${repo}-streaming-http4s")
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.CrudHttp4s)
 
-lazy val crudUndertow = project
-  .in(file("crud-undertow"))
-  .dependsOn(crudApi % "compile->compile;test->test")
-  .settings(name := s"${repo}-crud-undertow")
+lazy val streamingUndertow = project
+  .in(file("streaming-undertow"))
+  .dependsOn(streamingApi % "compile->compile;test->test")
+  .settings(name := s"${repo}-streaming-undertow")
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.CrudUndertow)
 
-lazy val crudAkkaHttp = project
-  .in(file("crud-akkahttp"))
-  .dependsOn(crudApi % "compile->compile;test->test")
-  .settings(name := s"${repo}-crud-akkahttp")
+lazy val streamingAkkaHttp = project
+  .in(file("streaming-akkahttp"))
+  .dependsOn(streamingApi % "compile->compile;test->test")
+  .settings(name := s"${repo}-streaming-akkahttp")
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.CrudAkkaHttp)
 
-lazy val crudFinch = project
-  .in(file("crud-finch"))
-  .dependsOn(crudApi % "compile->compile;test->test")
-  .settings(name := s"${repo}-crud-finch")
+lazy val streamingFinch = project
+  .in(file("streaming-finch"))
+  .dependsOn(streamingApi % "compile->compile;test->test")
+  .settings(name := s"${repo}-streaming-finch")
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.CrudFinch)
 
-lazy val crudVertx = project
-  .in(file("crud-vertx"))
-  .dependsOn(crudApi % "compile->compile;test->test")
-  .settings(name := s"${repo}-crud-vertx")
+lazy val streamingVertx = project
+  .in(file("streaming-vertx"))
+  .dependsOn(streamingApi % "compile->compile;test->test")
+  .settings(name := s"${repo}-streaming-vertx")
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.CrudVertx)
 
-lazy val crudMonix = project
-  .in(file("crud-monix"))
-  .dependsOn(crudApi % "compile->compile;test->test", crudFree % "compile->compile;test->test")
-  .settings(name := s"${repo}-crud-monix")
+lazy val streamingMonix = project
+  .in(file("streaming-monix"))
+  .dependsOn(streamingApi % "compile->compile;test->test", streamingFree % "compile->compile;test->test")
+  .settings(name := s"${repo}-streaming-monix")
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.CrudMonix)
 
