@@ -7,7 +7,7 @@ import io.vertx.lang.scala.ScalaVerticle
 import monix.execution.Scheduler.Implicits.global
 import streaming.api.{EndpointCoords, WebFrame}
 import streaming.vertx.client.Client
-import streaming.vertx.server.{Server, VertxWebSocketEndpoint}
+import streaming.vertx.server.{Server, ServerEndpoint}
 
 class ClientTest extends BaseCrudApiSpec {
 
@@ -22,7 +22,7 @@ class ClientTest extends BaseCrudApiSpec {
       var fromClient = ""
 
       // start the server
-      val started: ScalaVerticle = Server.start(port) { endpoint: VertxWebSocketEndpoint =>
+      val started: ScalaVerticle = Server.start(port) { endpoint: ServerEndpoint =>
 
         endpoint.toRemote.onNext(WebFrame.text(s"hello from the server at ${endpoint.socket.path}"))
 

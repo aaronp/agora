@@ -6,8 +6,8 @@ import monix.execution.Scheduler
 
 import scala.concurrent.duration.Duration
 
-class ServerWebSocketHandler(onConnect: VertxWebSocketEndpoint => Unit)(implicit timeout: Duration, scheduler: Scheduler) extends Handler[ServerWebSocket] {
+private[server] class ServerWebSocketHandler(onConnect: ServerEndpoint => Unit)(implicit timeout: Duration, scheduler: Scheduler) extends Handler[ServerWebSocket] {
   override def handle(socket: ServerWebSocket): Unit = {
-    onConnect(VertxWebSocketEndpoint(socket))
+    onConnect(ServerEndpoint(socket))
   }
 }

@@ -19,7 +19,7 @@ object Server {
     }
   }
 
-  def start(port: Int)(onConnect: VertxWebSocketEndpoint => Unit)(implicit timeout: Duration, scheduler: Scheduler): ScalaVerticle = {
+  def start(port: Int)(onConnect: ServerEndpoint => Unit)(implicit timeout: Duration, scheduler: Scheduler): ScalaVerticle = {
     val websocketHandler = new ServerWebSocketHandler(onConnect)
     start(HostPort.localhost(port), LoggingHandler, websocketHandler)
   }
