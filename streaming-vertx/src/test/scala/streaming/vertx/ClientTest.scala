@@ -2,14 +2,12 @@ package streaming.vertx
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 
-import crud.api.BaseCrudApiSpec
 import io.vertx.lang.scala.ScalaVerticle
-import monix.execution.Scheduler.Implicits.global
-import streaming.api.{EndpointCoords, WebFrame}
+import streaming.api.{BaseStreamingApiSpec, EndpointCoords, WebFrame}
 import streaming.vertx.client.Client
 import streaming.vertx.server.{Server, ServerEndpoint}
 
-class ClientTest extends BaseCrudApiSpec {
+class ClientTest extends BaseStreamingApiSpec {
 
   "Client" should {
     "connect to a server" in {
