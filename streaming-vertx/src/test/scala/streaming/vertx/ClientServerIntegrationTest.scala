@@ -7,6 +7,7 @@ import io.vertx.lang.scala.ScalaVerticle
 import monix.execution.Cancelable
 import monix.reactive.Observable
 import streaming.api._
+import streaming.api.sockets.WebFrame
 import streaming.vertx.client.Client
 import streaming.vertx.server.{Server, ServerEndpoint}
 
@@ -15,6 +16,15 @@ import scala.collection.mutable.ListBuffer
 class ClientServerIntegrationTest extends BaseStreamingApiSpec with StrictLogging {
 
   "Server.start / Client.connect" should {
+    "route endpoints accordingly" in {
+      val port = 1236
+      val started: ScalaVerticle = Server.start(port)(null)
+      try {
+
+      } finally {
+        started.stop()
+      }
+    }
     "notify the server when the client completes" in {
 
       val port = 1235
@@ -25,17 +35,26 @@ class ClientServerIntegrationTest extends BaseStreamingApiSpec with StrictLoggin
 
       def chat(endpoint: Endpoint[WebFrame, WebFrame]): Cancelable = {
 
-        val replies: Observable[String] = endpoint.fromRemote.doOnComplete { () =>
-          logger.debug("from remote on complete")
-          serverReceivedOnComplete = true
-        }.map { frame =>
-          logger.debug(s"To Remote : " + frame)
-          val text = frame.asText.getOrElse("Received a non-text frame")
-          messagesReceivedByTheServer += text
-          s"echo: $text"
+        endpoint.handleTextFramesWith { incomingMsgs =>
+          val obs = "Hi - you're connected to an echo-bot" +: incomingMsgs
+          obs.doOnComplete { () =>
+            logger.debug("from remote on complete")
+            serverReceivedOnComplete = true
+          }
         }
-        val all = "Hi - you're connected to an echo-bot" +: replies
-        all.map[WebFrame](WebFrame.text).subscribe(endpoint.toRemote)
+//
+//        val replies: Observable[String] = endpoint.fromRemote.map { frame =>
+//          logger.debug(s"To Remote : " + frame)
+//          val text = frame.asText.getOrElse(sys.error("Received a non-text frame"))
+//          messagesReceivedByTheServer += text
+//          s"echo: $text"
+//        }.doOnComplete { () =>
+//          logger.debug("from remote on complete")
+//          serverReceivedOnComplete = true
+//        }
+//
+//        val all = "Hi - you're connected to an echo-bot" +: replies
+//        all.map[WebFrame](WebFrame.text).subscribe(endpoint.toRemote)
       }
 
       val started: ScalaVerticle = Server.start(port)(chat)

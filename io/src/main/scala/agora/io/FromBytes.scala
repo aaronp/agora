@@ -1,15 +1,15 @@
 package agora.io
 
+import simulacrum.typeclass
+
 import scala.util.{Success, Try}
 
 /**
   * Typeclass to serialize a type from a byte array
   *
-  * TODO - replace this with a better FP typeclass
-  *
   * @tparam T
   */
-trait FromBytes[T] {
+@typeclass trait FromBytes[T] {
 
   /**
     * Unmarshalls the byte array into the given type
@@ -28,8 +28,6 @@ trait FromBytes[T] {
 }
 
 object FromBytes {
-
-  def instance[T: FromBytes] = implicitly[FromBytes[T]]
 
   def lift[T](f: Array[Byte] => Try[T]) = new FromBytes[T] {
     override def read(bytes: Array[Byte]) = f(bytes)

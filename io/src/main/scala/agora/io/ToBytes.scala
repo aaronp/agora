@@ -29,8 +29,6 @@ import simulacrum._
 
 object ToBytes extends LowPriorityIOImplicits {
 
-  def instance[T: ToBytes] = implicitly[ToBytes[T]]
-
   def lift[T](f: T => Array[Byte]) = new ToBytes[T] {
     override def bytes(value: T) = f(value)
   }

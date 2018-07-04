@@ -6,7 +6,7 @@ import io.vertx.core.Handler
 import io.vertx.scala.core.http.{WebSocketBase, WebSocketFrame}
 import monix.execution.Scheduler
 import monix.reactive.{Observable, Pipe}
-import streaming.api.WebFrame
+import streaming.api.sockets.WebFrame
 import streaming.vertx.server.WebSocketFrameAsWebFrame
 
 import scala.concurrent.duration.Duration

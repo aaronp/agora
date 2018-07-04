@@ -1,7 +1,7 @@
 package streaming.vertx.server
 
 import io.vertx.scala.core.http.WebSocketFrame
-import streaming.api.WebFrame
+import streaming.api.sockets.WebFrame
 
 final object WebSocketFrameAsWebFrame {
 

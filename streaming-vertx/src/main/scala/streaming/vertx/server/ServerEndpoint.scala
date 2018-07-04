@@ -3,7 +3,8 @@ package streaming.vertx.server
 import io.vertx.scala.core.http.ServerWebSocket
 import monix.execution.Scheduler
 import monix.reactive.{Observable, Observer}
-import streaming.api.{Endpoint, WebFrame}
+import streaming.api.Endpoint
+import streaming.api.sockets.WebFrame
 import streaming.vertx.WebFrameEndpoint
 
 import scala.concurrent.duration.Duration
@@ -18,7 +19,6 @@ import scala.concurrent.duration.Duration
   */
 final class ServerEndpoint(val socket: ServerWebSocket, to: Observer[WebFrame], from: Observable[WebFrame])
     extends Endpoint[WebFrame, WebFrame](to, from)
-    with Endpoint.Socket
 
 object ServerEndpoint {
   def apply(socket: ServerWebSocket)(implicit timeout: Duration, scheduler: Scheduler): ServerEndpoint = {

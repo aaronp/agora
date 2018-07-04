@@ -30,7 +30,7 @@ object Persist {
   implicit def writer[T: ToBytes] = new WriterInstance[T](implicitly[ToBytes[T]])
 
   def save[T: ToBytes](): Persist[T] = apply {
-    case (file, value) => file.bytes = ToBytes.instance[T].bytes(value)
+    case (file, value) => file.bytes = ToBytes[T].bytes(value)
   }
 
   def link[T](linkToThisFile: Path): Linker[T] = Linker(linkToThisFile)

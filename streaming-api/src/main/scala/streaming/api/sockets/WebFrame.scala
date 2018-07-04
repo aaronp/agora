@@ -1,4 +1,4 @@
-package streaming.api
+package streaming.api.sockets
 
 import java.nio.ByteBuffer
 
