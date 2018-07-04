@@ -7,17 +7,14 @@ import streaming.api.reactive.LastReceivedObserver.LastElementException
 
 class LastReceivedObserverTest extends BaseStreamingApiSpec with GivenWhenThen {
 
-
   "LastReceivedObserver.recover" should {
     "allow observables in error to recover" in {
-
 
       Given("An observable which will throw an error ")
       val erroringObservable = Observable.fromIterable(1 to 100).map {
         case i if i % 3 == 0 => sys.error(s"I don't like numbers like $i")
         case i => i
       }
-
 
       When("We subscribe w/ a LastReceivedObserver")
       val (singleSub, singlePub) = Pipe.replay[Int].unicast

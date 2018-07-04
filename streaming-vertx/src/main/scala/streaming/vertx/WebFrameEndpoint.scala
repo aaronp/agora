@@ -13,10 +13,9 @@ import scala.concurrent.duration.Duration
 
 object WebFrameEndpoint {
 
-  def apply(socket: WebSocketBase)(implicit timeout: Duration, scheduler: Scheduler): (Observable[WebFrame], WebSocketObserver) = {
+  def replay(socket: WebSocketBase)(implicit timeout: Duration, scheduler: Scheduler): (WebSocketObserver, Observable[WebFrame]) = {
 
-    val fromClient: Pipe[WebFrame, WebFrame] = Pipe.replay[WebFrame]
-    val (frameSink, frameSource: Observable[WebFrame]) = fromClient.concurrent
+    val (frameSink, frameSource: Observable[WebFrame]) = Pipe.replay[WebFrame].concurrent
 
     val completed = new AtomicBoolean(false)
 
@@ -49,6 +48,6 @@ object WebFrameEndpoint {
     socket.endHandler(new Handler[Unit] {
       override def handle(event: Unit): Unit = markComplete()
     })
-    (frameSource, WebSocketObserver(socket))
+    (WebSocketObserver(socket), frameSource)
   }
 }

@@ -1,5 +1,8 @@
 package streaming.vertx
 
+import java.util.concurrent.atomic.AtomicBoolean
+
+import com.typesafe.scalalogging.LazyLogging
 import io.vertx.core.buffer.Buffer
 import io.vertx.scala.core.http.WebSocketBase
 import monix.execution.Ack
@@ -8,8 +11,9 @@ import monix.reactive.Observer
 import streaming.api._
 
 import scala.concurrent.Future
+import scala.util.control.NonFatal
 
-private[vertx] final case class WebSocketObserver(socket: WebSocketBase) extends Observer[WebFrame] {
+private[vertx] final case class WebSocketObserver(socket: WebSocketBase) extends Observer[WebFrame] with LazyLogging {
   override def onNext(elem: WebFrame): Future[Ack] = elem match {
     case TextFrame(text) =>
       socket.writeTextMessage(text)
@@ -34,7 +38,17 @@ private[vertx] final case class WebSocketObserver(socket: WebSocketBase) extends
     socket.close(500, Option(s"Error: $ex"))
   }
 
+  private val completed = new AtomicBoolean(false)
+
   override def onComplete(): Unit = {
-    socket.close()
+
+    try {
+      if (completed.compareAndSet(false, true)) {
+        socket.end()
+      }
+    } catch {
+      case NonFatal(e) =>
+        logger.error(s"Error ending socket connected to ${socket.remoteAddress()}", e)
+    }
   }
 }

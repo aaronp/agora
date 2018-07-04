@@ -10,7 +10,7 @@ import streaming.vertx.WebFrameEndpoint
 
 import scala.concurrent.duration.Duration
 
-class Client private(endpoint: EndpointCoords, client: Handler[WebSocket], impl: Vertx = Vertx.vertx()) extends ScalaVerticle {
+class Client private (endpoint: EndpointCoords, client: Handler[WebSocket], impl: Vertx = Vertx.vertx()) extends ScalaVerticle {
   vertx = impl
 
   val httpsClient: HttpClient = vertx.createHttpClient.websocket(endpoint.port, host = endpoint.host, endpoint.uri, client)
@@ -23,7 +23,7 @@ object Client {
 
     val handler = new Handler[WebSocket] {
       override def handle(event: WebSocket): Unit = {
-        val (fromRemote, toRemote) = WebFrameEndpoint(event)
+        val (fromRemote, toRemote) = WebFrameEndpoint.replay(event)
         onConnect(Endpoint(fromRemote, toRemote))
       }
     }

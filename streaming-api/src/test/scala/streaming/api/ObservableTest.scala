@@ -5,7 +5,6 @@ import streaming.api.reactive.LastReceivedObserver
 
 class ObservableTest extends BaseStreamingApiSpec {
 
-
   "Observables.recover" should {
     "allow observables in error to recover" in {
 
@@ -22,7 +21,6 @@ class ObservableTest extends BaseStreamingApiSpec {
       }
 
       val (singleSub, singlePub) = Pipe.publishToOne[Int].unicast
-
 
       base.subscribe(LastReceivedObserver(singleSub))
 

@@ -16,12 +16,15 @@ import scala.concurrent.duration.Duration
   * @param from
   * @param to
   */
-final class ServerEndpoint(val socket: ServerWebSocket, from: Observable[WebFrame], to: Observer[WebFrame]) extends Endpoint[WebFrame, WebFrame](from, to)
+final class ServerEndpoint(val socket: ServerWebSocket, to: Observer[WebFrame], from: Observable[WebFrame])
+    extends Endpoint[WebFrame, WebFrame](to, from)
+    with Endpoint.Socket
 
 object ServerEndpoint {
   def apply(socket: ServerWebSocket)(implicit timeout: Duration, scheduler: Scheduler): ServerEndpoint = {
-    val (frameSource, obs) = WebFrameEndpoint(socket)
+    val (obs, frameSource) = WebFrameEndpoint.replay(socket)
     socket.accept()
-    new ServerEndpoint(socket, frameSource, obs)
+    new ServerEndpoint(socket, obs, frameSource)
   }
+
 }
