@@ -76,7 +76,7 @@ class ClientServerIntegrationTest extends BaseStreamingApiSpec with StrictLoggin
         started.stop()
       }
     }
-    "notify the server when the client completes" ignore {
+    "notify the server when the client completes" in {
 
       val port = 1235
 
@@ -86,7 +86,10 @@ class ClientServerIntegrationTest extends BaseStreamingApiSpec with StrictLoggin
 
       def chat(endpoint: Endpoint[WebFrame, WebFrame]): Cancelable = {
         endpoint.handleTextFramesWith { incomingMsgs =>
-          val obs = "Hi - you're connected to an echo-bot" +: incomingMsgs
+          val obs = "Hi - you're connected to an echo-bot" +: incomingMsgs.doOnNext( msg =>
+            messagesReceivedByTheServer += msg
+          ).map("echo: " + _)
+          
           obs.doOnComplete { () =>
             logger.debug("from remote on complete")
             serverReceivedOnComplete = true
@@ -128,11 +131,13 @@ class ClientServerIntegrationTest extends BaseStreamingApiSpec with StrictLoggin
             "echo: client sending: 3")
         }
 
-        messagesReceivedByTheServer should contain inOrder("from client",
-          "client sending: 0",
-          "client sending: 1",
-          "client sending: 2",
-          "client sending: 3")
+        eventually {
+          messagesReceivedByTheServer should contain inOrder("from client",
+            "client sending: 0",
+            "client sending: 1",
+            "client sending: 2",
+            "client sending: 3")
+        }
 
       } finally {
         started.stop()
@@ -142,7 +147,7 @@ class ClientServerIntegrationTest extends BaseStreamingApiSpec with StrictLoggin
       }
 
     }
-    "connect to a server" ignore {
+    "connect to a server" in {
 
       val port = 1234
 

@@ -14,6 +14,8 @@ import streaming.rest.WebURI._
   */
 case class WebURI(method : HttpMethod, uri: List[Part]) {
 
+  override def toString = s"$method ${uri.mkString("/")}"
+
   /**
     * Used to resolve the route uri to a string
     * @param params
@@ -53,9 +55,13 @@ object WebURI {
     def apply(str: String): List[Part] = str.split("/", -1).map(_.trim).filterNot(_.isEmpty).map(asPart).toList
   }
 
-  case class ConstPart(part: String) extends Part
+  case class ConstPart(part: String) extends Part {
+    override def toString = part
+  }
 
-  case class ParamPart(name: String) extends Part
+  case class ParamPart(name: String) extends Part {
+    override def toString = name
+  }
 
   def get(uri: String): WebURI = WebURI(GET, Part(uri))
   def delete(uri: String): WebURI = WebURI(DELETE, Part(uri))
