@@ -1,36 +1,42 @@
 package streaming.vertx.client
 
+import java.util.concurrent.atomic.AtomicInteger
+
+import com.typesafe.scalalogging.StrictLogging
 import io.vertx.core.Handler
 import io.vertx.lang.scala.ScalaVerticle
 import io.vertx.scala.core.Vertx
 import io.vertx.scala.core.http.{HttpClient, WebSocket}
 import monix.execution.Scheduler
+import streaming.api.Endpoint
 import streaming.api.sockets.WebFrame
-import streaming.api.{Endpoint, EndpointCoords}
+import streaming.rest.EndpointCoords
 import streaming.vertx.WebFrameEndpoint
 
 import scala.concurrent.duration.Duration
 
-class Client private (endpoint: EndpointCoords, client: Handler[WebSocket], impl: Vertx = Vertx.vertx()) extends ScalaVerticle {
+class Client private(coords: EndpointCoords, client: Handler[WebSocket], impl: Vertx = Vertx.vertx()) extends ScalaVerticle {
   vertx = impl
 
-  val uri : String = ??? //endpoint.uri
-  val httpsClient: HttpClient = vertx.createHttpClient.websocket(endpoint.port, host = endpoint.host, uri, client)
+  val httpsClient: HttpClient = vertx.createHttpClient.websocket(coords.port, host = coords.host, coords.resolvedUri, client)
 
   start()
 }
 
 object Client {
-  def connect(endpoint: EndpointCoords)(onConnect: Endpoint[WebFrame, WebFrame] => Unit)(implicit timeout: Duration, scheduler: Scheduler): Client = {
+  def connect(coords: EndpointCoords, name: String = null)(onConnect: Endpoint[WebFrame, WebFrame] => Unit)(implicit timeout: Duration, scheduler: Scheduler): Client = {
 
-    val handler = new Handler[WebSocket] {
+    val counter = new AtomicInteger(0)
+    val handler = new Handler[WebSocket] with StrictLogging {
       override def handle(event: WebSocket): Unit = {
-        val (fromRemote, toRemote) = WebFrameEndpoint.replay(event)
+        val nonNullName = Option(name).getOrElse(s"Client to $coords") + s"#${counter.incrementAndGet()}"
+        logger.info(s"$nonNullName connected to socket")
+        val (fromRemote, toRemote) = WebFrameEndpoint.replay(nonNullName, event)
         onConnect(Endpoint(fromRemote, toRemote))
       }
     }
 
-    new Client(endpoint, handler)
+    new Client(coords, handler)
 
   }
 }

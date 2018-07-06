@@ -1,5 +1,6 @@
 package streaming.vertx.server
 
+import com.typesafe.scalalogging.StrictLogging
 import io.vertx.scala.core.http.ServerWebSocket
 import monix.execution.Scheduler
 import monix.reactive.{Observable, Observer}
@@ -18,11 +19,17 @@ import scala.concurrent.duration.Duration
   * @param to
   */
 final class ServerEndpoint(val socket: ServerWebSocket, to: Observer[WebFrame], from: Observable[WebFrame])
-    extends Endpoint[WebFrame, WebFrame](to, from)
+  extends Endpoint[WebFrame, WebFrame](to, from)
 
-object ServerEndpoint {
-  def apply(socket: ServerWebSocket)(implicit timeout: Duration, scheduler: Scheduler): ServerEndpoint = {
-    val (obs, frameSource) = WebFrameEndpoint.replay(socket)
+object ServerEndpoint extends StrictLogging {
+  def replay(socket: ServerWebSocket, name: String)(implicit timeout: Duration, scheduler: Scheduler): ServerEndpoint = {
+    val addr = {
+      val a = socket.remoteAddress()
+      val url = s"${a.host}:${a.port}/${a.path}"
+      s"$name (socket connected to $url)"
+    }
+    logger.info(s"$addr Accepting connection")
+    val (obs, frameSource) = WebFrameEndpoint.replay(addr, socket)
     socket.accept()
     new ServerEndpoint(socket, obs, frameSource)
   }

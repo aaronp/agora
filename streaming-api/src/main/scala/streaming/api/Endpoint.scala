@@ -1,11 +1,8 @@
 package streaming.api
 
-import agora.io.{FromBytes, ToBytes}
 import monix.execution.{Cancelable, Scheduler}
 import monix.reactive.{Observable, Observer, Pipe}
 import streaming.api.sockets.WebFrame
-
-import scala.util.{Failure, Try}
 
 /**
   * Represents a connection to another system, either local or remote.
@@ -32,36 +29,9 @@ class Endpoint[FromRemote, ToRemote](val toRemote: Observer[ToRemote], val fromR
     replies.map[WebFrame](WebFrame.text).subscribe(toRemote.asInstanceOf[Observer[WebFrame]])
   }
 
-//  def viaSocket(socket : Endpoint[WebFrame, WebFrame])(implicit fromBytes: FromBytes[FromRemote], toBytes : ToBytes[ToRemote]) : Unit = {
-//    val (a: Observer[FromRemote], b) = Pipe.publishToOne[FromRemote].unicast
-//
-//    val inFromRemote: Observable[Try[FromRemote]] = socket.fromRemote.map { frame =>
-//      frame.asBinary.map { bin =>
-//        fromBytes.read(bin.array())
-//      }.getOrElse(Failure(new Exception(s"web frame wasn't binary: $frame")))
-//    }
-//
-//    inFromRemote.pipeThrough()
-//  }
 }
 
 object Endpoint {
-
-  def socket[In : FromBytes, Out : ToBytes](onMsg : In => Out) : Endpoint[WebFrame, WebFrame] = {
-
-//    val replies: Observable[String] = endpoint.fromRemote.doOnComplete { () =>
-//      logger.debug("from remote on complete")
-//      serverReceivedOnComplete = true
-//    }.map { frame =>
-//      logger.debug(s"To Remote : " + frame)
-//      val text = frame.asText.getOrElse("Received a non-text frame")
-//      messagesReceivedByTheServer += text
-//      s"echo: $text"
-//    }
-//    val all = "Hi - you're connected to an echo-bot" +: replies
-//    all.map[WebFrame](WebFrame.text).subscribe(endpoint.toRemote)
-    ???
-  }
 
   def instance[From, To](implicit endpoint: Endpoint[From, To]): Endpoint[From, To] = endpoint
 
