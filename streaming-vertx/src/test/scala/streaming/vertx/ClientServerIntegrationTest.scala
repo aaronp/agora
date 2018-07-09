@@ -89,7 +89,7 @@ class ClientServerIntegrationTest extends BaseStreamingApiSpec with StrictLoggin
           val obs = "Hi - you're connected to an echo-bot" +: incomingMsgs.doOnNext( msg =>
             messagesReceivedByTheServer += msg
           ).map("echo: " + _)
-          
+
           obs.doOnComplete { () =>
             logger.debug("from remote on complete")
             serverReceivedOnComplete = true
