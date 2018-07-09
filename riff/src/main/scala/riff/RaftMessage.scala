@@ -6,14 +6,11 @@ sealed trait RaftMessage
 
 object RaftMessage {
 
-  def requestVote(node :CandidateNode): immutable.Iterable[RequestVote] = {
+  def requestVote(node: CandidateNode): immutable.Iterable[RequestVote] = {
     node.peersByName.map {
       case (to, peer) =>
         require(to == peer.name)
-        RequestVote(node.name, to,
-          term = node.currentTerm,
-          lastLogIndex = peer.matchIndex,
-          lastLogTerm = peer.matchIndex)
+        RequestVote.createForPeer(node.name, node.currentTerm, peer)
     }
   }
 }
@@ -22,8 +19,19 @@ case class AppendEntries[T](from: String, to: String, term: Int, prevIndex: Int,
 
 case class RequestVote(from: String, to: String, term: Int, lastLogIndex: Int, lastLogTerm: Int) extends RaftMessage
 
+object RequestVote {
+  def createForPeer(from: String, currentTerm: Int, peer: Peer) = {
+    RequestVote(from, peer.name,
+      term = currentTerm,
+      lastLogIndex = peer.matchIndex,
+      lastLogTerm = peer.matchIndex)
+  }
+}
+
 
 sealed trait RaftReply
-case class RequestVoteReply(from : String, to : String, sent : Long, term : Int, granted : Boolean) extends RaftReply
-case class AppendEntriesReply(from : String, to : String, sent : Long, term : Int, success: Boolean, matchIndex: Int) extends RaftReply
+
+case class RequestVoteReply(from: String, to: String, sent: Long, term: Int, granted: Boolean) extends RaftReply
+
+case class AppendEntriesReply(from: String, to: String, sent: Long, term: Int, success: Boolean, matchIndex: Int) extends RaftReply
 

@@ -6,8 +6,41 @@ class RaftNodeTest extends WordSpec with Matchers with GivenWhenThen {
 
   import RaftNodeTest._
 
-  "RaftNode" should {
-    "Send a request for vote to all nodes" in {
+  "CandidateNode" should {
+    "" in {
+      Given("A cluster of five nodes")
+
+
+    }
+  }
+  "FollowerNode" should {
+    "grant a vote when the request for vote's term is greater than the follower's term" in {
+      val someFollower = RaftNode.initial("some follower").withPeers(Map(
+        "candidate" -> Peer.initial("candidate"),
+        "meh" -> Peer.initial("meh")
+      ))
+
+      val requestFromCandidate = RequestVote.createForPeer("candidate", 2, Peer.initial("some follower"))
+      val (newState, reply) = someFollower.onRequestVote(requestFromCandidate, now = 1234L)
+
+      newState.votedFor shouldBe Some("candidate")
+      newState.currentTerm shouldBe requestFromCandidate.term
+      reply.granted shouldBe true
+    }
+    "not grant a vote when the request for vote's term is less than the follower's term" in {
+      val someFollower = RaftNode.initial("some follower").withPeers(Map(
+        "candidate" -> Peer.initial("candidate"),
+        "meh" -> Peer.initial("meh")
+      )).withTerm(3)
+
+      val requestFromCandidate = RequestVote.createForPeer("candidate", 2, Peer.initial("some follower"))
+      val (newState, reply) = someFollower.onRequestVote(requestFromCandidate, now = 1234L)
+
+      newState.votedFor shouldBe None
+      newState.currentTerm shouldBe someFollower.currentTerm
+      reply.granted shouldBe false
+    }
+    "transition to candidate and produce a request for vote to all nodes when an initial node times out" in {
       Given("A cluster of five nodes")
       val cluster = custerOf(5)
 
@@ -16,6 +49,7 @@ class RaftNodeTest extends WordSpec with Matchers with GivenWhenThen {
 
       val candidate: CandidateNode = someNode.onElectionTimeout(now = 1234)
       candidate.currentTerm shouldBe someNode.currentTerm + 1
+      candidate.votedFor shouldBe candidate.name
       val messages: List[RequestVote] = RaftMessage.requestVote(candidate).toList
 
       Then("It should create four request vote messages")
