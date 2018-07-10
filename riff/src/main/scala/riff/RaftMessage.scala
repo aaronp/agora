@@ -4,26 +4,16 @@ import scala.collection.immutable
 
 sealed trait RaftMessage
 
-object RaftMessage {
-
-  def requestVote(node: CandidateNode): immutable.Iterable[RequestVote] = {
-    node.peersByName.map {
-      case (to, peer) =>
-        require(to == peer.name)
-        RequestVote.createForPeer(node.name, node.currentTerm, peer)
-    }
-  }
-}
 
 /**
   * When an AppendEntries request is received by a follower,
   *
   * @param from
   * @param to
-  * @param term the term of the leader node sending the request, and the commit index
-  * @param prevIndex the index of the last _uncommitted_ append
-  * @param prevTerm the term of the last commit
-  * @param entries the data to append, which may be blank when a new leader is first elected
+  * @param term        the term of the leader node sending the request, and the commit index
+  * @param prevIndex   the index of the last _uncommitted_ append
+  * @param prevTerm    the term of the last commit
+  * @param entries     the data to append, which may be blank when a new leader is first elected
   * @param commitIndex the index of the latest committed append
   * @tparam T
   */
@@ -45,8 +35,8 @@ object AppendEntries {
           from = leader.name,
           to = peer.name,
           term = leader.currentTerm,
-          prevIndex = leader.commitIndex - 1,
-          prevTerm = leader.currentTerm - 1,
+          prevIndex = peer.matchIndex,
+          prevTerm = 0,
           entries = empty,
           commitIndex = peer.matchIndex)
     }
@@ -57,6 +47,15 @@ object AppendEntries {
 case class RequestVote(from: String, to: String, term: Int, lastLogIndex: Int, lastLogTerm: Int) extends RaftMessage
 
 object RequestVote {
+
+  def apply(node: CandidateNode): immutable.Iterable[RequestVote] = {
+    node.peersByName.map {
+      case (to, peer) =>
+        require(to == peer.name)
+        RequestVote.createForPeer(node.name, node.currentTerm, peer)
+    }
+  }
+
   def createForPeer(from: String, currentTerm: Int, peer: Peer) = {
     RequestVote(from, peer.name,
       term = currentTerm,
@@ -65,8 +64,7 @@ object RequestVote {
   }
 }
 
-
-sealed trait RaftReply
+sealed trait RaftReply extends RaftMessage
 
 case class RequestVoteReply(from: String, to: String, sent: Long, term: Int, granted: Boolean) extends RaftReply
 

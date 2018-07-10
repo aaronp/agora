@@ -44,12 +44,13 @@ abstract class RiffSpec extends WordSpec with Matchers with GivenWhenThen {
     def parsePeers(peers: List[String]): Map[String, Peer] = {
       peers.map { row =>
         val List(name, nextIndex, matchIndex, voteGranted) = row.split("\\|", -1).toList
-        name -> Peer(name.trim, nextIndex.trim.toInt, matchIndex.trim.toInt, voteGranted.trim.toBoolean, 0, 0)
+        val peer = Peer(name.trim, nextIndex.trim.toInt, matchIndex.trim.toInt, voteGranted.trim.toBoolean, 0, 0)
+        peer.name -> peer
       }.toMap.ensuring(_.size == peers.size)
     }
 
     val ValueR = ".*: (.*)".r
-    state.lines.toList match {
+    state.lines.toList.map(_.trim).filterNot(_.isEmpty) match {
       case ValueR(name) ::
         ValueR("Leader") ::
         ValueR(currentTerm) ::
@@ -62,7 +63,7 @@ abstract class RiffSpec extends WordSpec with Matchers with GivenWhenThen {
         )
         LeaderNode(name, data)
 
-      case _ => sys.error(s"Couldn't parse >$state<")
+      case other => sys.error(s"Couldn't parse $other")
     }
   }
 

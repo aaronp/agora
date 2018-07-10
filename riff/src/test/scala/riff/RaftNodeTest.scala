@@ -16,16 +16,16 @@ class RaftNodeTest extends RiffSpec {
       When("It receives a response from peer it knows nothing about")
       val reply = RequestVoteReply("unknown", "some candidate", 124, candidate.currentTerm, true)
 
-      Then("It should not update its state")
+      Then("It should not update its role")
       candidate.onVoteReply(reply) shouldBe candidate
-      candidate.onVoteReply(reply).state shouldBe RaftState.Follower
+      candidate.onVoteReply(reply).role shouldBe NodeRole.Follower
 
       When("It receives a granted response from a known peer")
       val okReply = RequestVoteReply("2", "some candidate", 124, candidate.currentTerm, true)
       val leader = candidate.onVoteReply(okReply)
 
       Then("it should become leader")
-      leader.state shouldBe RaftState.Leader
+      leader.role shouldBe NodeRole.Leader
     }
   }
   "FollowerNode" should {
@@ -58,7 +58,7 @@ class RaftNodeTest extends RiffSpec {
 
       val candidate: CandidateNode = someNode.onElectionTimeout(now = 1234)
       candidate.currentTerm shouldBe someNode.currentTerm + 1
-      val messages: List[RequestVote] = RaftMessage.requestVote(candidate).toList
+      val messages: List[RequestVote] = RequestVote(candidate).toList
 
       Then("It should create four request vote messages")
       messages.size shouldBe 4

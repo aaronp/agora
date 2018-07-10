@@ -9,7 +9,7 @@ sealed trait RaftNode extends HasNodeData {
 
   def name: String
 
-  def state: RaftState
+  def role: NodeRole
 
   protected def withData(newData: NodeData): Self
 
@@ -43,10 +43,10 @@ sealed trait RaftNode extends HasNodeData {
         row.ensuring(_.size == maxColLengths.size).zip(maxColLengths).map {
           case (n, len) => n.padTo(len, ' ')
         }.mkString(" | ")
-      }.mkString(indent,indent,"")
+      }.mkString(indent, indent, "")
     }
     s"""        name : $name
-       |       state : $state
+       |        role : $role
        |current term : $currentTerm
        |   voted for : $votedForString
        |commit index : $commitIndex$peersString
@@ -101,6 +101,7 @@ final case class FollowerNode(name: String, override val data: NodeData, votedFo
 
   protected def withData(newData: NodeData): FollowerNode = copy(data = newData)
 
+
   /**
     * Append entries to this node, using the given time as a reply.
     *
@@ -145,13 +146,13 @@ final case class FollowerNode(name: String, override val data: NodeData, votedFo
     }
   }
 
-  override val state: RaftState = RaftState.Follower
+  override val role: NodeRole = NodeRole.Follower
 
   def onElectionTimeout(now: Long): CandidateNode = CandidateNode(name, data.inc, now)
 }
 
 final case class CandidateNode(name: String, override val data: NodeData, electionTimedOutAt: Long) extends RaftNode {
-  override val state: RaftState = RaftState.Candidate
+  override val role: NodeRole = NodeRole.Candidate
 
   def clusterSize = peersByName.size + 1
 
@@ -190,7 +191,15 @@ object CandidateNode {
 }
 
 final case class LeaderNode(name: String, override val data: NodeData) extends RaftNode {
-  override val state: RaftState = RaftState.Leader
+  def onAppendEntriesReply(reply: AppendEntriesReply): LeaderNode = {
+    if (reply.to != name) {
+      this
+    } else {
+      updatePeer(reply.from)(_.copy(nextIndex = reply.matchIndex + 1, matchIndex = reply.matchIndex))
+    }
+  }
+
+  override val role: NodeRole = NodeRole.Leader
 
   /**
     * This should be called *after* some data T has been written to the uncommitted journal.
@@ -212,6 +221,14 @@ final case class LeaderNode(name: String, override val data: NodeData) extends R
           prevTerm = currentTerm,
           entries = entries,
           commitIndex = commitIndex)
+    }
+  }
+
+  def updatePeer(name: String)(f: Peer => Peer): Self = {
+    peersByName.get(name).fold(this) { peer =>
+      val newPeer: Peer = f(peer)
+      val newPeers = peersByName.updated(name, newPeer)
+      withPeers(newPeers)
     }
   }
 
