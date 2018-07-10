@@ -2,36 +2,45 @@ package riff
 
 import org.scalatest.{GivenWhenThen, Matchers, WordSpec}
 
-class RaftNodeTest extends WordSpec with Matchers with GivenWhenThen {
+class RaftNodeTest extends RiffSpec {
 
   import RaftNodeTest._
 
-  "CandidateNode" should {
-    "" in {
-      Given("A cluster of five nodes")
+  "CandidateNode.onVoteReply" should {
+    "become the leader when 1 peer in a cluster of 3 grants the vote" in {
+      Given("A cluster of three nodes")
+      val candidate = RaftNode("some candidate").
+        withPeers(Peer.initial("1"), Peer.initial("2")).onElectionTimeout(123L)
+      candidate.voteCount() shouldBe 0
 
+      When("It receives a response from peer it knows nothing about")
+      val reply = RequestVoteReply("unknown", "some candidate", 124, candidate.currentTerm, true)
 
+      Then("It should not update its state")
+      candidate.onVoteReply(reply) shouldBe candidate
+      candidate.onVoteReply(reply).state shouldBe RaftState.Follower
+
+      When("It receives a granted response from a known peer")
+      val okReply = RequestVoteReply("2", "some candidate", 124, candidate.currentTerm, true)
+      val leader = candidate.onVoteReply(okReply)
+
+      Then("it should become leader")
+      leader.state shouldBe RaftState.Leader
     }
   }
   "FollowerNode" should {
     "grant a vote when the request for vote's term is greater than the follower's term" in {
-      val someFollower = RaftNode.initial("some follower").withPeers(Map(
-        "candidate" -> Peer.initial("candidate"),
-        "meh" -> Peer.initial("meh")
-      ))
+      val someFollower = RaftNode("some follower")
 
       val requestFromCandidate = RequestVote.createForPeer("candidate", 2, Peer.initial("some follower"))
-      val (newState, reply) = someFollower.onRequestVote(requestFromCandidate, now = 1234L)
+      val (newState, reply: RequestVoteReply) = someFollower.onRequestVote(requestFromCandidate, now = 1234L)
 
       newState.votedFor shouldBe Some("candidate")
       newState.currentTerm shouldBe requestFromCandidate.term
       reply.granted shouldBe true
     }
     "not grant a vote when the request for vote's term is less than the follower's term" in {
-      val someFollower = RaftNode.initial("some follower").withPeers(Map(
-        "candidate" -> Peer.initial("candidate"),
-        "meh" -> Peer.initial("meh")
-      )).withTerm(3)
+      val someFollower = RaftNode("some follower").updated(3)
 
       val requestFromCandidate = RequestVote.createForPeer("candidate", 2, Peer.initial("some follower"))
       val (newState, reply) = someFollower.onRequestVote(requestFromCandidate, now = 1234L)
@@ -49,7 +58,6 @@ class RaftNodeTest extends WordSpec with Matchers with GivenWhenThen {
 
       val candidate: CandidateNode = someNode.onElectionTimeout(now = 1234)
       candidate.currentTerm shouldBe someNode.currentTerm + 1
-      candidate.votedFor shouldBe candidate.name
       val messages: List[RequestVote] = RaftMessage.requestVote(candidate).toList
 
       Then("It should create four request vote messages")
@@ -78,7 +86,7 @@ object RaftNodeTest {
     (1 to nrOfNodes).map { n =>
       val name = s"node-$n"
       require(peers.contains(name))
-      val node = RaftNode.initial(name).withPeers(peers - name)
+      val node = RaftNode(name).withPeers(peers - name)
       require(node.peersByName.size == nrOfNodes - 1, s"${node.peersByName.size} != $nrOfNodes - 1")
       node.name -> node
     }.toMap.ensuring(_.size == nrOfNodes)

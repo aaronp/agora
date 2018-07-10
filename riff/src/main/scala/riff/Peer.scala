@@ -3,7 +3,7 @@ package riff
 /**
   * The view of a peer in the cluster
   * @param name
-  * @param nextIndex
+  * @param nextIndex the latest index required by the peer as understood by the leader. This can be updated/maintained w/o consulting the node, but rather immediately upon the leader receiving an append request.
   * @param matchIndex
   * @param voteGranted
   * @param lastRpcSent
@@ -22,7 +22,9 @@ case class Peer(name: String,
 object Peer {
 
 
-  def initial(peerName : String) = {
+  def apply(peerName : String): Peer = initial(peerName)
+
+  def initial(peerName : String): Peer = {
     Peer(name = peerName,
       nextIndex = 1,
       matchIndex = 0,

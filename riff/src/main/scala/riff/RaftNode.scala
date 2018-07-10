@@ -1,9 +1,55 @@
 package riff
 
-sealed trait RaftNode {
+sealed trait RaftNode extends HasNodeData {
+
+  type Self <: RaftNode
+
   def name: String
 
   def state: RaftState
+
+  protected def withData(newData: NodeData): Self
+
+  def withPeers(peers: Map[String, Peer]): Self = withData(data.withPeers(peers))
+
+  def withPeers(peers: Peer*): Self = withPeers(peers.map(p => p.name -> p).toMap)
+
+  def updated(term: Int, newCommitIndex: Int = commitIndex): Self = withData(data.copy(currentTerm = term, commitIndex = newCommitIndex))
+
+  override def toString: String = {
+    val votedForString: String = this match {
+      case FollowerNode(_, _, Some(name)) => name
+      case FollowerNode(_, _, None) => "N/A"
+      case _ => name
+    }
+
+    val peersString: String = if (peersByName.isEmpty) {
+      ""
+    } else {
+      val rows: List[List[String]] = {
+        val body = peersByName.values.toList.sortBy(_.name).map { peer =>
+          import peer._
+          List(peer.name, nextIndex, matchIndex, voteGranted).map(_.toString)
+        }
+        List("Peer", "Next Index", "Match Index", "Vote Granted") :: body
+      }
+
+      val maxColLengths = rows.map(_.map(_.length)).transpose.map(_.max)
+      val indent = "\n" + (" " * 14)
+      rows.map { row =>
+        row.ensuring(_.size == maxColLengths.size).zip(maxColLengths).map {
+          case (n, len) => n.padTo(len, ' ')
+        }.mkString(" | ")
+      }.mkString(indent,indent,"")
+    }
+    s"""        name : $name
+       |       state : $state
+       |current term : $currentTerm
+       |   voted for : $votedForString
+       |commit index : $commitIndex
+       |       peers :$peersString
+       |""".stripMargin
+  }
 }
 
 trait HasNodeData {
@@ -14,22 +60,30 @@ trait HasNodeData {
   def commitIndex: Int = data.commitIndex
 
   def peersByName: Map[String, Peer] = data.peersByName
+
+  final def voteCount() = peersByName.values.count(_.voteGranted)
 }
 
-case class NodeData(override val currentTerm: Int,
-                    override val commitIndex: Int,
-                    override val peersByName: Map[String, Peer]) extends HasNodeData {
+final case class NodeData(override val currentTerm: Int,
+                          override val commitIndex: Int,
+                          override val peersByName: Map[String, Peer]) extends HasNodeData {
   require(currentTerm > 0)
 
-  override def data = this
+  override def data: NodeData = this
 
-  def inc : NodeData = copy(currentTerm = currentTerm + 1)
+  def withPeers(peers: Map[String, Peer]): NodeData = copy(peersByName = peers)
+
+  def withPeers(peers: Peer*): NodeData = withPeers(peers.map(p => p.name -> p).toMap)
+
+  def inc: NodeData = updated(newTerm = currentTerm + 1)
+
+  def updated(newTerm: Int = currentTerm, newIndex: Int = commitIndex): NodeData = copy(currentTerm = newTerm, commitIndex = newIndex)
 
 }
 
 object NodeData {
 
-  def initial = NodeData(
+  def apply(): NodeData = new NodeData(
     currentTerm = 1,
     commitIndex = 0,
     peersByName = Map.empty
@@ -37,13 +91,44 @@ object NodeData {
 }
 
 /**
-  * TODO - consider making this a sealed trait /w different properties on
-  * follower, candidate and leader
-  *
   * @param name
   */
 final case class FollowerNode(name: String, override val data: NodeData, votedFor: Option[String]) extends RaftNode with HasNodeData {
-  def onRequestVote(requestFromCandidate: RequestVote, now : Long): (FollowerNode, RequestVoteReply) = {
+
+  override type Self = FollowerNode
+
+  protected def withData(newData: NodeData): FollowerNode = copy(data = newData)
+
+  /**
+    * Append entries to this node, using the given time as a reply.
+    *
+    * The request will succeed if it is for the same term and expected commit index.
+    *
+    * If the request is for an older term it will be ignored
+    *
+    * If it is for a newer term then this node will assume there is a new leader (one for which it may not have voted)
+    * and update its term.
+    *
+    * @param append
+    * @param now
+    * @tparam T
+    * @return
+    */
+  def onAppendEntries[T](append: AppendEntries[T], now: Long): (FollowerNode, AppendEntriesReply) = {
+    def reply(ok: Boolean) = AppendEntriesReply(name, append.from, now, currentTerm, ok, matchIndex = commitIndex)
+
+    currentTerm match {
+      case t if t == append.term =>
+        this -> reply(append.commitIndex == commitIndex)
+      case t if t < append.term =>
+        // we're out-of-sync
+        copy(data = data.withTerm(append.term), votedFor = None) -> reply(false)
+      case _ => // ignore
+        this -> reply(false)
+    }
+  }
+
+  def onRequestVote(requestFromCandidate: RequestVote, now: Long): (FollowerNode, RequestVoteReply) = {
     votedFor match {
       case None if requestFromCandidate.term > currentTerm =>
         val newState = copy(data = data.inc, votedFor = Option(requestFromCandidate.from))
@@ -61,20 +146,50 @@ final case class FollowerNode(name: String, override val data: NodeData, votedFo
   override val state: RaftState = RaftState.Follower
 
   def onElectionTimeout(now: Long): CandidateNode = CandidateNode(name, data.inc, now)
-
-  def withPeers(peers: Map[String, Peer]): FollowerNode = copy(data = data.copy(peersByName = peers))
-  def withTerm(term: Int): FollowerNode = copy(data = data.copy(currentTerm = term))
-
 }
 
 final case class CandidateNode(name: String, override val data: NodeData, electionTimedOutAt: Long) extends RaftNode with HasNodeData {
   override val state: RaftState = RaftState.Candidate
-  def votedFor = name
+
+  def clusterSize = peersByName.size + 1
+
+  def onVoteReply(reply: RequestVoteReply): RaftNode = {
+    peersByName.get(reply.from).fold(this: RaftNode) { peer =>
+      if (reply.term == currentTerm) {
+        val newPeer = peer.copy(voteGranted = reply.granted)
+
+        val newTotalVotes = voteCount() + 1 + 1
+        val newPeers = peersByName.updated(reply.from, newPeer)
+        if (CandidateNode.hasQuorum(newTotalVotes, clusterSize)) {
+          LeaderNode(name, data.copy(peersByName = newPeers))
+        } else {
+          withPeers(newPeers)
+        }
+      } else {
+        // got a delinquent vote response from some other timeout - !
+        // ignore it
+        this
+      }
+    }
+  }
+
+  override type Self = CandidateNode
+
+  protected def withData(newData: NodeData): CandidateNode = copy(data = newData)
+
+}
+
+object CandidateNode {
+  def hasQuorum(totalVotes: Int, clusterSize: Int): Boolean = {
+    require(clusterSize > 0)
+    val requiredVotes = clusterSize / 2
+    totalVotes > requiredVotes
+  }
 }
 
 final case class LeaderNode(name: String, override val data: NodeData) extends RaftNode with HasNodeData {
   override val state: RaftState = RaftState.Leader
-  def votedFor = name
+
   /**
     * This should be called *after* some data T has been written to the uncommitted journal.
     *
@@ -97,10 +212,14 @@ final case class LeaderNode(name: String, override val data: NodeData) extends R
           commitIndex = commitIndex)
     }
   }
+
+  override type Self = LeaderNode
+
+  protected def withData(newData: NodeData): LeaderNode = copy(data = newData)
 }
 
 
 object RaftNode {
 
-  def initial(nodeName: String) = FollowerNode(name = nodeName, data = NodeData.initial, None)
+  def apply(nodeName: String): FollowerNode = FollowerNode(name = nodeName, data = NodeData(), None)
 }
