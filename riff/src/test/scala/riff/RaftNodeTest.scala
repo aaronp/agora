@@ -6,7 +6,7 @@ class RaftNodeTest extends RiffSpec {
 
   import RaftNodeTest._
 
-  "CandidateNode.onVoteReply" should {
+  "CandidateNode.onRequestVoteReply" should {
     "become the leader when 1 peer in a cluster of 3 grants the vote" in {
       Given("A cluster of three nodes")
       val candidate = RaftNode("some candidate").
@@ -17,12 +17,12 @@ class RaftNodeTest extends RiffSpec {
       val reply = RequestVoteReply("unknown", "some candidate", 124, candidate.currentTerm, true)
 
       Then("It should not update its role")
-      candidate.onVoteReply(reply) shouldBe candidate
-      candidate.onVoteReply(reply).role shouldBe NodeRole.Follower
+      candidate.onRequestVoteReply(reply) shouldBe candidate
+      candidate.onRequestVoteReply(reply).role shouldBe NodeRole.Follower
 
       When("It receives a granted response from a known peer")
       val okReply = RequestVoteReply("2", "some candidate", 124, candidate.currentTerm, true)
-      val leader = candidate.onVoteReply(okReply)
+      val leader = candidate.onRequestVoteReply(okReply)
 
       Then("it should become leader")
       leader.role shouldBe NodeRole.Leader
