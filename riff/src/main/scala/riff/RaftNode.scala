@@ -1,5 +1,8 @@
 package riff
 
+/**
+  * Represents a follower, candidate or leader node
+  */
 sealed trait RaftNode extends HasNodeData {
 
   type Self <: RaftNode
@@ -35,7 +38,7 @@ sealed trait RaftNode extends HasNodeData {
       }
 
       val maxColLengths = rows.map(_.map(_.length)).transpose.map(_.max)
-      val indent = "\n" + (" " * 14)
+      val indent = "\n" + (" " * 15)
       rows.map { row =>
         row.ensuring(_.size == maxColLengths.size).zip(maxColLengths).map {
           case (n, len) => n.padTo(len, ' ')
@@ -46,8 +49,7 @@ sealed trait RaftNode extends HasNodeData {
        |       state : $state
        |current term : $currentTerm
        |   voted for : $votedForString
-       |commit index : $commitIndex
-       |       peers :$peersString
+       |commit index : $commitIndex$peersString
        |""".stripMargin
   }
 }
@@ -93,7 +95,7 @@ object NodeData {
 /**
   * @param name
   */
-final case class FollowerNode(name: String, override val data: NodeData, votedFor: Option[String]) extends RaftNode with HasNodeData {
+final case class FollowerNode(name: String, override val data: NodeData, votedFor: Option[String]) extends RaftNode {
 
   override type Self = FollowerNode
 
@@ -122,7 +124,7 @@ final case class FollowerNode(name: String, override val data: NodeData, votedFo
         this -> reply(append.commitIndex == commitIndex)
       case t if t < append.term =>
         // we're out-of-sync
-        copy(data = data.withTerm(append.term), votedFor = None) -> reply(false)
+        copy(data = data.updated(newTerm = append.term), votedFor = None) -> reply(false)
       case _ => // ignore
         this -> reply(false)
     }
@@ -148,7 +150,7 @@ final case class FollowerNode(name: String, override val data: NodeData, votedFo
   def onElectionTimeout(now: Long): CandidateNode = CandidateNode(name, data.inc, now)
 }
 
-final case class CandidateNode(name: String, override val data: NodeData, electionTimedOutAt: Long) extends RaftNode with HasNodeData {
+final case class CandidateNode(name: String, override val data: NodeData, electionTimedOutAt: Long) extends RaftNode {
   override val state: RaftState = RaftState.Candidate
 
   def clusterSize = peersByName.size + 1
@@ -187,7 +189,7 @@ object CandidateNode {
   }
 }
 
-final case class LeaderNode(name: String, override val data: NodeData) extends RaftNode with HasNodeData {
+final case class LeaderNode(name: String, override val data: NodeData) extends RaftNode {
   override val state: RaftState = RaftState.Leader
 
   /**
