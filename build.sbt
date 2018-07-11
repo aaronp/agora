@@ -270,6 +270,7 @@ lazy val riff = project
   .in(file("riff"))
   .settings(name := s"${repo}-riff")
   .settings(commonSettings: _*)
+  .dependsOn(streamingApi % "compile->compile;test->test")
   .settings(libraryDependencies ++= Dependencies.Riff)
 
 lazy val json = project

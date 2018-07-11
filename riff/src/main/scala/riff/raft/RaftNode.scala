@@ -1,4 +1,6 @@
-package riff
+package riff.raft
+
+import riff._
 
 import scala.collection.immutable
 

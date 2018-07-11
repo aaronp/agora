@@ -1,4 +1,6 @@
-package object riff {
+package riff
+
+package object raft {
 
 
   def format(node : RaftNode): String = {

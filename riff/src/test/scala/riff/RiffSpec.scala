@@ -1,6 +1,7 @@
 package riff
 
 import org.scalatest.{GivenWhenThen, Matchers, WordSpec}
+import riff.raft.{LeaderNode, NodeData, Peer, RaftNode}
 
 abstract class RiffSpec extends WordSpec with Matchers with GivenWhenThen {
 

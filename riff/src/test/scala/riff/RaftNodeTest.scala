@@ -1,6 +1,7 @@
 package riff
 
 import org.scalatest.{GivenWhenThen, Matchers, WordSpec}
+import riff.raft._
 
 class RaftNodeTest extends RiffSpec {
 

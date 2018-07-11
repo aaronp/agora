@@ -1,9 +1,10 @@
-package riff
+package riff.raft
+
 sealed trait NodeRole
 object NodeRole {
-  def Follower = riff.Follower
-  def Leader = riff.Leader
-  def Candidate = riff.Candidate
+  def Follower = Follower
+  def Leader = Leader
+  def Candidate = Candidate
 }
 
 case object Follower extends NodeRole

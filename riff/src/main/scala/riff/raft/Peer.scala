@@ -1,7 +1,8 @@
-package riff
+package riff.raft
 
 /**
   * The view of a peer in the cluster
+ *
   * @param name
   * @param nextIndex the latest index required by the peer as understood by the leader. This can be updated/maintained w/o consulting the node, but rather immediately upon the leader receiving an append request.
   * @param matchIndex

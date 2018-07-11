@@ -1,5 +1,4 @@
-package riff
-
+package riff.raft
 
 trait HasNodeData {
   def data: NodeData

@@ -1,5 +1,7 @@
 package riff
 
+import riff.raft.{AppendEntries, LeaderNode, NodeData}
+
 class AppendEntriesTest extends RiffSpec {
   "AppendEntries" should {
     "Send a no-op when a candidate becomes a leader" in {

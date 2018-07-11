@@ -1,5 +1,7 @@
 package riff
 
+import riff.raft.{AppendEntries, AppendEntriesReply, LeaderNode}
+
 class LeaderNodeTest extends RiffSpec {
 
 
