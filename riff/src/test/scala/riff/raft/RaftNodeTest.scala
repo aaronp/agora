@@ -1,7 +1,4 @@
-package riff
-
-import org.scalatest.{GivenWhenThen, Matchers, WordSpec}
-import riff.raft._
+package riff.raft
 
 class RaftNodeTest extends RiffSpec {
 
@@ -18,12 +15,12 @@ class RaftNodeTest extends RiffSpec {
       val reply = RequestVoteReply("unknown", "some candidate", 124, candidate.currentTerm, true)
 
       Then("It should not update its role")
-      candidate.onRequestVoteReply(reply) shouldBe candidate
-      candidate.onRequestVoteReply(reply).role shouldBe NodeRole.Follower
+      candidate.onRequestVoteReply(reply, 0) shouldBe candidate
+      candidate.onRequestVoteReply(reply, 0).role shouldBe NodeRole.Follower
 
       When("It receives a granted response from a known peer")
       val okReply = RequestVoteReply("2", "some candidate", 124, candidate.currentTerm, true)
-      val leader = candidate.onRequestVoteReply(okReply)
+      val leader = candidate.onRequestVoteReply(okReply, 0)
 
       Then("it should become leader")
       leader.role shouldBe NodeRole.Leader

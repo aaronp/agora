@@ -107,7 +107,7 @@ final case class FollowerNode(name: String, override val data: NodeData, votedFo
     }
   }
 
-  def onElectionTimeout(now: Long): CandidateNode = CandidateNode(name, data.inc, now)
+  def onElectionTimeout(now: Long): CandidateNode = CandidateNode(name, data.incTerm, now)
 }
 
 final case class CandidateNode(name: String, override val data: NodeData, electionTimedOutAt: Long) extends RaftNode {

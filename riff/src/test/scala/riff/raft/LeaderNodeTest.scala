@@ -1,6 +1,4 @@
-package riff
-
-import riff.raft.{AppendEntries, AppendEntriesReply, LeaderNode}
+package riff.raft
 
 class LeaderNodeTest extends RiffSpec {
 

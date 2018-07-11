@@ -24,7 +24,7 @@ final case class NodeData(override val currentTerm: Int,
 
   def withPeers(peers: Peer*): NodeData = withPeers(peers.map(p => p.name -> p).toMap)
 
-  def inc: NodeData = updated(newTerm = currentTerm + 1)
+  def incTerm: NodeData = updated(newTerm = currentTerm + 1)
 
   def updated(newTerm: Int = currentTerm, newIndex: Int = commitIndex): NodeData = copy(currentTerm = newTerm, commitIndex = newIndex)
 

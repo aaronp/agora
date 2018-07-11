@@ -29,14 +29,14 @@ final case class RaftState[T: ClassTag](node: RaftNode, actions: Iterable[Action
             copy(actions = LogMessage(s"Ignoring election timeout while ${node.name} is ${node.role}") :: Nil)
         }
       case RemoveClusterNode(name) =>
-        node.peersByName.get(name) {
+        node.peersByName.get(name) match {
           case Some(_) =>
             copy(node = node.withPeers(node.peersByName - name), LogMessage(s"${name} removed from the cluster") :: Nil, empty)
           case None =>
             copy(actions = LogMessage("$name is not in the cluster") :: Nil)
         }
       case AddClusterNode(peer) =>
-        node.peersByName.get(peer.name) {
+        node.peersByName.get(peer.name) match {
           case Some(_) =>
             copy(actions = LogMessage(s"${peer.name} is already in the cluster") :: Nil)
           case None =>
@@ -53,9 +53,14 @@ final case class RaftState[T: ClassTag](node: RaftNode, actions: Iterable[Action
     }
   }
 
-  def onAppend[T](append: AppendEntries[T], now: Long): RaftState[T] = {
+  def onAppend(append: AppendEntries[T], now: Long): RaftState[T] = {
     val (newNode, reply) = node.onAppendEntries(append, now)
-    copy(node = newNode, actions = SendMessage(reply) :: Nil)
+    if (reply.success) {
+
+    } else {
+
+    }
+    RaftState[T](node = newNode, actions = SendMessage(reply) :: Nil, empty)
   }
 
   def onRequestVote(requestVote: RequestVote, now: Long): RaftState[T] = {
@@ -63,18 +68,18 @@ final case class RaftState[T: ClassTag](node: RaftNode, actions: Iterable[Action
     copy(node = newNode, actions = SendMessage(reply) :: Nil)
   }
 
-  def onRequestVoteReply[T](requestVote: RequestVoteReply, now: Long): RaftState[T] = {
+  def onRequestVoteReply(requestVote: RequestVoteReply, now: Long): RaftState[T] = {
     node.onRequestVoteReply(requestVote, now) match {
       case leader: LeaderNode if node.isCandidate =>
         RaftState[T](leader, AppendEntries.forLeader(leader, empty).map(SendMessage), empty)
-      case newNode => RaftState(newNode, Nil, empty)
+      case newNode => RaftState[T](newNode, Nil, empty)
     }
   }
 }
 
 object RaftState {
 
-  def apply[T](name: String, empty: T): RaftState[T] = RaftState(RaftNode(name), Nil, empty)
+  def of[T : ClassTag](name: String, empty: T): RaftState[T] = RaftState(RaftNode(name), Nil, empty)
 
   sealed trait Action
 
@@ -89,9 +94,8 @@ object RaftState {
   sealed trait ActionResult
 
   case class LogMessage(explanation: String, warn: Boolean = false) extends ActionResult
-
   final case class SendMessage(msg: RaftMessage) extends ActionResult
-
-  final case class SendReply(reply: RaftReply) extends ActionResult
+  final case class AppendLogEntry[T](term : Int, index : Int, data : T) extends ActionResult
+  final case class CommitLogEntry(term : Int, index : Int) extends ActionResult
 
 }
