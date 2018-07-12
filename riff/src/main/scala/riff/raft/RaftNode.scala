@@ -1,9 +1,5 @@
 package riff.raft
 
-import riff._
-
-import scala.collection.immutable
-
 /**
   * Represents a follower, candidate or leader node
   */
@@ -31,7 +27,7 @@ sealed trait RaftNode extends HasNodeData {
 
   def onAppendEntries[T](append: AppendEntries[T], now: Long): (RaftNode, AppendEntriesReply)
 
-  def onRequestVoteReply(requestVote: RequestVoteReply, now: Long): RaftNode = this
+  def onRequestVoteReply(requestVote: RequestVoteReply, logState : CommitLogState, now: Long): RaftNode = this
 
   def onRequestVote(requestVote: RequestVote, now: Long): (RaftNode, RequestVoteReply) = {
     def reply(ok: Boolean) = RequestVoteReply(name, requestVote.from, now, requestVote.term, ok)
@@ -44,7 +40,7 @@ sealed trait RaftNode extends HasNodeData {
   }
 
   protected def mkAppendReply[T](append: AppendEntries[T], now: Long, ok: Boolean): AppendEntriesReply = {
-    AppendEntriesReply(name, append.from, now, currentTerm, ok, matchIndex = commitIndex)
+    AppendEntriesReply(name, append.from, now, currentTerm, ok, matchIndex = commitIndex + 1)
   }
 
   override def toString: String = format(this)
@@ -129,7 +125,7 @@ final case class CandidateNode(name: String, override val data: NodeData, electi
     }
   }
 
-  override def onRequestVoteReply(reply: RequestVoteReply, now: Long): RaftNode = {
+  override def onRequestVoteReply(reply: RequestVoteReply, logState : CommitLogState, now: Long): RaftNode = {
     peersByName.get(reply.from).fold(this: RaftNode) { peer =>
       if (reply.term == currentTerm) {
         val newPeer = peer.copy(voteGranted = reply.granted)
@@ -137,7 +133,7 @@ final case class CandidateNode(name: String, override val data: NodeData, electi
         val newTotalVotes = voteCount() + 1 + 1
         val newPeers = peersByName.updated(reply.from, newPeer)
         if (CandidateNode.hasQuorum(newTotalVotes, clusterSize)) {
-          LeaderNode(name, data.copy(peersByName = newPeers))
+          LeaderNode(name, logState, data.copy(peersByName = newPeers))
         } else {
           withPeers(newPeers)
         }
@@ -163,11 +159,20 @@ object CandidateNode {
   }
 }
 
-final case class LeaderNode(name: String, override val data: NodeData) extends RaftNode {
+final case class LeaderNode(name: String, logState : CommitLogState, override val data: NodeData) extends RaftNode {
+
+  def makeAppend[T](data : T): Iterable[AppendEntries[T]] = {
+    peersByName.values.collect {
+      case peer if peer.matchIndex == logState.commitIndex =>
+        AppendEntries[T](name, peer.name, currentTerm, logState.prevLogInex, logState.prevLogTerm, data, logState.commitIndex)
+    }
+  }
+
   def onAppendEntriesReply(reply: AppendEntriesReply): LeaderNode = {
     if (reply.to != name) {
       this
     } else {
+      //if we have consensus on reply, we can commit
       updatePeer(reply.from)(_.copy(nextIndex = reply.matchIndex + 1, matchIndex = reply.matchIndex))
     }
   }
@@ -175,30 +180,6 @@ final case class LeaderNode(name: String, override val data: NodeData) extends R
   override val role: NodeRole = NodeRole.Leader
 
   override val isLeader = true
-
-  /**
-    * This should be called *after* some data T has been written to the uncommitted journal.
-    *
-    * We should thus still have the same commit index until we get the acks back
-    *
-    * @param entries
-    * @tparam T
-    * @return
-    */
-  def append[T](entries: T): immutable.Iterable[AppendEntries[T]] = {
-    peersByName.collect {
-      case (_, peer) if peer.matchIndex == commitIndex =>
-        AppendEntries[T](
-          from = name,
-          to = peer.name,
-          term = currentTerm,
-          prevIndex = peer.matchIndex,
-          prevTerm = currentTerm,
-          entries = entries,
-          commitIndex = commitIndex)
-    }
-  }
-
 
   override def onAppendEntries[T](append: AppendEntries[T], now: Long): (RaftNode, AppendEntriesReply) = {
 
