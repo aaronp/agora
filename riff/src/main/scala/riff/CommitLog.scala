@@ -6,6 +6,11 @@ import riff.raft.LogCoords
 
 import scala.util.control.NonFatal
 
+/**
+  * Represents the commit log
+  *
+  * @tparam T
+  */
 trait CommitLog[T] {
   def append(coords: LogCoords, data: T)
 
@@ -20,12 +25,40 @@ object CommitLog {
 
   final case class DataCommitted(coords: LogCoords) extends LogEvent
 
+  def inMemory[T](implicit sched: Scheduler) = new ObservableLog(InMemory())
 
-  def apply[T](underlying: CommitLog[T])(implicit sched: Scheduler): CommitLog[T] = {
-    new Wrap(underlying)
+  def apply[L <: CommitLog[T], T](underlying: L)(implicit sched: Scheduler) = new ObservableLog(underlying)
+
+  final case class InMemory[T]() extends CommitLog[T] {
+    private val uncommittedByCoords = new java.util.concurrent.ConcurrentHashMap[LogCoords, T]()
+    private val committedByCoords = new java.util.concurrent.ConcurrentHashMap[LogCoords, T]()
+
+    override def append(coords: LogCoords, data: T): Unit = {
+      uncommittedByCoords.put(coords, data)
+    }
+
+    override def commit(coords: LogCoords): Unit = {
+      val data = uncommittedByCoords.remove(coords)
+      require(data != null)
+      committedByCoords.put(coords, data)
+    }
+
+    def getUncommitted(c: LogCoords): Option[T] = Option(uncommittedByCoords.get(c))
+
+    def getCommitted(c: LogCoords): Option[T] = Option(committedByCoords.get(c))
+
+    def uncommitted: Set[LogCoords] = {
+      import scala.collection.JavaConverters._
+      uncommittedByCoords.keySet().asScala.toSet
+    }
+
+    def committed: Set[LogCoords] = {
+      import scala.collection.JavaConverters._
+      committedByCoords.keySet().asScala.toSet
+    }
   }
 
-  class Wrap[T](underlying: CommitLog[T])(implicit sched: Scheduler) extends CommitLog[T] {
+  case class ObservableLog[T, L <: CommitLog[T]](underlying: L)(implicit sched: Scheduler) extends CommitLog[T] {
 
     private val (logObserver, logObservable) = Pipe.publish[LogEvent].multicast
 
@@ -43,7 +76,13 @@ object CommitLog {
     }
 
     override def commit(coords: LogCoords): Unit = {
-      ???
+      try {
+        underlying.commit(coords)
+        logObserver.onNext(DataCommitted(coords))
+      } catch {
+        case NonFatal(e) =>
+          logObserver.onError(LogCommitException(coords, e))
+      }
     }
   }
 

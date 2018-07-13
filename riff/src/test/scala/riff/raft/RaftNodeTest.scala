@@ -1,5 +1,7 @@
 package riff.raft
 
+import riff.RiffSpec
+
 class RaftNodeTest extends RiffSpec {
 
   import RaftNodeTest._

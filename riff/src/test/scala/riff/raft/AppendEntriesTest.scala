@@ -1,5 +1,7 @@
 package riff.raft
 
+import riff.RiffSpec
+
 import scala.collection.immutable
 
 class AppendEntriesTest extends RiffSpec {

@@ -1,5 +1,7 @@
 package riff.raft
 
+import riff.RiffSpec
+
 class FollowerNodeTest extends RiffSpec {
   "FollowerNode.onAppendEntries" should {
       val request = AppendEntries[List[String]]("leader", "dave", term = 7, prevIndex = 0, prevTerm = 6, Nil, commitIndex = 0)

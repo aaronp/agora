@@ -1,6 +1,7 @@
-package riff.raft
+package riff
 
 import org.scalatest.{GivenWhenThen, Matchers, WordSpec}
+import riff.raft._
 
 abstract class RiffSpec extends WordSpec with Matchers with GivenWhenThen {
 
@@ -57,11 +58,11 @@ abstract class RiffSpec extends WordSpec with Matchers with GivenWhenThen {
         ValueR(_) :: // voted for
         ValueR(commitIndex) :: peers =>
         val data = NodeData(
-          currentTerm = currentTerm.toInt,
+          leaderOpinion = LeaderOpinion.Unknown(name, currentTerm.toInt),
           commitIndex = commitIndex.toInt,
           peersByName = parsePeers(peers.tail)
         )
-        LeaderNode(name, data)
+        LeaderNode(data, CommitLogState.Empty)
 
       case other => sys.error(s"Couldn't parse $other")
     }
