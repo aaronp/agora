@@ -3,7 +3,13 @@ package riff.raft
 import scala.collection.immutable
 
 sealed trait RaftMessage
-
+sealed trait RaftReply extends RaftMessage
+sealed trait RaftRequest extends RaftMessage {
+  type Reply <: RaftReply
+}
+object RaftRequest {
+  type Aux[A] <: RaftRequest { type Reply = A }
+}
 
 /**
   * When an AppendEntries request is received by a follower,
@@ -17,7 +23,9 @@ sealed trait RaftMessage
   * @param commitIndex the index of the latest committed append
   * @tparam T
   */
-case class AppendEntries[T](from: String, to: String, term: Int, prevIndex: Int, prevTerm: Int, entries: T, commitIndex: Int) extends RaftMessage
+case class AppendEntries[T](from: String, to: String, term: Int, prevIndex: Int, prevTerm: Int, entries: T, commitIndex: Int) extends RaftRequest {
+  override type Reply = AppendEntriesReply
+}
 
 object AppendEntries {
 
@@ -44,7 +52,9 @@ object AppendEntries {
   }
 }
 
-case class RequestVote(from: String, to: String, term: Int, lastLogIndex: Int, lastLogTerm: Int) extends RaftMessage
+case class RequestVote(from: String, to: String, term: Int, lastLogIndex: Int, lastLogTerm: Int) extends RaftRequest {
+  override type Reply = RequestVoteReply
+}
 
 object RequestVote {
 
@@ -64,9 +74,8 @@ object RequestVote {
   }
 }
 
-sealed trait RaftReply extends RaftMessage
 
-case class RequestVoteReply(from: String, to: String, sent: Long, term: Int, granted: Boolean) extends RaftReply
+case class RequestVoteReply(from: String, to: String, term: Int, granted: Boolean) extends RaftReply
 
-case class AppendEntriesReply(from: String, to: String, sent: Long, term: Int, success: Boolean, matchIndex: Int) extends RaftReply
+case class AppendEntriesReply(from: String, to: String, term: Int, success: Boolean, matchIndex: Int) extends RaftReply
 

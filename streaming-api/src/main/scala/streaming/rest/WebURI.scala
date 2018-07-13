@@ -1,5 +1,6 @@
 package streaming.rest
 
+import streaming.rest.HttpMethod._
 import streaming.rest.WebURI._
 
 /** Meant to be used when declaring routes.
@@ -68,6 +69,7 @@ object WebURI {
   def put(uri: String): WebURI = WebURI(PUT, Part(uri))
   def post(uri: String): WebURI = WebURI(POST, Part(uri))
   def head(uri: String): WebURI = WebURI(HEAD, Part(uri))
+  def option(uri: String): WebURI = WebURI(OPTION, Part(uri))
 
   def apply(method : HttpMethod, uri: String): WebURI = new WebURI(method, Part(uri))
 

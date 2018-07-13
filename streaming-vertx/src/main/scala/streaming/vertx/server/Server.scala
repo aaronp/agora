@@ -7,6 +7,7 @@ import io.vertx.scala.core.Vertx
 import io.vertx.scala.core.http.{HttpServerRequest, ServerWebSocket}
 import monix.execution.Scheduler
 import streaming.api.HostPort
+import streaming.rest.WebURI
 
 import scala.concurrent.duration.Duration
 

@@ -1,4 +1,4 @@
-package riff.airc
+package riff.raft
 
 /**
   * Represents the coords of a log entry

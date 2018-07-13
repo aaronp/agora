@@ -9,6 +9,14 @@ class ObservableTest extends BaseStreamingApiSpec {
   "Observables.merge, switch and interleve, scan" ignore {
 
   }
+  "Observables.flatten" should {
+
+    "produce all the elements from the various observables" in {
+      val list = Observable(Observable(1, 2), Observable(3, 4), Observable(5, 6)).flatten.toListL.runSyncUnsafe(testTimeout)
+      list should contain allOf(1, 2, 3, 4, 5, 6)
+    }
+
+  }
   "Observables.toList on a take restricted observable" should {
     "take two" in {
 

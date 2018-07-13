@@ -21,14 +21,16 @@ sealed trait RaftNode extends HasNodeData {
 
   def withPeers(peers: Peer*): Self = withPeers(peers.map(p => p.name -> p).toMap)
 
-  def clusterSize: Int = peersByName.size + 1
+  final def clusterSize: Int = peersByName.size + 1
 
-  def onAppendEntries[T](append: AppendEntries[T], now: Long): (RaftNode, AppendEntriesReply)
+  final def clusterNodes: Set[String] = peersByName.keySet + name
 
-  def onRequestVoteReply(requestVote: RequestVoteReply, logState : CommitLogState, now: Long): RaftNode = this
+  def onAppendEntries[T](append: AppendEntries[T]): (RaftNode, AppendEntriesReply)
 
-  def onRequestVote(requestVote: RequestVote, now: Long): (RaftNode, RequestVoteReply) = {
-    def reply(ok: Boolean) = RequestVoteReply(name, requestVote.from, now, requestVote.term, ok)
+  def onRequestVoteReply(requestVote: RequestVoteReply, logState : CommitLogState): RaftNode = this
+
+  def onRequestVote(requestVote: RequestVote): (RaftNode, RequestVoteReply) = {
+    def reply(ok: Boolean) = RequestVoteReply(name, requestVote.from, requestVote.term, ok)
 
     if (requestVote.term > currentTerm) {
       FollowerNode(data.updated(newLeaderOpinion = LeaderOpinion.TheLeaderIs(requestVote.from, requestVote.term)), votedFor = Option(requestVote.from)) -> reply(true)
@@ -37,8 +39,8 @@ sealed trait RaftNode extends HasNodeData {
     }
   }
 
-  protected def mkAppendReply[T](append: AppendEntries[T], now: Long, ok: Boolean): AppendEntriesReply = {
-    AppendEntriesReply(name, append.from, now, currentTerm, ok, matchIndex = commitIndex + 1)
+  protected def mkAppendReply[T](append: AppendEntries[T], ok: Boolean): AppendEntriesReply = {
+    AppendEntriesReply(name, append.from, currentTerm, ok, matchIndex = commitIndex + 1)
   }
 
   override def toString: String = format(this)
@@ -66,25 +68,24 @@ final case class FollowerNode(override val data: NodeData, votedFor: Option[Stri
     * and update its term.
     *
     * @param append
-    * @param now
     * @tparam T
     * @return
     */
-  override def onAppendEntries[T](append: AppendEntries[T], now: Long): (FollowerNode, AppendEntriesReply) = {
+  override def onAppendEntries[T](append: AppendEntries[T]): (FollowerNode, AppendEntriesReply) = {
 
     currentTerm match {
       case t if t == append.term =>
-        this -> mkAppendReply(append, now, append.commitIndex == commitIndex)
+        this -> mkAppendReply(append, append.commitIndex == commitIndex)
       case t if t < append.term =>
         // we're out-of-sync
-        copy(data = data.updated(newLeaderOpinion = LeaderOpinion.TheLeaderIs(append.from, append.term)), votedFor = None) -> mkAppendReply(append, now, false)
+        copy(data = data.updated(newLeaderOpinion = LeaderOpinion.TheLeaderIs(append.from, append.term)), votedFor = None) -> mkAppendReply(append, false)
       case _ => // ignore
-        this -> mkAppendReply(append, now, false)
+        this -> mkAppendReply(append, false)
     }
   }
 
-  override def onRequestVote(requestFromCandidate: RequestVote, now: Long): (FollowerNode, RequestVoteReply) = {
-    def reply(ok: Boolean) = RequestVoteReply(from = name, to = requestFromCandidate.from, sent = now, term = currentTerm, granted = ok)
+  override def onRequestVote(requestFromCandidate: RequestVote): (FollowerNode, RequestVoteReply) = {
+    def reply(ok: Boolean) = RequestVoteReply(from = name, to = requestFromCandidate.from, term = currentTerm, granted = ok)
 
     votedFor match {
       case _ if requestFromCandidate.term > currentTerm =>
@@ -98,29 +99,29 @@ final case class FollowerNode(override val data: NodeData, votedFor: Option[Stri
     }
   }
 
-  def onElectionTimeout(now: Long): CandidateNode = CandidateNode(data.incTerm, now)
+  def onElectionTimeout(): CandidateNode = CandidateNode(data.incTerm)
 
 }
 
-final case class CandidateNode(override val data: NodeData, electionTimedOutAt: Long) extends RaftNode {
+final case class CandidateNode(override val data: NodeData) extends RaftNode {
   override val role: NodeRole = NodeRole.Candidate
   override val isCandidate = true
 
-  override def onAppendEntries[T](append: AppendEntries[T], now: Long): (RaftNode, AppendEntriesReply) = {
+  override def onAppendEntries[T](append: AppendEntries[T]): (RaftNode, AppendEntriesReply) = {
 
     currentTerm match {
       case t if t == append.term =>
-        this -> mkAppendReply(append, now, append.commitIndex == commitIndex)
+        this -> mkAppendReply(append, append.commitIndex == commitIndex)
       case t if t < append.term =>
         // we're out-of-sync
         val newNode = FollowerNode(data.updated(newLeaderOpinion = LeaderOpinion.TheLeaderIs(append.from, append.term)), votedFor = None)
-        newNode -> mkAppendReply(append, now, false)
+        newNode -> mkAppendReply(append, false)
       case _ => // ignore appends before us
-        this -> mkAppendReply(append, now, false)
+        this -> mkAppendReply(append, false)
     }
   }
 
-  override def onRequestVoteReply(reply: RequestVoteReply, logState : CommitLogState, now: Long): RaftNode = {
+  override def onRequestVoteReply(reply: RequestVoteReply, logState : CommitLogState): RaftNode = {
     peersByName.get(reply.from).fold(this: RaftNode) { peer =>
       if (reply.term == currentTerm) {
         val newPeer = peer.copy(voteGranted = reply.granted)
@@ -156,6 +157,8 @@ object CandidateNode {
 
 final case class LeaderNode(override val data: NodeData, logState : CommitLogState) extends RaftNode {
 
+  def logCoords = LogCoords(currentTerm, logState.commitIndex)
+
   def makeAppend[T](data : T): Seq[AppendEntries[T]] = {
     val appends = peersByName.values.collect {
       case peer if peer.matchIndex == logState.commitIndex =>
@@ -178,15 +181,15 @@ final case class LeaderNode(override val data: NodeData, logState : CommitLogSta
 
   override val isLeader = true
 
-  override def onAppendEntries[T](append: AppendEntries[T], now: Long): (RaftNode, AppendEntriesReply) = {
+  override def onAppendEntries[T](append: AppendEntries[T]): (RaftNode, AppendEntriesReply) = {
 
     currentTerm match {
       case t if t < append.term =>
         // we're out-of-sync
         val newNode = FollowerNode(data.updated(newLeaderOpinion = LeaderOpinion.TheLeaderIs(append.from, append.term)), votedFor = None)
-        newNode -> mkAppendReply(append, now, false)
+        newNode -> mkAppendReply(append, false)
       case _ => // ignore appends before us
-        this -> mkAppendReply(append, now, false)
+        this -> mkAppendReply(append, false)
     }
   }
 
