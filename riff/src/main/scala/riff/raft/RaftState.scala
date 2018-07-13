@@ -1,5 +1,6 @@
 package riff.raft
 
+import cats.free.Free
 import riff.raft.RaftState._
 
 import scala.reflect.ClassTag
@@ -12,11 +13,15 @@ import scala.reflect.ClassTag
   * @param actions
   * @tparam T
   */
-final case class RaftState[T: IsEmpty : ClassTag](node: RaftNode, logState : CommitLogState, actions: Iterable[ActionResult] = Nil) {
+final case class RaftState[T: IsEmpty : ClassTag](node: RaftNode, logState: CommitLogState, actions: Iterable[ActionResult] = Nil) {
 
   private val empty = IsEmpty[T].empty
 
-  def update(action: RaftState.Action, now: Long): RaftState[T] = {
+  def asLeader: Option[LeaderNode] = Option(node).collect {
+    case leader: LeaderNode => leader
+  }
+
+  def update(action: RaftState.Action[_], now: Long): RaftState[T] = {
     action match {
       case MessageReceived(appendEntries: AppendEntries[T]) => onAppend(appendEntries, now)
       case MessageReceived(requestVote: RequestVote) => onRequestVote(requestVote, now)
@@ -82,24 +87,54 @@ final case class RaftState[T: IsEmpty : ClassTag](node: RaftNode, logState : Com
 
 object RaftState {
 
-  def of[T: IsEmpty : ClassTag](name: String, logState : CommitLogState = CommitLogState.Empty): RaftState[T] = RaftState(RaftNode(name), logState, Nil)
+  def of[T: IsEmpty : ClassTag](name: String, logState: CommitLogState = CommitLogState.Empty): RaftState[T] = RaftState(RaftNode(name), logState, Nil)
 
-  sealed trait Action
+  sealed trait Action[A]
 
-  case object OnElectionTimeout extends Action
+  object Action {
+    def onElectionTimeout: Free[Action, RequestVote] = Free.liftF(OnElectionTimeout)
 
-  final case class MessageReceived(msg: RaftMessage) extends Action
+    def onMsg(msg: RaftMessage): Free[Action, List[RaftMessage]] = Free.liftF(MessageReceived(msg))
 
-  final case class AddClusterNode(node: Peer) extends Action
+    def addNode(name: String): Free[Action, Boolean] = Free.liftF(AddClusterNode(Peer(name)))
 
-  final case class RemoveClusterNode(node: String) extends Action
+    def removeNode(name: String): Free[Action, Boolean] = Free.liftF(RemoveClusterNode(name))
+
+    /**
+      * Append some data.
+      *
+      * If the state is the leader node, then it will create 1 or more [[AppendLogEntry]] messages (to ourselves and the cluster members)
+      *
+      * @param state
+      * @param data
+      * @tparam T
+      * @return
+      */
+    def append[T](state: RaftState[T], data: T) = {
+      state.asLeader.map(_.makeAppend(data))
+    }
+  }
+
+  case object OnElectionTimeout extends Action[RequestVote]
+
+  final case class MessageReceived(msg: RaftMessage) extends Action[List[RaftMessage]]
+
+  final case class AddClusterNode(node: Peer) extends Action[Boolean]
+
+  final case class RemoveClusterNode(node: String) extends Action[Boolean]
 
   sealed trait ActionResult
+
   case class LogMessage(explanation: String, warn: Boolean = false) extends ActionResult
+
   final case class SendMessage(msg: RaftMessage) extends ActionResult
+
   final case class AppendLogEntry[T](term: Int, index: Int, data: T) extends ActionResult
+
   final case class CommitLogEntry(term: Int, index: Int) extends ActionResult
+
   final case object ResetSendHeartbeatTimeout extends ActionResult
+
   final case object ResetElectionTimeout extends ActionResult
 
 }
