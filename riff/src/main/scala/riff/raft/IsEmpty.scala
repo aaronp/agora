@@ -2,7 +2,10 @@ package riff.raft
 
 import simulacrum.typeclass
 
-@typeclass trait IsEmpty[T] {
+import scala.reflect.ClassTag
+
+//@typeclass
+trait IsEmpty[T] {
   def isEmpty(value : T) : Boolean
 
   def nonEmpty(value : T) : Boolean = !isEmpty(value)
@@ -11,11 +14,12 @@ import simulacrum.typeclass
 }
 
 object IsEmpty {
+  def instance[T](implicit ie : IsEmpty[T]): IsEmpty[T] = ie
   implicit object StringIsEmpty extends IsEmpty[String] {
     override def isEmpty(value: String): Boolean = value.isEmpty
     override def empty: String = ""
   }
-  implicit def asArrayIsEmpty[T] = new IsEmpty[Array[T]] {
+  implicit def asArrayIsEmpty[T : ClassTag] = new IsEmpty[Array[T]] {
     override def isEmpty(value: Array[T]): Boolean = value.isEmpty
     override def empty: Array[T] = Array.empty[T]
   }

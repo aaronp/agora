@@ -59,10 +59,10 @@ abstract class RiffSpec extends WordSpec with Matchers with GivenWhenThen {
         ValueR(commitIndex) :: peers =>
         val data = NodeData(
           leaderOpinion = LeaderOpinion.Unknown(name, currentTerm.toInt),
-          commitIndex = commitIndex.toInt,
+          uncommittedLogIndex = commitIndex.toInt,
           peersByName = parsePeers(peers.tail)
         )
-        LeaderNode(data, CommitLogState.Empty)
+        LeaderNode(data)
 
       case other => sys.error(s"Couldn't parse $other")
     }

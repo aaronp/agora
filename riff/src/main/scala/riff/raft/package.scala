@@ -6,8 +6,8 @@ package object raft {
   def format(node : RaftNode): String = {
 
     val votedForString: String = node match {
-      case FollowerNode(_, _, Some(name)) => name
-      case FollowerNode(_, _, None) => "N/A"
+      case FollowerNode(_, Some(name)) => name
+      case FollowerNode(_, None) => "N/A"
       case _ => node.name
     }
 
@@ -36,7 +36,7 @@ package object raft {
        |        role : $role
        |current term : $currentTerm
        |   voted for : $votedForString
-       |commit index : $commitIndex$peersString
+       |commit index : $uncommittedLogIndex$peersString
        |""".stripMargin
   }
 }

@@ -28,7 +28,7 @@ class LeaderNodeTest extends RiffSpec {
         ae.commitIndex shouldBe 0
       }
 
-      val newLeader: LeaderNode = leader.onAppendEntriesReply(AppendEntriesReply("second", "leader", 0, term = 2, success = true, matchIndex = 0))
+      val newLeader: LeaderNode = leader.onAppendEntriesReply(AppendEntriesReply("second", "leader", term = 2, success = true, matchIndex = 0))
 
       newLeader shouldBe leader"""
            >        name : leader

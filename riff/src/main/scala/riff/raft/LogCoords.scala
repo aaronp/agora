@@ -5,4 +5,7 @@ package riff.raft
   * @param term
   * @param index
   */
-final case class LogCoords(term : Int, index : Int)
+final case class LogCoords(term : Int, index : Int) {
+  def inc: LogCoords = copy(index + 1)
+
+}

@@ -9,7 +9,7 @@ trait HasNodeData {
 
   def name: String = data.name
 
-  def commitIndex: Int = data.commitIndex
+  def uncommittedLogIndex: Int = data.uncommittedLogIndex
 
   def peersByName: Map[String, Peer] = data.peersByName
 
@@ -18,7 +18,7 @@ trait HasNodeData {
 
 
 final case class NodeData(override val leaderOpinion: LeaderOpinion,
-                          override val commitIndex: Int,
+                          override val uncommittedLogIndex: Int,
                           override val peersByName: Map[String, Peer]) extends HasNodeData {
   require(currentTerm > 0)
 
@@ -34,8 +34,8 @@ final case class NodeData(override val leaderOpinion: LeaderOpinion,
 
   def incTerm: NodeData = updated(newLeaderOpinion = LeaderOpinion.ImACandidate(name, currentTerm + 1))
 
-  def updated(newLeaderOpinion: LeaderOpinion = leaderOpinion, newIndex: Int = commitIndex): NodeData = {
-    copy(leaderOpinion = newLeaderOpinion, commitIndex = newIndex)
+  def updated(newLeaderOpinion: LeaderOpinion = leaderOpinion, newIndex: Int = uncommittedLogIndex): NodeData = {
+    copy(leaderOpinion = newLeaderOpinion, uncommittedLogIndex = newIndex)
   }
 
 }
@@ -44,7 +44,7 @@ object NodeData {
 
   def apply(name: String): NodeData = new NodeData(
     leaderOpinion = LeaderOpinion.Unknown(name, 1),
-    commitIndex = 0,
+    uncommittedLogIndex = 0,
     peersByName = Map.empty
   )
 }

@@ -58,15 +58,15 @@ case class RequestVote(from: String, to: String, term: Int, lastLogIndex: Int, l
 
 object RequestVote {
 
-  def apply(node: CandidateNode): immutable.Iterable[RequestVote] = {
+  def apply(node: CandidateNode): Seq[RequestVote] = {
     node.peersByName.map {
       case (to, peer) =>
         require(to == peer.name)
         RequestVote.createForPeer(node.name, node.currentTerm, peer)
-    }
+    }.toSeq
   }
 
-  def createForPeer(from: String, currentTerm: Int, peer: Peer) = {
+  def createForPeer(from: String, currentTerm: Int, peer: Peer): RequestVote = {
     RequestVote(from, peer.name,
       term = currentTerm,
       lastLogIndex = peer.matchIndex,

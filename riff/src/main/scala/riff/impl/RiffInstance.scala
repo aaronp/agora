@@ -1,5 +1,7 @@
 package riff.impl
 
+import java.util.concurrent.TimeUnit
+
 import com.typesafe.scalalogging.StrictLogging
 import monix.execution.Scheduler
 import monix.execution.atomic.{Atomic, AtomicAny}
@@ -9,16 +11,21 @@ import riff._
 import riff.raft.RaftState._
 import riff.raft._
 
-class RiffInstance[A: IsEmpty, T](initial: RaftState[A], send: Send[Observable], commitLog: CommitLog[A])(implicit sched: Scheduler) extends Riff[A] with StrictLogging {
+class RiffInstance[A: IsEmpty, T](initial: RaftState[A],
+                                  send: RaftClusterClient[Observable],
+                                  commitLog: CommitLog[A],
+                                  timer : RaftTimer)(implicit sched: Scheduler) extends Riff[A] with StrictLogging {
   private val stateRef: AtomicAny[RaftState[A]] = Atomic(initial)
 
   private val (membershipObserver, membershipObservable) = Pipe.publish[ClusterEvent].multicast
-  //private val (appendObserver, appendObservable) = Pipe.publish[AppendResult].multicast
+
+  private var sendHeartbeatTimeoutOpt : Option[timer.C] = None
+  private var receivedHeartbeatTimeoutOpt : Option[timer.C] = None
 
   override def membership: Publisher[ClusterEvent] = {
     stateRef.transformAndExtract[Publisher[ClusterEvent]] { state =>
-      val adds = Observable(state.node.clusterNodes.map(ClusterEvent.nodeAdded))
-      val all = adds ++ membershipObservable
+      val adds: Observable[NodeAdded] = Observable.fromIterable(state.node.clusterNodes.map(ClusterEvent.nodeAdded))
+      val all: Observable[ClusterEvent] = adds ++ membershipObservable
       all.toReactivePublisher[ClusterEvent] -> state
     }
   }
@@ -30,23 +37,32 @@ class RiffInstance[A: IsEmpty, T](initial: RaftState[A], send: Send[Observable],
           val pear = (Option.empty[LogCoords], state.node.clusterSize, Observable.raiseError(state.node.leaderOpinion.asError))
           pear -> state
         case Some(leader) =>
-          val entries: Seq[AppendEntries[A]] = leader.makeAppend(data)
-          val pear = (Option(leader.logCoords), leader.clusterSize, Observable.fromIterable(entries))
-          pear -> state
+
+//          val commitLogState = commitLog.append(data)
+//
+//          val entries: Seq[AppendEntries[A]] = leader.makeAppend(data, commitLogState)
+//          val pear = (Option(logCoords), leader.clusterSize, Observable.fromIterable(entries))
+//          pear -> state
+          ???
       }
     }
 
-    val replies: Observable[AppendEntriesReply] = entries.concatMapDelayErrors { entry =>
-      send(entry)
+    val replies = entries.concatMapDelayErrors { entry =>
+      send(entry).collect {
+        case r : AppendEntriesReply => r
+      }
     }
 
     logCoordOps match {
       case None =>
-        entries.toReactivePublisher[AppendResult]
+        entries.map { r =>
+          val res  : AppendResult = ???
+          res
+        }.toReactivePublisher[AppendResult]
       case Some(logCoords) =>
         val appendResults: Observable[AppendResult] = replies.foldLeftF(AppendResult(logCoords, Map.empty, clusterSize)) {
           case (aer, reply) =>
-            update(reply)
+            onMessage(reply)
             aer.copy(appended = aer.appended.updated(reply.from, reply.success))
         }
         appendResults.toReactivePublisher[AppendResult]
@@ -54,24 +70,37 @@ class RiffInstance[A: IsEmpty, T](initial: RaftState[A], send: Send[Observable],
 
   }
 
-  def trigger(action: RaftState.ActionResult) = {
+  private def triggerInLock(action: RaftState.ActionResult) = {
     logger.debug(s"trigger($action)")
     action match {
       case LogMessage(explanation, true) => logger.warn(explanation)
       case LogMessage(explanation, false) => logger.info(explanation)
-      case SendMessage(msg) => send(msg).foreach(update)
+      case SendMessage(msg) => send(msg).foreach(onMessage)
       case AppendLogEntry(coords, data: A) => commitLog.append(coords, data)
       case CommitLogEntry(coords) => commitLog.commit(coords)
       case ResetSendHeartbeatTimeout =>
+        val c = timer.resetSendHeartbeatTimeout(this, sendHeartbeatTimeoutOpt)
+        sendHeartbeatTimeoutOpt = Option(c)
       case ResetElectionTimeout =>
+        val c = timer.resetReceiveHeartbeatTimeout(this, receivedHeartbeatTimeoutOpt)
+        receivedHeartbeatTimeoutOpt = Option(c)
     }
   }
 
-  private def update(msg: RaftMessage) = {
+
+  override def onSendHeartbeatTimeout(): Unit = {
+    update(RaftState.OnSendHeartbeatTimeout)
+  }
+
+  override def onReceiveHeartbeatTimeout(): Unit = ???
+
+  private def onMessage(msg: RaftMessage): Unit = update(RaftState.MessageReceived(msg))
+
+  private def update(msg: RaftState.Action[_]) = {
     logger.debug(s"update($msg)")
     stateRef.transform { state =>
-      val (newState, action) = state.onMessage(msg)
-      action.foreach(trigger)
+      val (newState, action) = state.update(msg, sched.clockRealTime(TimeUnit.MILLISECONDS))
+      action.foreach(triggerInLock)
       newState
     }
   }

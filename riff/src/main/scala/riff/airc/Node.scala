@@ -43,7 +43,7 @@ object runobs {
 
   def genAppend[T](data : T, leader: LeaderNode) = {
     val x: Dsl[LogCoords] = appendData(data, leader)
-    val entries: Seq[AppendEntries[T]] = leader.makeAppend(data)
+//    val entries: Seq[AppendEntries[T]] = leader.makeAppend(data)
 //    x.analyze(ae => insert(ae))
   }
 }
