@@ -6,14 +6,12 @@ import streaming.api.reactive.LastReceivedObserver
 
 class ObservableTest extends BaseStreamingApiSpec {
 
-  "Observables.merge, switch and interleve, scan" ignore {
-
-  }
+  "Observables.merge, switch and interleve, scan" ignore {}
   "Observables.flatten" should {
 
     "produce all the elements from the various observables" in {
       val list = Observable(Observable(1, 2), Observable(3, 4), Observable(5, 6)).flatten.toListL.runSyncUnsafe(testTimeout)
-      list should contain allOf(1, 2, 3, 4, 5, 6)
+      list should contain allOf (1, 2, 3, 4, 5, 6)
     }
 
   }
@@ -31,22 +29,26 @@ class ObservableTest extends BaseStreamingApiSpec {
       val (from, pipeTo: Observable[String]) = Pipe.replay[String].multicast
 
       def pimp[T](prefix: String, obs: Observable[T]): Observable[T] = {
-        obs.doOnNext { n =>
-          println(s"  [$prefix.onNext] : $n")
-        }.doOnError { e =>
-          println(s"  [$prefix.onError] : $e")
-        }.doOnComplete { () =>
-          println(s"  [$prefix.onComplete] ")
-        }.doOnEarlyStop { () =>
-          println(s"  [$prefix.onEarluStop] ")
-        }.doOnNextAck {
-          case (n, ack) =>
-            println(s"  [$prefix.onNextAck($n, $ack)] ")
-        }
+        obs
+          .doOnNext { n =>
+            println(s"  [$prefix.onNext] : $n")
+          }
+          .doOnError { e =>
+            println(s"  [$prefix.onError] : $e")
+          }
+          .doOnComplete { () =>
+            println(s"  [$prefix.onComplete] ")
+          }
+          .doOnEarlyStop { () =>
+            println(s"  [$prefix.onEarluStop] ")
+          }
+          .doOnNextAck {
+            case (n, ack) =>
+              println(s"  [$prefix.onNextAck($n, $ack)] ")
+          }
       }
 
       val to = pimp("to", pipeTo)
-
 
       val invocations = pimp("foldLeft", to.foldLeftF(List[String]()) {
         case (list, string) =>
@@ -80,7 +82,7 @@ class ObservableTest extends BaseStreamingApiSpec {
 
       def consume(n: Int) = {
         val firstList: Task[List[List[String]]] = pimp(s"take($n)", onlyLatest.take(n)).toListL
-        val aa = firstList.runSyncUnsafe(testTimeout * 10)
+        val aa                                  = firstList.runSyncUnsafe(testTimeout * 10)
         println(s"consuming $n produces: " + aa.flatten)
       }
 
@@ -99,7 +101,7 @@ class ObservableTest extends BaseStreamingApiSpec {
 
       println("completeing...")
       doneF.onComplete(_ => from.onComplete())
-      val cnt = onlyLatest.doOnNext(println).countL
+      val cnt         = onlyLatest.doOnNext(println).countL
       val total: Long = cnt.runSyncUnsafe(testTimeout)
       println(total)
       if (total > 3) {

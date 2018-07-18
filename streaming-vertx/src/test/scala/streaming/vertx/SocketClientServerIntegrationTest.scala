@@ -8,18 +8,17 @@ import monix.execution.Cancelable
 import streaming.api._
 import streaming.api.sockets.WebFrame
 import streaming.rest.EndpointCoords
-import streaming.vertx.client.Client
+import streaming.vertx.client.SocketClient
 import streaming.vertx.server.{Server, ServerEndpoint}
 
 import scala.collection.mutable.ListBuffer
 
-class ClientServerIntegrationTest extends BaseStreamingApiSpec with StrictLogging {
+class SocketClientServerIntegrationTest extends BaseStreamingApiSpec with StrictLogging {
 
-  "Server.start / Client.connect" should {
+  "Server.start / SocketClient.connect" should {
     "route endpoints accordingly" in {
       val port = 1236
       val UserIdR = "/user/(.*)".r
-
 
       val started: ScalaVerticle = Server.start(port) {
         case "/admin" => endpt =>
@@ -32,7 +31,7 @@ class ClientServerIntegrationTest extends BaseStreamingApiSpec with StrictLoggin
 
       try {
         var adminResults: List[String] = null
-        val admin = Client.connect(EndpointCoords.get(port, "/admin"), "test admin client") { endpoint =>
+        val admin = SocketClient.connect(EndpointCoords.get(port, "/admin"), "test admin client") { endpoint =>
           endpoint.toRemote.onNext(WebFrame.text("already, go!"))
           endpoint.toRemote.onComplete()
 
@@ -50,9 +49,9 @@ class ClientServerIntegrationTest extends BaseStreamingApiSpec with StrictLoggin
 
 
         val resultsByUser = new java.util.concurrent.ConcurrentHashMap[String, List[String]]()
-        val clients: Seq[Client] = Seq("Alice", "Bob", "Dave").zipWithIndex.map {
+        val clients: Seq[SocketClient] = Seq("Alice", "Bob", "Dave").zipWithIndex.map {
           case (user, i) =>
-            Client.connect(EndpointCoords.get(port, s"/user/$user")) { endpoint =>
+            SocketClient.connect(EndpointCoords.get(port, s"/user/$user")) { endpoint =>
               endpoint.toRemote.onNext(WebFrame.text(s"client $user ($i) sending message")).onComplete { _ =>
                 endpoint.toRemote.onComplete()
               }
@@ -98,15 +97,15 @@ class ClientServerIntegrationTest extends BaseStreamingApiSpec with StrictLoggin
       }
 
       val started: ScalaVerticle = Server.startSocket(port)(chat)
-      var c: Client = null
+      var c: SocketClient = null
       try {
 
         val gotFive = new CountDownLatch(5)
-        c = Client.connect(EndpointCoords.get(port, "/some/path")) { endpoint =>
+        c = SocketClient.connect(EndpointCoords.get(port, "/some/path")) { endpoint =>
           endpoint.toRemote.onNext(WebFrame.text("from client"))
           endpoint.fromRemote.zipWithIndex.foreach {
             case (frame, i) =>
-              logger.debug(s"$i Client got : " + frame)
+              logger.debug(s"$i SocketClient got : " + frame)
               messagesReceivedByTheClient += frame.asText.getOrElse("non-text message received from server")
               gotFive.countDown()
               endpoint.toRemote.onNext(WebFrame.text(s"client sending: $i"))
@@ -167,7 +166,7 @@ class ClientServerIntegrationTest extends BaseStreamingApiSpec with StrictLoggin
         }
       }
 
-      val c: Client = Client.connect(EndpointCoords.get(port, "/some/path")) { endpoint =>
+      val c: SocketClient = SocketClient.connect(EndpointCoords.get(port, "/some/path")) { endpoint =>
         endpoint.fromRemote.foreach { msg =>
           msg.asText.foreach(fromServer = _)
           receivedFromServer.countDown()

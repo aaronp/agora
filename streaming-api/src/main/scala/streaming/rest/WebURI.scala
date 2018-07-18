@@ -13,23 +13,23 @@ import streaming.rest.WebURI._
   *
   * @param uri the uri parts
   */
-case class WebURI(method : HttpMethod, uri: List[Part]) {
+case class WebURI(method: HttpMethod, uri: List[Part]) {
 
   override def toString = s"$method ${uri.mkString("/")}"
 
   /**
     * Used to resolve the route uri to a string
     * @param params
-    * @return
+    * @return a Left of an error or a Right containing the uri parts
     */
   def resolve(params: Map[String, String] = Map.empty): Either[String, List[String]] = {
     import cats.syntax.either._
 
-
     val either: Either[String, List[String]] = uri.foldLeft(List[String]().asRight[String]) {
-      case (Right(list), ParamPart(key)) => params.get(key).map(_ :: list).toRight {
-        s"The supplied parameters doesn't contain an entry for '$key"
-      }
+      case (Right(list), ParamPart(key)) =>
+        params.get(key).map(_ :: list).toRight {
+          s"The supplied parameters doesn't contain an entry for '$key"
+        }
       case (Right(list), ConstPart(key)) => Right(key :: list)
     }
     either.map(_.reverse)
@@ -49,7 +49,7 @@ object WebURI {
     private def asPart(str: String): Part = {
       str match {
         case ParamR(n) => ParamPart(n)
-        case n => ConstPart(n)
+        case n         => ConstPart(n)
       }
     }
 
@@ -64,14 +64,14 @@ object WebURI {
     override def toString = name
   }
 
-  def get(uri: String): WebURI = WebURI(GET, Part(uri))
-  def delete(uri: String): WebURI = WebURI(DELETE, Part(uri))
-  def put(uri: String): WebURI = WebURI(PUT, Part(uri))
-  def post(uri: String): WebURI = WebURI(POST, Part(uri))
-  def head(uri: String): WebURI = WebURI(HEAD, Part(uri))
-  def option(uri: String): WebURI = WebURI(OPTION, Part(uri))
+  def get(uri: String): WebURI     = WebURI(GET, Part(uri))
+  def delete(uri: String): WebURI  = WebURI(DELETE, Part(uri))
+  def put(uri: String): WebURI     = WebURI(PUT, Part(uri))
+  def post(uri: String): WebURI    = WebURI(POST, Part(uri))
+  def head(uri: String): WebURI    = WebURI(HEAD, Part(uri))
+  def options(uri: String): WebURI = WebURI(OPTIONS, Part(uri))
 
-  def apply(method : HttpMethod, uri: String): WebURI = new WebURI(method, Part(uri))
+  def apply(method: HttpMethod, uri: String): WebURI = new WebURI(method, Part(uri))
 
-  def apply(method : HttpMethod, parts: Part*): WebURI = new WebURI(method, parts.toList)
+  def apply(method: HttpMethod, parts: Part*): WebURI = new WebURI(method, parts.toList)
 }

@@ -15,7 +15,7 @@ import streaming.vertx.WebFrameEndpoint
 
 import scala.concurrent.duration.Duration
 
-class Client private(coords: EndpointCoords, client: Handler[WebSocket], impl: Vertx = Vertx.vertx()) extends ScalaVerticle {
+class SocketClient private(coords: EndpointCoords, client: Handler[WebSocket], impl: Vertx = Vertx.vertx()) extends ScalaVerticle {
   vertx = impl
 
   val httpsClient: HttpClient = vertx.createHttpClient.websocket(coords.port, host = coords.host, coords.resolvedUri, client)
@@ -23,20 +23,20 @@ class Client private(coords: EndpointCoords, client: Handler[WebSocket], impl: V
   start()
 }
 
-object Client {
-  def connect(coords: EndpointCoords, name: String = null)(onConnect: Endpoint[WebFrame, WebFrame] => Unit)(implicit timeout: Duration, scheduler: Scheduler): Client = {
+object SocketClient {
 
+  def connect(coords: EndpointCoords, name: String = null)(onConnect: Endpoint[WebFrame, WebFrame] => Unit)(implicit timeout: Duration, scheduler: Scheduler): SocketClient = {
     val counter = new AtomicInteger(0)
     val handler = new Handler[WebSocket] with StrictLogging {
       override def handle(event: WebSocket): Unit = {
-        val nonNullName = Option(name).getOrElse(s"Client to $coords") + s"#${counter.incrementAndGet()}"
+        val nonNullName = Option(name).getOrElse(s"SocketClient to $coords") + s"#${counter.incrementAndGet()}"
         logger.info(s"$nonNullName connected to socket")
         val (fromRemote, toRemote) = WebFrameEndpoint.replay(nonNullName, event)
         onConnect(Endpoint(fromRemote, toRemote))
       }
     }
 
-    new Client(coords, handler)
+    new SocketClient(coords, handler)
 
   }
 }

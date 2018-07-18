@@ -28,10 +28,10 @@ object Server {
     start(HostPort.localhost(port), LoggingHandler, websocketHandler)
   }
 
-  def start(port: Int, nullableName : String = null)(onConnect: PartialFunction[String, OnConnect])(implicit timeout: Duration, scheduler: Scheduler): ScalaVerticle = {
+  def start(port: Int, requestHandler: Handler[HttpServerRequest] = LoggingHandler, nullableName : String = null)(onConnect: PartialFunction[String, OnConnect])(implicit timeout: Duration, scheduler: Scheduler): ScalaVerticle = {
     val name = Option(nullableName).getOrElse("general")
     val websocketHandler = RoutingSocketHandler(onConnect.andThen(ServerWebSocketHandler.replay(name)))
-    start(HostPort.localhost(port), LoggingHandler, websocketHandler)
+    start(HostPort.localhost(port), requestHandler, websocketHandler)
   }
 
   def start(hostPort: HostPort, requestHandler: Handler[HttpServerRequest])(socketByRoute: PartialFunction[String, Handler[ServerWebSocket]]): ScalaVerticle = {
@@ -39,10 +39,8 @@ object Server {
   }
 
   def start(hostPort: HostPort, requestHandler: Handler[HttpServerRequest], socketHandler: Handler[ServerWebSocket]): ScalaVerticle = {
-
     object Server extends ScalaVerticle {
       vertx = Vertx.vertx()
-
 
       override def start(): Unit = {
         vertx
