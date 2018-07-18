@@ -17,8 +17,26 @@ case class WebURI(method: HttpMethod, uri: List[Part]) {
 
   override def toString = s"$method ${uri.mkString("/")}"
 
+  def unapply(request: (HttpMethod, String)): Option[Map[String, String]] = {
+    request match {
+      case (`method`, requestUri) =>
+        val parts = requestUri.split("/", -1).filterNot(_.isEmpty)
+
+        if (parts.size == uri.size) {
+          val pears = (uri zip parts).collect {
+            case (ParamPart(name), value) => (name, value)
+          }
+          Option(pears.toMap)
+        } else {
+          None
+        }
+      case _ => None
+    }
+  }
+
   /**
     * Used to resolve the route uri to a string
+    *
     * @param params
     * @return a Left of an error or a Right containing the uri parts
     */
@@ -49,7 +67,7 @@ object WebURI {
     private def asPart(str: String): Part = {
       str match {
         case ParamR(n) => ParamPart(n)
-        case n         => ConstPart(n)
+        case n => ConstPart(n)
       }
     }
 
@@ -64,11 +82,16 @@ object WebURI {
     override def toString = name
   }
 
-  def get(uri: String): WebURI     = WebURI(GET, Part(uri))
-  def delete(uri: String): WebURI  = WebURI(DELETE, Part(uri))
-  def put(uri: String): WebURI     = WebURI(PUT, Part(uri))
-  def post(uri: String): WebURI    = WebURI(POST, Part(uri))
-  def head(uri: String): WebURI    = WebURI(HEAD, Part(uri))
+  def get(uri: String): WebURI = WebURI(GET, Part(uri))
+
+  def delete(uri: String): WebURI = WebURI(DELETE, Part(uri))
+
+  def put(uri: String): WebURI = WebURI(PUT, Part(uri))
+
+  def post(uri: String): WebURI = WebURI(POST, Part(uri))
+
+  def head(uri: String): WebURI = WebURI(HEAD, Part(uri))
+
   def options(uri: String): WebURI = WebURI(OPTIONS, Part(uri))
 
   def apply(method: HttpMethod, uri: String): WebURI = new WebURI(method, Part(uri))

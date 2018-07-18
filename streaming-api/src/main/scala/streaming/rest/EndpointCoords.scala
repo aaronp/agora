@@ -25,16 +25,16 @@ case class EndpointCoords(location: HostPort, uri: WebURI, params: Map[String, S
 
 object EndpointCoords {
 
-  def get(port: Int, uri: String, params: Map[String, String] = Map.empty): EndpointCoords =
-    EndpointCoords(HostPort.localhost(port), WebURI(HttpMethod.GET, uri), params)
-  def post(port: Int, uri: String, params: Map[String, String] = Map.empty): EndpointCoords =
-    EndpointCoords(HostPort.localhost(port), WebURI(HttpMethod.POST, uri), params)
-  def put(port: Int, uri: String, params: Map[String, String] = Map.empty): EndpointCoords =
-    EndpointCoords(HostPort.localhost(port), WebURI(HttpMethod.PUT, uri), params)
-  def delete(port: Int, uri: String, params: Map[String, String] = Map.empty): EndpointCoords =
-    EndpointCoords(HostPort.localhost(port), WebURI(HttpMethod.DELETE, uri), params)
-  def head(port: Int, uri: String, params: Map[String, String] = Map.empty): EndpointCoords =
-    EndpointCoords(HostPort.localhost(port), WebURI(HttpMethod.HEAD, uri), params)
+  def get(hostPort : HostPort, uri: String, params: Map[String, String] = Map.empty): EndpointCoords =
+    EndpointCoords(hostPort, WebURI(HttpMethod.GET, uri), params)
+  def post(hostPort : HostPort, uri: String, params: Map[String, String] = Map.empty): EndpointCoords =
+    EndpointCoords(hostPort, WebURI(HttpMethod.POST, uri), params)
+  def put(hostPort : HostPort, uri: String, params: Map[String, String] = Map.empty): EndpointCoords =
+    EndpointCoords(hostPort, WebURI(HttpMethod.PUT, uri), params)
+  def delete(hostPort : HostPort, uri: String, params: Map[String, String] = Map.empty): EndpointCoords =
+    EndpointCoords(hostPort, WebURI(HttpMethod.DELETE, uri), params)
+  def head(hostPort : HostPort, uri: String, params: Map[String, String] = Map.empty): EndpointCoords =
+    EndpointCoords(hostPort, WebURI(HttpMethod.HEAD, uri), params)
 
-  def apply(port: Int, uri: WebURI, params: (String, String)*): EndpointCoords = EndpointCoords(HostPort.localhost(port), uri, params.toMap)
+  def apply(hostPort : HostPort, uri: WebURI, params: (String, String)*): EndpointCoords = EndpointCoords(hostPort, uri, params.toMap)
 }

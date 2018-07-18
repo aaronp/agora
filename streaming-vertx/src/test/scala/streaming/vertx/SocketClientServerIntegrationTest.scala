@@ -31,7 +31,7 @@ class SocketClientServerIntegrationTest extends BaseStreamingApiSpec with Strict
 
       try {
         var adminResults: List[String] = null
-        val admin = SocketClient.connect(EndpointCoords.get(port, "/admin"), "test admin client") { endpoint =>
+        val admin = SocketClient.connect(EndpointCoords.get(HostPort.localhost(port), "/admin"), "test admin client") { endpoint =>
           endpoint.toRemote.onNext(WebFrame.text("already, go!"))
           endpoint.toRemote.onComplete()
 
@@ -51,7 +51,7 @@ class SocketClientServerIntegrationTest extends BaseStreamingApiSpec with Strict
         val resultsByUser = new java.util.concurrent.ConcurrentHashMap[String, List[String]]()
         val clients: Seq[SocketClient] = Seq("Alice", "Bob", "Dave").zipWithIndex.map {
           case (user, i) =>
-            SocketClient.connect(EndpointCoords.get(port, s"/user/$user")) { endpoint =>
+            SocketClient.connect(EndpointCoords.get(HostPort.localhost(port), s"/user/$user")) { endpoint =>
               endpoint.toRemote.onNext(WebFrame.text(s"client $user ($i) sending message")).onComplete { _ =>
                 endpoint.toRemote.onComplete()
               }
@@ -101,7 +101,7 @@ class SocketClientServerIntegrationTest extends BaseStreamingApiSpec with Strict
       try {
 
         val gotFive = new CountDownLatch(5)
-        c = SocketClient.connect(EndpointCoords.get(port, "/some/path")) { endpoint =>
+        c = SocketClient.connect(EndpointCoords.get(HostPort.localhost(port), "/some/path")) { endpoint =>
           endpoint.toRemote.onNext(WebFrame.text("from client"))
           endpoint.fromRemote.zipWithIndex.foreach {
             case (frame, i) =>
@@ -166,7 +166,7 @@ class SocketClientServerIntegrationTest extends BaseStreamingApiSpec with Strict
         }
       }
 
-      val c: SocketClient = SocketClient.connect(EndpointCoords.get(port, "/some/path")) { endpoint =>
+      val c: SocketClient = SocketClient.connect(EndpointCoords.get(HostPort.localhost(port), "/some/path")) { endpoint =>
         endpoint.fromRemote.foreach { msg =>
           msg.asText.foreach(fromServer = _)
           receivedFromServer.countDown()

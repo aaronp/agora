@@ -26,11 +26,9 @@ case class HostPort(host: String, port: Int, secure: Boolean = false) {
 
 object HostPort {
 
-  // doing this is very slow, but obviously all workers can just say 'localhost' to a central exchange
-  //java.net.InetAddress.getLocalHost.getHostName
-  private lazy val host = "localhost"
 
-  def localhost(port: Int): HostPort = HostPort(host, port)
+  def local(port: Int): HostPort = HostPort("0.0.0.0", port)
+  def localhost(port: Int): HostPort = HostPort("localhost", port)
 
   private val HostPortR = "(.*):(\\d+)".r
 

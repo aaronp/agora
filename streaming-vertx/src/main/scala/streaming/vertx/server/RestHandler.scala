@@ -5,6 +5,7 @@ import io.vertx.core.Handler
 import io.vertx.core.buffer.Buffer
 import io.vertx.scala.core.http.HttpServerRequest
 import monix.reactive.{Observable, Observer, Pipe}
+import streaming.rest.HttpMethod
 
 import scala.util.{Failure, Success, Try}
 
@@ -13,25 +14,39 @@ class RestHandler(feed: Observer[HttpServerRequest], val requests: Observable[Ht
     feed.onNext(event)
   }
 
-  def respondWith[In: FromBytes, Out: ToBytes](onRequest: In => Out): Observable[HttpServerRequest] = {
+  def respondWith[In: FromBytes, Out: ToBytes](onRequest: PartialFunction[(HttpMethod, String), In => Out]): Observable[HttpServerRequest] = {
     requests.map { req =>
-      req.handler(new Handler[Buffer] {
-        override def handle(event: Buffer): Unit = {
-          val body: Try[In] = FromBytes[In].read(event.getBytes)
-          body.map(onRequest) match {
-            case Success(reply) =>
-              import ToBytes.ops._
-              val data = Buffer.buffer(reply.bytes)
-              req.response().setStatusCode(200)
-              req.response().write(data)
-            case Failure(err) =>
-              val data = Buffer.buffer()
-              req.response().setStatusCode(500)
-              req.response().setStatusMessage(s"Error handling $body: $err")
-              req.response().close()
+      val method = HttpMethod.unapply(req.method().name()).getOrElse(sys.error(s"Couldn't parse method ${req.method}"))
+      val uri = method -> req.uri()
+      if (onRequest.isDefinedAt(uri)) {
+
+        val handler = onRequest(uri)
+
+        req.handler(new Handler[Buffer] {
+          override def handle(event: Buffer): Unit = {
+            val body: Try[In] = FromBytes[In].read(event.getBytes)
+            body.map(handler) match {
+              case Success(reply) =>
+                import ToBytes.ops._
+                val data = Buffer.buffer(reply.bytes)
+                req.response().setStatusCode(200)
+                req.response().write(data)
+              case Failure(err) =>
+                req.response().setStatusCode(500)
+                req.response().setStatusMessage(s"Error handling $body: $err")
+            }
+            req.response().end()
           }
         }
-      })
+        )
+      } else {
+        req.response().setStatusCode(404)
+        req.response().end(s"No route found for ${uri}")
+      }
+
+
+
+      req
     }
   }
 }

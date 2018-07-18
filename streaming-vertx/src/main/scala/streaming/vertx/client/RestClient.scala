@@ -1,27 +1,66 @@
 package streaming.vertx.client
 
-import agora.io.ToBytes
+import com.typesafe.scalalogging.StrictLogging
+import io.vertx.core.Handler
 import io.vertx.core.buffer.Buffer
 import io.vertx.lang.scala.ScalaVerticle
 import io.vertx.scala.core.Vertx
-import io.vertx.scala.core.http.{HttpClient, HttpClientRequest}
-import monix.execution.{CancelableFuture, Scheduler}
-import monix.reactive.{Observable, Observer, Pipe}
-import streaming.rest.{EndpointCoords, HttpMethod, WebURI}
-import streaming.vertx.client.RestClient.RestInput
+import io.vertx.scala.core.http.{HttpClient, HttpClientRequest, HttpClientResponse}
+import monix.eval.{MVar, Task}
+import monix.execution.Scheduler
+import monix.reactive.{Observable, Pipe}
+import streaming.rest.{EndpointCoords, HttpMethod}
 
-case class RestClient(val coords: EndpointCoords,
-                      val requests: Observer[RestInput],
-                 observable: Observable[RestInput],
-                 impl: Vertx = Vertx.vertx())(implicit scheduler : Scheduler) extends ScalaVerticle {
+
+object RestClient {
+  def connect(coords: EndpointCoords)(implicit scheduler: Scheduler): RestClient = {
+    RestClient(coords)
+  }
+}
+
+
+case class RestClient(val coords: EndpointCoords, impl: Vertx = Vertx.vertx()) extends ScalaVerticle with StrictLogging {
   vertx = impl
   val httpClient: HttpClient = vertx.createHttpClient
-  val sendingFuture: CancelableFuture[Unit] = observable.foreach(r => send(r))
+  //val sendingFuture: CancelableFuture[Unit] = observable.foreach(r => send(r))
+
+  val sendPipe: Pipe[RestInput, HttpClientResponse] = Pipe.publishToOne[RestInput].transform { restInputs =>
+    restInputs.flatMap { input =>
+
+      send(input) match {
+        case Left(err) => Observable.raiseError(new Exception(err))
+        case Right(req) =>
+          val response: Task[MVar[HttpClientResponse]] = MVar.empty[HttpClientResponse]
+          req.handler(new Handler[HttpClientResponse] {
+            override def handle(event: HttpClientResponse): Unit = {
+              println(s"got response $event")
+              response.foreach { mvar =>
+                println(s"mvar puttint $event")
+                mvar.put(event)
+              }
+            }
+          })
+
+          req.end()
+          Observable.fromTask(response.flatMap(_.read))
+      }
+    }.doOnTerminate { errOpt =>
+      logger.error(s"stoppoing client connected to $coords ${errOpt.fold("")("on error " + _)} ")
+      stop()
+    }
+  }
 
   start()
 
+  /**
+    * Sends the given request, but WITHOUGH ending it
+    * @param req
+    * @tparam A
+    * @return an unended request
+    */
   def send[A](req: RestInput): Either[String, HttpClientRequest] = {
-    req.uri.resolve(req.headers).right.map { parts =>
+    logger.debug(s"Sending $req")
+    req.uri.resolve(req.headers).right.flatMap { parts =>
       val uri = parts.mkString("/")
 
       val httpRequest: HttpClientRequest = req.uri.method match {
@@ -31,34 +70,19 @@ case class RestClient(val coords: EndpointCoords,
         case HttpMethod.DELETE => httpClient.delete(coords.port, coords.host, uri)
         case HttpMethod.HEAD => httpClient.head(coords.port, coords.host, uri)
         case HttpMethod.OPTIONS => httpClient.options(coords.port, coords.host, uri)
+        case _ => null
       }
 
-      httpRequest.write(Buffer.buffer(req.bodyAsBytes))
-
-      httpRequest
+      if (httpRequest == null) {
+        Left(s"Unsupported method ${req.uri.method}")
+      } else {
+        Right {
+          val withHeaders = req.headers.foldLeft(httpRequest.write(Buffer.buffer(req.bodyAsBytes))) {
+            case (r, (key, value)) => r.putHeader(key, value)
+          }
+          withHeaders
+        }
+      }
     }
-  }
-}
-
-object RestClient {
-
-  sealed trait RestInput {
-    def uri: WebURI
-    def headers: Map[String, String]
-    def bodyAsBytes: Array[Byte] = this match {
-      case content : RestInput.ContentInput[_] => content.bytes
-      case _ => Array.empty[Byte]
-    }
-  }
-  object RestInput {
-    case class BasicInput(uri: WebURI, headers: Map[String, String]) extends RestInput
-    case class ContentInput[A : ToBytes](uri: WebURI, headers: Map[String, String], body: A) extends RestInput {
-      def bytes: Array[Byte] = ToBytes[A].bytes(body)
-    }
-  }
-
-  def connect(coords: EndpointCoords)(implicit scheduler : Scheduler): RestClient = {
-    val (requests: Observer[RestInput], observer: Observable[RestInput]) = Pipe.publish[RestInput].unicast
-    RestClient(coords, requests, observer)
   }
 }
