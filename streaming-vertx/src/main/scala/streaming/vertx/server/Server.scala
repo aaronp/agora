@@ -5,8 +5,9 @@ import com.typesafe.scalalogging.StrictLogging
 import io.vertx.core.Handler
 import io.vertx.lang.scala.ScalaVerticle
 import io.vertx.scala.core.Vertx
-import io.vertx.scala.core.http.{HttpServerRequest, ServerWebSocket}
-import javax.jws.WebMethod
+import io.vertx.scala.core.http.{HttpServerRequest, HttpServerResponse, ServerWebSocket}
+import io.vertx.scala.ext.web.Router
+import io.vertx.scala.ext.web.handler.StaticHandler
 import monix.execution.Scheduler
 import monix.reactive.Observable
 import streaming.api.HostPort
@@ -58,24 +59,41 @@ object Server {
     Server
   }
 
-  def startRest[In: FromBytes, Out: ToBytes](port : Int)(onRequest: PartialFunction[(HttpMethod, String), In => Out]): Observable[HttpServerRequest] = {
-    val hostPort = HostPort.local(port)
-    val requestHandler = RestHandler()
-    val input = requestHandler.respondWith(onRequest)
+  def startRest[In: FromBytes, Out: ToBytes](hostPort: HostPort, onRequest: Map[WebURI, In => Out]) = {
+
+//    val requestHandler = RestHandler()
+    //val input = requestHandler.respondWith(onRequest)
 
     object RestVerticle extends ScalaVerticle {
       vertx = Vertx.vertx()
+
+      val router = Router.router(vertx)
+      router.route("/assets/*").handler(StaticHandler.create("assets"))
+
+
+      onRequest.foreach {
+        case (uri, onReq) =>
+          val method: io.vertx.core.http.HttpMethod = {
+            io.vertx.core.http.HttpMethod.valueOf(uri.method.toString)
+          }
+          val path = uri.uri.mkString("/")
+          router.route(method, path).handler { ctxt =>
+            val resp: HttpServerResponse = ctxt.response()
+          }
+      }
+
       override def start(): Unit = {
         vertx
           .createHttpServer()
-          .requestHandler(requestHandler)
+          .requestHandler(router.accept)
           .listen(hostPort.port, hostPort.host)
       }
     }
+    RestVerticle.start()
 
-    input.doOnComplete { () =>
-      RestVerticle.stop()
-    }
+//    input.doOnComplete { () =>
+//      RestVerticle.stop()
+//    }
   }
 
 

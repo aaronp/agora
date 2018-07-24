@@ -35,7 +35,9 @@ case class WebURI(method: HttpMethod, uri: List[Part]) {
   }
 
   /**
-    * Used to resolve the route uri to a string
+    * Used to resolve the route uri to a string, used by clients to fill-in the route.
+    *
+    * e.g. '/foo/:name/bar' with the map "name" -> "bob" would give you /foo/bob/bar"
     *
     * @param params
     * @return a Left of an error or a Right containing the uri parts

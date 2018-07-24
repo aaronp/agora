@@ -81,7 +81,7 @@ trait LowPriorityIOImplicits {
       setBytes(content)
     }
 
-    def text_=(str: String) = {
+    def text_=(str: String): Path = {
       createIfNotExists()
       setText(str)
     }
