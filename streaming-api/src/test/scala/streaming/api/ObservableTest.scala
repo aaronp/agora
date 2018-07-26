@@ -2,16 +2,32 @@ package streaming.api
 
 import monix.eval.Task
 import monix.reactive._
+import monix.reactive.subjects.Var
 import streaming.api.reactive.LastReceivedObserver
 
 class ObservableTest extends BaseStreamingApiSpec {
+
+  "Var := " should {
+    "notify when set" in {
+      val strVar = Var[String](null)
+      strVar := "test"
+      val res = strVar.take(1).toListL.runSyncUnsafe(testTimeout)
+      res shouldBe List("test")
+    }
+  }
+
+  "Consumer.loadBalance" should {
+    "load balance" in {
+
+    }
+  }
 
   "Observables.merge, switch and interleve, scan" ignore {}
   "Observables.flatten" should {
 
     "produce all the elements from the various observables" in {
       val list = Observable(Observable(1, 2), Observable(3, 4), Observable(5, 6)).flatten.toListL.runSyncUnsafe(testTimeout)
-      list should contain allOf (1, 2, 3, 4, 5, 6)
+      list should contain allOf(1, 2, 3, 4, 5, 6)
     }
 
   }
@@ -82,7 +98,7 @@ class ObservableTest extends BaseStreamingApiSpec {
 
       def consume(n: Int) = {
         val firstList: Task[List[List[String]]] = pimp(s"take($n)", onlyLatest.take(n)).toListL
-        val aa                                  = firstList.runSyncUnsafe(testTimeout * 10)
+        val aa = firstList.runSyncUnsafe(testTimeout * 10)
         println(s"consuming $n produces: " + aa.flatten)
       }
 
@@ -101,7 +117,7 @@ class ObservableTest extends BaseStreamingApiSpec {
 
       println("completeing...")
       doneF.onComplete(_ => from.onComplete())
-      val cnt         = onlyLatest.doOnNext(println).countL
+      val cnt = onlyLatest.doOnNext(println).countL
       val total: Long = cnt.runSyncUnsafe(testTimeout)
       println(total)
       if (total > 3) {

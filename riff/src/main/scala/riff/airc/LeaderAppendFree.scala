@@ -1,13 +1,13 @@
 package riff.airc
 
+import cats.InjectK
 import cats.free.Free
-import cats.{Inject, InjectK}
-import riff.raft.Peer
 
 // see https://underscore.io/blog/posts/2017/03/29/free-inject.html
-class LeaderAppendFree[C[_]](implicit inject: InjectK[LeaderAppend, C]) {
+case class LeaderAppendFree[C[_]](implicit inject: InjectK[LeaderAppend, C]) {
 
-  private val asCop = Free.liftInject[C]
+  private def asCop[T, A](req: LeaderAppend[T, A]): Free[C, A] = Free.liftInject[C](req)
+    //: LeaderAppend[T, _] => Free[C, A]
 
   /** action to append data to a Raft leader node
     *
@@ -17,9 +17,9 @@ class LeaderAppendFree[C[_]](implicit inject: InjectK[LeaderAppend, C]) {
     */
   def append[T](data: T): Free[C, AppendResponse] = {
     for {
-      logState <- appendData(data)
-      peers <- getClusterNodes
-      responses <- makeAppends(peers, logState, Array(data))
+      state <- getClusterState
+      logState <- appendData(state.leader.term, data)
+      responses <- makeAppends(state, logState, Array(data))
     } yield {
       responses
     }
@@ -29,27 +29,32 @@ class LeaderAppendFree[C[_]](implicit inject: InjectK[LeaderAppend, C]) {
 
   /**
     * This should append the data, uncommitted, to the log
+    *
     * @param data
     * @tparam T
     * @return
     */
-  def appendData[T](data: T): Free[C, LogState] = asCop[LeaderAppend, LogState](AppendDataToLog[T](data))
+  def appendData[T](term : Int, data: T): Free[C, LogState] = asCop[T, LogState](AppendDataToLog[T](term, data))
 
-  val getClusterNodes: Free[C, Set[Peer]] = asCop(GetClusterNodes)
+  val getClusterState: Free[C, ClusterState] = asCop(GetClusterState)
 
-  private def makeAppends[T](nodes: Set[Peer], logState: LogState, data: Array[T]): Free[C, AppendResponse] = {
-    nodes.toList match {
-      case head :: tail =>
-        val first = asCop[LeaderAppend, AppendResponse](SendAppendRequest(head, logState, data))
-        tail.foldLeft(first) {
-          case (free, node) =>
-            free.flatMap { _ =>
-              asCop[LeaderAppend, AppendResponse](SendAppendRequest(node, logState, data))
-            }
-        }
-      case Nil =>
-        asCop[LeaderAppend, AppendResponse](CommitLog(logState))
+  private def makeAppends[T](state: ClusterState, logState: LogState, data: Array[T]): Free[C, AppendResponse] = {
+    if (state.leader.isLeader) {
+      state.peers.toList match {
+        case head :: tail =>
+          val first = asCop[T, AppendResponse](SendAppendRequest(head, logState, data))
+          tail.foldLeft(first) {
+            case (free, node) =>
+              free.flatMap { _ =>
+                asCop[T, AppendResponse](SendAppendRequest(node, logState, data))
+              }
+          }
+        case Nil => Free.pure[C, AppendResponse](SingleNodeCluster)
+      }
+    } else {
+      Free.pure[C, AppendResponse](NotTheLeader(state.leader))
     }
+
   }
 
 }

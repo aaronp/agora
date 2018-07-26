@@ -9,7 +9,7 @@ import riff.RedirectException
 sealed trait LeaderOpinion {
   def name: String
   def term: Int
-
+  def isLeader = false
   def asError = new RedirectException(this)
 }
 
@@ -34,7 +34,9 @@ object LeaderOpinion {
     * @param name the leader name (e.g the node's name which has this opinion'
     * @param term the term
     */
-  final case class IAmTheLeader(name: String, term: Int) extends LeaderOpinion
+  final case class IAmTheLeader(name: String, term: Int) extends LeaderOpinion {
+    override val isLeader = true
+  }
 
   /** When a follower __votes_for__ another node. That node may not actually get elected,
     * mind.

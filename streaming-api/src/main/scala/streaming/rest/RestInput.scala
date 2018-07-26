@@ -1,7 +1,6 @@
-package streaming.vertx.client
+package streaming.rest
 
 import agora.io.ToBytes
-import streaming.rest.WebURI
 
 sealed trait RestInput {
   def uri: WebURI

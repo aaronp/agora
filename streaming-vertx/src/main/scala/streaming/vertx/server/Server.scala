@@ -1,17 +1,14 @@
 package streaming.vertx.server
 
-import agora.io.{FromBytes, ToBytes}
 import com.typesafe.scalalogging.StrictLogging
-import io.vertx.core.Handler
+import io.vertx.core.{AsyncResult, Handler}
 import io.vertx.lang.scala.ScalaVerticle
 import io.vertx.scala.core.Vertx
-import io.vertx.scala.core.http.{HttpServerRequest, HttpServerResponse, ServerWebSocket}
-import io.vertx.scala.ext.web.Router
-import io.vertx.scala.ext.web.handler.StaticHandler
+import io.vertx.scala.core.http.{HttpServer, HttpServerRequest, ServerWebSocket}
 import monix.execution.Scheduler
 import monix.reactive.Observable
 import streaming.api.HostPort
-import streaming.rest.{HttpMethod, WebURI}
+import streaming.rest.RestRequestContext
 
 import scala.concurrent.duration.Duration
 
@@ -32,9 +29,9 @@ object Server {
     start(HostPort.localhost(port), LoggingHandler, websocketHandler)
   }
 
-
-  def start(port: Int, requestHandler: Handler[HttpServerRequest] = LoggingHandler, nullableName: String = null)(onConnect: PartialFunction[String, OnConnect])(implicit timeout: Duration, scheduler: Scheduler): ScalaVerticle = {
-    val name = Option(nullableName).getOrElse("general")
+  def start(port: Int, requestHandler: Handler[HttpServerRequest] = LoggingHandler, nullableName: String = null)(
+      onConnect: PartialFunction[String, OnConnect])(implicit timeout: Duration, scheduler: Scheduler): ScalaVerticle = {
+    val name             = Option(nullableName).getOrElse("general")
     val websocketHandler = RoutingSocketHandler(onConnect.andThen(ServerWebSocketHandler.replay(name)))
     start(HostPort.localhost(port), requestHandler, websocketHandler)
   }
@@ -59,42 +56,40 @@ object Server {
     Server
   }
 
-  def startRest[In: FromBytes, Out: ToBytes](hostPort: HostPort, onRequest: Map[WebURI, In => Out]) = {
-
-//    val requestHandler = RestHandler()
-    //val input = requestHandler.respondWith(onRequest)
-
-    object RestVerticle extends ScalaVerticle {
+  def startRest(hostPort: HostPort)(implicit scheduler: Scheduler): Observable[RestRequestContext] = {
+    val restHandler = RestHandler()
+    object RestVerticle extends ScalaVerticle with StrictLogging {
       vertx = Vertx.vertx()
+      println(hostPort)
 
-      val router = Router.router(vertx)
-      router.route("/assets/*").handler(StaticHandler.create("assets"))
+      val listenHandler: Handler[AsyncResult[HttpServer]] = { res =>
+        if (res.succeeded()) {
+          logger.info(s"Runnig on ${res.result().actualPort()}")
+        } else {
+          logger.error(s"Failed to start server!")
 
-
-      onRequest.foreach {
-        case (uri, onReq) =>
-          val method: io.vertx.core.http.HttpMethod = {
-            io.vertx.core.http.HttpMethod.valueOf(uri.method.toString)
-          }
-          val path = uri.uri.mkString("/")
-          router.route(method, path).handler { ctxt =>
-            val resp: HttpServerResponse = ctxt.response()
-          }
+        }
       }
 
       override def start(): Unit = {
         vertx
           .createHttpServer()
-          .requestHandler(router.accept)
-          .listen(hostPort.port, hostPort.host)
+          .requestHandler(restHandler.handle)
+          .listen(hostPort.port, listenHandler)
       }
     }
     RestVerticle.start()
 
-//    input.doOnComplete { () =>
-//      RestVerticle.stop()
-//    }
+    restHandler.requests
   }
 
+  //      val router = Router.router(vertx)
+  //router.route("/assets/*").handler(StaticHandler.create("assets"))
+  //      router.route().handler { ctxt =>
+  //
+  //        ctxt.request()
+  //      }
+  // ...
+  //          .requestHandler(router.accept)
 
 }

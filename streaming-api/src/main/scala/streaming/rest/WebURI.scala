@@ -17,20 +17,30 @@ case class WebURI(method: HttpMethod, uri: List[Part]) {
 
   override def toString = s"$method ${uri.mkString("/")}"
 
-  def unapply(request: (HttpMethod, String)): Option[Map[String, String]] = {
-    request match {
-      case (`method`, requestUri) =>
-        val parts = requestUri.split("/", -1).filterNot(_.isEmpty)
+  type URI = String
 
-        if (parts.size == uri.size) {
-          val pears = (uri zip parts).collect {
-            case (ParamPart(name), value) => (name, value)
-          }
-          Option(pears.toMap)
-        } else {
-          None
-        }
+  /**
+    * pattern matches
+    *
+    * @param request the method and URI as a string
+    * @return a map of the parsed URI parts
+    */
+  def unapply(request: (HttpMethod, URI)): Option[Map[String, String]] = {
+    request match {
+      case (`method`, requestUri) => unapply(requestUri)
       case _ => None
+    }
+  }
+
+  def unapply(requestUri: URI): Option[Map[String, String]] = {
+    val parts = requestUri.split("/", -1).filterNot(_.isEmpty)
+    if (parts.size == uri.size) {
+      val pears = (uri zip parts).collect {
+        case (ParamPart(name), value) => (name, value)
+      }
+      Option(pears.toMap)
+    } else {
+      None
     }
   }
 

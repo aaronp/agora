@@ -197,6 +197,8 @@ trait LowPriorityIOImplicits {
 
     def size = Files.size(path)
 
+    def touch(attributes : FileAttribute[_]*) = Files.createFile(path, attributes:_*)
+
     def exists(linkOpts: LinkOption*) = Files.exists(path, linkOpts: _*)
 
     def isDir = exists() && Files.isDirectory(path)
