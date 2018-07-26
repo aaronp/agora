@@ -82,14 +82,4 @@ object Server {
 
     restHandler.requests
   }
-
-  //      val router = Router.router(vertx)
-  //router.route("/assets/*").handler(StaticHandler.create("assets"))
-  //      router.route().handler { ctxt =>
-  //
-  //        ctxt.request()
-  //      }
-  // ...
-  //          .requestHandler(router.accept)
-
 }
