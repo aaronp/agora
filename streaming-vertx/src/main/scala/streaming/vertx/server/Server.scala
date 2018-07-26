@@ -1,10 +1,10 @@
 package streaming.vertx.server
 
 import com.typesafe.scalalogging.StrictLogging
-import io.vertx.core.{AsyncResult, Handler}
+import io.vertx.core.Handler
 import io.vertx.lang.scala.ScalaVerticle
 import io.vertx.scala.core.Vertx
-import io.vertx.scala.core.http.{HttpServer, HttpServerRequest, ServerWebSocket}
+import io.vertx.scala.core.http.{HttpServerRequest, ServerWebSocket}
 import monix.execution.Scheduler
 import monix.reactive.Observable
 import streaming.api.HostPort
@@ -60,22 +60,13 @@ object Server {
     val restHandler = RestHandler()
     object RestVerticle extends ScalaVerticle with StrictLogging {
       vertx = Vertx.vertx()
-      println(hostPort)
 
-      val listenHandler: Handler[AsyncResult[HttpServer]] = { res =>
-        if (res.succeeded()) {
-          logger.info(s"Runnig on ${res.result().actualPort()}")
-        } else {
-          logger.error(s"Failed to start server!")
-
-        }
-      }
 
       override def start(): Unit = {
         vertx
           .createHttpServer()
           .requestHandler(restHandler.handle)
-          .listen(hostPort.port, listenHandler)
+          .listen(hostPort.port, hostPort.host)
       }
     }
     RestVerticle.start()
