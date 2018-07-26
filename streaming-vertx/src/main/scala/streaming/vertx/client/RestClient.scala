@@ -17,12 +17,11 @@ object RestClient {
 }
 
 
-case class RestClient(val location: HostPort, impl: Vertx = Vertx.vertx())(implicit scheduler: Scheduler) extends ScalaVerticle with StrictLogging {
+case class RestClient(location: HostPort, impl: Vertx = Vertx.vertx())(implicit scheduler: Scheduler) extends ScalaVerticle with StrictLogging {
   vertx = impl
   val httpClient: HttpClient = vertx.createHttpClient
 
-  val sendPipe: Pipe[RestInput, RestResponse] = Pipe.publishToOne[RestInput].transform { restInputs: Observable[RestInput] =>
-    restInputs.flatMap(send).doOnTerminate { errOpt =>
+  val sendPipe: Pipe[RestInput, RestResponse] = Pipe.publishToOne[RestInput].transform { restInputs: Observable[RestInput] => restInputs.flatMapDelayErrors(send).doOnTerminate { errOpt =>
       logger.error(s"stopping client connected to $location ${errOpt.fold("")("on error " + _)} ")
       stop()
     }
@@ -30,18 +29,12 @@ case class RestClient(val location: HostPort, impl: Vertx = Vertx.vertx())(impli
 
   start()
 
-  /**
-    * Sends the given request, but WITHOUGH ending it
-    *
-    * @param req
-    * @return an unended request
-    */
   def send(req: RestInput): Observable[RestResponse] = {
     logger.debug(s"Sending $req to $location")
 
     req.uri.resolve(req.headers) match {
       case Left(bad) =>
-        Observable.raiseError(new IllegalArgumentException(s"Request didn't supply required path parts: $bad"))
+        Observable.raiseError(new IllegalArgumentException(s"Request for ${req.uri} didn't resolve given the path parts: $bad"))
       case Right(parts) =>
 
         val uri = parts.mkString("/")

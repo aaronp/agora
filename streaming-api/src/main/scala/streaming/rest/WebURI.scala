@@ -34,7 +34,7 @@ case class WebURI(method: HttpMethod, uri: List[Part]) {
 
   def unapply(requestUri: URI): Option[Map[String, String]] = {
     val parts = requestUri.split("/", -1).filterNot(_.isEmpty)
-    if (parts.size == uri.size) {
+    if (parts.length == uri.size) {
       val pears = (uri zip parts).collect {
         case (ParamPart(name), value) => (name, value)
       }
@@ -49,7 +49,7 @@ case class WebURI(method: HttpMethod, uri: List[Part]) {
     *
     * e.g. '/foo/:name/bar' with the map "name" -> "bob" would give you /foo/bob/bar"
     *
-    * @param params
+    * @param params the parts of the path used to satisfy the ':key' form elements
     * @return a Left of an error or a Right containing the uri parts
     */
   def resolve(params: Map[String, String] = Map.empty): Either[String, List[String]] = {
@@ -58,7 +58,7 @@ case class WebURI(method: HttpMethod, uri: List[Part]) {
     val either: Either[String, List[String]] = uri.foldLeft(List[String]().asRight[String]) {
       case (Right(list), ParamPart(key)) =>
         params.get(key).map(_ :: list).toRight {
-          s"The supplied parameters doesn't contain an entry for '$key"
+          s"The supplied parameters ${params.keySet.toList.sorted.mkString("[", ",", "]")} doesn't contain an entry for '$key'"
         }
       case (Right(list), ConstPart(key)) => Right(key :: list)
     }
@@ -74,7 +74,7 @@ object WebURI {
   sealed trait Part
 
   object Part {
-    val ParamR = ":(.*)".r
+    private val ParamR = ":(.*)".r
 
     private def asPart(str: String): Part = {
       str match {
@@ -87,11 +87,11 @@ object WebURI {
   }
 
   case class ConstPart(part: String) extends Part {
-    override def toString = part
+    override def toString: String = part
   }
 
   case class ParamPart(name: String) extends Part {
-    override def toString = name
+    override def toString: String = name
   }
 
   def get(uri: String): WebURI = WebURI(GET, Part(uri))

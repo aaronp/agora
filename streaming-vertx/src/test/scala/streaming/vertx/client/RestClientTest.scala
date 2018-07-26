@@ -15,9 +15,7 @@ class RestClientTest extends BaseStreamingApiSpec {
       val port                                     = 1234
       val requests: Observable[RestRequestContext] = Server.startRest(HostPort.localhost(port))
 
-
-      requests.foreach { ctxt =>
-        ctxt.completeWith(RestResponse.json(s"""{ "msg" : "handled ${ctxt.request.uri}" }"""))
+      requests.foreach { ctxt => ctxt.completeWith(RestResponse.json(s"""{ "msg" : "handled ${ctxt.request.uri}" }"""))
       }
       val client: RestClient = RestClient.connect(HostPort.localhost(port))
 
@@ -34,17 +32,16 @@ class RestClientTest extends BaseStreamingApiSpec {
     }
   }
 
-  "RestClient.sendPipe" ignore {
+  "RestClient.sendPipe" should {
     "send and receive shit" in {
       val Index          = WebURI.get("/index.html")
       val Save           = WebURI.post("/save/:name")
-      val Read           = WebURI.get("/save/:name")
+      val Read = WebURI.get("/get/name")
       val port           = 8000
       val serverRequests = Server.startRest(HostPort.localhost(port))
-      serverRequests.foreach { ctxt => ctxt.completeWith(RestResponse.json("true"))
+      serverRequests.foreach { req =>
+        req.completeWith(RestResponse.text(s"handled ${req.request.method} request for ${req.request.uri} w/ body '${req.request.bodyAsString}'"))
       }
-      println(s"Running on $port")
-      println(s"Running on $port")
 
       val client = RestClient.connect(HostPort.localhost(port))
       try {
@@ -56,10 +53,18 @@ class RestClientTest extends BaseStreamingApiSpec {
           RestInput(Read)
         )
         val responses = Observable.fromIterable(requests).pipeThrough(client.sendPipe)
-        val all       = responses.toListL.runSyncUnsafe(testTimeout)
+        var received = List[RestResponse]()
+        responses.foreach { resp: RestResponse => received = resp :: received
+        }
 
-        all.foreach(println)
-        all.size shouldBe requests.size - 1
+        eventually {
+          received.size shouldBe requests.size - 1
+        }
+        received.map(_.bodyAsString) should contain theSameElementsInOrderAs List(
+          "handled GET request for get/name w/ body ''",
+          "handled POST request for save/david w/ body ''",
+          "handled GET request for index.html w/ body ''"
+        )
 
       } finally {
         client.stop()
