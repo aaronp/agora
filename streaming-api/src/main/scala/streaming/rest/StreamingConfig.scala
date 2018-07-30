@@ -1,10 +1,12 @@
-package streaming.vertx.server
+package streaming.rest
+
 import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.scalalogging.StrictLogging
 import monix.execution.Scheduler
 import monix.execution.schedulers.SchedulerService
 import streaming.api.HostPort
 
-case class StreamingVertxConfig(config: Config) {
+case class StreamingConfig(config: Config) {
   val hostPort: HostPort         = HostPort(config.getString("host"), config.getInt("port"))
   val staticPath: Option[String] = Option(config.getString("staticPath")).filterNot(_.isEmpty)
 
@@ -17,11 +19,12 @@ case class StreamingVertxConfig(config: Config) {
   lazy val ioScheduler: SchedulerService      = Scheduler.io()
 }
 
-object StreamingVertxConfig {
+object StreamingConfig extends StrictLogging {
 
   def fromArgs(a: Array[String]) = {
     val config: Config = agora.config.configForArgs(a, ConfigFactory.load().getConfig("streaming-vertx")).resolve()
 
-    StreamingVertxConfig(config)
+    StreamingConfig(config)
   }
+
 }

@@ -80,6 +80,7 @@ lazy val agora = (project in file("."))
     streamingFinch,
     streamingTyrus,
     streamingVertx,
+    streamingExample,
     streamingIntegration,
     configProject,
     riff,
@@ -246,6 +247,9 @@ lazy val streamingVertx = project
   .settings(name := s"${repo}-streaming-vertx")
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.CrudVertx)
+
+lazy val streamingExample = project.in(file("streaming-example")).dependsOn(json % "compile->compile;test->test").dependsOn(streamingVertx % "compile->compile;test->test").settings(name := s"${repo}-streaming-example")
+  .settings(commonSettings: _*)
 
 lazy val streamingIntegration = project
   .in(file("streaming-verintegrationtx"))

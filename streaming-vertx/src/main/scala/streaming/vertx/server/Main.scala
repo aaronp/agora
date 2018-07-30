@@ -2,7 +2,7 @@ package streaming.vertx.server
 import com.typesafe.scalalogging.StrictLogging
 import monix.execution.CancelableFuture
 import monix.reactive.Observable
-import streaming.rest.{RestRequestContext, RestResponse}
+import streaming.rest.{RestRequestContext, RestResponse, StreamingConfig}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -10,7 +10,7 @@ import scala.concurrent.duration.Duration
 object Main extends StrictLogging {
 
   def main(a: Array[String]) = {
-    val config = StreamingVertxConfig.fromArgs(a)
+    val config = StreamingConfig.fromArgs(a)
     logger.info(config.summary())
 
     implicit val scheduler                      = config.computeScheduler

@@ -58,28 +58,35 @@ object Server {
     Server
   }
 
+  def makeRouter(vertx: Vertx, staticPath: String, restHandler: Handler[HttpServerRequest]): Router = {
+    val router = Router.router(vertx)
+    router.route("/rest/*").handler(ctxt => restHandler.handle(ctxt.request()))
+
+    val staticHandler = StaticHandler.create().setDirectoryListing(true).setAllowRootFileSystemAccess(true).setWebRoot(staticPath)
+    router.route("/*").handler(staticHandler)
+
+    router
+  }
+
   def startRest(hostPort: HostPort, staticPath: Option[String])(implicit scheduler: Scheduler): Observable[RestRequestContext] = {
     val restHandler = RestHandler()
     object RestVerticle extends ScalaVerticle with StrictLogging {
       vertx = Vertx.vertx()
 
-      val router = Router.router(vertx)
-
-      val staticPathMsg = staticPath.fold("") { root =>
-        val staticHandlerA = StaticHandler.create().setDirectoryListing(true).setAllowRootFileSystemAccess(true)
-        val staticHandler = staticHandlerA.setWebRoot(root)
-        router.route("/ui/*").handler(staticHandler)
-        s"serving static data under $root"
+      val requestHandler: Handler[HttpServerRequest] = staticPath match {
+        case Some(path) =>
+          val router = makeRouter(vertx, path, restHandler.handle)
+          logger.info(s"Starting REST server at $hostPort, serving static data under $path")
+          router.accept _
+        case None =>
+          logger.info(s"Starting REST server at $hostPort")
+          restHandler.handle _
       }
-      router.route("/rest/*").handler(ctxt => restHandler.handle(ctxt.request()))
-
-      logger.info(s"Starting REST server at $hostPort, serving static data under $staticPathMsg")
 
       override def start(): Unit = {
         vertx
           .createHttpServer()
-          .requestHandler(router.accept) // restHandler.handle)
-//          .requestHandler(restHandler.handle)
+          .requestHandler(requestHandler)
           .listen(hostPort.port, hostPort.host)
       }
     }
