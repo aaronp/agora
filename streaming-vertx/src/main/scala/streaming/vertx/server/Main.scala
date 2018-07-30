@@ -14,7 +14,12 @@ object Main extends StrictLogging {
     logger.info(config.summary())
 
     implicit val scheduler                      = config.computeScheduler
+
+    Server.startRest(config.hostPort, config.staticPath)
+
+
     val started: Observable[RestRequestContext] = Server.startRest(config.hostPort, config.staticPath)
+
     val task: CancelableFuture[Unit] = started.foreach { ctxt => ctxt.completeWith(RestResponse.text(s"Handled ${ctxt.request}"))
     }
     Await.result(task, Duration.Inf)

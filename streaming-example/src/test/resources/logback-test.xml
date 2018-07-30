@@ -1,0 +1,15 @@
+<configuration debug="false">
+    <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <!--
+            <pattern>VERTX Test: %d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        -->
+        <encoder>
+            <pattern>Example Test: %d{HH:mm:ss.SSS} [%thread] %-5level %class{36}.%M - %msg%n</pattern>
+        </encoder>
+    </appender>
+    <root level="debug">
+        <appender-ref ref="STDOUT"/>
+    </root>
+    <logger name="streaming" level="debug" />
+</configuration>

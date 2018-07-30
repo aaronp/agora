@@ -20,7 +20,7 @@ class SocketClientServerIntegrationTest extends BaseStreamingApiSpec with Strict
       val port = 1236
       val UserIdR = "/user/(.*)".r
 
-      val started: ScalaVerticle = Server.start(port) {
+      val started: ScalaVerticle = Server.start(HostPort.localhost(port)) {
         case "/admin" => endpt =>
           endpt.toRemote.onNext(WebFrame.text("Thanks for connecting to admin"))
           endpt.toRemote.onComplete()
@@ -96,7 +96,7 @@ class SocketClientServerIntegrationTest extends BaseStreamingApiSpec with Strict
         }
       }
 
-      val started: ScalaVerticle = Server.startSocket(port)(chat)
+      val started: ScalaVerticle = Server.startSocket(HostPort.localhost(port))(chat)
       var c: SocketClient = null
       try {
 
@@ -156,7 +156,7 @@ class SocketClientServerIntegrationTest extends BaseStreamingApiSpec with Strict
       var fromClient = ""
 
       // start the server
-      val started: ScalaVerticle = Server.startSocket(port) { endpoint: ServerEndpoint =>
+      val started: ScalaVerticle = Server.startSocket(HostPort.localhost(port)) { endpoint: ServerEndpoint =>
 
         endpoint.toRemote.onNext(WebFrame.text(s"hello from the server at ${endpoint.socket.path}"))
 
