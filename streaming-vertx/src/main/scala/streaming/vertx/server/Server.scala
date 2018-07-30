@@ -58,19 +58,22 @@ object Server {
     Server
   }
 
-  def startRest(hostPort: HostPort, staticPath : Option[String])(implicit scheduler: Scheduler): Observable[RestRequestContext] = {
+  def startRest(hostPort: HostPort, staticPath: Option[String])(implicit scheduler: Scheduler): Observable[RestRequestContext] = {
     val restHandler = RestHandler()
     object RestVerticle extends ScalaVerticle with StrictLogging {
       vertx = Vertx.vertx()
 
       val router = Router.router(vertx)
 
-      val staticHandler = StaticHandler.create().setDirectoryListing(true)
-      router.route("/ui").handler(staticHandler)
+      val staticPathMsg = staticPath.fold("") { root =>
+        val staticHandlerA = StaticHandler.create().setDirectoryListing(true).setAllowRootFileSystemAccess(true)
+        val staticHandler = staticHandlerA.setWebRoot(root)
+        router.route("/ui/*").handler(staticHandler)
+        s"serving static data under $root"
+      }
       router.route("/rest/*").handler(ctxt => restHandler.handle(ctxt.request()))
 
-
-
+      logger.info(s"Starting REST server at $hostPort, serving static data under $staticPathMsg")
 
       override def start(): Unit = {
         vertx

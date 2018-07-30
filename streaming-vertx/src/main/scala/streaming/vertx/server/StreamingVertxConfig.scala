@@ -13,9 +13,8 @@ case class StreamingVertxConfig(config: Config) {
     config.summary().mkString("\n")
   }
 
-
   lazy val computeScheduler: SchedulerService = Scheduler.computation()
-  lazy val ioScheduler: SchedulerService = Scheduler.io()
+  lazy val ioScheduler: SchedulerService      = Scheduler.io()
 }
 
 object StreamingVertxConfig {
@@ -23,6 +22,6 @@ object StreamingVertxConfig {
   def fromArgs(a: Array[String]) = {
     val config: Config = agora.config.configForArgs(a, ConfigFactory.load().getConfig("streaming-vertx")).resolve()
 
-    StreamingVertxConfig(config.getConfig("streaming-vertx"))
+    StreamingVertxConfig(config)
   }
 }
