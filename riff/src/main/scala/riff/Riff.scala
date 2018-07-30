@@ -38,18 +38,32 @@ trait ClusterAdmin {
   def removeNode(name: String): Boolean
 }
 
+/**
+  * Represents a node in a Raft cluster
+  */
 trait ClusterNode {
+
+  /**
+    *
+    * @return a stream of ClusterEvents (nodes added, removed)
+    */
   def membership: Publisher[ClusterEvent]
 
   /**
-    * Invoked periodically when a node becomes leader
+    * This function is intended to be invoked periodically be a timer when the node is the leader. If the node is NOT the leader, calling this
+    * function should have no effect
+    *
+    * @return true if the call had an effect (i.e., we are the leader), false otherwise
     */
-  def onSendHeartbeatTimeout()
+  def onSendHeartbeatTimeout() : Boolean
 
   /**
-    * Invoked periodically when a node becomes a follower
+    * This function is intended to be invoked periodically be a timer when the node is a follower. If the node is NOT a follower, calling this
+    * function should have no effect
+    *
+    * @return true if the call had an effect (i.e., we are a follower), false otherwise
     */
-  def onReceiveHeartbeatTimeout()
+  def onReceiveHeartbeatTimeout() : Boolean
 }
 
 trait RaftTimer {

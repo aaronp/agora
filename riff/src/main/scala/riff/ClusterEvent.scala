@@ -1,5 +1,8 @@
 package riff
 
+/**
+  * Represents an event in the Raft cluster
+  */
 sealed trait ClusterEvent
 
 object ClusterEvent {

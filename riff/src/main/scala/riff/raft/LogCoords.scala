@@ -6,6 +6,8 @@ package riff.raft
   * @param index
   */
 final case class LogCoords(term : Int, index : Int) {
+  require(term > 0)
+  require(index > 0)
   def inc: LogCoords = copy(index + 1)
-
 }
+

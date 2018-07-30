@@ -1,9 +1,10 @@
 package riff
 
-import org.scalatest.{GivenWhenThen, Matchers, WordSpec}
+import agora.BaseIOSpec
+import org.scalatest.GivenWhenThen
 import riff.raft._
 
-abstract class RiffSpec extends WordSpec with Matchers with GivenWhenThen {
+abstract class RiffSpec extends BaseIOSpec with GivenWhenThen {
 
 
   implicit def asRichNode(node: RaftNode) = new {

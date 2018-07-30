@@ -88,11 +88,12 @@ class RiffInstance[A: IsEmpty, T](initial: RaftState[A],
   }
 
 
-  override def onSendHeartbeatTimeout(): Unit = {
+  override def onSendHeartbeatTimeout() = {
     update(RaftState.OnSendHeartbeatTimeout)
+    ???
   }
 
-  override def onReceiveHeartbeatTimeout(): Unit = ???
+  override def onReceiveHeartbeatTimeout() = ???
 
   private def onMessage(msg: RaftMessage): Unit = update(RaftState.MessageReceived(msg))
 
