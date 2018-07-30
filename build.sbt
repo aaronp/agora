@@ -248,7 +248,11 @@ lazy val streamingVertx = project
   .settings(commonSettings: _*)
   .settings(libraryDependencies ++= Dependencies.CrudVertx)
 
-lazy val streamingExample = project.in(file("streaming-example")).dependsOn(json % "compile->compile;test->test").dependsOn(streamingVertx % "compile->compile;test->test").settings(name := s"${repo}-streaming-example")
+lazy val streamingExample = project
+  .in(file("streaming-example"))
+  .dependsOn(json % "compile->compile;test->test")
+  .dependsOn(streamingVertx % "compile->compile;test->test")
+  .settings(name := s"${repo}-streaming-example")
   .settings(commonSettings: _*)
 
 lazy val streamingIntegration = project
