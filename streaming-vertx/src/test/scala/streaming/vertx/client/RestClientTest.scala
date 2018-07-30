@@ -13,7 +13,7 @@ class RestClientTest extends BaseStreamingApiSpec {
     "send and receive shit" in {
       val Index                                    = WebURI.get("/index.html")
       val port                                     = 1234
-      val requests: Observable[RestRequestContext] = Server.startRest(HostPort.localhost(port))
+      val requests: Observable[RestRequestContext] = Server.startRest(HostPort.localhost(port), None)
 
       requests.foreach { ctxt => ctxt.completeWith(RestResponse.json(s"""{ "msg" : "handled ${ctxt.request.uri}" }"""))
       }
@@ -38,7 +38,7 @@ class RestClientTest extends BaseStreamingApiSpec {
       val Save           = WebURI.post("/save/:name")
       val Read = WebURI.get("/get/name")
       val port           = 8000
-      val serverRequests = Server.startRest(HostPort.localhost(port))
+      val serverRequests = Server.startRest(HostPort.localhost(port), None)
       serverRequests.foreach { req =>
         req.completeWith(RestResponse.text(s"handled ${req.request.method} request for ${req.request.uri} w/ body '${req.request.bodyAsString}'"))
       }

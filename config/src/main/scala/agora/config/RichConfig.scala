@@ -2,7 +2,7 @@ package agora.config
 
 import java.nio.file.{Files, Paths}
 
-import com.typesafe.config.{Config, ConfigFactory, ConfigParseOptions, ConfigUtil}
+import com.typesafe.config.{Config, ConfigFactory, ConfigUtil}
 
 /**
   * Adds some scala utility around a typesafe config
@@ -41,8 +41,14 @@ object RichConfig {
     * which doesn't match either a file path, resource or key=value pair
     */
   object ParseArg {
-    val Throw         = (a: String) => sys.error(s"Unrecognized user arg '$a'")
-    val Ignore        = (a: String) => ConfigFactory.empty()
+    val Throw  = (a: String) => sys.error(s"Unrecognized user arg '$a'")
+    val Ignore = (a: String) => ConfigFactory.empty()
+
+    /**
+      * Treats orphaned args as on/off boolean flags
+      * e.g. Main foo bar=bazz x.y.z
+      * will have an entry for foo=true, bar set to 'bazz', and 'x.y.z' set to true
+      */
     val AsBooleanFlag = (a: String) => asConfig(ConfigUtil.quoteString(a), true.toString)
   }
 
@@ -56,8 +62,7 @@ object RichConfig {
       Option(Paths.get(path))
         .filter(p => Files.exists(p))
         .map(_.toFile)
-        .map { file =>
-          ConfigFactory.parseFileAnySyntax(file)
+        .map { file => ConfigFactory.parseFileAnySyntax(file)
         }
   }
 

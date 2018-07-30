@@ -5,6 +5,8 @@ import io.vertx.core.Handler
 import io.vertx.lang.scala.ScalaVerticle
 import io.vertx.scala.core.Vertx
 import io.vertx.scala.core.http.{HttpServerRequest, ServerWebSocket}
+import io.vertx.scala.ext.web.Router
+import io.vertx.scala.ext.web.handler.StaticHandler
 import monix.execution.Scheduler
 import monix.reactive.Observable
 import streaming.api.HostPort
@@ -56,16 +58,25 @@ object Server {
     Server
   }
 
-  def startRest(hostPort: HostPort)(implicit scheduler: Scheduler): Observable[RestRequestContext] = {
+  def startRest(hostPort: HostPort, staticPath : Option[String])(implicit scheduler: Scheduler): Observable[RestRequestContext] = {
     val restHandler = RestHandler()
     object RestVerticle extends ScalaVerticle with StrictLogging {
       vertx = Vertx.vertx()
+
+      val router = Router.router(vertx)
+
+      val staticHandler = StaticHandler.create().setDirectoryListing(true)
+      router.route("/ui").handler(staticHandler)
+      router.route("/rest/*").handler(ctxt => restHandler.handle(ctxt.request()))
+
+
 
 
       override def start(): Unit = {
         vertx
           .createHttpServer()
-          .requestHandler(restHandler.handle)
+          .requestHandler(router.accept) // restHandler.handle)
+//          .requestHandler(restHandler.handle)
           .listen(hostPort.port, hostPort.host)
       }
     }
