@@ -16,7 +16,7 @@ import scala.compat.Platform
   */
 trait LowPriorityIOImplicits {
 
-  implicit def strAsToBytes = new ToBytes[Array[Byte]] {
+  implicit def strAsToBytes: ToBytes[Array[Byte]] = new ToBytes[Array[Byte]] {
     override def bytes(value: Array[Byte]): Array[Byte] = value
   }
 

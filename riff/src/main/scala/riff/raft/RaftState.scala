@@ -139,7 +139,7 @@ object RaftState {
 
   final case class SendMessage(msg: RaftMessage) extends ActionResult
 
-  final case class AppendLogEntry[T](coords: LogCoords, data: T) extends ActionResult
+  final case class AppendLogEntry[A: ClassTag](coords: LogCoords, data: A) extends ActionResult
 
   final case class CommitLogEntry(coords: LogCoords) extends ActionResult
 

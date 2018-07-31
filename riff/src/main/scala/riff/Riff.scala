@@ -3,7 +3,7 @@ package riff
 import monix.execution.{Cancelable, Scheduler}
 import monix.reactive.Observable
 import org.reactivestreams.Publisher
-import riff.impl.RiffInstance
+import riff.impl.{RaftClusterClient, RiffInstance}
 import riff.raft.{CommitLog, IsEmpty, RaftState}
 
 import scala.concurrent.duration.FiniteDuration
