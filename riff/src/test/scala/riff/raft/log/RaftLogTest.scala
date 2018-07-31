@@ -1,8 +1,7 @@
-package riff.impl
+package riff.raft.log
 
 import riff.RiffSpec
-import riff.raft.RaftLog.LogAppendResult
-import riff.raft.{LogCoords, LogState, RaftLog}
+import riff.raft.{LogCoords, LogState}
 
 class RaftLogTest extends RiffSpec {
 
@@ -132,7 +131,7 @@ class RaftLogTest extends RiffSpec {
     }
   }
 
-  def withLog(test: RaftLog.FileBasedLog[String] => Unit) = withDir { dir => test(RaftLog[String](dir))
+  def withLog(test: FileBasedLog[String] => Unit) = withDir { dir => test(RaftLog[String](dir))
   }
 
 }
