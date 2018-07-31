@@ -197,7 +197,7 @@ trait LowPriorityIOImplicits {
 
     def size = Files.size(path)
 
-    def touch(attributes : FileAttribute[_]*) = Files.createFile(path, attributes:_*)
+    def touch(attributes: FileAttribute[_]*) = Files.createFile(path, attributes: _*)
 
     def exists(linkOpts: LinkOption*) = Files.exists(path, linkOpts: _*)
 
@@ -251,7 +251,15 @@ trait LowPriorityIOImplicits {
       if (isDir && recursive) {
         children.foreach(_.delete())
         Files.delete(path)
-      } else if (path.exists(LinkOption.NOFOLLOW_LINKS)) {
+      } else {
+        deleteFile()
+      }
+      path
+    }
+
+    def deleteFile(followLinks: Boolean = false): Path = {
+      val exists = if (followLinks) path.exists() else path.exists(LinkOption.NOFOLLOW_LINKS)
+      if (exists) {
         Files.delete(path)
       }
       path
