@@ -6,6 +6,40 @@ import riff.raft.{LogCoords, LogState, RaftLog}
 
 class RaftLogTest extends RiffSpec {
 
+  "RaftLog.ForDir commit" should {
+    "error when trying to commit when no entries are appended" in {
+      withLog { log =>
+        val exp = intercept[Exception] {
+          log.commit(1)
+        }
+        exp.getMessage should include("couldn't find the term for 1")
+      }
+    }
+    "error when trying to commit an entry <= the current commit index" in {
+      withLog { log =>
+        log.append(LogCoords(2, 1), "first")
+        log.append(LogCoords(2, 2), "second")
+        val entries = log.commit(2) // commit both
+        entries should contain inOrderOnly (LogCoords(2, 1), LogCoords(2, 2))
+
+        val exp = intercept[Exception] {
+          log.commit(1)
+        }
+        exp.getMessage should include("asked to commit 1, but latest committed is 2")
+      }
+    }
+    "return the coords for all committed entries when commit is called" in {
+      withLog { log =>
+        log.append(LogCoords(2, 1), "first")
+        log.append(LogCoords(2, 2), "second")
+        log.append(LogCoords(3, 3), "third")
+        val entries = log.commit(2) // commit both
+        entries should contain inOrderOnly (LogCoords(2, 1), LogCoords(2, 2))
+
+        log.commit(3) should contain only (LogCoords(3, 3))
+      }
+    }
+  }
   "RaftLog.ForDir append" should {
     "remove old appended entries if asked to append an earlier entry with a greater term" in {
       withLog { log =>
@@ -98,7 +132,7 @@ class RaftLogTest extends RiffSpec {
     }
   }
 
-  def withLog(test: RaftLog.ForDir[String] => Unit) = withDir { dir => test(RaftLog[String](dir))
+  def withLog(test: RaftLog.FileBasedLog[String] => Unit) = withDir { dir => test(RaftLog[String](dir))
   }
 
 }

@@ -53,9 +53,18 @@ trait RaftLog[T] {
 
 object RaftLog {
 
-  def apply[T: ToBytes](dir: Path, createIfNotExists: Boolean = false) = {
+  trait FileBasedLog[T] extends RaftLog[T] {
+    type Result = LogAppendResult
+    def dir: Path
+  }
+
+  def apply[T: ToBytes](dir: Path, createIfNotExists: Boolean = false): FileBasedLog[T] = {
     require(dir.isDir || (createIfNotExists && dir.mkDirs().isDir), s"$dir is not a directory")
     new ForDir[T](dir)
+  }
+
+  def inMemory[T](): RaftLog[T] = {
+    new InMemory[T]
   }
 
   val DefaultAttributes: Set[FileAttribute[_]] = {
@@ -64,7 +73,60 @@ object RaftLog {
     Set.empty
   }
 
+  /**
+    * Represents the return type of a file-based raft log
+    *
+    * @param written
+    * @param replaced
+    */
   final case class LogAppendResult(written: Path, replaced: Seq[Path] = Nil)
+
+  private abstract class BaseLog[T] extends RaftLog[T] with LazyLogging {
+
+    /**
+      * we can get in this state if we've been leader and accepted some append commands from a client,
+      * only to then discover there was a leader election and we were voted out, in which case we may
+      * have extra, invalid uncommitted entries
+      *
+      * @param coords the latest append coords
+      * @return the indices to remove
+      */
+    protected def checkForOverwrite(coords: LogCoords): immutable.Seq[Int] = {
+      val latest = latestAppended()
+
+      if (latest.index >= coords.index) {
+
+        require(
+          coords.term > latest.term,
+          s"Attempt to append $coords when our latest term is $latest. If an election took place after we were the leader, the term should've been incremented"
+        )
+
+        logger.warn(s"Received append for $coords when our last entry was $latest. Assuming we're not the leader and clobbering invalid indices")
+        (coords.index to latest.index)
+      } else {
+        // the coords are after our term
+        require(coords.term >= latest.term, s"Attempt to append an entry w/ an earlier term that our latest entry $latest")
+        require(coords.index == latest.index + 1, s"Attempt to skip a log entry by appending $coords when the latest entry was $latest")
+        Nil
+      }
+    }
+
+    protected def doCommit(index: Int): Unit
+
+    override final def commit(index: Int): Seq[LogCoords] = {
+      val previous = latestCommit()
+      require(previous < index, s"asked to commit $index, but latest committed is $previous")
+
+      val committed: immutable.IndexedSeq[LogCoords] = ((previous + 1) to index).map { i =>
+        val term = termForIndex(i).getOrElse(sys.error(s"couldn't find the term for $i"))
+        LogCoords(term, i)
+      }
+
+      doCommit(index)
+
+      committed
+    }
+  }
 
   /** This class is NOT thread safe.
     *
@@ -88,9 +150,9 @@ object RaftLog {
     * @param ev$1
     * @tparam T
     */
-  class ForDir[T: ToBytes](val dir: Path, fileAttributes: List[FileAttribute[_]] = DefaultAttributes.toList) extends RaftLog[T] with LazyLogging {
-
-    type Result = LogAppendResult
+  private class ForDir[T: ToBytes](override val dir: Path, fileAttributes: List[FileAttribute[_]] = DefaultAttributes.toList)
+      extends BaseLog[T]
+      with FileBasedLog[T] {
 
     import agora.io.implicits._
     private val commitFile = dir.resolve(".committed").createIfNotExists(fileAttributes: _*).ensuring(_.isFile)
@@ -102,19 +164,22 @@ object RaftLog {
     override def append(coords: LogCoords, data: T): Result = {
 
       // if another leader was elected while we were accepting appends, then our log may be wrong
-      val removedFiles = checkForOverwrite(coords)
-
-      // update the persisted log
-      writeTermEntryOnAppend(coords)
+      val entriesToRemove = checkForOverwrite(coords).map { index =>
+        termFileForIndex(index).deleteFile()
+        entryFileForIndex(index).deleteFile()
+      }
 
       // update our file stating what our last commit was so we don't have to search the file system
       updateLatestAppended(coords)
+
+      // update the persisted log
+      writeTermEntryOnAppend(coords)
 
       // finally write our log entry
       val entryFile = entryFileForIndex(coords.index)
       entryFile.bytes = ToBytes[T].bytes(data)
 
-      LogAppendResult(entryFile, removedFiles)
+      LogAppendResult(entryFile, entriesToRemove)
     }
 
     private def writeTermEntryOnAppend(coords: LogCoords) = {
@@ -123,59 +188,13 @@ object RaftLog {
       dir.resolve(s"${coords.index}.term").text = coords.term.toString
     }
 
-    def updateLatestAppended(coords: LogCoords) = {
+    private def updateLatestAppended(coords: LogCoords) = {
       // update the persisted record of the latest appended
       latestAppendedFile.text = s"${coords.term}:${coords.index}"
     }
 
-    /**
-      * we can get in this state if we've been leader and accepted some append commands from a client,
-      * only to then discover there was a leader election and we were voted out, in which case we may
-      * have extra, invalid uncommitted entries
-      *
-      * @param coords the latest append coords
-      * @return the removed files
-      */
-    private def checkForOverwrite(coords: LogCoords): immutable.Seq[Path] = {
-      val latest = latestAppended()
-
-      if (latest.index >= coords.index) {
-
-        require(
-          coords.term > latest.term,
-          s"Attempt to append $coords when our latest term is $latest. If an election took place after we were the leader, the term should've been incremented"
-        )
-
-        logger.warn(s"Received append for $coords when our last entry was $latest. Assuming we're not the leader and clobbering invalid indices")
-        val deletedFiles = (coords.index to latest.index).map { index =>
-          termFileForIndex(index).deleteFile()
-          entryFileForIndex(index).deleteFile()
-        }
-        deletedFiles
-      } else {
-        // the coords are after our term
-        require(coords.term >= latest.term, s"Attempt to append an entry w/ an earlier term that our latest entry $latest")
-        require(coords.index == latest.index + 1, s"Attempt to skip a log entry by appending $coords when the latest entry was $latest")
-        Nil
-      }
-    }
-
     private def entryFileForIndex(index: Int) = dir.resolve(s"${index}.entry")
     private def termFileForIndex(index: Int) = dir.resolve(s"$index.term")
-
-    override def commit(index: Int): Seq[LogCoords] = {
-      val previous = latestCommit()
-      require(previous < index, s"asked to commit $index, but latest committed is $previous")
-
-      val committed: immutable.IndexedSeq[LogCoords] = (previous to index).map { i =>
-        val term = termForIndex(i).getOrElse(sys.error(s"couldn't find the term for $i"))
-        LogCoords(term, i)
-      }
-
-      commitFile.text = index.toString
-
-      committed
-    }
 
     override def termForIndex(index: Int): Option[Int] = {
       Option(termFileForIndex(index)).filter(_.exists()).map(_.text.toInt)
@@ -196,10 +215,31 @@ object RaftLog {
         case other                => sys.error(s"Corrupt latest appended file ${latestAppendedFile} : >$other<")
       }
     }
-
-    override def logState: LogState = {
-      val LogCoords(term, index) = latestAppended()
-      LogState(latestCommit(), term, index)
+    override protected def doCommit(index: Int): Unit = {
+      commitFile.text = index.toString
     }
+  }
+
+  private class InMemory[T]() extends BaseLog[T] {
+    override type Result = Boolean
+    private var entries       = List[(LogCoords, T)]()
+    private var lastCommitted = 0
+    override protected def doCommit(index: Int): Unit = {
+      lastCommitted = index
+    }
+
+    override def append(coords: LogCoords, data: T): Boolean = {
+      ???
+    }
+    override def latestCommit(): Int = {
+      lastCommitted
+    }
+
+    override def termForIndex(index: Int): Option[Int] = {
+      entries.collectFirst {
+        case (LogCoords(term, `index`), _) => term
+      }
+    }
+    override def latestAppended(): LogCoords = entries.headOption.map(_._1).getOrElse(LogCoords.Empty)
   }
 }
