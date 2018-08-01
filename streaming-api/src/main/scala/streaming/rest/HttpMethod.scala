@@ -7,7 +7,6 @@ object HttpMethod {
     values.find(_.toString.equalsIgnoreCase(name))
   }
 
-
   case object PUT extends HttpMethod
 
   case object POST extends HttpMethod

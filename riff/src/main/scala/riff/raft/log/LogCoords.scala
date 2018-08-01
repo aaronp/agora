@@ -1,4 +1,4 @@
-package riff.raft
+package riff.raft.log
 
 /**
   * Represents the coords of a log entry
@@ -21,4 +21,3 @@ final case class LogCoords(term: Int, index: Int) extends Ordered[LogCoords] {
 object LogCoords {
   val Empty = LogCoords(0, 0)
 }
-

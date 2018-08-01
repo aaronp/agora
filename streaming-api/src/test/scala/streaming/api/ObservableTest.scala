@@ -1,7 +1,7 @@
 package streaming.api
 
 import monix.eval.Task
-import monix.execution.{Ack, CancelableFuture}
+import monix.execution.CancelableFuture
 import monix.reactive._
 import monix.reactive.subjects.Var
 import org.scalatest.GivenWhenThen
@@ -15,9 +15,9 @@ class ObservableTest extends BaseStreamingApiSpec with GivenWhenThen {
     "complete when the selector triggers" in {
       val selector = Var(0)
 
-      val x = Observable(1,2,3).delayOnNextBySelector { i =>
+      val x = Observable(1, 2, 3).delayOnNextBySelector { i =>
         println(i)
-        def ok(selNr : Int) = {
+        def ok(selNr: Int) = {
           val r = selNr >= i
           println(s"$selNr vs $i --> $r")
           r
@@ -26,7 +26,7 @@ class ObservableTest extends BaseStreamingApiSpec with GivenWhenThen {
         Observable(1)
       }
 
-      val fut: CancelableFuture[Unit] =  x.doOnNext(value => println(s"got next value $value")).foreach { p =>
+      val fut: CancelableFuture[Unit] = x.doOnNext(value => println(s"got next value $value")).foreach { p =>
         println(s"got " + p)
       }
 
@@ -97,7 +97,6 @@ class ObservableTest extends BaseStreamingApiSpec with GivenWhenThen {
         //        val trigger = firstElemTrigger.filter(_ != "").dump("stream2 trigger")
         //        Observable(s"computed $input").delaySubscriptionWith(trigger)
         val res: Observable[(String, String)] = Observable(input -> s"computed $input")
-
 
         res.delayOnNextBySelector {
           case ("A", _) =>
@@ -338,8 +337,7 @@ class ObservableTest extends BaseStreamingApiSpec with GivenWhenThen {
       def pimp[T](prefix: String, obs: Observable[T]): Observable[T] = {
         obs
           .doOnNext { n => println(s"  [$prefix.onNext] : $n")
-          }
-          .doOnError { e => println(s"  [$prefix.onError] : $e")
+          }.doOnError { e => println(s"  [$prefix.onError] : $e")
           }
           .doOnComplete { () => println(s"  [$prefix.onComplete] ")
           }

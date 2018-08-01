@@ -9,4 +9,3 @@ object NodeRole {
 
   case object Candidate extends NodeRole
 }
-

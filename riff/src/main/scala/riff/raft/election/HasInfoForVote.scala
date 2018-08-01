@@ -1,5 +1,5 @@
 package riff.raft.election
-import riff.raft.LogCoords
+import riff.raft.log.LogCoords
 import simulacrum.typeclass
 
 /**
@@ -11,18 +11,22 @@ import simulacrum.typeclass
   * 3) the log index is greater than this node's log length
   * 3) the log term is greater than or equal to this node's log term
   *
-  * @tparam T the type of whatever representation of a raft node we have
+  * @tparam A the type of whatever representation of a raft node we have
   */
-@typeclass trait HasInfoForVote[T] {
+@typeclass trait HasInfoForVote[A] {
 
   /**
-    * Create a reply to the given vote request
+    * Create a reply to the given vote request.
+    *
+    * NOTE: Whatever the actual node 'A' is, it is expected that, upon a successful reply,
+    * it updates it's own term and writes down (remembers) that it voted in this term so
+    * as not to double-vote should this node crash.
     *
     * @param receivingRaftNode the raft node which is processing the vote request
     * @param forRequest the data from the vote request
     * @return the RequestVoteReply
     */
-  def replyTo(receivingRaftNode: T, forRequest: RequestVoteData): RequestVoteReply = {
+  final def replyTo(receivingRaftNode: A, forRequest: RequestVoteData): RequestVoteReply = {
     def logStateOk = {
       val ourLogState = logState(receivingRaftNode)
       forRequest.lastLogTerm >= ourLogState.term &&
@@ -46,18 +50,18 @@ import simulacrum.typeclass
   /** @param raftNode the raft node which is processing the vote request
     * @return the current term of the node
     */
-  def currentTerm(raftNode: T): Int
+  def currentTerm(raftNode: A): Int
 
   /** @param raftNode the raft node which is processing the vote request
     * @param term the term we're voting in
     * @return true if the raft node has already voted in an election for this term
     */
-  def hasAlreadyVotedInTerm(raftNode: T, term: Int): Boolean
+  def hasAlreadyVotedInTerm(raftNode: A, term: Int): Boolean
 
   /** @param raftNode the raft node which is processing the vote request
     * @return the current state of our log
     */
-  def logState(raftNode: T): LogCoords
+  def logState(raftNode: A): LogCoords
 }
 
 object HasInfoForVote {
@@ -68,11 +72,11 @@ object HasInfoForVote {
     * @tparam T the type for this HasInfoForVote
     * @return a HasInfoForVote for any type T
     */
-  def const[T](term: Int, log: LogCoords)(votedInTerm: Int => Boolean) = new HasInfoForVote[T] {
-    override def currentTerm(raftNode: T): Int = term
+  def const[A](term: Int, log: LogCoords)(votedInTerm: Int => Boolean) = new HasInfoForVote[A] {
+    override def currentTerm(ignored: A): Int = term
 
-    override def hasAlreadyVotedInTerm(raftNode: T, term: Int): Boolean = votedInTerm(term)
+    override def hasAlreadyVotedInTerm(ignored: A, term: Int): Boolean = votedInTerm(term)
 
-    override def logState(raftNode: T): LogCoords = log
+    override def logState(ignored: A): LogCoords = log
   }
 }

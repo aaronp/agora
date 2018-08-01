@@ -64,16 +64,16 @@ object Row {
 
     trait Cell {
       type T
-      def value : T
+      def value: T
     }
 
-    case class ColumnSource(column : String, values : Observable[Cell])
-    case class TableSource(values : Observable[ColumnSource])
+    case class ColumnSource(column: String, values: Observable[Cell])
+    case class TableSource(values: Observable[ColumnSource])
 
     object TableRender {
-      case class Update[T](column : String, index : Int, value : T)
+      case class Update[T](column: String, index: Int, value: T)
 
-      case class Renderer[T : Show](updates : Observable[Update[T]])
+      case class Renderer[T: Show](updates: Observable[Update[T]])
     }
 
     trait Lookup {

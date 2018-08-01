@@ -9,7 +9,7 @@ sealed trait RestInput {
 
   def bodyAsBytes: Array[Byte] = this match {
     case content: RestInput.ContentInput[_] => content.bytes
-    case _ => Array.empty[Byte]
+    case _                                  => Array.empty[Byte]
   }
 }
 

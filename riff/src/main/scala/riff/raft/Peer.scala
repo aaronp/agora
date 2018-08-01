@@ -10,12 +10,7 @@ package riff.raft
   * @param lastRpcSent
   * @param lastHeartbeatSent
   */
-case class Peer(name: String,
-                nextIndex: Int,
-                matchIndex: Int,
-                voteGranted: Boolean,
-                lastRpcSent: Long,
-                lastHeartbeatSent: Long) {
+case class Peer(name: String, nextIndex: Int, matchIndex: Int, voteGranted: Boolean, lastRpcSent: Long, lastHeartbeatSent: Long) {
 
   // if the last message we sent was within the earlier 1/2 of the HB timeout then we can/should
   // still send the HB
@@ -35,20 +30,9 @@ case class Peer(name: String,
 
 object Peer {
 
-
   def apply(peerName: String): Peer = initial(peerName)
 
   def initial(peerName: String): Peer = {
-    Peer(name = peerName,
-      nextIndex = 1,
-      matchIndex = 0,
-      voteGranted = false,
-      lastRpcSent = 0,
-      lastHeartbeatSent = 0
-    )
+    Peer(name = peerName, nextIndex = 1, matchIndex = 0, voteGranted = false, lastRpcSent = 0, lastHeartbeatSent = 0)
   }
 }
-
-
-
-

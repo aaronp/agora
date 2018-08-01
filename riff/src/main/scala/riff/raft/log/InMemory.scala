@@ -1,5 +1,4 @@
 package riff.raft.log
-import riff.raft.LogCoords
 
 private[log] class InMemory[T]() extends BaseLog[T] {
   override type Result = Boolean

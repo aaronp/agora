@@ -3,8 +3,6 @@ import java.nio.file.Path
 import java.nio.file.attribute.FileAttribute
 
 import agora.io.ToBytes
-import riff.raft.LogCoords
-
 trait FileBasedLog[T] extends RaftLog[T] {
   type Result = LogAppendResult
   def dir: Path
@@ -100,7 +98,6 @@ object FileBasedLog {
       commitFile.text match {
         case ""    => 0
         case value => value.toInt
-        case other => sys.error(s"Corrupt latest commit file ${commitFile} : >$other<")
       }
     }
 

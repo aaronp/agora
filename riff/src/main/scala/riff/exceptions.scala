@@ -1,6 +1,7 @@
 package riff
 
-import riff.raft.{LeaderOpinion, LogCoords}
+import riff.raft.LeaderOpinion
+import riff.raft.log.LogCoords
 
 final case class RedirectException(leaderOpinion: LeaderOpinion) extends Exception(s"${leaderOpinion}")
 

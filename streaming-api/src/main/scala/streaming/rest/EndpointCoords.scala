@@ -25,16 +25,16 @@ case class EndpointCoords(location: HostPort, uri: WebURI, params: Map[String, S
 
 object EndpointCoords {
 
-  def get(hostPort : HostPort, uri: String, params: Map[String, String] = Map.empty): EndpointCoords =
+  def get(hostPort: HostPort, uri: String, params: Map[String, String] = Map.empty): EndpointCoords =
     EndpointCoords(hostPort, WebURI(HttpMethod.GET, uri), params)
-  def post(hostPort : HostPort, uri: String, params: Map[String, String] = Map.empty): EndpointCoords =
+  def post(hostPort: HostPort, uri: String, params: Map[String, String] = Map.empty): EndpointCoords =
     EndpointCoords(hostPort, WebURI(HttpMethod.POST, uri), params)
-  def put(hostPort : HostPort, uri: String, params: Map[String, String] = Map.empty): EndpointCoords =
+  def put(hostPort: HostPort, uri: String, params: Map[String, String] = Map.empty): EndpointCoords =
     EndpointCoords(hostPort, WebURI(HttpMethod.PUT, uri), params)
-  def delete(hostPort : HostPort, uri: String, params: Map[String, String] = Map.empty): EndpointCoords =
+  def delete(hostPort: HostPort, uri: String, params: Map[String, String] = Map.empty): EndpointCoords =
     EndpointCoords(hostPort, WebURI(HttpMethod.DELETE, uri), params)
-  def head(hostPort : HostPort, uri: String, params: Map[String, String] = Map.empty): EndpointCoords =
+  def head(hostPort: HostPort, uri: String, params: Map[String, String] = Map.empty): EndpointCoords =
     EndpointCoords(hostPort, WebURI(HttpMethod.HEAD, uri), params)
 
-  def apply(hostPort : HostPort, uri: WebURI, params: (String, String)*): EndpointCoords = EndpointCoords(hostPort, uri, params.toMap)
+  def apply(hostPort: HostPort, uri: WebURI, params: (String, String)*): EndpointCoords = EndpointCoords(hostPort, uri, params.toMap)
 }

@@ -1,7 +1,6 @@
 package riff.raft.election
 import riff.RiffSpec
-import riff.raft.LogCoords
-
+import riff.raft.log.LogCoords
 class HasInfoForVoteTest extends RiffSpec {
   import HasInfoForVote.ops._
 

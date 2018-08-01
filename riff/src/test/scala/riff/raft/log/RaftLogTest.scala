@@ -1,8 +1,6 @@
 package riff.raft.log
 
 import riff.RiffSpec
-import riff.raft.{LogCoords, LogState}
-
 class RaftLogTest extends RiffSpec {
 
   "RaftLog commit" should {

@@ -1,10 +1,8 @@
 package riff
 
 import monix.execution.{Cancelable, Scheduler}
-import monix.reactive.Observable
 import org.reactivestreams.Publisher
-import riff.impl.{RaftClusterClient, RiffInstance}
-import riff.raft.{CommitLog, IsEmpty, RaftState}
+import riff.impl.RaftClusterClient
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -18,8 +16,6 @@ import scala.concurrent.duration.FiniteDuration
   *
   * All of these algebras don't necessarily have to be in the same trait
   */
-
-
 // https://softwaremill.com/free-tagless-compared-how-not-to-commit-to-monad-too-early/
 trait DataSync[A] {
   def append(data: A): Publisher[AppendResult]
@@ -55,7 +51,7 @@ trait ClusterNode {
     *
     * @return true if the call had an effect (i.e., we are the leader), false otherwise
     */
-  def onSendHeartbeatTimeout() : Boolean
+  def onSendHeartbeatTimeout(): Boolean
 
   /**
     * This function is intended to be invoked periodically be a timer when the node is a follower. If the node is NOT a follower, calling this
@@ -63,7 +59,7 @@ trait ClusterNode {
     *
     * @return true if the call had an effect (i.e., we are a follower), false otherwise
     */
-  def onReceiveHeartbeatTimeout() : Boolean
+  def onReceiveHeartbeatTimeout(): Boolean
 }
 
 trait RaftTimer {
@@ -83,7 +79,7 @@ trait RaftTimer {
 
   def resetSendHeartbeatTimeout(node: ClusterNode, previous: Option[C]): C
 
-  def cancelTimeout(c: C)
+  def cancelTimeout(c: C): Unit
 
 }
 
@@ -93,7 +89,6 @@ object RaftTimer {
       type C = Cancelable
 
       override def cancelTimeout(c: Cancelable): Unit = c.cancel()
-
 
       override def resetSendHeartbeatTimeout(node: ClusterNode, previous: Option[C]) = {
         previous.foreach(_.cancel())
@@ -114,15 +109,6 @@ object RaftTimer {
   }
 }
 
-
 trait Riff[A] extends DataSync[A] with ClusterAdmin with ClusterNode
 
-object Riff {
-
-  def apply[A: IsEmpty](initial: RaftState[A],
-                        send: RaftClusterClient[Observable],
-                        log: CommitLog[A],
-                        timer : RaftTimer)(implicit sched: Scheduler): Riff[A] = {
-    new RiffInstance(initial, send, log, timer)
-  }
-}
+object Riff {}

@@ -1,6 +1,5 @@
 package riff.raft.log
 import com.typesafe.scalalogging.LazyLogging
-import riff.raft.LogCoords
 
 import scala.collection.immutable
 

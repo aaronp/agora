@@ -4,8 +4,6 @@ import java.nio.file.Path
 
 import agora.io.ToBytes
 import agora.io.implicits._
-import riff.raft.{LogCoords, LogState}
-
 /**
   * Represents a persistent log
   *
