@@ -26,7 +26,7 @@ case class HostPort(host: String, port: Int, secure: Boolean = false) {
 
 object HostPort {
 
-  def local(port: Int): HostPort = HostPort("0.0.0.0", port)
+  def local(port: Int): HostPort     = HostPort("0.0.0.0", port)
   def localhost(port: Int): HostPort = HostPort("localhost", port)
 
   private val HostPortR = "(.*):(\\d+)".r

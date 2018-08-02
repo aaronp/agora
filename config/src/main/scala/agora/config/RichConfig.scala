@@ -62,7 +62,8 @@ object RichConfig {
       Option(Paths.get(path))
         .filter(p => Files.exists(p))
         .map(_.toFile)
-        .map { file => ConfigFactory.parseFileAnySyntax(file)
+        .map { file =>
+          ConfigFactory.parseFileAnySyntax(file)
         }
   }
 

@@ -17,7 +17,8 @@ object Row {
 
   object example {
     case class Person(id: Int, name: String)
-    val people: Observable[Person] = Observable.fromIterable((1 to 10).map { i => Person(i, "guy " + i)
+    val people: Observable[Person] = Observable.fromIterable((1 to 10).map { i =>
+      Person(i, "guy " + i)
     })
     def people(id: Int, from: Int, size: Int): Observable[Person] = {
       Observable.fromIterable((from until (from + size)).map(i => Person(id, s"person $i")))

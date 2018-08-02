@@ -15,8 +15,8 @@ import simulacrum.typeclass
   * We are successful if the term of the request is greater than our term, then we should immediately become
   * a follower w/ the new term and return success
   *
-  * @tparam A
-  * @tparam T
+  * @tparam A the raft node type
+  * @tparam T log entry data type
   */
 @typeclass trait HasInfoForAppend[A, T] {
 
@@ -36,12 +36,7 @@ import simulacrum.typeclass
       0
     }
 
-    if (request.isHeartbeat) {
-      val success = request.term >= ourTerm
-      AppendEntriesReply(request.term, success, matchIndex)
-    } else {
-
-      ???
-    }
+    val success = request.term >= ourTerm
+    AppendEntriesReply(request.term, success, matchIndex)
   }
 }
