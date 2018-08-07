@@ -14,7 +14,7 @@ import scala.concurrent.Future
   * @param obs
   * @tparam T
   */
-case class LastReceivedObserver[T](obs: Observer[T]) extends Observer[T] {
+case class LastReceivedObserver[T](obs: Observer[T]) extends Observer[T] z{
   protected var lastElem: Option[T] = None
 
   override def onNext(elem: T): Future[Ack] = {

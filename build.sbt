@@ -2,7 +2,7 @@ val repo = "agora"
 name := repo
 val username            = "aaronp"
 val scalaEleven         = "2.11.8"
-val scalaTwelve         = "2.12.4"
+val scalaTwelve         = "2.12.6"
 val defaultScalaVersion = scalaTwelve
 crossScalaVersions := Seq(scalaEleven, scalaTwelve)
 organization := s"com.github.${username}"
@@ -16,7 +16,8 @@ git.useGitDescribe := false
 
 scalacOptions += "-Ypartial-unification"
 
-addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.3")
+addCompilerPlugin("org.spire-math"  %% "kind-projector" % "0.9.3")
+addCompilerPlugin("org.scalamacros" % "paradise"        % "2.1.0" cross CrossVersion.full)
 
 git.gitTagToVersionNumber := { tag: String =>
   if (tag matches "v?[0-9]+\\..*") {
@@ -285,7 +286,8 @@ lazy val riff = project
   .in(file("riff"))
   .settings(name := s"${repo}-riff")
   .settings(commonSettings: _*)
-  .dependsOn(streamingApi % "compile->compile;test->test")
+  .settings(addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full))
+  //.dependsOn(streamingApi % "compile->compile;test->test")
   .settings(libraryDependencies ++= Dependencies.Riff)
 
 lazy val json = project
