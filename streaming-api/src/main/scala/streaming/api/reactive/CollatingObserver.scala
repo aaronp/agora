@@ -9,7 +9,7 @@ import org.reactivestreams.{Publisher, Subscriber}
 
 import scala.concurrent.Future
 
-class CollatingObserver[T <: AnyRef](combine : (T , T) => T)(implicit scheduler : Scheduler)
+abstract class CollatingObserver[T >: Null <: AnyRef](combine : (T , T) => T)(implicit scheduler : Scheduler)
   extends Observer[T]
     with Publisher[T]
     with StrictLogging {
